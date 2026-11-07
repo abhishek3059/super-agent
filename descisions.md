@@ -21,7 +21,7 @@ Contracted means the design or documentation choice, not runtime authorization a
 - [Progress](progress.md)
 - [Build](build.md)
 - [Flow](flow.md)
-- [Tasks](taks/README.md)
+- [Tasks](tasks/README.md)
 - [Council meetings](council%20meetings/README.md)
 - [Implementation report](docs/implementation/super-agent.md)
 
@@ -35,8 +35,8 @@ Documentation-only delivery at the user's literal paths.
 
 - **Status:** Contracted scope.
 - **Rationale:** The brief records an initially empty project with no application, repository history, tests, or stack conventions (`docs/delivery/super-agent-brief.md:4`, `docs/delivery/super-agent-brief.md:41-42`). The current delivery is documentation only, so silently implementing a prototype or renaming requested artifacts would exceed the ask.
-- **Alternatives and trade-offs:** (a) Build a scaffold/prototype now — rejected: no implementation authorization exists and runtime work requires a separate request and the §6 gates. (b) Silently correct the requested spellings (`taks/`, `descisions.md`, `council meetings/`) to conventional `tasks/`/`decisions.md` — rejected: it would break the user's literal, explicitly preserved file names and create duplicate artifacts.
-- **Implications:** Exact spelled paths are preserved across the whole pack (`taks/`, `council meetings/`, `descisions.md`); spaces in `council meetings/` are literal filesystem characters, percent-encoded in links; no Git initialization, dependencies, scripts, or build (see [DEC-16](#dec-16)); documentation acceptance is separate from future runtime acceptance.
+- **Alternatives and trade-offs:** (a) Build a scaffold/prototype now — rejected: no implementation authorization exists and runtime work requires a separate request and the §6 gates. (b) Silently correct the requested spellings (`tasks/`, `descisions.md`, `council meetings/`) to conventional `tasks/`/`decisions.md` — rejected: it would break the user's literal, explicitly preserved file names and create duplicate artifacts.
+- **Implications:** Exact spelled paths are preserved across the whole pack (`tasks/`, `council meetings/`, `descisions.md`); spaces in `council meetings/` are literal filesystem characters, percent-encoded in links; no Git initialization, dependencies, scripts, or build (see [DEC-16](#dec-16)); documentation acceptance is separate from future runtime acceptance.
 - **Source evidence:** [Discovery brief](docs/delivery/super-agent-brief.md):4, :41-42; design §2.1 ([docs/design/super-agent.md](docs/design/super-agent.md):22, :26); related requirement [REQ-D01](prd.md#req-d01).
 - **Reopen:** Only a new explicit user/manager instruction that changes the requested taxonomy or grants implementation authorization.
 
@@ -70,7 +70,7 @@ Tiny authoritative local job ledger for the overlap/cancel/restart demonstration
 - **Rationale:** The proposed first slice must demonstrate overlap, per-job cancellation, and safe restart reconciliation, which requires durable job truth outside any model or session (`docs/delivery/council.md:121-125`, `docs/delivery/council.md:150-151`). Durable IDs, cancellation races, and no blind replay after duplicates, disconnects, or restarts are contracted requirements ([REQ-05](prd.md#req-05), [REQ-06](prd.md#req-06)).
 - **Alternatives and trade-offs:** (a) A stateless, fully disposable task demonstrator — simpler and a legitimate counterfactual for instantaneous tasks, but it cannot establish durable truth or safe reconciliation, so it fails this slice's goals; reopen evidence below is exactly this case. (b) A distributed queue/framework or recurring jobs — rejected before evidence of need: added operational/state surface with no benefit to one host and two workers (`docs/delivery/council.md:186-187`).
 - **Implications:** Minimal task records still need bounded retention/delete rules ([DEC-10](#dec-10)); a ledger does not make a sleeping host process jobs (`docs/delivery/council.md:152-155`, `docs/delivery/council.md:207`).
-- **Source evidence:** [Council](docs/delivery/council.md):121-125, :150-151, :186-187, :207; design §3 ([docs/design/super-agent.md](docs/design/super-agent.md):394-395); task [RT-004](taks/004-task-ledger-and-policy.md).
+- **Source evidence:** [Council](docs/delivery/council.md):121-125, :150-151, :186-187, :207; design §3 ([docs/design/super-agent.md](docs/design/super-agent.md):394-395); task [RT-004](tasks/004-task-ledger-and-policy.md).
 - **Reopen:** If the selected first real tasks are truly instantaneous/disposable and require no recovery (no overlap/cancel/restart demonstration needed), remove the ledger to the stateless counterfactual, per the signed design.
 
 ### DEC-05
@@ -126,7 +126,7 @@ Durable intent/result/action IDs, task revisions, session/playback epochs, verif
 - **Alternatives and trade-offs:** (a) Trust model narration or browser echoes as task evidence — rejected across the council. (b) Promise exactly-once external effects — rejected: an uncertain external outcome still requires reconciliation, provider idempotency evidence, and disclosure.
 - **Implications:** Initial workers have no external effects; future tools must supply receipts and safe retry contracts; cancellation can legitimately resolve to success/failure/unknown.
 - **Source evidence:** [Council](docs/delivery/council.md):44-45, :55-58, :192-204, :201; [Discovery brief](docs/delivery/super-agent-brief.md):68-70.
-- **Reopen:** Evidence from future reconciliation/restart validation ([RT-007](taks/007-recovery-and-retention.md), [RT-008](taks/008-runtime-validation.md)) that the chosen correctness contract fails, or a real task needing an external-effect contract the ledger cannot express — both reopen the design, not the approval.
+- **Reopen:** Evidence from future reconciliation/restart validation ([RT-007](tasks/007-recovery-and-retention.md), [RT-008](tasks/008-runtime-validation.md)) that the chosen correctness contract fails, or a real task needing an external-effect contract the ledger cannot express — both reopen the design, not the approval.
 
 ### DEC-10
 
@@ -137,7 +137,7 @@ Minimal local records with retention; no recordings/transcripts by default; no s
 - **Alternatives and trade-offs:** (a) Persist raw audio always — better debugging, worse privacy and larger attack surface. (b) Claim "local database = private" — false: the client-delegation candidate needs transient text context, which can misroute work on transcript mistakes and is scoped/transient precisely to avoid persistent capture; conversational continuity is reduced (design §4). (c) Never leave cloud — the council split cloud-first only behind runtime consent and acceptable data terms (`docs/delivery/council.md`:207 area).
 - **Implications:** Cloud models are permitted for development, not automatically for runtime microphone or personal-context transmission; provider retention is disclosed separately and may not expose user-facing deletion.
 - **Source evidence:** [Discovery brief](docs/delivery/super-agent-brief.md):79-81, :18-22; [Council](docs/delivery/council.md):136-139, :182-193.
-- **Reopen:** Explicit user opt-in to recording/transcripts with an approved bounded retention rule; or passing private-native measurements ([RT-012](taks/012-private-native-audio-feasibility.md)) after separate approval.
+- **Reopen:** Explicit user opt-in to recording/transcripts with an approved bounded retention rule; or passing private-native measurements ([RT-012](tasks/012-private-native-audio-feasibility.md)) after separate approval.
 
 ### DEC-11
 
@@ -179,7 +179,7 @@ OpenCode V2 may later be an OS-contained worker adapter, not the assumed voice t
 - **Status:** Deferred.
 - **Rationale:** OpenCode v2.1.2 discovery returned HTTP 404 for its experimental voice route, and a reachable router port proves only port availability (`docs/delivery/super-agent-brief.md`:47-57); its permission model is not OS containment and event streams need reconciliation (`docs/delivery/super-agent-brief.md`:106-110; `docs/delivery/council.md`:159-165).
 - **Alternatives and trade-offs:** (a) Use OpenCode as the voice transport now — unproven and failing that recorded route. (b) Treat prompt permissions as a sandbox — false boundary.
-- **Implications:** No route/contact is claimed; version/access/child-scope/event-reconciliation evidence is required ([RT-010](taks/010-contained-opencode-adapter.md)).
+- **Implications:** No route/contact is claimed; version/access/child-scope/event-reconciliation evidence is required ([RT-010](tasks/010-contained-opencode-adapter.md)).
 - **Source evidence:** [Discovery brief](docs/delivery/super-agent-brief.md):47-57, :106-110; [Council](docs/delivery/council.md):159-165, :234-237.
 - **Reopen:** Demonstrated OS containment, least privilege, restricted credentials/egress, independent child-scope enforcement, and version/capability tests passing under a separate capability request.
 
@@ -192,7 +192,7 @@ Defer desktop packaging, wake detection, locked-screen operation, always-on host
 - **Alternatives and trade-offs:** (a) Build desktop/wake support now — richer ambient experience, added complexity and risk before the slice. (b) Promise always-on operation — requires the user's separate approval of an always-on host.
 - **Implications:** First experience is hands-free within an active session only; no native-local or locked-screen/always-on guarantee ([REQ-17](prd.md#req-17), [REQ-18](prd.md#req-18)).
 - **Source evidence:** [Council](docs/delivery/council.md):73-75, :126-139, :152-153; [Discovery brief](docs/delivery/super-agent-brief.md):43-46.
-- **Reopen:** A separate device/host/security/power decision ([RT-011](taks/011-always-on-and-desktop-feasibility.md)) or passing private-native hardware/quality/latency/egress benchmarks ([RT-012](taks/012-private-native-audio-feasibility.md)), each with its own approval.
+- **Reopen:** A separate device/host/security/power decision ([RT-011](tasks/011-always-on-and-desktop-feasibility.md)) or passing private-native hardware/quality/latency/egress benchmarks ([RT-012](tasks/012-private-native-audio-feasibility.md)), each with its own approval.
 
 ### DEC-16
 

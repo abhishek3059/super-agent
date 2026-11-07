@@ -20,7 +20,7 @@ background task delegation.
 | [Build](build.md) | Build position; future commands are proposed and not runnable |
 | [Decisions](descisions.md) | Decision register DEC-01–DEC-17 |
 | [Flows](flow.md) | Ten numbered workflows WF-01–WF-10 |
-| [Tasks](taks/README.md) | Twelve future task records, all `not started` |
+| [Tasks](tasks/README.md) | Twelve future task records, all `not started` |
 | [Council meetings](council%20meetings/README.md) | Three archived deliberation records |
 
 ## Supporting records

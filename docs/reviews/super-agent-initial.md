@@ -25,7 +25,7 @@ FAIL
 
 ### R-02 — MAJOR — Phase entry prerequisites are circular
 
-- **Location:** `phases.md:39-61`, especially `phases.md:49`; compare `prd.md:129-143` and `taks/002-local-scaffold-and-boundary.md:21-23`.
+- **Location:** `phases.md:39-61`, especially `phases.md:49`; compare `prd.md:129-143` and `tasks/002-local-scaffold-and-boundary.md:21-23`.
 - **Trigger:** RT-001 and RT-G00 are completed under a later authorized implementation request, but no scaffold or native connection exists yet. The implementer attempts to begin PH-01.
 - **What breaks:** PH-01 calls RT-G01 its **prerequisite**, although RT-G01 requires the reviewed scaffold and measured native connection produced by PH-01's own RT-002/RT-003 tasks. Following the phase entry condition therefore prevents starting the work that could satisfy it. PH-00, PH-02, and PH-03 repeat this confusion with their own completion gates; the individual task dependencies do not agree with that reading of the phase plan.
 - **Contract:** `docs/design/super-agent.md:331-362`, `:432`, and `:459-466` distinguish ordered work from evidence required to close runtime gates.
@@ -49,7 +49,7 @@ FAIL
 
 ### R-05 — MINOR — RT-001 acceptance mixes today's unresolved status with future success criteria
 
-- **Location:** `taks/001-runtime-consent-and-feasibility.md:35-39`.
+- **Location:** `tasks/001-runtime-consent-and-feasibility.md:35-39`.
 - **Trigger:** the future setup task obtains explicit approval of a monetary budget and bounded retention/retry windows, as required by RT-G00.
 - **What breaks:** its first acceptance bullet says those values **remain unset and unapproved**. Read as a completion criterion, that becomes false precisely when the task successfully resolves the gate. The current unresolved status is appropriate, but is misplaced as a future acceptance condition.
 - **Required correction:** keep today's unresolved values in a dated status/input note. Define acceptance in terms of a truthful dated setup decision and explicit approvals before proceeding, without pre-approving any amount or silently treating missing approval as success.
@@ -64,7 +64,7 @@ FAIL
 ## What was checked
 
 - Read the complete signed design, the discovery brief (110 lines), and the council source (237 lines), rather than relying on the supplied audit summary.
-- Read all **24 requested files**: seven root documents; `taks/README.md` and RT-001–RT-012; `council meetings/README.md` and meetings 1–3. Also read `docs/implementation/super-agent.md` and `docs/delivery/super-agent.md`.
+- Read all **24 requested files**: seven root documents; `tasks/README.md` and RT-001–RT-012; `council meetings/README.md` and meetings 1–3. Also read `docs/implementation/super-agent.md` and `docs/delivery/super-agent.md`.
 - Independently inspected the workspace, including hidden files: all literal requested paths exist; no `tasks/` or `decisions.md` substitute exists; no non-Markdown file or application scaffold was present in that inspection. This establishes observed contents, not historical proof that no external/global action ever occurred.
 - Independently checked local **inline Markdown links** before adding this report: **29 Markdown files, 477 local link occurrences, 75 nonempty fragment occurrences, zero detected missing-file/outside-workspace/fragment errors**. The checker decoded percent-encoded paths, retained hyphens in heading slugs, and recognized explicit anchors. Twenty inline external-link occurrences (10 distinct URLs) were excluded. Bare external URLs in the source records were not part of those inline-link counts. These are this review's snapshot counts, not a repetition of the manager's earlier totals.
 - Confirmed all twelve future task records state `not started` and execution evidence `none`, and all eight future phase headings retain their initial `not started` status. Checked task dependencies and scope against the signed task table, not just field presence.

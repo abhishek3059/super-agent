@@ -20,7 +20,7 @@
 - [Progress](../progress.md)
 - [Build](../build.md)
 - [Flow](../flow.md)
-- [Tasks](../taks/README.md)
+- [Tasks](../tasks/README.md)
 - [Implementation report](../docs/implementation/super-agent.md)
 
 ## Part A — chair synthesis and resolutions
