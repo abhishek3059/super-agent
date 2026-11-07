@@ -67,6 +67,12 @@ retention windows are still open.
 | A4 | Voice approval can be safe | Voice is not identity ([REQ-09](../../prd.md#req-09)) | Design review: voice may approve only low-risk request classes; anything else needs a device tap |
 | A5 | Developers will star and contribute | Drives the OSS goal | Launch the A2 spike as a small standalone tool and measure interest |
 
+**A2 result (2026-11-07): holds.** A Claude Code `PermissionRequest` hook
+forwarded real permission requests to a loopback server; allow and deny from
+outside the terminal both took effect. Interactive sessions, the timeout path,
+and non-Bash tools are not tested yet. Details:
+[spikes/a2-permission-hook](../../spikes/a2-permission-hook/README.md).
+
 A4 is a real tension: approving a permission grants authority. The default must
 be that voice approves only pre-classified low-risk requests and everything
 else asks for an explicit on-device confirmation.
