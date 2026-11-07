@@ -36,10 +36,13 @@ background task delegation.
 
 ## Contributing (AI agents)
 
+- Full workflow: [CONTRIBUTING.md](CONTRIBUTING.md).
+- `develop` is the integration branch; `main` is production. Feature work goes
+  through a PR into `develop`, then `develop` is merged into `main` for release.
 - Pull requests use [`.github/pull_request_template.md`](.github/pull_request_template.md).
 - Run `npm ci` once after cloning, then `npm run check` before committing.
 - Hooks: `pre-commit` and `pre-push` run the repository check; `commit-msg`
-  enforces Conventional Commits.
+  enforces Conventional Commits. CI runs the same check on GitHub.
 - The tooling checks secrets, conflict markers, large files, and local Markdown
   links/anchors. It does not build or run the assistant.
 
