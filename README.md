@@ -33,9 +33,11 @@ background task delegation.
 - [Initial review archive](docs/reviews/super-agent-initial.md) — preserved FAIL
 - [Design-stage security assessment](docs/security/super-agent.md) — PASS
 - [Implementation report](docs/implementation/super-agent.md)
+- [Zero-cost build stack](docs/free-stack.md) (research proposal)
 
 ## Contributing (AI agents)
 
+- Agent rulebook: [AGENTS.md](AGENTS.md). Every agent reads it first.
 - Full workflow: [CONTRIBUTING.md](CONTRIBUTING.md).
 - `develop` is the integration branch; `main` is production. Feature work goes
   through a PR into `develop`, then `develop` is merged into `main` for release.

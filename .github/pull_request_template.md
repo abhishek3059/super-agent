@@ -50,6 +50,12 @@ Evidence (logs, screenshots, output excerpts):
 <!-- paste or link redacted evidence -->
 ```
 
+## Quality scores (AGENTS.md section 9)
+
+| Correctness | Security | Honesty | Scope | Clarity | Average | Scored by |
+| --- | --- | --- | --- | --- | --- | --- |
+| <!-- 0-10 --> | | | | | | <!-- self / reviewer agent + model / human --> |
+
 ## AI-agent safety checklist
 
 - [ ] No secrets, tokens, private keys, `.env` files, or personal data added.
