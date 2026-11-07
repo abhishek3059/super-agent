@@ -55,22 +55,38 @@ outage. Neither model is a selected runtime native-audio provider.
 Read-only PowerShell inspection on 2026-11-07 confirmed the 24-file requested
 taxonomy, twelve future task records with complete template fields and
 `not started`/`none` evidence, eight future phase initial statuses, and no
-non-Markdown files or application scaffold.
+application scaffold or application source files. Repository-only tooling files
+exist and are recorded below.
 
 Final manager audit after restoring the literal `taks/` folder name (it had been
 renamed to `tasks/`, which broke every task link):
 
 | Check | Result |
 | --- | --- |
-| Markdown files audited | 33 (24-file pack + README + supporting records) |
-| Local link occurrences checked | 810 |
-| Heading-fragment links checked | 230 |
+| Markdown files audited | 34 (24-file pack + README + supporting records + AI-agent PR template) |
+| Local link occurrences checked | 819 |
+| Heading-fragment links checked | 233 |
 | Missing files / outside-workspace targets / missing fragments | **0** |
 | External links not fetched | 20 |
 
 These are artifact checks using an inline-link/GFM-style-heading parser, not a
 full Markdown renderer, live external-URL validation, application tests, native
 transport tests, or a runtime security assessment.
+
+## Repository automation (2026-11-07)
+
+Added at the user's explicit request after documentation-stage acceptance:
+
+- [`.github/pull_request_template.md`](../../.github/pull_request_template.md) — AI-agent pull-request template.
+- Husky 9.1.7 with `pre-commit`, `commit-msg`, and `pre-push` hooks.
+- `scripts/check-repo.mjs` (secrets, conflict markers, large files, Markdown links/anchors) and `scripts/check-commit-msg.mjs` (Conventional Commits).
+- `package.json` and `package-lock.json` for tooling only.
+
+`npm run check` passes with 34 Markdown files, 819 local links, 233 fragments,
+and zero errors. This is repository automation, not an application scaffold or
+runtime proof; no application dependency, provider access, audio capture, build,
+or application test suite was added. See [DEC-17](../../descisions.md#dec-17) and
+[build.md](../../build.md). RT-G00–RT-G05 remain open.
 
 ## Independent reports
 
@@ -90,7 +106,8 @@ review agents. All runtime gates RT-G00–RT-G05 remain open.
 ## Deferred runtime work
 
 No runtime cloud microphone/context transmission, paid service provisioning,
-model download, dependency installation, source scaffold, build, test suite,
-voice performance measurement, or worker integration is part of this delivery.
+model download, application dependency installation, source scaffold, build,
+test suite, voice performance measurement, or worker integration is part of this
+delivery.
 Provider eligibility/access, runtime consent, a first real task pair, target host,
 usage budgets, and retention windows remain unresolved implementation gates.

@@ -26,6 +26,16 @@ This is a dated status record, not a success narrative.
 - [Design-stage independent review report](docs/reviews/super-agent.md), with the dated [initial revision-1 FAIL archive](docs/reviews/super-agent-initial.md) preserved.
 - [Design-stage security assessment report](docs/security/super-agent.md).
 
+## Repository tooling addition (post-acceptance, 2026-11-07)
+
+At the user's explicit request, repository-only automation was added after documentation-stage acceptance:
+
+- Husky 9.1.7 via `package.json`/`package-lock.json`; `pre-commit` and `pre-push` run `node scripts/check-repo.mjs`, and `commit-msg` enforces Conventional Commits.
+- [`.github/pull_request_template.md`](.github/pull_request_template.md) is the AI-agent pull-request template.
+- `npm run check` validates forbidden credential files, high-confidence secret patterns, unresolved conflict markers, large files, and local Markdown links/anchors.
+
+This is not application implementation: no source scaffold, runtime dependency, provider access, audio capture, application build, or application test suite was added. Runtime gates RT-G00–RT-G05 remain open. Decision: [DEC-17](descisions.md#dec-17).
+
 ## Independent dispositions (dated snapshot, 2026-11-07)
 
 - Historical authoring timeline: the initial independent design review, archived at [docs/reviews/super-agent-initial.md](docs/reviews/super-agent-initial.md) and dated 2026-11-07, recorded disposition FAIL (changes required) on revision 1 with findings R-01 through R-06; revision 2 of this pack applied those documentation corrections on the same date. That archive is dated history, not the current disposition.

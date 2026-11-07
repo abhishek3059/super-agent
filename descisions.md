@@ -205,12 +205,23 @@ No current build commands; future commands remain proposed/non-runnable until a 
 - **Source evidence:** [Discovery brief](docs/delivery/super-agent-brief.md):4, :47-57; design §2.12 ([docs/design/super-agent.md](docs/design/super-agent.md):366-378).
 - **Reopen:** A separately approved scaffold request; then replace proposals with actual commands from opened manifests/scripts, with dated execution evidence.
 
+### DEC-17
+
+Adopt repository-only automation (Husky hooks and an AI-agent pull-request template) without authorizing an application scaffold or runtime work.
+
+- **Status:** Contracted repository tooling, added at the user's explicit request on 2026-11-07; not a runtime or provider decision.
+- **Rationale:** AI agents will push changes, so local hooks catch forbidden credential files, high-confidence secret patterns, unresolved conflict markers, oversized files, broken Markdown links/anchors, and non-conventional commit messages before they reach the remote. A pull-request template makes agent identity, verification evidence, safety checks, runtime impact, and human approval explicit.
+- **Alternatives and trade-offs:** (a) No hooks — fewer moving parts, but quality and safety checks depend on each agent remembering them. (b) CI-only enforcement — central and hard to bypass, but slower feedback and requires remote configuration. (c) Husky — one small development dependency, standard Git hooks, local feedback; requires Node/npm and `npm ci` after clone.
+- **Implications:** `package.json`, `package-lock.json`, `.husky/`, and `scripts/` now exist for tooling only. `npm run check` is runnable and validates the repository; it does not build, test, or run the assistant. Application commands in [build.md](build.md) remain proposed/non-runnable. Runtime gates RT-G00–RT-G05 remain open.
+- **Source evidence:** Explicit user request in this session (2026-11-07); `.github/pull_request_template.md`, `.husky/pre-commit`, `.husky/commit-msg`, `.husky/pre-push`, `scripts/check-repo.mjs`, `scripts/check-commit-msg.mjs`; [build.md](build.md).
+- **Reopen:** A decision to remove or replace Husky, add CI enforcement, or expand hooks to application tests after an approved scaffold.
+
 ## Register fields
 
-Every DEC entry from [DEC-01](#dec-01) to [DEC-16](#dec-16) above carries the seven contracted fields inline: status, rationale, alternatives and trade-offs, implications, source evidence, and reopen conditions. This summary restates the register; it does not replace the individual records.
+Every DEC entry from [DEC-01](#dec-01) to [DEC-17](#dec-17) above carries the seven contracted fields inline: status, rationale, alternatives and trade-offs, implications, source evidence, and reopen conditions. This summary restates the register; it does not replace the individual records.
 
 ## Provisional and post-review status
 
-[DEC-04](#dec-04) is conditional; [DEC-06](#dec-06) records a provisional post-review Researcher follow-up candidate, not a re-voted council consensus and not a tested or approved runtime selection; [DEC-13](#dec-13), [DEC-14](#dec-14), and [DEC-15](#dec-15) are deferred. None of these statuses is a runtime approval, and no decision in this register claims tested access or an approved provider.
+[DEC-04](#dec-04) is conditional; [DEC-06](#dec-06) records a provisional post-review Researcher follow-up candidate, not a re-voted council consensus and not a tested or approved runtime selection; [DEC-13](#dec-13), [DEC-14](#dec-14), and [DEC-15](#dec-15) are deferred; [DEC-17](#dec-17) is repository tooling only. None of these statuses is a runtime approval, and no decision in this register claims tested access or an approved provider.
 
 See [Native transport research](docs/design/super-agent.md) in the signed design and the council meeting records.

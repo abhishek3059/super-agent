@@ -5,8 +5,9 @@ native voice-to-voice conversation, hands-free active-session use, and bounded
 background task delegation.
 
 > **Documentation only.** There is no application scaffold, runnable assistant,
-> installed dependency, provider account, or executed build/test in this
-> repository. All runtime gates remain open.
+> application dependency, provider account, or executed application build/test in
+> this repository. Husky is installed for repository checks only. All runtime
+> gates remain open.
 
 ## Start here
 
@@ -17,7 +18,7 @@ background task delegation.
 | [Phases](phases.md) | Milestone plan PH-DOC–PH-07 with entry and exit gates |
 | [Progress](progress.md) | Dated documentation milestone and dispositions |
 | [Build](build.md) | Build position; future commands are proposed and not runnable |
-| [Decisions](descisions.md) | Decision register DEC-01–DEC-16 |
+| [Decisions](descisions.md) | Decision register DEC-01–DEC-17 |
 | [Flows](flow.md) | Ten numbered workflows WF-01–WF-10 |
 | [Tasks](taks/README.md) | Twelve future task records, all `not started` |
 | [Council meetings](council%20meetings/README.md) | Three archived deliberation records |
@@ -32,6 +33,15 @@ background task delegation.
 - [Initial review archive](docs/reviews/super-agent-initial.md) — preserved FAIL
 - [Design-stage security assessment](docs/security/super-agent.md) — PASS
 - [Implementation report](docs/implementation/super-agent.md)
+
+## Contributing (AI agents)
+
+- Pull requests use [`.github/pull_request_template.md`](.github/pull_request_template.md).
+- Run `npm ci` once after cloning, then `npm run check` before committing.
+- Hooks: `pre-commit` and `pre-push` run the repository check; `commit-msg`
+  enforces Conventional Commits.
+- The tooling checks secrets, conflict markers, large files, and local Markdown
+  links/anchors. It does not build or run the assistant.
 
 ## Scope boundaries
 

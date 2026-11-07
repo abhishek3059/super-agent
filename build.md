@@ -1,8 +1,8 @@
 # Super-agent — build position and future command contract (documentation pack)
 
-**Documentation-only project. There is no runnable assistant, application scaffold, package manifest, install script, or verified application build command.**
+**Documentation-only project. There is no runnable assistant, application scaffold, or verified application build command.** A minimal `package.json` and Husky hooks exist for repository quality checks only; they do not scaffold or run the assistant.
 
-No dependency installation, package/config/script creation, model download, Git setup, service restart, global change, credential reading, model API contact, or audio capture is part of this request.
+No application dependency installation, application scaffold creation, model download, service restart, global change, credential reading, model API contact, or audio capture is part of this documentation delivery. Repository-only tooling was added separately at the user's explicit request; see below.
 
 ## Navigation
 
@@ -40,19 +40,30 @@ Additional diagnostic evidence was supplied by the parent session during discove
 
 These are discovery checks, not application builds or tests. A reachable router port does not prove model access.
 
-### Proposed future command contract — NOT RUNNABLE IN THIS PROJECT; DO NOT RUN UNTIL AN APPROVED SCAFFOLD EXISTS
+### Repository tooling — added 2026-11-07 at explicit user request
 
-If a later scaffold uses the proposed Node stack, candidate command names are `npm ci`, `npm run dev`, `npm run typecheck`, `npm test`, and `npm run build`.
+This is repository automation, not an application scaffold.
+
+- `package.json` and `package-lock.json` define development tooling only.
+- Husky `pre-commit` and `pre-push` hooks run `node scripts/check-repo.mjs`: forbidden credential files, high-confidence secret patterns, unresolved conflict markers, files larger than 2 MiB, and local Markdown file/anchor links.
+- The `commit-msg` hook runs `node scripts/check-commit-msg.mjs`, enforcing Conventional Commits.
+- `.github/pull_request_template.md` is the AI-agent pull-request template.
+- `npm ci` installs repository tooling only. `npm run check` is runnable now and validates the repository; neither is an application test, build, or runtime proof.
+- The application commands `npm run dev`, `npm run typecheck`, `npm test`, and `npm run build` remain proposed and **NOT RUNNABLE** because no application scaffold or application scripts exist.
+
+### Proposed future application command contract — NOT RUNNABLE IN THIS PROJECT; DO NOT RUN UNTIL AN APPROVED SCAFFOLD EXISTS
+
+If a later scaffold uses the proposed Node stack, candidate application command names are `npm run dev`, `npm run typecheck`, `npm test`, and `npm run build`.
 
 | Candidate command | Labelling | Prerequisites | Purpose | Future owner | Execution evidence |
 | --- | --- | --- | --- | --- | --- |
-| `npm ci` | Proposed; **NOT RUNNABLE IN THIS PROJECT; DO NOT RUN UNTIL AN APPROVED SCAFFOLD EXISTS** | Approved scaffold and lockfile. | Install dependencies. | Future implementation owner. | none |
+| `npm ci` | **Runnable for repository tooling only** | Node/npm and the committed `package-lock.json`. | Install Husky and repository check tooling; does not install or run an application. | Repository maintainer. | Run during tooling setup; no application dependency installed. |
 | `npm run dev` | Proposed; **NOT RUNNABLE IN THIS PROJECT; DO NOT RUN UNTIL AN APPROVED SCAFFOLD EXISTS** | Approved scaffold and lockfile. | Run future development server. | Future implementation owner. | none |
 | `npm run typecheck` | Proposed; **NOT RUNNABLE IN THIS PROJECT; DO NOT RUN UNTIL AN APPROVED SCAFFOLD EXISTS** | Approved scaffold and lockfile. | Type-check future sources. | Future implementation owner. | none |
 | `npm test` | Proposed; **NOT RUNNABLE IN THIS PROJECT; DO NOT RUN UNTIL AN APPROVED SCAFFOLD EXISTS** | Approved scaffold and lockfile. | Run future test suite. | Future implementation owner. | none |
 | `npm run build` | Proposed; **NOT RUNNABLE IN THIS PROJECT; DO NOT RUN UNTIL AN APPROVED SCAFFOLD EXISTS** | Approved scaffold and lockfile. | Build future application. | Future implementation owner. | none |
 
-No package scripts or lockfile are currently defined. These names are not APIs or scripts discovered in the source and install commands from provider examples are not current setup instructions.
+The only package scripts currently defined are repository checks (`prepare`, `check`, `check:commit`); there is no application source, application script, or application lockfile. These names are not APIs or scripts discovered in the source, and install commands from provider examples are not current setup instructions.
 
 ### Future verification protocol
 
@@ -62,6 +73,6 @@ Diagnose locally without reading credentials; native tests require RT-G00. A suc
 
 ## Consent gates and secret handling
 
-- No runtime microphone/context transmission, paid service provisioning, model download, dependency installation, source scaffold, build, test suite, voice performance measurement, or worker integration is part of this delivery.
+- No runtime microphone/context transmission, paid service provisioning, model download, application dependency installation, source scaffold, application build, test suite, voice performance measurement, or worker integration is part of this delivery.
 - Provider eligibility/access, runtime consent, a first real task pair, target host, usage budgets, and retention windows remain unresolved implementation gates.
 - No secrets, credentials, or personal data are stored in this documentation pack.

@@ -1,0 +1,15 @@
+{
+  "name": "super-agent",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Documentation pack and repository automation for the super-agent design",
+  "type": "module",
+  "scripts": {
+    "prepare": "husky",
+    "check": "node scripts/check-repo.mjs",
+    "check:commit": "node scripts/check-commit-msg.mjs"
+  },
+  "devDependencies": {
+    "husky": "^9.1.7"
+  }
+}
