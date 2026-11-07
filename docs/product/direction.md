@@ -73,6 +73,13 @@ outside the terminal both took effect. Interactive sessions, the timeout path,
 and non-Bash tools are not tested yet. Details:
 [spikes/a2-permission-hook](../../spikes/a2-permission-hook/README.md).
 
+**A3 result (2026-11-07): holds for latency and tool calling.** On the free
+tier, `gemini-3.8-live` called the job-status tool in 5 of 5 runs, and the
+median time from question to first spoken audio was 873 ms (838 to 1142 ms),
+including the tool round trip. Text input and synthetic data only; microphone,
+barge-in, and paid-tier cost are not tested yet. Details:
+[spikes/a3-gemini-live](../../spikes/a3-gemini-live/README.md).
+
 A4 is a real tension: approving a permission grants authority. The default must
 be that voice approves only pre-classified low-risk requests and everything
 else asks for an explicit on-device confirmation.
