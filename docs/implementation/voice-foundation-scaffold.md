@@ -88,5 +88,7 @@ microphone errors, disabled audio tracks while muted, and removal of unused
   The track remains allocated for unmute, so a browser or OS indicator may stay
   visible even though no microphone frame crosses the browser boundary.
 - The new key-free Windows/macOS workflow cannot provide PR evidence until the
-  workflow exists on the target branch. Existing repository and Windows spike
-  checks are separate evidence.
+  workflow exists on the target branch. Its first `develop` run failed before
+  creating jobs because the plain YAML command contained an unquoted trailing
+  colon. A focused workflow correction quotes that command; the rerun result is
+  recorded separately. Existing repository and Windows spike checks passed.
