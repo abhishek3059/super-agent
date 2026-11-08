@@ -1,0 +1,58 @@
+name: Windows spikes
+
+on:
+  push:
+    branches: [develop, main, fix/restore-reverted-pr-8, fix/windows-spike-compatibility]
+  pull_request:
+    branches: [develop, main, fix/restore-reverted-pr-8]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  windows-spikes:
+    name: Windows spike checks
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install repository tooling
+        run: npm ci --ignore-scripts
+        env:
+          HUSKY: 0
+
+      - name: Install A3 spike dependencies
+        run: npm ci --ignore-scripts
+        working-directory: spikes/a3-gemini-live
+        env:
+          HUSKY: 0
+
+      - name: Run repository checks
+        run: npm run check
+
+      - name: Prepare private test root
+        shell: pwsh
+        run: New-Item -ItemType Directory -Force (Join-Path $env:RUNNER_TEMP 'opencode') | Out-Null
+
+      - name: Run A2 permission hook selftest
+        run: node selftest.mjs
+        working-directory: spikes/a2-permission-hook
+        env:
+          HUSKY: 0
+          SUPER_AGENT_TEST_TMP: ${{ runner.temp }}/opencode
+
+      - name: Run A3 offline selftest
+        run: node selftest.mjs
+        working-directory: spikes/a3-gemini-live
+        env:
+          HUSKY: 0
+          SUPER_AGENT_TEST_TMP: ${{ runner.temp }}/opencode

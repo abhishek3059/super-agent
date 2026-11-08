@@ -2,16 +2,29 @@
 // request open until a human allows/denies it or it times out.
 import { createServer } from "node:http";
 import { randomBytes, randomUUID, timingSafeEqual } from "node:crypto";
-import { mkdirSync, writeFileSync } from "node:fs";
-import { dirname } from "node:path";
+import { isDirectRun } from "../entrypoint.mjs";
+import { writeTokenFile } from "./token-file.mjs";
 import { PORT, TOKEN_FILE, PENDING_TIMEOUT_MS } from "./config.mjs";
 
 const MAX_BODY_BYTES = 64 * 1024;
 const pending = new Map(); // id -> { request, createdAt, resolve }
 
-export function startServer({ port = PORT, token = randomBytes(32).toString("hex"), timeoutMs = PENDING_TIMEOUT_MS } = {}) {
+// CLI startup binds behind this latch: all approval routes answer 503 (fail
+// closed) until the token file is published and verified. Library callers
+// that omit the gate keep the historical ready-by-default behavior.
+export function createReadyGate() {
+  let open = false;
+  return {
+    get ready() { return open; },
+    open() { open = true; },
+    close() { open = false; },
+  };
+}
+
+export function startServer({ port = PORT, token = randomBytes(32).toString("hex"), timeoutMs = PENDING_TIMEOUT_MS, gate = null } = {}) {
   const expected = Buffer.from(`Bearer ${token}`);
   let allowedHosts; // set after listen, from the actual bound port
+  const admission = gate ?? { ready: true };
 
   const authorized = (req) => {
     const got = Buffer.from(req.headers.authorization ?? "");
@@ -44,6 +57,8 @@ export function startServer({ port = PORT, token = randomBytes(32).toString("hex
     });
 
   const server = createServer(async (req, res) => {
+    // Startup latch: never serve approvals while token protection is uncertain.
+    if (!admission.ready) return send(res, 503, { error: "server not ready" });
     // Loopback-only API: reject DNS-rebinding Hosts and any browser Origin (REQ-11).
     if (!allowedHosts.has(req.headers.host) || req.headers.origin !== undefined) return send(res, 403, { error: "forbidden" });
     if (!authorized(req)) return send(res, 401, { error: "unauthorized" });
@@ -82,23 +97,46 @@ export function startServer({ port = PORT, token = randomBytes(32).toString("hex
       }
 
       send(res, 404, { error: "not found" });
-    } catch (err) {
-      send(res, 400, { error: err.message });
+    } catch {
+      // fixed safe diagnostic: raw error text may embed sensitive input
+      send(res, 400, { error: "malformed request" });
     }
   });
 
-  return new Promise((resolve) =>
+  return new Promise((resolve, reject) => {
+    // Listen errors (occupied port, permissions) reject instead of surfacing
+    // as an unhandled event; a late error closes the listener (fail closed).
+    server.on("error", (err) => {
+      try { server.close(() => {}); } catch {}
+      reject(err);
+    });
     server.listen(port, "127.0.0.1", () => {
       const bound = server.address().port;
       allowedHosts = new Set([`127.0.0.1:${bound}`, `localhost:${bound}`]);
       resolve({ server, token, port: bound });
-    }),
-  );
+    });
+  });
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
-  const { token, port } = await startServer();
-  mkdirSync(dirname(TOKEN_FILE), { recursive: true, mode: 0o700 });
-  writeFileSync(TOKEN_FILE, token, { mode: 0o600 });
-  console.log(`approval server on http://127.0.0.1:${port} (token in ${TOKEN_FILE})`);
+// CLI entry: bind first, then stage/verify/publish the private token, then
+// open admission. Any bind/publication/verification failure keeps admission
+// closed, closes the listener, and removes only files this startup created.
+if (isDirectRun(import.meta.url)) {
+  const gate = createReadyGate();
+  try {
+    const token = randomBytes(32).toString("hex");
+    const { server, port } = await startServer({ token, gate });
+    try {
+      await writeTokenFile({ target: TOKEN_FILE, token });
+    } catch (err) {
+      server.closeAllConnections?.();
+      await new Promise((done) => server.close(() => done()));
+      throw err;
+    }
+    gate.open();
+    console.log(`approval server on http://127.0.0.1:${port} (token in ${TOKEN_FILE})`);
+  } catch (err) {
+    console.error(`approval server failed: ${err?.category ?? "startup"}`);
+    process.exitCode = 1;
+  }
 }
