@@ -1,0 +1,77 @@
+name: Windows spikes
+
+on:
+  push:
+    branches: [develop, main]
+  pull_request:
+    branches: [develop, main, fix/restore-reverted-pr-8]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  windows-spikes:
+    name: Windows spike checks
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install repository tooling
+        run: npm ci --ignore-scripts
+        env:
+          HUSKY: 0
+
+      - name: Install A3 spike dependencies
+        run: npm ci --ignore-scripts
+        working-directory: spikes/a3-gemini-live
+        env:
+          HUSKY: 0
+
+      - name: Run repository checks
+        run: npm run check
+
+      - name: Prepare private test root
+        shell: pwsh
+        timeout-minutes: 1
+        run: |
+          $root = Join-Path $env:RUNNER_TEMP 'opencode'
+          $whoami = Join-Path $env:SystemRoot 'System32\whoami.exe'
+          $icacls = Join-Path $env:SystemRoot 'System32\icacls.exe'
+          $identity = @(& $whoami /user /fo csv /nh | ConvertFrom-Csv -Header Account,Sid)
+          if ($LASTEXITCODE -ne 0 -or $identity.Count -ne 1) { throw 'Cannot determine runner identity' }
+          $sid = $identity[0].Sid
+          if ($sid -notmatch '^S-1-\d{1,10}(-\d{1,10}){1,14}$' -or $sid.Length -gt 68) { throw 'Invalid runner identity' }
+          New-Item -ItemType Directory -Force $root | Out-Null
+          # Runner temp ACLs can be broader than the spike's private-parent policy.
+          # Reset and restrict only this test directory; no recursive ACL change.
+          & $icacls $root /reset | Out-Null
+          if ($LASTEXITCODE -ne 0) { throw 'Cannot reset test-directory access' }
+          & $icacls $root /grant "*${sid}:(OI)(CI)F" | Out-Null
+          if ($LASTEXITCODE -ne 0) { throw 'Cannot grant private test-directory access' }
+          & $icacls $root /inheritance:r | Out-Null
+          if ($LASTEXITCODE -ne 0) { throw 'Cannot remove inherited test-directory access' }
+          & $icacls $root /setowner "*${sid}" | Out-Null
+          if ($LASTEXITCODE -ne 0) { throw 'Cannot set test-directory owner' }
+
+      - name: Run A2 permission hook selftest
+        run: node selftest.mjs
+        working-directory: spikes/a2-permission-hook
+        env:
+          HUSKY: 0
+          SUPER_AGENT_TEST_TMP: ${{ runner.temp }}/opencode
+
+      - name: Run A3 offline selftest
+        run: node selftest.mjs
+        working-directory: spikes/a3-gemini-live
+        env:
+          HUSKY: 0
+          SUPER_AGENT_TEST_TMP: ${{ runner.temp }}/opencode
