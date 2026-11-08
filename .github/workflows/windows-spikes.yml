@@ -2,7 +2,7 @@ name: Windows spikes
 
 on:
   push:
-    branches: [develop, main, fix/restore-reverted-pr-8, fix/windows-spike-compatibility]
+    branches: [develop, main]
   pull_request:
     branches: [develop, main, fix/restore-reverted-pr-8]
   workflow_dispatch:

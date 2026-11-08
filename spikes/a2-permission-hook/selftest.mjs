@@ -348,6 +348,7 @@ async function main() {
       const fakeSid = "S-1-5-21-500-500-500-1000";
       for (const [label, parentDacl, stagingDacl, errorCategory] of [
         ["parent-delete-child", `D:P(A;;FA;;;${fakeSid})(A;;0x40;;;BU)`, null, "parent-untrusted"],
+        ["parent-symbolic-write", `D:P(A;;FA;;;${fakeSid})(A;;FA;;;AU)`, null, "parent-untrusted"],
         ["extra-principal", `D:P(A;;FA;;;${fakeSid})`, `D:P(A;OICI;FA;;;${fakeSid})(A;;FR;;;BU)`, "acl-verify"],
         ["enabled-inheritance", `D:P(A;;FA;;;${fakeSid})`, `D:AI(A;OICI;FA;;;${fakeSid})`, "acl-verify"],
         ["null-dacl", `D:P(A;;FA;;;${fakeSid})`, "D:NO_ACCESS_CONTROL", "acl-format"],
@@ -366,6 +367,28 @@ async function main() {
         assert.ok(!existsSync(target), `${label} never publishes a token`);
         assert.deepEqual(readdirSync(suite).sort(), before, `${label} leaves no staging files`);
       }
+
+      const symbolicReadTarget = join(suite, "symbolic-readonly-parent öko");
+      await writeTokenFile({ target: symbolicReadTarget, token: "synthetic", run: async (argv) => {
+        if (argv.includes("/user")) return { stdout: Buffer.from(`"synthetic-user","${fakeSid}"`) };
+        const saveAt = argv.indexOf("/save");
+        if (saveAt !== -1) {
+          const savedTarget = argv[1];
+          const dump = argv[saveAt + 1];
+          const isParent = savedTarget.toLowerCase() === suite.toLowerCase();
+          const isDirectory = !isParent && statSync(savedTarget).isDirectory();
+          const dacl = isParent
+            ? `D:P(A;;FA;;;${fakeSid})(A;;FR;;;AU)`
+            : isDirectory
+              ? `D:P(A;OICI;FA;;;${fakeSid})`
+              : `D:P(A;;FA;;;${fakeSid})`;
+          writeFileSync(dump, `synthetic-path\n${dacl}\n`);
+        }
+        return { stdout: Buffer.from("") };
+      } });
+      assert.equal(readFileSync(symbolicReadTarget, "utf8"), "synthetic", "read-only symbolic parent trustee is accepted");
+      rmSync(symbolicReadTarget, { force: true });
+      assertReaddirClean();
 
       await assert.rejects(
         writeTokenFile({ target: join(suite, "sid-bad öko"), token: "x".repeat(64), run: async (argv) => {

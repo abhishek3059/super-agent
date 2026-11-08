@@ -59,7 +59,7 @@ the completed implementation. Baseline checks are not implementation proof.
 | Independent implementation review | A3/workflow PASS; [A2 baseline review](../reviews/windows-spike-compatibility-a2.md) PASS, average 8.9. Small subsequent A2 corrections self-checked and tested; no repeat review at the operator's request |
 | Independent security assessment | [A3/workflow audit](../security/windows-spike-compatibility-a3.md) PASS, partial scope; A2/helper audit not run, skipped at the operator's request |
 | macOS execution | Not run |
-| GitHub Windows Node 22 workflow | Initial run failed in A2 because the hosted test root inherited an unrecognized trustee; private-root setup correction pending rerun |
+| GitHub Windows Node 22 workflow | First and second runs failed in A2 on a locale-independent SDDL alias not in the narrow parent-read allowlist; parser correction pending rerun |
 | Gemini or Claude Code runtime | Not run; no key access or cloud-model calls authorized |
 
 ### Initial hosted CI finding
@@ -76,6 +76,17 @@ temporary token parents before writing. No inherited principal is newly
 trusted by runtime code. This CI setup correction was self-checked, not
 sent to another reviewer or security auditor. The hosted re-run outcome
 is reported on PR #10, separately from local Windows evidence.
+
+That setup alone did not resolve the failure. Inspection found the parent
+parser accepted arbitrary numeric SIDs with read-only rights but only three
+named SDDL aliases. It now accepts any structurally valid two-character SDDL
+alias only when its rights are read-only. Trusted current-user, SYSTEM and
+Administrators grants are unchanged; any other alias with delete, write,
+modify or full rights still fails closed. Local A2 regressions include
+read-only and write-capable symbolic trustees. No localized account name is
+accepted. Since Windows support is now part of PR #10 rather than a stacked
+branch, branch-push triggers were reduced to `develop` and `main`; the PR
+event still runs this check once on each PR #10 update.
 
 ### A2 evidence
 

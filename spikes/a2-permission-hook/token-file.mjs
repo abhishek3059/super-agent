@@ -36,7 +36,6 @@ const WRITE_BITS = (0x10000 | 0x40000 | 0x80000 | 0x100 | 0x40 | 0x2 | 0x4) | GE
 const READONLY_RIGHTS = /^(R|RX|X|FR|FX|GR)$/i;
 const TRUSTED_OWNER_SIDS = ["S-1-5-18", "S-1-5-32-544"]; // SYSTEM, BUILTIN\Administrators
 const TRUSTED_ALIASES = new Set(["SY", "BA"]); // SDDL aliases of the two above
-const READONLY_ALIASES = new Set(["WD", "ED", "BU"]); // Everyone, Authenticated Users, BUILTIN\Users
 
 /** Error carrying a fixed safe diagnostic category; messages never embed tokens. */
 const category = (c, message) => Object.assign(new Error(message), { category: c });
@@ -146,14 +145,15 @@ function verifyParentAcl(dumpText, sid) {
     if (type !== "A") throw category("parent-untrusted", "unexpected ACE type on parent");
     const t = trustee.toUpperCase();
     const numeric = /^S-1-(0|[1-9]\d*)(-\d+)+$/.test(trustee) && trustee.length <= 68;
-    const trusted = TRUSTED_ALIASES.has(trustee) || (numeric && (t === sid.toUpperCase() || TRUSTED_OWNER_SIDS.includes(t)));
-    if (!trusted && !numeric && !READONLY_ALIASES.has(trustee)) throw category("parent-untrusted", "unrecognized trustee on parent");
+    const symbolic = /^[A-Z0-9]{2}$/.test(t); // Standard SDDL aliases are locale-independent two-character codes.
+    const trusted = TRUSTED_ALIASES.has(t) || (numeric && (t === sid.toUpperCase() || TRUSTED_OWNER_SIDS.includes(t)));
+    if (!trusted && !numeric && !symbolic) throw category("parent-untrusted", "unrecognized trustee on parent");
     if (trusted) continue;
     const upper = rights.toUpperCase();
     const numericRights = upper.startsWith("0X") ? Number.parseInt(upper, 16) : Number.NaN;
     if (Number.isFinite(numericRights)) {
       if ((numericRights & WRITE_BITS) !== 0) throw category("parent-untrusted", "unprivileged write grant on parent");
-    } else if (!READONLY_RIGHTS.test(upper) || /W|M|F|D/.test(upper)) {
+    } else if (!READONLY_RIGHTS.test(upper)) {
       throw category("parent-untrusted", "unprivileged write grant on parent");
     }
   }
