@@ -41,7 +41,24 @@ jobs:
 
       - name: Prepare private test root
         shell: pwsh
-        run: New-Item -ItemType Directory -Force (Join-Path $env:RUNNER_TEMP 'opencode') | Out-Null
+        timeout-minutes: 1
+        run: |
+          $root = Join-Path $env:RUNNER_TEMP 'opencode'
+          $whoami = Join-Path $env:SystemRoot 'System32\whoami.exe'
+          $icacls = Join-Path $env:SystemRoot 'System32\icacls.exe'
+          $identity = @(& $whoami /user /fo csv /nh | ConvertFrom-Csv -Header Account,Sid)
+          if ($LASTEXITCODE -ne 0 -or $identity.Count -ne 1) { throw 'Cannot determine runner identity' }
+          $sid = $identity[0].Sid
+          if ($sid -notmatch '^S-1-\d{1,10}(-\d{1,10}){1,14}$' -or $sid.Length -gt 68) { throw 'Invalid runner identity' }
+          New-Item -ItemType Directory -Force $root | Out-Null
+          # Runner temp ACLs can be broader than the spike's private-parent policy.
+          # Restrict only this test directory; the A2 suite still verifies ACLs.
+          & $icacls $root /grant "*${sid}:(OI)(CI)F" | Out-Null
+          if ($LASTEXITCODE -ne 0) { throw 'Cannot grant private test-directory access' }
+          & $icacls $root /inheritance:r | Out-Null
+          if ($LASTEXITCODE -ne 0) { throw 'Cannot remove inherited test-directory access' }
+          & $icacls $root /setowner "*${sid}" | Out-Null
+          if ($LASTEXITCODE -ne 0) { throw 'Cannot set test-directory owner' }
 
       - name: Run A2 permission hook selftest
         run: node selftest.mjs

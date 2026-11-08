@@ -59,8 +59,23 @@ the completed implementation. Baseline checks are not implementation proof.
 | Independent implementation review | A3/workflow PASS; [A2 baseline review](../reviews/windows-spike-compatibility-a2.md) PASS, average 8.9. Small subsequent A2 corrections self-checked and tested; no repeat review at the operator's request |
 | Independent security assessment | [A3/workflow audit](../security/windows-spike-compatibility-a3.md) PASS, partial scope; A2/helper audit not run, skipped at the operator's request |
 | macOS execution | Not run |
-| GitHub Windows Node 22 workflow | Not run |
+| GitHub Windows Node 22 workflow | Initial run failed in A2 because the hosted test root inherited an unrecognized trustee; private-root setup correction pending rerun |
 | Gemini or Claude Code runtime | Not run; no key access or cloud-model calls authorized |
+
+### Initial hosted CI finding
+
+After commit `19ea610` was pushed to PR #10, Ubuntu `Repository checks`
+passed. The first hosted Windows/Node 22 A2 run failed with `unrecognized
+trustee on parent`, exit 1. Hosted runner temporary directories have
+different inherited grants from the local approved test directory.
+
+The Windows workflow now uses fixed native `whoami`/`icacls` commands to
+restrict only its test root to the current runner account, checking each
+exit status. A2's runtime ACL validator is unchanged and still verifies its
+temporary token parents before writing. No inherited principal is newly
+trusted by runtime code. This CI setup correction was self-checked, not
+sent to another reviewer or security auditor. The hosted re-run outcome
+is reported on PR #10, separately from local Windows evidence.
 
 ### A2 evidence
 
