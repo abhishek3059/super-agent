@@ -52,7 +52,9 @@ jobs:
           if ($sid -notmatch '^S-1-\d{1,10}(-\d{1,10}){1,14}$' -or $sid.Length -gt 68) { throw 'Invalid runner identity' }
           New-Item -ItemType Directory -Force $root | Out-Null
           # Runner temp ACLs can be broader than the spike's private-parent policy.
-          # Restrict only this test directory; the A2 suite still verifies ACLs.
+          # Reset and restrict only this test directory; no recursive ACL change.
+          & $icacls $root /reset | Out-Null
+          if ($LASTEXITCODE -ne 0) { throw 'Cannot reset test-directory access' }
           & $icacls $root /grant "*${sid}:(OI)(CI)F" | Out-Null
           if ($LASTEXITCODE -ne 0) { throw 'Cannot grant private test-directory access' }
           & $icacls $root /inheritance:r | Out-Null

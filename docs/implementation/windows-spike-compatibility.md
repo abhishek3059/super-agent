@@ -88,6 +88,12 @@ accepted. Since Windows support is now part of PR #10 rather than a stacked
 branch, branch-push triggers were reduced to `develop` and `main`; the PR
 event still runs this check once on each PR #10 update.
 
+The hosted runner also retained an explicit write-capable grant after the
+first setup sequence. The workflow now resets only the newly created test
+directory before granting the current SID and removing inheritance. It does
+not use recursive ACL changes or alter the runner's parent directory. A2
+still performs the authoritative parent and token DACL checks afterward.
+
 ### A2 evidence
 
 The first coordinator run failed with `Cannot read properties of undefined
