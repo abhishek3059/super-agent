@@ -4,7 +4,7 @@
 | --- | --- |
 | Date | 2026-11-08 |
 | Design | [Voice-foundation design](../design/voice-foundation.md) |
-| Delivery | Stacked on design PR #12 until that PR merges |
+| Delivery | Design PR #12 merged; implementation PR #13 targets `develop` and also carries the later maintainer-confirmation record |
 | Status | Initial offline implementation complete on Windows; hosted Windows/macOS and manual browser evidence pending. No runtime gate accepted. |
 
 ## Implemented scope
