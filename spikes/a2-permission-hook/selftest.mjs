@@ -136,7 +136,12 @@ async function main() {
       assert.equal(rights, "FA");
       assert.equal(obj, "", "no object guid in ACE");
       assert.equal(objInherit, "", "no inherited-object guid in ACE");
-      assert.equal(trustee.toUpperCase(), sid.toUpperCase());
+      const normalizedTrustee = trustee.toUpperCase();
+      const normalizedSid = sid.toUpperCase();
+      assert.ok(
+        normalizedTrustee === normalizedSid || (normalizedTrustee === "LA" && normalizedSid.endsWith("-500")),
+        "trustee matches the current SID or its local Administrator alias",
+      );
     };
 
     assert.equal(isDirectRun(import.meta.url), true, "running directly now");

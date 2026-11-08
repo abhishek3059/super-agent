@@ -109,6 +109,11 @@ reserved Administrator RID `-500`. Other aliases and non-RID-500 users still
 must match the exact numeric SID. The synthetic Windows runner regression
 uses that exact alias/SID equivalence for directory and token DACLs.
 
+The following hosted run passed production ACL verification and then exposed
+the same strict numeric-only assumption in the self-test's independent DACL
+assertion. That assertion now uses the identical constrained RID-500 alias
+equivalence. This was a test-harness correction, not a broader permission.
+
 ### A2 evidence
 
 The first coordinator run failed with `Cannot read properties of undefined
