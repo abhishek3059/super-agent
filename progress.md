@@ -90,6 +90,17 @@ The [maintainer confirmation record](docs/approvals/voice-foundation-confirmatio
 records Abhishek's design and offline-scaffold authorization and leaves
 Jeevesh's cross-platform/product confirmation explicitly pending.
 
+## Offline voice scaffold (2026-11-08)
+
+An initial implementation is being prepared on a stacked feature branch. It
+contains a FastAPI loopback boundary, deterministic fake voice adapter, Angular
+active-session UI, local microphone controls, and offline tests. It contains no
+provider call or external action. See the
+[implementation record](docs/implementation/voice-foundation-scaffold.md).
+
+This does not change PH-00 or RT-001 from `not started`. Merge, Mac evidence,
+Gemini account verification, and runtime acceptance remain pending.
+
 ## Documentation acceptance status
 
 The documentation developer performed manual authoring-time checks (literal taxonomy, link targets, headings/anchors, ID traceability, initial statuses). Correction pass (revision 2) inline checks are described in the implementation report. 
