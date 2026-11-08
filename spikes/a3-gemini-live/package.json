@@ -1,0 +1,12 @@
+{
+  "name": "super-agent-spike-a3",
+  "private": true,
+  "type": "module",
+  "description": "Spike A3: Gemini Live latency and tool calling. Not product code.",
+  "scripts": {
+    "start": "node live.mjs"
+  },
+  "dependencies": {
+    "@google/genai": "2.31.0"
+  }
+}
