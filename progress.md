@@ -86,6 +86,10 @@ This is not scaffold authorization or runtime progress. RT-001 and PH-00 remain
 model-access, key, and terms evidence are unresolved. No dependency was
 installed and no provider or microphone test was run for this design.
 
+The [maintainer confirmation record](docs/approvals/voice-foundation-confirmation.md)
+records Abhishek's design and offline-scaffold authorization and leaves
+Jeevesh's cross-platform/product confirmation explicitly pending.
+
 ## Documentation acceptance status
 
 The documentation developer performed manual authoring-time checks (literal taxonomy, link targets, headings/anchors, ID traceability, initial statuses). Correction pass (revision 2) inline checks are described in the implementation report. 
