@@ -1,0 +1,185 @@
+{
+  "id": "personal-agent-architecture-v1",
+  "title": "Personal Agent Platform Architecture",
+  "product": "lucidchart",
+  "pages": [
+    {
+      "id": "platform-architecture",
+      "title": "Platform architecture",
+      "index": 0,
+      "items": {
+        "shapes": [
+          {
+            "id": "user",
+            "class": "TerminatorBlockV2",
+            "textAreas": [{ "label": "Text", "text": "User" }],
+            "customData": [],
+            "linkedData": []
+          },
+          {
+            "id": "interfaces",
+            "class": "ProcessBlock",
+            "textAreas": [{ "label": "Text", "text": "Interaction surfaces\nVoice and audio\nDesktop or web\nMobile\nCLI and IDE\nNotifications" }],
+            "customData": [],
+            "linkedData": []
+          },
+          {
+            "id": "gateway",
+            "class": "ProcessBlock",
+            "textAreas": [{ "label": "Text", "text": "Interaction gateway\nAuthenticated session\nInput and output streams\nInterrupt, steer, pause, stop" }],
+            "customData": [],
+            "linkedData": []
+          },
+          {
+            "id": "conversation",
+            "class": "ProcessBlock",
+            "textAreas": [{ "label": "Text", "text": "Conversation and clarification\nUnderstand vague intent\nAsk focused questions\nCreate a structured task request" }],
+            "customData": [],
+            "linkedData": []
+          },
+          {
+            "id": "orchestrator",
+            "class": "ProcessBlock",
+            "textAreas": [{ "label": "Text", "text": "Personal orchestrator\nPlanner and coordinator\nDecompose work\nRun tasks concurrently\nModels propose, policy grants" }],
+            "customData": [],
+            "linkedData": []
+          },
+          {
+            "id": "ledger",
+            "class": "ProcessBlock",
+            "textAreas": [{ "label": "Text", "text": "Task graph, ledger and scheduler\nPriorities and dependencies\nDeadlines and budgets\nJob state and revisions\nSteering and cancellation truth" }],
+            "customData": [],
+            "linkedData": []
+          },
+          {
+            "id": "policy",
+            "class": "ProcessBlock",
+            "textAreas": [{ "label": "Text", "text": "Identity, policy and approval broker\nCapability grants\nRisk and authority level\nEgress and data limits\nAuthenticated confirmation" }],
+            "customData": [],
+            "linkedData": []
+          },
+          {
+            "id": "memory",
+            "class": "ProcessBlock",
+            "textAreas": [{ "label": "Text", "text": "Personal context and memory\nExplicit profile and preferences\nProjects and routines\nApproved history\nRAG and source retrieval\nRetention and deletion" }],
+            "customData": [],
+            "linkedData": []
+          },
+          {
+            "id": "registry",
+            "class": "ProcessBlock",
+            "textAreas": [{ "label": "Text", "text": "Capability registry\nAvailable tools and agents\nSchemas and permissions\nHealth and cost metadata\nNo capability by prompt alone" }],
+            "customData": [],
+            "linkedData": []
+          },
+          {
+            "id": "workers",
+            "class": "ProcessBlock",
+            "textAreas": [{ "label": "Text", "text": "Specialized workers and agents\nResearch and knowledge\nPlanning and organization\nCommunication and telephony\nTransactions and services\nComputer and device operations\nFuture developer harness" }],
+            "customData": [],
+            "linkedData": []
+          },
+          {
+            "id": "tool-gateway",
+            "class": "ProcessBlock",
+            "textAreas": [{ "label": "Text", "text": "Scoped tool and adapter gateway\nMCP and service adapters\nRead, prepare, act, commit levels\nInput and output validation\nTimeouts, rate and resource limits" }],
+            "customData": [],
+            "linkedData": []
+          },
+          {
+            "id": "external-systems",
+            "class": "TerminatorBlockV2",
+            "textAreas": [{ "label": "Text", "text": "External systems\nWeb and search providers\nPersonal applications\nTelephony\nComputers and devices\nFuture Claude Code, Codex, OpenCode" }],
+            "customData": [],
+            "linkedData": []
+          },
+          {
+            "id": "evidence",
+            "class": "ProcessBlock",
+            "textAreas": [{ "label": "Text", "text": "Evidence, receipts and verification\nSources and timestamps\nObserved tool outcomes\nUncertainty and partial effects\nNo success from model confidence" }],
+            "customData": [],
+            "linkedData": []
+          },
+          {
+            "id": "response",
+            "class": "ProcessBlock",
+            "textAreas": [{ "label": "Text", "text": "Response and notification coordinator\nSpoken answer\nVisual report and citations\nProgress updates\nApproval prompts\nCompletion or uncertainty" }],
+            "customData": [],
+            "linkedData": []
+          }
+        ],
+        "lines": [
+          { "id": "l-user-interfaces", "endpoint1": { "style": "None", "connectedTo": "user" }, "endpoint2": { "style": "Arrow", "connectedTo": "interfaces" }, "textAreas": [], "customData": [], "linkedData": [] },
+          { "id": "l-interfaces-gateway", "endpoint1": { "style": "None", "connectedTo": "interfaces" }, "endpoint2": { "style": "Arrow", "connectedTo": "gateway" }, "textAreas": [], "customData": [], "linkedData": [] },
+          { "id": "l-gateway-conversation", "endpoint1": { "style": "None", "connectedTo": "gateway" }, "endpoint2": { "style": "Arrow", "connectedTo": "conversation" }, "textAreas": [], "customData": [], "linkedData": [] },
+          { "id": "l-conversation-orchestrator", "endpoint1": { "style": "None", "connectedTo": "conversation" }, "endpoint2": { "style": "Arrow", "connectedTo": "orchestrator" }, "textAreas": [], "customData": [], "linkedData": [] },
+          { "id": "l-orchestrator-ledger", "endpoint1": { "style": "None", "connectedTo": "orchestrator" }, "endpoint2": { "style": "Arrow", "connectedTo": "ledger" }, "textAreas": [], "customData": [], "linkedData": [] },
+          { "id": "l-orchestrator-memory", "endpoint1": { "style": "None", "connectedTo": "orchestrator" }, "endpoint2": { "style": "Arrow", "connectedTo": "memory" }, "textAreas": [], "customData": [], "linkedData": [] },
+          { "id": "l-memory-orchestrator", "endpoint1": { "style": "None", "connectedTo": "memory" }, "endpoint2": { "style": "Arrow", "connectedTo": "orchestrator" }, "textAreas": [], "customData": [], "linkedData": [] },
+          { "id": "l-ledger-policy", "endpoint1": { "style": "None", "connectedTo": "ledger" }, "endpoint2": { "style": "Arrow", "connectedTo": "policy" }, "textAreas": [], "customData": [], "linkedData": [] },
+          { "id": "l-policy-registry", "endpoint1": { "style": "None", "connectedTo": "policy" }, "endpoint2": { "style": "Arrow", "connectedTo": "registry" }, "textAreas": [], "customData": [], "linkedData": [] },
+          { "id": "l-registry-workers", "endpoint1": { "style": "None", "connectedTo": "registry" }, "endpoint2": { "style": "Arrow", "connectedTo": "workers" }, "textAreas": [], "customData": [], "linkedData": [] },
+          { "id": "l-workers-tools", "endpoint1": { "style": "None", "connectedTo": "workers" }, "endpoint2": { "style": "Arrow", "connectedTo": "tool-gateway" }, "textAreas": [], "customData": [], "linkedData": [] },
+          { "id": "l-tools-external", "endpoint1": { "style": "None", "connectedTo": "tool-gateway" }, "endpoint2": { "style": "Arrow", "connectedTo": "external-systems" }, "textAreas": [], "customData": [], "linkedData": [] },
+          { "id": "l-external-tools", "endpoint1": { "style": "None", "connectedTo": "external-systems" }, "endpoint2": { "style": "Arrow", "connectedTo": "tool-gateway" }, "textAreas": [], "customData": [], "linkedData": [] },
+          { "id": "l-workers-evidence", "endpoint1": { "style": "None", "connectedTo": "workers" }, "endpoint2": { "style": "Arrow", "connectedTo": "evidence" }, "textAreas": [], "customData": [], "linkedData": [] },
+          { "id": "l-tools-evidence", "endpoint1": { "style": "None", "connectedTo": "tool-gateway" }, "endpoint2": { "style": "Arrow", "connectedTo": "evidence" }, "textAreas": [], "customData": [], "linkedData": [] },
+          { "id": "l-evidence-ledger", "endpoint1": { "style": "None", "connectedTo": "evidence" }, "endpoint2": { "style": "Arrow", "connectedTo": "ledger" }, "textAreas": [], "customData": [], "linkedData": [] },
+          { "id": "l-ledger-response", "endpoint1": { "style": "None", "connectedTo": "ledger" }, "endpoint2": { "style": "Arrow", "connectedTo": "response" }, "textAreas": [], "customData": [], "linkedData": [] },
+          { "id": "l-policy-response", "endpoint1": { "style": "None", "connectedTo": "policy" }, "endpoint2": { "style": "Arrow", "connectedTo": "response" }, "textAreas": [], "customData": [], "linkedData": [] },
+          { "id": "l-response-interfaces", "endpoint1": { "style": "None", "connectedTo": "response" }, "endpoint2": { "style": "Arrow", "connectedTo": "interfaces" }, "textAreas": [], "customData": [], "linkedData": [] },
+          { "id": "l-gateway-ledger", "endpoint1": { "style": "None", "connectedTo": "gateway" }, "endpoint2": { "style": "Arrow", "connectedTo": "ledger" }, "textAreas": [], "customData": [], "linkedData": [] }
+        ],
+        "groups": [],
+        "layers": []
+      },
+      "customData": [],
+      "linkedData": []
+    },
+    {
+      "id": "universal-task-lifecycle",
+      "title": "Universal task lifecycle",
+      "index": 1,
+      "items": {
+        "shapes": [
+          { "id": "request", "class": "TerminatorBlockV2", "textAreas": [{ "label": "Text", "text": "Vague or specific user request" }], "customData": [], "linkedData": [] },
+          { "id": "understand", "class": "ProcessBlock", "textAreas": [{ "label": "Text", "text": "Understand intent and context" }], "customData": [], "linkedData": [] },
+          { "id": "clarify", "class": "ProcessBlock", "textAreas": [{ "label": "Text", "text": "Clarify goal, scope, constraints and desired depth" }], "customData": [], "linkedData": [] },
+          { "id": "specify", "class": "ProcessBlock", "textAreas": [{ "label": "Text", "text": "Create structured task specification" }], "customData": [], "linkedData": [] },
+          { "id": "feasibility", "class": "DecisionBlock", "textAreas": [{ "label": "Text", "text": "Possible with available approved capabilities?" }], "customData": [], "linkedData": [] },
+          { "id": "explain-limit", "class": "ProcessBlock", "textAreas": [{ "label": "Text", "text": "Explain limitation or propose a safe alternative" }], "customData": [], "linkedData": [] },
+          { "id": "plan", "class": "ProcessBlock", "textAreas": [{ "label": "Text", "text": "Plan steps, dependencies, parallel jobs and budget" }], "customData": [], "linkedData": [] },
+          { "id": "authorize", "class": "DecisionBlock", "textAreas": [{ "label": "Text", "text": "Authority already granted?" }], "customData": [], "linkedData": [] },
+          { "id": "approval", "class": "ProcessBlock", "textAreas": [{ "label": "Text", "text": "Request authenticated approval for exact action" }], "customData": [], "linkedData": [] },
+          { "id": "execute", "class": "ProcessBlock", "textAreas": [{ "label": "Text", "text": "Execute bounded work through scoped adapters" }], "customData": [], "linkedData": [] },
+          { "id": "monitor", "class": "ProcessBlock", "textAreas": [{ "label": "Text", "text": "Monitor, update, steer, pause or cancel" }], "customData": [], "linkedData": [] },
+          { "id": "verify", "class": "ProcessBlock", "textAreas": [{ "label": "Text", "text": "Verify evidence, receipts, uncertainty and partial effects" }], "customData": [], "linkedData": [] },
+          { "id": "answer", "class": "ProcessBlock", "textAreas": [{ "label": "Text", "text": "Return spoken response and visual evidence" }], "customData": [], "linkedData": [] },
+          { "id": "remember", "class": "TerminatorBlockV2", "textAreas": [{ "label": "Text", "text": "Retain only approved preferences and bounded task history" }], "customData": [], "linkedData": [] }
+        ],
+        "lines": [
+          { "id": "tl-1", "endpoint1": { "style": "None", "connectedTo": "request" }, "endpoint2": { "style": "Arrow", "connectedTo": "understand" }, "textAreas": [], "customData": [], "linkedData": [] },
+          { "id": "tl-2", "endpoint1": { "style": "None", "connectedTo": "understand" }, "endpoint2": { "style": "Arrow", "connectedTo": "clarify" }, "textAreas": [], "customData": [], "linkedData": [] },
+          { "id": "tl-3", "endpoint1": { "style": "None", "connectedTo": "clarify" }, "endpoint2": { "style": "Arrow", "connectedTo": "specify" }, "textAreas": [], "customData": [], "linkedData": [] },
+          { "id": "tl-4", "endpoint1": { "style": "None", "connectedTo": "specify" }, "endpoint2": { "style": "Arrow", "connectedTo": "feasibility" }, "textAreas": [], "customData": [], "linkedData": [] },
+          { "id": "tl-5", "endpoint1": { "style": "None", "connectedTo": "feasibility" }, "endpoint2": { "style": "Arrow", "connectedTo": "explain-limit" }, "textAreas": [], "customData": [], "linkedData": [] },
+          { "id": "tl-6", "endpoint1": { "style": "None", "connectedTo": "feasibility" }, "endpoint2": { "style": "Arrow", "connectedTo": "plan" }, "textAreas": [], "customData": [], "linkedData": [] },
+          { "id": "tl-7", "endpoint1": { "style": "None", "connectedTo": "plan" }, "endpoint2": { "style": "Arrow", "connectedTo": "authorize" }, "textAreas": [], "customData": [], "linkedData": [] },
+          { "id": "tl-8", "endpoint1": { "style": "None", "connectedTo": "authorize" }, "endpoint2": { "style": "Arrow", "connectedTo": "approval" }, "textAreas": [], "customData": [], "linkedData": [] },
+          { "id": "tl-9", "endpoint1": { "style": "None", "connectedTo": "authorize" }, "endpoint2": { "style": "Arrow", "connectedTo": "execute" }, "textAreas": [], "customData": [], "linkedData": [] },
+          { "id": "tl-10", "endpoint1": { "style": "None", "connectedTo": "approval" }, "endpoint2": { "style": "Arrow", "connectedTo": "execute" }, "textAreas": [], "customData": [], "linkedData": [] },
+          { "id": "tl-11", "endpoint1": { "style": "None", "connectedTo": "execute" }, "endpoint2": { "style": "Arrow", "connectedTo": "monitor" }, "textAreas": [], "customData": [], "linkedData": [] },
+          { "id": "tl-12", "endpoint1": { "style": "None", "connectedTo": "monitor" }, "endpoint2": { "style": "Arrow", "connectedTo": "verify" }, "textAreas": [], "customData": [], "linkedData": [] },
+          { "id": "tl-13", "endpoint1": { "style": "None", "connectedTo": "verify" }, "endpoint2": { "style": "Arrow", "connectedTo": "answer" }, "textAreas": [], "customData": [], "linkedData": [] },
+          { "id": "tl-14", "endpoint1": { "style": "None", "connectedTo": "answer" }, "endpoint2": { "style": "Arrow", "connectedTo": "remember" }, "textAreas": [], "customData": [], "linkedData": [] }
+        ],
+        "groups": [],
+        "layers": []
+      },
+      "customData": [],
+      "linkedData": []
+    }
+  ],
+  "customData": [],
+  "linkedData": []
+}

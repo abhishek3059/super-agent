@@ -34,6 +34,8 @@ background task delegation.
 - [Design-stage security assessment](docs/security/super-agent.md) — PASS
 - [Implementation report](docs/implementation/super-agent.md)
 - [Zero-cost build stack](docs/free-stack.md) (research proposal)
+- [Personal-agent architecture](docs/product/personal-agent-architecture.md) (brainstorm proposal)
+- [Lucidchart architecture references](docs/References/README.md)
 
 ## Contributing (AI agents)
 

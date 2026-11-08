@@ -49,6 +49,29 @@ This is not application implementation: no source scaffold, runtime dependency, 
 - Next owner/action: none for the documentation stage. The manager recorded final DOC-A06/PH-DOC acceptance in the authoritative delivery record. Any further work requires an explicit new runtime authorization and closure of RT-G00 first.
 - Blocking gates: all runtime gates RT-G00 through RT-G05 remain open and no runtime work has started. The documentation-stage PASS reports certify no code, runtime, build, provider access, or spending.
 
+## General personal-agent architecture proposal (2026-11-08)
+
+A user-led brainstorm broadened the product proposal from a developer-agent
+wedge to a general personalized assistant for supervised day-to-day work.
+Research, planning, travel, communications, calls, computer work, and coding
+agents are examples of future capability families, not a fixed feature list.
+
+The following proposal artifacts were added:
+
+- [Personal-agent architecture](docs/product/personal-agent-architecture.md),
+  including reviewable Mermaid platform and task-lifecycle views.
+- [Expanded Lucidchart JSON](docs/References/personal-agent-architecture.json),
+  with the [original user sketch](docs/References/projectdiagram.json)
+  preserved unchanged.
+- [Product direction revision](docs/product/direction.md), retaining proposal
+  status and moving coding-agent harnesses to a future capability layer.
+
+This records brainstorming progress only. It does not revise the signed design,
+close RT-G00, select a first validation pair or runtime provider, approve
+personal data access, authorize implementation, or start a future phase. Both
+maintainers still need to review the direction. Lucidchart import and visual
+layout verification are not yet run.
+
 ## Documentation acceptance status
 
 The documentation developer performed manual authoring-time checks (literal taxonomy, link targets, headings/anchors, ID traceability, initial statuses). Correction pass (revision 2) inline checks are described in the implementation report. 
