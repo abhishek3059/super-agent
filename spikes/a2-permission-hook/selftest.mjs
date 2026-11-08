@@ -345,7 +345,7 @@ async function main() {
       );
       assert.deepEqual(readdirSync(suite).sort(), before, "missing native tool leaves no leftovers");
 
-      const fakeSid = "S-1-5-21-500-500-500-1000";
+      const fakeSid = "S-1-5-21-500-500-500-500";
       for (const [label, parentDacl, stagingDacl, errorCategory] of [
         ["parent-delete-child", `D:P(A;;FA;;;${fakeSid})(A;;0x40;;;BU)`, null, "parent-untrusted"],
         ["parent-symbolic-write", `D:P(A;;FA;;;${fakeSid})(A;;FA;;;AU)`, null, "parent-untrusted"],
@@ -380,8 +380,8 @@ async function main() {
           const dacl = isParent
             ? `D:P(A;;FA;;;${fakeSid})(A;;FA;;;LA)(A;;FR;;;AU)`
             : isDirectory
-              ? `D:P(A;OICI;FA;;;${fakeSid})`
-              : `D:P(A;;FA;;;${fakeSid})`;
+              ? "D:P(A;OICI;FA;;;LA)"
+              : "D:P(A;;FA;;;LA)";
           writeFileSync(dump, `synthetic-path\n${dacl}\n`);
         }
         return { stdout: Buffer.from("") };

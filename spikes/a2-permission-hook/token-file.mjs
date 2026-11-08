@@ -129,7 +129,10 @@ function verifyOwnerOnly({ flags, aces }, sid, { requireInheritable = false } = 
   if (aceFlags !== (requireInheritable ? "OICI" : "")) throw category("acl-verify", "unexpected ACE inheritance flags");
   if (rights !== "FA") throw category("acl-verify", "unexpected rights");
   if (obj !== "" || objInherit !== "") throw category("acl-verify", "(guid) object ACE not expected");
-  if (trustee.toUpperCase() !== sid.toUpperCase()) throw category("acl-verify", "unexpected principal");
+  const normalizedTrustee = trustee.toUpperCase();
+  const normalizedSid = sid.toUpperCase();
+  const isLocalAdministratorAlias = normalizedTrustee === "LA" && normalizedSid.endsWith("-500");
+  if (normalizedTrustee !== normalizedSid && !isLocalAdministratorAlias) throw category("acl-verify", "unexpected principal");
 }
 
 /**

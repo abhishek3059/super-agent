@@ -102,6 +102,13 @@ write-capable aliases remain rejected. The diagnostic was removed and a
 synthetic parent regression covers `LA` full control together with an
 unprivileged read-only alias.
 
+The next hosted run passed the parent check but showed that owner-only token
+DACLs also serialize this account as `LA`. Owner-only verification now treats
+`LA` as equivalent to the discovered current SID only when that SID ends in
+reserved Administrator RID `-500`. Other aliases and non-RID-500 users still
+must match the exact numeric SID. The synthetic Windows runner regression
+uses that exact alias/SID equivalence for directory and token DACLs.
+
 ### A2 evidence
 
 The first coordinator run failed with `Cannot read properties of undefined
