@@ -6,7 +6,7 @@
 | Revision | 4 |
 | Status | Documentation-only pack; documentation authored, and actual independent design-stage reports are available ([design review](docs/reviews/super-agent.md), opens PASS; [design-stage security](docs/security/super-agent.md), opens PASS) for the previously assessed revisions: the review covers the revision-3/minor-polish correction set, the security assessment covers signed design revision 1 plus that set. Latest assessed-revision status and final acceptance are recorded in the [delivery status](docs/delivery/super-agent.md); these documents do not self-approve and no runtime/code gate, provider access, budget approval, or application build is claimed here. |
 | Revision 2 note | Corrections applied 2026-11-07 for independent review finding R-03 (see [docs/reviews/super-agent.md](docs/reviews/super-agent.md)): the requirement traceability table was restored. |
-| Revision 4 note | Status-and-acceptance clarification set applied 2026-11-07, acting on the design review PASS and the design-stage security PASS for the previously assessed revision: fresh current-status metadata (security report INFO-01), [RT-A05](#rt-a05) added to the [WF-01](flow.md#wf-01-setup-and-manual-activation) acceptance references (INFO-02), explicit emergency-stop ephemeral-context clearing in [WF-07](flow.md#wf-07-emergency-stop) (INFO-03), and the security report's LOW-01 finding tracked as an unimplemented future authentication-design acceptance obligation under [RT-A05](#rt-a05) and [RT-002](taks/002-local-scaffold-and-boundary.md). No runtime test has run on this snapshot; its own independent re-review is pending. |
+| Revision 4 note | Status-and-acceptance clarification set applied 2026-11-07, acting on the design review PASS and the design-stage security PASS for the previously assessed revision: fresh current-status metadata (security report INFO-01), [RT-A05](#rt-a05) added to the [WF-01](flow.md#wf-01-setup-and-manual-activation) acceptance references (INFO-02), explicit emergency-stop ephemeral-context clearing in [WF-07](flow.md#wf-07-emergency-stop) (INFO-03), and the security report's LOW-01 finding tracked as an unimplemented future authentication-design acceptance obligation under [RT-A05](#rt-a05) and [RT-002](tasks/002-local-scaffold-and-boundary.md). No runtime test has run on this snapshot; its own independent re-review is pending. |
 | Signed design | [docs/design/super-agent.md](docs/design/super-agent.md), revision 1 |
 | Delivery record | [docs/delivery/super-agent.md](docs/delivery/super-agent.md) |
 
@@ -24,7 +24,7 @@ This document is part of the requested documentation-only pack. It is a contract
 - [Progress](progress.md)
 - [Build](build.md)
 - [Flow](flow.md)
-- [Tasks](taks/README.md)
+- [Tasks](tasks/README.md)
 - [Council meetings](council%20meetings/README.md)
 - [Implementation report](docs/implementation/super-agent.md)
 
@@ -134,10 +134,10 @@ Canonical mapping from the signed design's requirements table (`docs/design/supe
 | [REQ-12](#req-12) | [Council](docs/delivery/council.md):69-72; [Brief](docs/delivery/super-agent-brief.md):49-50 | [DEC-11](descisions.md#dec-11) | [RT-A05](#rt-a05), [RT-A06](#rt-a06) |
 | [REQ-13](#req-13) | [Brief](docs/delivery/super-agent-brief.md):18-35; [Council](docs/delivery/council.md):184-185, :215-216 | [DEC-06](descisions.md#dec-06), [DEC-10](descisions.md#dec-10) | [RT-G00](#rt-g00) |
 | [REQ-14](#req-14) | [Brief](docs/delivery/super-agent-brief.md):79-81; [Council](docs/delivery/council.md):190-191 | [DEC-10](descisions.md#dec-10) | [RT-A06](#rt-a06) |
-| [REQ-15](#req-15) | [Brief](docs/delivery/super-agent-brief.md):85-87; [Council](docs/delivery/council.md):182-183 | [DEC-03](descisions.md#dec-03), [DEC-10](descisions.md#dec-10), [DEC-14](descisions.md#dec-14) | [RT-A01](#rt-a01); later [RT-012](taks/012-private-native-audio-feasibility.md) |
-| [REQ-16](#req-16) | [Brief](docs/delivery/super-agent-brief.md):8-10, :29; [Council](docs/delivery/council.md):162-165, :215-220 | [DEC-13](descisions.md#dec-13) | later [RT-009](taks/009-bounded-real-task-planner.md) |
+| [REQ-15](#req-15) | [Brief](docs/delivery/super-agent-brief.md):85-87; [Council](docs/delivery/council.md):182-183 | [DEC-03](descisions.md#dec-03), [DEC-10](descisions.md#dec-10), [DEC-14](descisions.md#dec-14) | [RT-A01](#rt-a01); later [RT-012](tasks/012-private-native-audio-feasibility.md) |
+| [REQ-16](#req-16) | [Brief](docs/delivery/super-agent-brief.md):8-10, :29; [Council](docs/delivery/council.md):162-165, :215-220 | [DEC-13](descisions.md#dec-13) | later [RT-009](tasks/009-bounded-real-task-planner.md) |
 | [REQ-17](#req-17) | [Brief](docs/delivery/super-agent-brief.md):43-46; [Council](docs/delivery/council.md):73-75, :126-139 | [DEC-12](descisions.md#dec-12), [DEC-15](descisions.md#dec-15) | [RT-A02](#rt-a02), [RT-A06](#rt-a06) |
-| [REQ-18](#req-18) | [Council](docs/delivery/council.md):152-153, :207 | [DEC-15](descisions.md#dec-15) | [RT-A04](#rt-a04); later [RT-011](taks/011-always-on-and-desktop-feasibility.md) |
+| [REQ-18](#req-18) | [Council](docs/delivery/council.md):152-153, :207 | [DEC-15](descisions.md#dec-15) | [RT-A04](#rt-a04); later [RT-011](tasks/011-always-on-and-desktop-feasibility.md) |
 
 The later RT-009/RT-011/RT-012 anchors are future task files, not run tests; none has an execution result today.
 
@@ -201,7 +201,7 @@ Duplicates, races, and recovery: duplicate create/revise/cancel calls, crash bef
 
 Authority and local attack surface: unauthenticated clients, hostile/null origins, incorrect Hosts, cross-site requests, forged WS controls, prompt-injected audio/transcripts/results, expired grants, new capability requests, shell/plugins/purchases/messages/deletion, and unapproved egress are denied. Ambient "yes" cannot elevate authority or re-arm emergency stop. Demonstrate the deployed boundary, not merely prompt instructions.
 
-Future authentication-design obligation (security report LOW-01, an unimplemented future requirement — not a currently implemented vulnerability): before any scaffold acceptance ([RT-002](taks/002-local-scaffold-and-boundary.md)), a future design must define — and be independently reviewed for — cryptographically strong/high-entropy device/session credentials, their secure storage, expiry/rotation/revocation, and failed-authentication throttling/rate-limiting; short PIN-only authentication is rejected and online guessing controls are tested. Source: [design-stage security assessment](docs/security/super-agent.md), finding LOW-01. The exact credential scheme and parameters are deliberately unspecified now and require their own separate design and security review; this wording adds acceptance per the auditor's recommended action and does not create an implemented control, code, or an approved cryptographic algorithm.
+Future authentication-design obligation (security report LOW-01, an unimplemented future requirement — not a currently implemented vulnerability): before any scaffold acceptance ([RT-002](tasks/002-local-scaffold-and-boundary.md)), a future design must define — and be independently reviewed for — cryptographically strong/high-entropy device/session credentials, their secure storage, expiry/rotation/revocation, and failed-authentication throttling/rate-limiting; short PIN-only authentication is rejected and online guessing controls are tested. Source: [design-stage security assessment](docs/security/super-agent.md), finding LOW-01. The exact credential scheme and parameters are deliberately unspecified now and require their own separate design and security review; this wording adds acceptance per the auditor's recommended action and does not create an implemented control, code, or an approved cryptographic algorithm.
 
 ### RT-A06
 

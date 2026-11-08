@@ -41,7 +41,7 @@ This is not application implementation: no source scaffold, runtime dependency, 
 - Historical authoring timeline: the initial independent design review, archived at [docs/reviews/super-agent-initial.md](docs/reviews/super-agent-initial.md) and dated 2026-11-07, recorded disposition FAIL (changes required) on revision 1 with findings R-01 through R-06; revision 2 of this pack applied those documentation corrections on the same date. That archive is dated history, not the current disposition.
 - Current design review report: [docs/reviews/super-agent.md](docs/reviews/super-agent.md), dated 2026-11-07, opens with **PASS** and resolves R-01 through R-09 for the revision-3 / minor-polish correction set against the unchanged signed design (revision 1). This is an independent documentation/design-stage disposition; it does not certify runtime behaviour, code, or provider access.
 - Current design-stage security assessment: [docs/security/super-agent.md](docs/security/super-agent.md), dated 2026-11-07, opens with **PASS**, scope documentation/design-stage only, with non-blocking findings LOW-01 and INFO-01 through INFO-03. It certifies no implemented control and closes no runtime gate.
-- This revision-4 snapshot applies INFO-01 through INFO-03 and records LOW-01 as a tracked, unimplemented future acceptance obligation ([RT-002](taks/002-local-scaffold-and-boundary.md), [RT-A05](prd.md#rt-a05)). The user waived further independent re-review of this metadata/acceptance clarification; the manager's final documentation-stage acceptance is recorded in the [delivery status](docs/delivery/super-agent.md).
+- This revision-4 snapshot applies INFO-01 through INFO-03 and records LOW-01 as a tracked, unimplemented future acceptance obligation ([RT-002](tasks/002-local-scaffold-and-boundary.md), [RT-A05](prd.md#rt-a05)). The user waived further independent re-review of this metadata/acceptance clarification; the manager's final documentation-stage acceptance is recorded in the [delivery status](docs/delivery/super-agent.md).
 - Council cross-review is not a substitute for the independent architecture review or design-stage security assessment.
 
 ## Blocking gates and next owner/action
@@ -74,6 +74,6 @@ See [PRD](prd.md) for requirement and acceptance detail.
 - [Progress](progress.md)
 - [Build](build.md)
 - [Flow](flow.md)
-- [Tasks](taks/README.md)
+- [Tasks](tasks/README.md)
 - [Council meetings](council%20meetings/README.md)
 - [Implementation report](docs/implementation/super-agent.md)

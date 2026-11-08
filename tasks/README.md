@@ -1,4 +1,4 @@
-# Super-agent — future task index (`taks/`)
+# Super-agent — future task index (`tasks/`)
 
 | Field | Value |
 | --- | --- |

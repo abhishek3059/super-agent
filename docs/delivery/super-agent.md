@@ -46,7 +46,7 @@ outage. Neither model is a selected runtime native-audio provider.
 - [Build status and proposed commands](../../build.md)
 - [Decision register](../../descisions.md)
 - [Workflows](../../flow.md)
-- [Task index](../../taks/README.md)
+- [Task index](../../tasks/README.md)
 - [Council meeting index](../../council%20meetings/README.md)
 - [Documentation implementation report](../implementation/super-agent.md)
 
@@ -58,7 +58,7 @@ taxonomy, twelve future task records with complete template fields and
 application scaffold or application source files. Repository-only tooling files
 exist and are recorded below.
 
-Final manager audit after restoring the literal `taks/` folder name (it had been
+Final manager audit after restoring the literal `tasks/` folder name (it had been
 renamed to `tasks/`, which broke every task link):
 
 | Check | Result |
