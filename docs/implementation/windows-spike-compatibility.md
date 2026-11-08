@@ -59,7 +59,7 @@ the completed implementation. Baseline checks are not implementation proof.
 | Independent implementation review | A3/workflow PASS; [A2 baseline review](../reviews/windows-spike-compatibility-a2.md) PASS, average 8.9. Small subsequent A2 corrections self-checked and tested; no repeat review at the operator's request |
 | Independent security assessment | [A3/workflow audit](../security/windows-spike-compatibility-a3.md) PASS, partial scope; A2/helper audit not run, skipped at the operator's request |
 | macOS execution | Not run |
-| GitHub Windows Node 22 workflow | Diagnostic run identified `LA` (local Administrator) as the hosted full-control trustee; threat-model-aligned alias correction pending rerun |
+| GitHub Windows Node 22 workflow | PASS on PR #10 commit `e07b1f3`: `Windows spike checks`, exit 0 in 37 seconds; Ubuntu `Repository checks` also passed |
 | Gemini or Claude Code runtime | Not run; no key access or cloud-model calls authorized |
 
 ### Initial hosted CI finding
@@ -113,6 +113,10 @@ The following hosted run passed production ACL verification and then exposed
 the same strict numeric-only assumption in the self-test's independent DACL
 assertion. That assertion now uses the identical constrained RID-500 alias
 equivalence. This was a test-harness correction, not a broader permission.
+
+The next hosted run on commit `e07b1f3` passed the complete Windows/Node 22
+workflow in 37 seconds. Ubuntu `Repository checks` passed on the same PR head.
+No live provider, microphone or Claude Code execution was part of either job.
 
 ### A2 evidence
 
