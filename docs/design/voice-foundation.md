@@ -6,6 +6,7 @@
 | Author | OpenCode, `agentrouter/gpt-5.6-sol` |
 | Status | Signed proposal for review. No scaffold, dependency installation, provider call, microphone transmission, or runtime approval. |
 | Product context | [Personal-agent architecture](../product/personal-agent-architecture.md) |
+| Maintainer confirmation | [Decision record](../approvals/voice-foundation-confirmation.md) |
 | Runtime gate | RT-G00 remains open; [RT-001](../../tasks/001-runtime-consent-and-feasibility.md) remains `not started`. |
 
 ## 1. Objective

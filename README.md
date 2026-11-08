@@ -27,6 +27,7 @@ background task delegation.
 
 - [Signed design contract](docs/design/super-agent.md)
 - [Voice-foundation implementation design](docs/design/voice-foundation.md) (proposal)
+- [Offline voice scaffold](apps/voice-foundation.md)
 - [Discovery brief](docs/delivery/super-agent-brief.md)
 - [Council deliberation source](docs/delivery/council.md)
 - [Delivery status](docs/delivery/super-agent.md)

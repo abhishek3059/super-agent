@@ -1,0 +1,14 @@
+[project]
+name = "super-agent-voice-api"
+version = "0.0.0"
+requires-python = ">=3.12,<3.15"
+dependencies = [
+  "fastapi==0.162.0",
+  "uvicorn==0.54.0",
+  "websockets==17.3",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+addopts = "-q"
