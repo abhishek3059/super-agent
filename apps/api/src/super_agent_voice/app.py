@@ -86,6 +86,7 @@ async def _voice_socket(
     loop = asyncio.get_running_loop()
     # Infinite until authenticated so early timeouts classify as session-timeout.
     deadline = float("inf")
+    timeout_category = "session-timeout"
     try:
         await websocket.accept()
         adapter = adapter_factory()
@@ -116,6 +117,11 @@ async def _voice_socket(
             if remaining <= 0:
                 await _safe_error(websocket, "max-duration")
                 return
+            timeout_category = (
+                "max-duration"
+                if remaining <= settings.idle_timeout_seconds
+                else "session-timeout"
+            )
             incoming = await asyncio.wait_for(
                 websocket.receive(),
                 timeout=min(settings.idle_timeout_seconds, remaining),
@@ -151,8 +157,7 @@ async def _voice_socket(
             elif event == "session.stop":
                 break
     except (asyncio.TimeoutError, TimeoutError):
-        expired = deadline != float("inf") and deadline - loop.time() <= 0
-        await _safe_error(websocket, "max-duration" if expired else "session-timeout")
+        await _safe_error(websocket, timeout_category)
     except (json.JSONDecodeError, KeyError, TypeError, ValueError):
         await _safe_error(websocket, "invalid-control")
     except WebSocketDisconnect:

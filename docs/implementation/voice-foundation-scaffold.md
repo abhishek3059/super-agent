@@ -92,3 +92,8 @@ microphone errors, disabled audio tracks while muted, and removal of unused
   creating jobs because the plain YAML command contained an unquoted trailing
   colon. A focused workflow correction quotes that command; the rerun result is
   recorded separately. Existing repository and Windows spike checks passed.
+
+The corrected workflow then ran: macOS passed, while Windows exposed a timing
+classification race in the total-duration test. The total deadline fired, but
+the post-timeout clock comparison labeled it as idle timeout. The backend now
+selects the fixed category before awaiting, avoiding platform clock jitter.
