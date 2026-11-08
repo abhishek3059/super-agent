@@ -37,6 +37,7 @@ WebSocket resources.
 
 ```powershell
 & "$voiceVenv\Scripts\python" -m pytest apps\api
+npm run test:epoch --prefix apps/web
 npm run build --prefix apps/web
 npm audit --prefix apps/web
 npm run check

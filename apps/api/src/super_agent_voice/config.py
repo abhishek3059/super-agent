@@ -11,6 +11,11 @@ class VoiceConfig:
     allowed_origin: str = "http://127.0.0.1:4200"
     max_control_bytes: int = 64 * 1024
     max_audio_frame_bytes: int = 32 * 1024
+    # One active voice session; total session budget is enforced in code, not
+    # by the model (design section 6).
+    max_active_sessions: int = 1
+    max_session_seconds: float = 15 * 60
+    idle_timeout_seconds: float = 60
 
     @classmethod
     def from_environment(cls) -> "VoiceConfig":

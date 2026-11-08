@@ -3,9 +3,10 @@ from __future__ import annotations
 import asyncio
 import hmac
 import json
+import threading
 from collections.abc import Callable
 
-from fastapi import FastAPI, WebSocket
+from fastapi import FastAPI, HTTPException, Request, WebSocket
 from starlette.websockets import WebSocketDisconnect
 
 from .adapter import FakeVoiceAdapter, VoiceAdapter
@@ -14,20 +15,45 @@ from .config import VoiceConfig
 AdapterFactory = Callable[[], VoiceAdapter]
 
 
+class SessionGate:
+    """Enforces the code-level limit on concurrent voice sessions."""
+
+    def __init__(self, max_active: int) -> None:
+        self._max_active = max_active
+        self._active = 0
+        # The TestClient portal and Uvicorn may use different threads; uvicorn's
+        # event loop is single-threaded either way, the lock only costs a check.
+        self._guard = threading.Lock()
+
+    def acquire(self) -> bool:
+        with self._guard:
+            if self._active >= self._max_active:
+                return False
+            self._active += 1
+            return True
+
+    def release(self) -> None:
+        with self._guard:
+            self._active -= 1
+
+
 def create_app(
     config: VoiceConfig | None = None,
     adapter_factory: AdapterFactory = FakeVoiceAdapter,
 ) -> FastAPI:
     settings = config or VoiceConfig.from_environment()
+    gate = SessionGate(settings.max_active_sessions)
     app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
 
     @app.get("/health")
-    async def health() -> dict[str, str]:
+    async def health(request: Request) -> dict[str, str]:
+        if request.headers.get("host") != settings.allowed_host:
+            raise HTTPException(status_code=403)
         return {"status": "ok", "provider": "fake"}
 
     @app.websocket("/ws/voice")
     async def voice_socket(websocket: WebSocket) -> None:
-        await _voice_socket(websocket, settings, adapter_factory)
+        await _voice_socket(websocket, settings, adapter_factory, gate)
 
     return app
 
@@ -43,19 +69,29 @@ async def _voice_socket(
     websocket: WebSocket,
     settings: VoiceConfig,
     adapter_factory: AdapterFactory,
+    gate: SessionGate,
 ) -> None:
-    if websocket.headers.get("host") != settings.allowed_host:
+    if (
+        websocket.headers.get("host") != settings.allowed_host
+        or websocket.headers.get("origin") != settings.allowed_origin
+    ):
         await websocket.close(code=1008)
         return
-    if websocket.headers.get("origin") != settings.allowed_origin:
-        await websocket.close(code=1008)
+    if not gate.acquire():
+        await websocket.accept()
+        await websocket.close(code=1013)
         return
 
-    await websocket.accept()
-    adapter = adapter_factory()
-    muted = False
-    playback_epoch = 0
+    adapter: VoiceAdapter | None = None
+    loop = asyncio.get_running_loop()
+    # Infinite until authenticated so early timeouts classify as session-timeout.
+    deadline = float("inf")
     try:
+        await websocket.accept()
+        adapter = adapter_factory()
+        muted = False
+        playback_epoch = 0
+        deadline = loop.time() + settings.max_session_seconds
         auth = await asyncio.wait_for(websocket.receive_text(), timeout=5)
         if len(auth.encode("utf-8")) > settings.max_control_bytes:
             await websocket.close(code=1009)
@@ -76,7 +112,14 @@ async def _voice_socket(
         )
 
         while True:
-            incoming = await asyncio.wait_for(websocket.receive(), timeout=60)
+            remaining = deadline - loop.time()
+            if remaining <= 0:
+                await _safe_error(websocket, "max-duration")
+                return
+            incoming = await asyncio.wait_for(
+                websocket.receive(),
+                timeout=min(settings.idle_timeout_seconds, remaining),
+            )
             if incoming["type"] == "websocket.disconnect":
                 break
             if incoming.get("bytes") is not None:
@@ -108,7 +151,8 @@ async def _voice_socket(
             elif event == "session.stop":
                 break
     except (asyncio.TimeoutError, TimeoutError):
-        await _safe_error(websocket, "session-timeout")
+        expired = deadline != float("inf") and deadline - loop.time() <= 0
+        await _safe_error(websocket, "max-duration" if expired else "session-timeout")
     except (json.JSONDecodeError, KeyError, TypeError, ValueError):
         await _safe_error(websocket, "invalid-control")
     except WebSocketDisconnect:
@@ -116,7 +160,9 @@ async def _voice_socket(
     except Exception:
         await _safe_error(websocket, "session-failed")
     finally:
-        await adapter.close()
+        gate.release()
+        if adapter is not None:
+            await adapter.close()
         try:
             await websocket.close(code=1000)
         except RuntimeError:

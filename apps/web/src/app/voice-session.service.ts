@@ -1,4 +1,5 @@
 import { Injectable, signal } from '@angular/core';
+import { PlaybackEpochTracker } from './playback-epoch';
 
 @Injectable({ providedIn: 'root' })
 export class VoiceSessionService {
@@ -11,6 +12,7 @@ export class VoiceSessionService {
   private context?: AudioContext;
   private processor?: ScriptProcessorNode;
   private readonly playing = new Set<AudioBufferSourceNode>();
+  private readonly epochs = new PlaybackEpochTracker();
 
   async start(token: string): Promise<void> {
     if (this.socket || token.length < 32) {
@@ -33,11 +35,21 @@ export class VoiceSessionService {
   setMuted(value: boolean): void {
     if (!this.socket || this.socket.readyState !== WebSocket.OPEN) return;
     this.muted.set(value);
+    // The session track stays open, so the browser or OS microphone indicator
+    // may remain visible while muted; that depends on the browser, not on us.
+    // Setting enabled=false stops samples reaching the page, and the processor
+    // callback below additionally drops every frame, so no microphone audio
+    // crosses the browser boundary while muted.
+    for (const track of this.stream?.getAudioTracks() ?? []) {
+      track.enabled = !value;
+    }
     this.socket.send(JSON.stringify({ type: value ? 'capture.mute' : 'capture.unmute' }));
+    this.status.set(value ? 'muted' : this.playing.size ? 'speaking' : 'listening');
   }
 
   interrupt(): void {
     if (!this.socket || this.socket.readyState !== WebSocket.OPEN) return;
+    this.epochs.onLocalInterrupt();
     this.stopPlayback();
     this.socket.send(JSON.stringify({ type: 'playback.interrupt' }));
   }
@@ -55,11 +67,27 @@ export class VoiceSessionService {
       this.playPcm(event.data as ArrayBuffer);
       return;
     }
-    const message = JSON.parse(event.data) as { type?: string; category?: string };
+    const message = JSON.parse(event.data) as {
+      type?: string;
+      category?: string;
+      playbackEpoch?: number;
+    };
     if (message.type === 'session.ready') {
-      await this.startCapture();
-      this.status.set('listening');
+      this.epochs.onReady(message.playbackEpoch);
+      try {
+        await this.startCapture();
+      } catch {
+        this.fail('Microphone access was not granted. Local capture stays off.');
+        return;
+      }
+      this.status.set(this.muted() ? 'muted' : 'listening');
+    } else if (message.type === 'audio.chunk') {
+      this.epochs.onChunkMeta(message.playbackEpoch);
+    } else if (message.type === 'turn.complete') {
+      this.epochs.onTurnComplete(message.playbackEpoch);
     } else if (message.type === 'playback.interrupted') {
+      // The backend epoch is authoritative and clears the pending interrupt.
+      this.epochs.onServerInterrupt(message.playbackEpoch);
       this.stopPlayback();
       this.status.set('listening');
     } else if (message.type === 'session.error') {
@@ -72,6 +100,10 @@ export class VoiceSessionService {
       audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true },
       video: false,
     });
+    // Respect a mute that happened before permission resolved.
+    for (const track of this.stream.getAudioTracks()) {
+      track.enabled = !this.muted();
+    }
     const context = new AudioContext({ sampleRate: 16000 });
     const source = context.createMediaStreamSource(this.stream);
     const processor = context.createScriptProcessor(2048, 1, 1);
@@ -99,6 +131,9 @@ export class VoiceSessionService {
   private playPcm(data: ArrayBuffer): void {
     const context = this.context;
     if (!context || this.muted()) return;
+    // Binary frames are untagged; only a frame covered by a current-epoch
+    // JSON chunk may play. Stale or untagged audio is dropped here.
+    if (!this.epochs.acceptBinary()) return;
     const pcm = new Int16Array(data);
     const buffer = context.createBuffer(1, pcm.length, 16000);
     const output = buffer.getChannelData(0);
@@ -142,6 +177,7 @@ export class VoiceSessionService {
     this.socket = undefined;
     if (socket && socket.readyState < WebSocket.CLOSING) socket.close();
     this.muted.set(false);
-    this.status.set(status);
+    // A recorded error must not be downgraded to "stopped" by the close event.
+    this.status.set(this.error() ? 'error' : status);
   }
 }

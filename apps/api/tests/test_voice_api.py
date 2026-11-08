@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import time
+
 import pytest
 from fastapi.testclient import TestClient
 from starlette.websockets import WebSocketDisconnect
@@ -12,9 +14,12 @@ TOKEN = "t" * 32
 ORIGIN = "http://127.0.0.1:4200"
 
 
-def make_client(adapter: FakeVoiceAdapter | None = None) -> TestClient:
+def make_client(
+    adapter: FakeVoiceAdapter | None = None,
+    config: VoiceConfig | None = None,
+) -> TestClient:
     app = create_app(
-        VoiceConfig(local_token=TOKEN),
+        config if config is not None else VoiceConfig(local_token=TOKEN),
         (lambda: adapter) if adapter else FakeVoiceAdapter,
     )
     return TestClient(app, base_url=ORIGIN)
@@ -37,10 +42,63 @@ def authenticate(websocket) -> None:
 
 def test_health_is_key_free() -> None:
     with make_client() as client:
-        assert client.get("/health").json() == {
+        # The in-process client host differs from the loopback server host, so
+        # the allowed Host value is passed explicitly, as a real browser would.
+        assert client.get("/health", headers={"host": "127.0.0.1:8000"}).json() == {
             "status": "ok",
             "provider": "fake",
         }
+
+
+def test_health_rejects_foreign_host() -> None:
+    with make_client() as client:
+        assert (
+            client.get("/health", headers={"host": "evil.example"}).status_code == 403
+        )
+        assert (
+            client.get("/health", headers={"host": "127.0.0.1:8000"}).status_code == 200
+        )
+
+
+def test_only_one_active_session_is_allowed() -> None:
+    with make_client() as client:
+        with connect(client) as first:
+            authenticate(first)
+            # The gate accepts the second socket only to close it with 1013.
+            with connect(client) as second:
+                with pytest.raises(WebSocketDisconnect) as rejected:
+                    second.receive_json()
+                assert rejected.value.code == 1013
+        # The slot is released once the active session ends.
+        with connect(client) as third:
+            authenticate(third)
+
+
+def test_total_session_budget_expires_with_fixed_error() -> None:
+    settings = VoiceConfig(local_token=TOKEN, max_session_seconds=0.3)
+    with make_client(config=settings) as client, connect(client) as websocket:
+        authenticate(websocket)
+        started = time.monotonic()
+        assert websocket.receive_json() == {
+            "type": "session.error",
+            "category": "max-duration",
+        }
+        with pytest.raises(WebSocketDisconnect) as closed:
+            websocket.receive_json()
+        assert closed.value.code == 1000
+        assert time.monotonic() - started < 5
+
+
+def test_idle_timeout_is_retained() -> None:
+    settings = VoiceConfig(local_token=TOKEN, idle_timeout_seconds=0.2)
+    with make_client(config=settings) as client, connect(client) as websocket:
+        authenticate(websocket)
+        started = time.monotonic()
+        assert websocket.receive_json() == {
+            "type": "session.error",
+            "category": "session-timeout",
+        }
+        assert time.monotonic() - started < 5
 
 
 def test_environment_requires_high_entropy_local_token(monkeypatch) -> None:

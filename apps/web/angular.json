@@ -17,7 +17,16 @@
             "index": "src/index.html",
             "styles": ["src/styles.css"],
             "outputPath": "dist/web"
-          }
+          },
+          "configurations": {
+            "production": {},
+            "development": {
+              "optimization": false,
+              "extractLicenses": false,
+              "sourceMap": true
+            }
+          },
+          "defaultConfiguration": "production"
         },
         "serve": {
           "builder": "@angular/build:dev-server",
