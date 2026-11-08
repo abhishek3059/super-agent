@@ -72,6 +72,20 @@ personal data access, authorize implementation, or start a future phase. Both
 maintainers still need to review the direction. Lucidchart import and visual
 layout verification are not yet run.
 
+## Voice-foundation design proposal (2026-11-08)
+
+The operator authorized a design-only step for the first development cycle.
+The [signed voice-foundation proposal](docs/design/voice-foundation.md) narrows
+that cycle to a manually started active voice session with local mute,
+barge-in, streamed output, and stop. FastAPI and Angular are proposed, with a
+fake provider for offline tests and Gemini Live for an optional synthetic-audio
+test. No personal microphone audio may reach the free-tier provider.
+
+This is not scaffold authorization or runtime progress. RT-001 and PH-00 remain
+`not started`: Jeevesh's agreement and actual Gemini account, region, quota,
+model-access, key, and terms evidence are unresolved. No dependency was
+installed and no provider or microphone test was run for this design.
+
 ## Documentation acceptance status
 
 The documentation developer performed manual authoring-time checks (literal taxonomy, link targets, headings/anchors, ID traceability, initial statuses). Correction pass (revision 2) inline checks are described in the implementation report. 
