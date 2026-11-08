@@ -59,7 +59,7 @@ the completed implementation. Baseline checks are not implementation proof.
 | Independent implementation review | A3/workflow PASS; [A2 baseline review](../reviews/windows-spike-compatibility-a2.md) PASS, average 8.9. Small subsequent A2 corrections self-checked and tested; no repeat review at the operator's request |
 | Independent security assessment | [A3/workflow audit](../security/windows-spike-compatibility-a3.md) PASS, partial scope; A2/helper audit not run, skipped at the operator's request |
 | macOS execution | Not run |
-| GitHub Windows Node 22 workflow | First and second runs failed in A2 on a locale-independent SDDL alias not in the narrow parent-read allowlist; parser correction pending rerun |
+| GitHub Windows Node 22 workflow | Diagnostic run identified `LA` (local Administrator) as the hosted full-control trustee; threat-model-aligned alias correction pending rerun |
 | Gemini or Claude Code runtime | Not run; no key access or cloud-model calls authorized |
 
 ### Initial hosted CI finding
@@ -93,6 +93,14 @@ first setup sequence. The workflow now resets only the newly created test
 directory before granting the current SID and removing inheritance. It does
 not use recursive ACL changes or alter the runner's parent directory. A2
 still performs the authoritative parent and token DACL checks afterward.
+
+A one-run sanitized SDDL diagnostic identified that grant as `LA`, the
+locale-independent local Administrator alias. Administrators are already
+outside this file-isolation boundary and `BA` (Built-in Administrators) was
+already trusted. `LA` is now trusted on parent directories while other
+write-capable aliases remain rejected. The diagnostic was removed and a
+synthetic parent regression covers `LA` full control together with an
+unprivileged read-only alias.
 
 ### A2 evidence
 

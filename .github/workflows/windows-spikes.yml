@@ -61,15 +61,6 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Cannot remove inherited test-directory access' }
           & $icacls $root /setowner "*${sid}" | Out-Null
           if ($LASTEXITCODE -ne 0) { throw 'Cannot set test-directory owner' }
-          $probe = Join-Path $root 'acl-probe'
-          $dump = Join-Path $root 'acl-probe.txt'
-          New-Item -ItemType Directory -Force $probe | Out-Null
-          & $icacls $probe /save $dump | Out-Null
-          if ($LASTEXITCODE -ne 0) { throw 'Cannot inspect test-directory access' }
-          $descriptor = ([IO.File]::ReadAllText($dump, [Text.Encoding]::Unicode) -split "`r?`n" | Where-Object { $_ -match '^D:[A-Z(]' }) -join ''
-          Write-Output ("Child test ACL: " + $descriptor.Replace($sid, 'CURRENT-SID'))
-          Remove-Item -LiteralPath $probe -Recurse -Force
-          Remove-Item -LiteralPath $dump -Force
 
       - name: Run A2 permission hook selftest
         run: node selftest.mjs

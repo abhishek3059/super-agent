@@ -378,7 +378,7 @@ async function main() {
           const isParent = savedTarget.toLowerCase() === suite.toLowerCase();
           const isDirectory = !isParent && statSync(savedTarget).isDirectory();
           const dacl = isParent
-            ? `D:P(A;;FA;;;${fakeSid})(A;;FR;;;AU)`
+            ? `D:P(A;;FA;;;${fakeSid})(A;;FA;;;LA)(A;;FR;;;AU)`
             : isDirectory
               ? `D:P(A;OICI;FA;;;${fakeSid})`
               : `D:P(A;;FA;;;${fakeSid})`;

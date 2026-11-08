@@ -35,7 +35,7 @@ const GENERIC_RIGHTS = 0x10000000 | 0x40000000;
 const WRITE_BITS = (0x10000 | 0x40000 | 0x80000 | 0x100 | 0x40 | 0x2 | 0x4) | GENERIC_RIGHTS; // Includes directory delete-child, not just deletion of the directory itself.
 const READONLY_RIGHTS = /^(R|RX|X|FR|FX|GR)$/i;
 const TRUSTED_OWNER_SIDS = ["S-1-5-18", "S-1-5-32-544"]; // SYSTEM, BUILTIN\Administrators
-const TRUSTED_ALIASES = new Set(["SY", "BA"]); // SDDL aliases of the two above
+const TRUSTED_ALIASES = new Set(["SY", "BA", "LA"]); // SYSTEM, Administrators, and the local Administrator account
 
 /** Error carrying a fixed safe diagnostic category; messages never embed tokens. */
 const category = (c, message) => Object.assign(new Error(message), { category: c });
