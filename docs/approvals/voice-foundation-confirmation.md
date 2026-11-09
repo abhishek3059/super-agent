@@ -55,6 +55,15 @@ do not authorize personal microphone audio to any cloud provider, and do not
 authorize spend. He accepted Mac test responsibility; the Mac evidence itself
 is still to be run and recorded.
 
+### Scope-approval confirmation (R-00.1, 2026-11-09)
+
+`abhishek3059` confirmed in chat on 2026-11-09 that he approves the
+first-cycle scope, alongside the recorded approvals of `jeevesh2515` above.
+Recorded by the delivery-manager agent (OpenCode, model GLM-5.3-Flash Free) at
+his instruction. This approves the first-cycle scope only. It does not close
+RT-G00 or any runtime gate, does not authorize personal microphone audio to
+any cloud provider, and does not authorize spend.
+
 ## Still unresolved
 
 Gemini account eligibility, region, quota, available Live model, key access,
