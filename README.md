@@ -15,6 +15,7 @@ background task delegation.
 | --- | --- |
 | [PRD](prd.md) | Requirements REQ-01–REQ-18, acceptance criteria, runtime gates |
 | [Architecture](architecture.md) | Proposed components, trust boundaries, job states, data paths |
+| [Roadmap](roadmap.md) | The path and checklist of record: phases with tickable items (agents tick with evidence) |
 | [Phases](phases.md) | Milestone plan PH-DOC–PH-07 with entry and exit gates |
 | [Progress](progress.md) | Dated documentation milestone and dispositions |
 | [Build](build.md) | Build position; future commands are proposed and not runnable |

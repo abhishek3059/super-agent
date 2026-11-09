@@ -1,0 +1,68 @@
+# Canonical roadmap item IDs. One per line: 'R-x.n' or 'R-x.n human'.
+# scripts/check-roadmap.mjs fails if roadmap.md adds, drops, or re-flags an item without this file
+# changing in the same PR. Both files are code-owned (.github/CODEOWNERS).
+R-DOC.1
+R-DOC.2
+R-DOC.3
+R-DOC.4
+R-DOC.5
+R-DOC.6
+R-DOC.7
+R-DOC.8
+R-DOC.9
+R-00.1 human
+R-00.2
+R-00.3 human
+R-00.4 human
+R-00.5 human
+R-00.6 human
+R-00.7
+R-00.8 human
+R-00.9
+R-00.10
+R-00.11
+R-01.1
+R-01.2
+R-01.3 human
+R-01.4 human
+R-01.5
+R-01.6
+R-01.7
+R-01.8
+R-01.9
+R-01.10
+R-02.1
+R-02.2
+R-02.3
+R-02.4
+R-02.5
+R-02.6
+R-03.1
+R-03.2
+R-03.3
+R-03.4
+R-03.5
+R-03.6
+R-03.7
+R-04.1 human
+R-04.2
+R-04.3
+R-04.4
+R-04.5
+R-05.1 human
+R-05.2
+R-05.3
+R-06.1 human
+R-06.2
+R-07.1 human
+R-07.2
+R-R.1
+R-R.2
+R-R.3 human
+R-R.4 human
+R-R.5 human
+R-R.6
+R-C.1 human
+R-C.2 human
+R-C.3 human
+R-C.4

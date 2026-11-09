@@ -50,6 +50,13 @@ Evidence (logs, screenshots, output excerpts):
 <!-- paste or link redacted evidence -->
 ```
 
+## Roadmap (AGENTS.md section 11)
+
+- **Roadmap item(s) this PR works on:** <!-- e.g. R-00.2, or "none: roadmap PR" -->
+- [ ] I read `roadmap.md` before starting and again before opening this PR.
+- [ ] Items finished by this PR are ticked in `roadmap.md` with an Evidence link, or none are finished yet.
+- [ ] This PR stays on the current phase (or has an approved `[exception: link]`).
+
 ## Quality scores (AGENTS.md section 9)
 
 | Correctness | Security | Honesty | Scope | Clarity | Average | Scored by |

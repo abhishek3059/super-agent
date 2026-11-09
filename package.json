@@ -7,7 +7,7 @@
   "type": "module",
   "scripts": {
     "prepare": "husky",
-    "check": "node scripts/check-repo.mjs",
+    "check": "node scripts/check-repo.mjs && node scripts/selftest-roadmap.mjs",
     "check:commit": "node scripts/check-commit-msg.mjs"
   },
   "devDependencies": {

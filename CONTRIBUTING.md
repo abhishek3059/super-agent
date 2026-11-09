@@ -87,7 +87,7 @@ git push origin develop
 
 ## AI-agent rules
 
-The full agent rulebook is [AGENTS.md](AGENTS.md). In short:
+The full agent rulebook is [AGENTS.md](AGENTS.md); the path to follow is [roadmap.md](roadmap.md). Read the roadmap before starting and tick finished items, with evidence, in the same PR. In short:
 
 - Use the [pull request template](.github/pull_request_template.md) and disclose
   the agent, model/provider, and human operator.

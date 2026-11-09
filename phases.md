@@ -16,6 +16,7 @@ This document orders future phases and tasks. It is part of the documentation pa
 - [Delivery status](docs/delivery/super-agent.md)
 - [Discovery brief](docs/delivery/super-agent-brief.md)
 - [Council deliberation](docs/delivery/council.md)
+- [Roadmap (checklist of record)](roadmap.md)
 - [Requirements](prd.md)
 - [Architecture](architecture.md)
 - [Decisions](descisions.md)
