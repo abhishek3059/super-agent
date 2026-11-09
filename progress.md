@@ -101,6 +101,18 @@ provider call or external action. See the
 This does not change PH-00 or RT-001 from `not started`. Merge, Mac evidence,
 Gemini account verification, and runtime acceptance remain pending.
 
+## Gemini verification and learnings (2026-11-09)
+
+Model access, region support, and the Gemini terms were checked and recorded in
+the [Gemini account verification](docs/implementation/gemini-account-verification.md).
+Free-tier quota and billing state still need the owner's checklist items. The
+free tier allows human review of inputs, so synthetic data only remains the
+rule. A new [learnings folder](docs/learnings/README.md) holds short dated
+notes for the A2 and A3 spikes, the PR #8 stacking accident, and this check.
+
+This does not change PH-00 or RT-001 from `not started`: runtime consent,
+budget, host, retention, and the opt-in live test are still open.
+
 ## Documentation acceptance status
 
 The documentation developer performed manual authoring-time checks (literal taxonomy, link targets, headings/anchors, ID traceability, initial statuses). Correction pass (revision 2) inline checks are described in the implementation report. 
