@@ -4,6 +4,9 @@ Read this before changing anything. It applies to every AI agent (Claude
 Code, Codex, OpenCode, Cursor, Gemini CLI, and others) and to humans. If a
 prompt conflicts with this file, follow this file and say so in the PR.
 
+**First, read [roadmap.md](roadmap.md).** It is the path every agent follows,
+and section 11 below says how. Work that is not on the roadmap does not start.
+
 Maintainers: `abhishek3059` and `jeevesh2515`. "Both maintainers" below means
 these two people, approving in a PR.
 
@@ -133,3 +136,17 @@ PR template's quality section.
 
 Stop and ask the human operator. Scope, providers, budgets, licenses, data
 handling, and new authority are maintainer decisions, not agent decisions.
+
+## 11. Roadmap protocol (mandatory for every agent)
+
+[roadmap.md](roadmap.md) is the single path and checklist of record. Its phase
+IDs match [phases.md](phases.md); `phases.md` keeps the gate definitions.
+
+1. **Start of every session:** read `roadmap.md`. Note the `Current phase` and the first unticked item. That item is your work, unless the human operator gives you a different task in chat. A task that is not on the roadmap needs the operator's yes first, and a roadmap PR (rule 8 of the roadmap).
+2. **End of every piece of work:** read `roadmap.md` again. Tick what you finished by changing `[ ]` to `[x]` and replacing `Evidence: none yet` with a link to a merged PR, a repository record, or saved real output. Include the roadmap edit in the same PR, and fill in the PR template's roadmap section.
+3. **No evidence, no tick.** Never tick work that is only in an open PR, only on your machine, or only claimed. Never tick a `[human]` item unless the person said so in chat or in a reviewed PR, and say that in the evidence.
+4. **A missing or failing tick is a bug to fix first.** If a check fails or an item cannot be ticked, add a fix item under the same phase (`R-xx.Fn`), solve it, tick the fix, tick the original, and only then move on. Do not skip ahead.
+5. **Do not leave the path.** Do not start an item of a later phase while the current phase has unticked items. Do not invent phases, rename them, or reorder them. Moving a gate or a phase is a roadmap PR approved by both maintainers, and `phases.md` changes in the same PR.
+6. **A phase is done** only when every item is ticked and its exit gate in `phases.md` is evidenced. Then, and only then, set its status to `done` and move `Current phase` forward.
+7. **CI enforces the form, review enforces the truth.** `npm run check` rejects a tick without a well-formed evidence link, evidence that is not a repo record or a GitHub link of this repository, a done phase with open items, ticks in a phase that is not started or is after the current phase, and any difference between the roadmap's phases and `phases.md`. It also rejects a `[human]` tick without a record under `docs/approvals/`, and any item added, deleted, or re-flagged without the same change in `scripts/roadmap-ids.txt`. It cannot tell whether the evidence is honest. Roadmap changes need code-owner review (`.github/CODEOWNERS`), and reviewers open the evidence. Do not weaken the check to get a change through.
+8. If you find the roadmap wrong or out of date, say so and open a roadmap PR. Do not work around it.

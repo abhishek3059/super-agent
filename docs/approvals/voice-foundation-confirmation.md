@@ -25,7 +25,7 @@
 | Maintainer | Status | Recorded scope |
 | --- | --- | --- |
 | `abhishek3059` | **Approved, 2026-11-08** | Approved the design step and requested initial offline implementation. This does not authorize personal microphone transmission to Gemini. |
-| `jeevesh2515` | **Pending** | Must review the direction, stack, Mac responsibility, data boundary, and $0 budget. |
+| `jeevesh2515` | **Approved, 2026-11-09** | Accepted all six first-cycle items below, including Mac test responsibility. Recorded by Claude Code at his explicit instruction in chat (see the note under the checklist). |
 
 ## Jeevesh decision
 
@@ -34,16 +34,26 @@ file. An approval means agreement with every first-cycle bullet above and
 acceptance of responsibility for running the documented macOS checks. A change
 request must identify the disputed bullet and proposed replacement.
 
-- [ ] Direction and first-cycle scope accepted.
-- [ ] FastAPI and Angular stack accepted.
-- [ ] Synthetic-only cloud data boundary accepted.
-- [ ] $0 budget and no paid fallback accepted.
-- [ ] Mac test responsibility accepted.
-- [ ] Deferred capabilities accepted.
+- [x] Direction and first-cycle scope accepted.
+- [x] FastAPI and Angular stack accepted.
+- [x] Synthetic-only cloud data boundary accepted.
+- [x] $0 budget and no paid fallback accepted.
+- [x] Mac test responsibility accepted.
+- [x] Deferred capabilities accepted.
 
-Checkboxes remain unchecked until Jeevesh explicitly confirms them. An agent
+Checkboxes are ticked only when Jeevesh explicitly confirms them. An agent
 must not infer approval from silence, branch merge, or a different maintainer's
 approval.
+
+### Recording note (2026-11-09)
+
+`jeevesh2515` wrote each of the six items above in chat on 2026-11-09, stated
+that he accepts them, and asked Claude Code (`claude-sonnet-5-5`) to tick them.
+The boxes were ticked on that instruction and nothing else. They are approvals
+of the first-cycle scope only. They do not close RT-G00 or any runtime gate,
+do not authorize personal microphone audio to any cloud provider, and do not
+authorize spend. He accepted Mac test responsibility; the Mac evidence itself
+is still to be run and recorded.
 
 ## Still unresolved
 

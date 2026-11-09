@@ -1,0 +1,12 @@
+# Changes to the path and its guards need review from a maintainer.
+# This only blocks merging if branch protection requires code-owner review (roadmap R-R.4).
+# Any one of the listed owners can satisfy a rule.
+/roadmap.md @abhishek3059 @jeevesh2515
+/phases.md @abhishek3059 @jeevesh2515
+/AGENTS.md @abhishek3059 @jeevesh2515
+/scripts/check-roadmap.mjs @abhishek3059 @jeevesh2515
+/scripts/selftest-roadmap.mjs @abhishek3059 @jeevesh2515
+/scripts/check-repo.mjs @abhishek3059 @jeevesh2515
+/.github/CODEOWNERS @abhishek3059 @jeevesh2515
+/.github/workflows/ @abhishek3059 @jeevesh2515
+/scripts/roadmap-ids.txt @abhishek3059 @jeevesh2515
