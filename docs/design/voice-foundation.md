@@ -1,221 +1,799 @@
-# Voice foundation: signed implementation design
+# Voice foundation and real console: implementation design
 
 | Field | Value |
 | --- | --- |
-| Date / revision | 2026-11-08 / 1 |
-| Author | OpenCode, `agentrouter/gpt-5.6-sol` |
-| Status | Signed proposal for review. No scaffold, dependency installation, provider call, microphone transmission, or runtime approval. |
+| Date / revision | 2026-11-09 / 2 |
+| Author | OpenCode, architect-free (GLM-5.3-Flash Free) |
+| Status | Proposal for review. No implementation, dependency installation, provider call, microphone transmission, or runtime approval. |
 | Product context | [Personal-agent architecture](../product/personal-agent-architecture.md) |
 | Maintainer confirmation | [Decision record](../approvals/voice-foundation-confirmation.md) |
 | Runtime gate | RT-G00 remains open; [RT-001](../../tasks/001-runtime-consent-and-feasibility.md) is `in progress`. |
+| Revision 1 | Preserved verbatim in [voice-foundation-revision-1.md](voice-foundation-revision-1.md). |
 
-> **Implementation status (2026-11-09):** The offline scaffold is merged
-> (PR #13) and the hosted voice workflow is green on Windows and macOS
-> (PR #14). RT-001 is `in progress`; RT-G00 remains open. The Gemini Live
-> adapter and the opt-in synthetic live test are **not implemented**
-> (R-01.7 to R-01.9). The sections below are the 2026-11-08 signed design;
-> see the [implementation record](../implementation/voice-foundation-scaffold.md)
-> for current state.
+> **Current state (2026-11-09).** PH-00 is `in progress`. PR #21 is open.
+> PH-01 is `not started`. RT-G00 is not resolved. The only voice adapter is
+> the deterministic fake echo adapter. The Gemini Live adapter and the opt-in
+> synthetic live test are **not implemented** (R-01.7 to R-01.9). No live
+> provider test has run. This document is a proposal, not a claim that the real
+> console exists.
 
-## 1. Objective
+## 1. Purpose and current gap
 
-Build the smallest voice-to-voice foundation for the personal-agent platform.
-During a manually started browser session, the user can speak continuously,
-mute locally, hear streamed model audio, interrupt playback by speaking, and
-stop the session.
+This revision designs the step from the offline voice scaffold to a real local
+voice console. The console keeps Gemini Live multimodal in the middle. The
+browser sends audio to the FastAPI backend, the backend streams it to Gemini
+Live, and Gemini audio comes back through the same session. There is no
+separate speech-to-text, text-chat, and text-to-speech chain.
 
-The first provider adapter is proposed for Gemini Live. Automated tests use a
-deterministic fake adapter. A live provider test sends generated synthetic PCM
-only. Personal microphone audio is tested locally and is never transmitted to
-a cloud provider in this development cycle.
+The current application is not that console. It has:
 
-## 2. Recorded operator decisions
+- A deterministic `FakeVoiceAdapter` that echoes bounded PCM.
+- A request/response adapter seam:
+  `async send_audio(bytes) -> AudioReply(audio, turn_complete)`.
+- A backend loop that waits for one reply before it reads the next browser
+  frame.
+- A browser capture and playback path that assumes 16 kHz.
+- No `google-genai` dependency, no provider call, and no live test.
+
+The gap is not one adapter class. Gemini Live is streaming. It can send
+several model audio chunks, turn-complete events, interruption events, and
+session-ending events at times the request/response seam cannot represent.
+The backend must send browser audio and receive model events at the same time.
+The design therefore replaces the seam first, then adds the provider adapter.
+
+This revision covers the real console build. It does not authorize personal
+microphone audio to a cloud provider in the current development cycle. The
+live provider evidence remains synthetic-only until a separate privacy and
+runtime decision is recorded. The console can run the full local flow with the
+fake adapter. The Gemini mode is explicit and opt-in.
+
+## 2. Recorded decisions and scope
 
 | Topic | Decision |
 | --- | --- |
 | Stack | Python FastAPI backend and Angular browser client. |
-| Hosts | Windows and macOS. Jeevesh runs and records Mac-only evidence. |
-| Interaction | Manual start, visible active-session listening, local mute, barge-in, and stop. No wake word or background OS listening. |
-| Provider | Gemini Live candidate behind a replaceable adapter. No model weights. |
-| Secrets | Process environment only. No project `.env` file and no browser key. |
-| Data | Synthetic audio may reach Gemini. Personal microphone audio stays local. |
-| Budget | Hard $0 development cap; no billable fallback. |
-| Memory | Interface seam only; no persistent transcript, embedding, preference, or habit extraction. |
+| Provider | Gemini Live, audio in and audio out, behind a replaceable adapter. |
+| Hosts | Windows and macOS. Jeevesh records Mac-only evidence. |
+| Interaction | Manual start, visible active session, local mute, barge-in, and stop. |
+| Secrets | Backend process environment only. No project `.env`, no browser key, no logs. |
+| Data | Synthetic audio may reach Gemini in PH-01. Personal microphone audio stays local unless a separate approval is recorded. |
+| Budget | Hard $0 development cap. No billable fallback. |
+| Memory | No persistent transcript, embedding, preference, or habit extraction. |
 | Actions | No tools, MCP, research, subagents, shell, calls, bookings, messages, or computer control. |
+| Deployment | Loopback only. No remote hosting, public bind, or production TLS. |
 
-## 3. Provider disposition
+PH-01 scope:
 
-Gemini Live is the proposed first adapter because its official documentation
-describes bidirectional audio, continuous streaming, barge-in, Python/server
-WebSockets, 16 kHz PCM input, and 24 kHz PCM output. The official pricing page
-lists the Live models on a free tier and states that free-tier content is used
-to improve Google products. Therefore only generated synthetic audio may be
-sent during development.
+- Streaming adapter seam and offline fake-adapter tests.
+- Gemini Live adapter behind the seam.
+- Real console UI with clear states and controls.
+- Credential design, failed-auth throttling, and independent security review.
+- Opt-in synthetic-audio live command and one recorded live test.
+- RT-002 and RT-003 records and RT-G01 evidence.
 
-OpenAI Realtime supports the required interaction but is priced usage, so it
-does not fit the current $0 gate. Anthropic documents current Claude models as
-text/image input and text output; a Claude key is not a native speech-to-speech
-adapter. Both remain future candidates.
+Non-goals:
 
-Sources checked 2026-11-08:
+- Personal microphone audio to Gemini without a separate recorded approval.
+- Tools, function calling, task workers, or background jobs.
+- Wake words, locked-screen use, or background OS listening.
+- Persistent transcripts, stored audio, analytics, or personal memory.
+- Mobile, remote deployment, multi-user hosting, or production operations.
+- Automatic provider reconnect or silent fallback to another provider.
 
-- <https://ai.google.dev/gemini-api/docs/live-api>
-- <https://ai.google.dev/gemini-api/docs/live-api/get-started-websocket>
-- <https://ai.google.dev/gemini-api/docs/pricing>
-- <https://platform.openai.com/docs/guides/realtime>
-- <https://docs.anthropic.com/en/docs/about-claude/models/overview>
-
-Actual account eligibility, region, key access, model availability, quota, and
-terms acceptance are unverified. Any failed check keeps live testing disabled.
-
-## 4. Scope and non-goals
-
-The slice includes an authenticated loopback application, browser audio
-capture/playback, typed session events, fake and Gemini adapters, local mute,
-barge-in, cleanup, and offline tests.
-
-It excludes persistent memory, tools, arbitrary shell, personal cloud data,
-external effects, wake words, locked-screen use, background listening, mobile,
-deployment, and production hosting. It is not the general assistant yet.
-
-## 5. Proposed architecture
+## 3. Target architecture
 
 ```text
-Angular browser
-  microphone, local PCM conversion, mute, playback epoch, status
+Browser voice console
+  AudioWorklet capture at 16 kHz
+  PCM16 LE mono frames
+  playback buffers at the event rate, 24 kHz for Gemini
+  mute, barge-in, stop, status, timer, errors
         |
-        | authenticated same-origin WebSocket
+        | WebSocket on 127.0.0.1
+        | token or same-origin session cookie
         v
 FastAPI loopback backend
-  session state, bounds, origin/host/auth checks, provider selection
+  Host and Origin checks
+  authentication and failed-auth throttling
+  one active session
+  streaming bridge and bounded queues
+  code limits, timeouts, cleanup, fixed error categories
         |
-        +--> deterministic fake adapter (CI and local tests)
+        +--> FakeVoiceAdapter (default, tests and local echo)
         |
-        +--> Gemini Live adapter (explicit synthetic test only)
+        +--> GeminiLiveAdapter (explicit opt-in, synthetic test only in PH-01)
 ```
 
-The backend binds only to `127.0.0.1`. It serves the built Angular assets from
-one origin and rejects other Host and Origin values. A high-entropy local token
-is established outside browser storage and expires with the process. The
-provider key remains backend-only in `GEMINI_API_KEY`; startup and errors never
-print it.
+Provider selection:
 
-The browser captures audio only after user activation and permission. Mute
-stops local capture and discards unsent buffers. Barge-in advances a playback
-epoch, stops queued output locally, and signals interruption to the adapter.
-Old output for an earlier epoch is dropped. Stop closes microphone tracks,
-audio nodes, browser/backend WebSockets, provider sessions, timers, and buffers.
+- `VOICE_PROVIDER=fake` is the default for tests and the local echo console.
+- `VOICE_PROVIDER=gemini` enables the real adapter and requires
+  `GEMINI_API_KEY` in the backend process environment.
+- A missing key in `gemini` mode fails closed at startup with a fixed error.
+  The process does not start a provider session and does not fall back to fake.
+- The key is read once at startup. It is never logged, sent to the browser, or
+  written to a file by the application.
 
-## 6. Protocol and limits
+Serving model:
 
-Client events: `session.start`, `audio.chunk`, `capture.mute`,
-`capture.unmute`, `playback.interrupt`, and `session.stop`.
+- Recommended shipped path: FastAPI serves the built Angular console on
+  `http://127.0.0.1:8000`. The browser and WebSocket share one origin. This
+  removes CORS from the shipped path and allows an HttpOnly session cookie.
+- Development path: the Angular dev server stays on
+  `http://127.0.0.1:4200`, with an explicit Origin allowlist and first-message
+  token authentication.
+- The same-origin change is a proposal. It needs maintainer approval and the
+  security review in section 9.
 
-Server events: `session.ready`, `session.state`, `audio.chunk`,
-`playback.interrupted`, `turn.complete`, and fixed-category `session.error`.
-Provider payloads and raw errors never pass directly to the browser.
+The backend binds only to `127.0.0.1`. It rejects other Host and Origin values.
+It never exposes provider payloads or raw errors to the browser.
 
-Initial code-enforced limits are one session, a 15-minute maximum, 60-second
-idle timeout, two seconds of buffered audio, 64 KiB control messages, bounded
-audio frames, and no automatic reconnect. Values are provisional until measured.
+## 4. Streaming adapter seam
 
-## 7. Proposed dependency baseline
+The current seam cannot carry asynchronous model audio. The replacement is a
+streaming protocol with one input queue, one ordered event stream, and
+explicit close semantics.
 
-No package is installed by this design. The scaffold PR must pin direct and
-transitive dependencies, use lock files, install with scripts disabled where
-possible, audit both ecosystems, and record licenses.
+```python
+from __future__ import annotations
 
-| Component | Proposed version | License | Registry evidence |
-| --- | --- | --- | --- |
-| Python | 3.12 supported line | PSF | Exact security patch selected at scaffold time. |
-| FastAPI | 0.162.0 | MIT | PyPI, released 2026-10-23. |
-| Uvicorn | 0.54.0 | BSD-3-Clause | PyPI, released 2026-09-25. |
-| Google Gen AI SDK | 2.33.0 | Apache-2.0 | PyPI, released 2026-10-22. |
-| websockets | 17.3 | BSD-3-Clause | PyPI, released 2026-10-19. |
-| pytest | 9.1.1 | MIT | PyPI; test-only proposal. |
-| Angular framework and CLI | 22.2.3 | MIT | npm, released 2026-10-14. |
-| Node.js | 22.22.3 | MIT | Minimum supported Node 22 release for Angular 22. |
-| TypeScript | 6.0.3 | Apache-2.0 | npm; matches Angular `>=6.0 <6.1`. |
-| RxJS | 7.8.2 | Apache-2.0 | npm; matches Angular compatibility table. |
-| zone.js | 0.16.3 | MIT | npm; Angular peer range. |
+from collections.abc import AsyncIterator
+from dataclasses import dataclass
+from typing import Protocol
 
-Versions published fewer than 14 days before 2026-11-08 were deliberately not
-selected. `fastapi[standard]` is not proposed because it adds unrelated cloud
-CLI and optional packages. The implementation must justify every additional
-direct dependency and must not use `python-dotenv`.
 
-Primary metadata sources:
+@dataclass(frozen=True)
+class AudioChunk:
+    data: bytes
+    rate_hz: int
 
-- <https://pypi.org/project/fastapi/0.162.0/>
-- <https://pypi.org/project/uvicorn/0.54.0/>
-- <https://pypi.org/project/google-genai/2.33.0/>
-- <https://angular.dev/reference/versions>
-- <https://registry.npmjs.org/@angular/core>
 
-## 8. Repository layout proposal
+@dataclass(frozen=True)
+class TurnComplete:
+    pass
+
+
+@dataclass(frozen=True)
+class Interrupted:
+    pass
+
+
+AdapterEvent = AudioChunk | TurnComplete | Interrupted
+
+
+class VoiceAdapter(Protocol):
+    async def start(self) -> None: ...
+    async def enqueue_audio(self, audio: bytes) -> None: ...
+    async def interrupt(self) -> None: ...
+    def events(self) -> AsyncIterator[AdapterEvent]: ...
+    async def close(self) -> None: ...
+```
+
+Contract:
+
+- `start()` opens the provider session or prepares the fake stream. It raises a
+  fixed adapter error on failure. The backend maps that error to a fixed
+  `session.error` category.
+- `enqueue_audio()` accepts one PCM16 LE mono frame at 16 kHz. It is
+  non-blocking. The adapter has a bounded input queue. When the queue is full,
+  it drops the oldest audio frame and increments a counter. Audio is never
+  allowed to grow without bound.
+- `interrupt()` asks the adapter to stop the current model output. The exact
+  provider behavior is verified by the live synthetic test. The adapter must
+  not pretend the interruption succeeded.
+- `events()` is a single-consumer async iterator. It yields audio chunks with
+  their sample rate, turn-complete events, and interruption events in order.
+  The backend must not run two consumers on one adapter.
+- `close()` cancels adapter tasks, closes the provider session, and releases
+  queues. It is idempotent.
+- The fake adapter implements the same protocol with deterministic events. It
+  can be scripted in tests to emit audio, turns, interruptions, delays, and
+  errors.
+
+Backend concurrency:
+
+- One browser receiver task reads WebSocket messages. It authenticates, handles
+  control events, validates audio frames, and calls `enqueue_audio()`.
+- One adapter forwarder task consumes `events()` and sends ordered events to the
+  browser.
+- One watchdog task owns the total-duration and idle deadlines.
+- One sender task owns all WebSocket writes. Control responses, audio metadata,
+  binary audio, and errors go through one bounded outbound queue. This prevents
+  interleaved frames from concurrent senders.
+- On any task failure, the backend cancels the other tasks, closes the adapter,
+  releases the session gate, and closes the socket with a fixed category.
+
+Backpressure and ordering:
+
+- Audio input and output queues are bounded. Audio uses drop-oldest because
+  stale audio is worse than a gap. Control events are never dropped. If a
+  control queue is full, the session fails closed.
+- The backend attaches the current playback epoch to every output event. The
+  adapter does not own the epoch.
+- The browser drops binary audio that is not covered by the current epoch. The
+  existing playback-epoch tracker remains the authority.
+- Metrics count frames and drops. They do not contain audio or transcript.
+
+State machine:
 
 ```text
-apps/api/       FastAPI application and provider adapters
-apps/web/       Angular application and browser audio engine
-contracts/      Versioned JSON schemas for voice session events
-tests/          Cross-boundary and synthetic acceptance fixtures
+idle -> authenticating -> starting -> ready -> listening
+                                      |          |
+                                      |          +--> speaking
+                                      |          |
+                                      +----------+--> stopping -> closed
+any state -> error -> closed
 ```
 
-The scaffold PR owns manifests, lock files, exact setup commands, CI jobs, and
-generated-file review. This design creates none of them.
+`session.ready` is sent only after `adapter.start()` succeeds. If the provider
+fails, the browser receives a fixed `session.error` and the socket closes. The
+browser does not start microphone capture until it receives `session.ready`.
 
-## 9. Verification plan
+## 5. Browser protocol revision 2
 
-Offline automated tests use generated PCM and a fake adapter. They cover event
-schemas, size and time limits, auth/Host/Origin rejection, malformed frames,
-mute buffer disposal, playback epochs, late audio, interruption races,
-provider errors, disconnects, timeouts, and complete resource cleanup.
+Client events:
 
-Browser tests prove microphone permission is user initiated, local mute stops
-capture, stop closes tracks, and no audio or transcript enters storage. A local
-manual loopback test may use the operator's microphone but cannot send it to
-Gemini or write it to disk.
+| Event | Payload | Rule |
+| --- | --- | --- |
+| `session.auth` | `{ "type": "session.auth", "token": "..." }` | First message. Required before any audio. |
+| `capture.mute` | `{ "type": "capture.mute" }` | Stops browser capture and ends the provider audio stream. |
+| `capture.unmute` | `{ "type": "capture.unmute" }` | Starts a new provider audio stream. |
+| `playback.interrupt` | `{ "type": "playback.interrupt" }` | Local barge-in. Stops playback and bumps the epoch. |
+| `session.stop` | `{ "type": "session.stop" }` | Ends the session and closes the provider. |
 
-One opt-in live command may read `GEMINI_API_KEY` and send generated synthetic
-PCM. It is excluded from default tests and CI. It reports only timing, state,
-and fixed error categories. It may not log audio, transcripts, URLs containing
-credentials, or provider payloads.
+Server events:
 
-Windows runs automated checks. Jeevesh runs the same commands on macOS and
-records real output. Neither platform substitutes for the other.
+| Event | Payload | Rule |
+| --- | --- | --- |
+| `session.ready` | `{ "type": "session.ready", "playbackEpoch": 0, "outputRateHz": 24000, "provider": "gemini-live" }` | Sent after provider start succeeds. |
+| `audio.chunk` | `{ "type": "audio.chunk", "playbackEpoch": 0, "rateHz": 24000, "channels": 1, "format": "pcm16" }` | Followed immediately by one binary frame. |
+| `turn.complete` | `{ "type": "turn.complete", "playbackEpoch": 0 }` | Model turn ended. |
+| `session.state` | `{ "type": "session.state", "state": "listening" }` or `{ "type": "session.state", "muted": true }` | Visible state. |
+| `playback.interrupted` | `{ "type": "playback.interrupted", "playbackEpoch": 1, "source": "local" }` | Local or provider interruption. |
+| `session.error` | `{ "type": "session.error", "category": "provider-unavailable" }` | Fixed category only. |
+| `session.metrics` | `{ "type": "session.metrics", "inputFrames": 0, "droppedInputFrames": 0, "outputChunks": 0, "droppedOutputChunks": 0 }` | Optional aggregate counters. No payloads. |
 
-## 10. Definition of done
+Binary rules:
 
-- The fake-adapter slice runs on Windows and macOS with all offline tests passing.
-- Manual start, visible listening, mute, barge-in, and stop have measured local evidence.
-- Mute and stop prevent subsequent microphone frames from crossing the browser boundary.
-- Interrupted or stale model audio cannot resume playback.
-- No raw audio, transcript, key, or personal context is persisted or logged.
-- The live synthetic test is impossible without explicit invocation and a process environment key.
-- All dependencies are exact-pinned, audited, licensed, older than 14 days, and justified.
-- Existing repository checks and independent Windows checks remain passing.
-- Actual Gemini account, region, quota, model access, and terms are verified before any live test.
-- Independent review accepts the implemented security boundary before runtime acceptance.
+- Browser to backend: PCM16 little-endian, mono, 16 kHz. One frame per
+  WebSocket binary message. Maximum 32 KiB. The backend rejects odd-length
+  frames and oversized frames.
+- Backend to browser: PCM16 little-endian, mono, rate from `audio.chunk`.
+  Gemini Live output is 24 kHz. The browser creates an `AudioBuffer` with the
+  event `rateHz` and lets the Web Audio API resample to the output device. It
+  must not hard-code 16 kHz.
+- The binary frame has no header. The preceding `audio.chunk` JSON is the
+  metadata. A binary frame without a current metadata event is dropped.
+- Playback epochs increase on local barge-in and on provider interruption.
+  Audio for an older epoch is dropped.
 
-## 11. Remaining blockers
+Startup sequence:
 
-**2026-11-08 snapshot.** Several items are now resolved: Jeevesh confirmed the
-cycle, the Gemini account and dependencies are verified or locked, and the
-offline scaffold is merged. The Gemini adapter and opt-in live test remain
-unimplemented.
+1. Browser connects to `/ws/voice` with the allowed Host and Origin.
+2. Browser sends `session.auth`.
+3. Backend validates the token, acquires the one-session gate, creates the
+   adapter, and calls `adapter.start()`.
+4. On provider failure, backend sends `session.error` and closes. No
+   microphone capture starts.
+5. On success, backend sends `session.ready` with `outputRateHz`.
+6. Browser requests microphone permission and starts capture.
+7. Audio flows in both directions until stop, timeout, provider end, or error.
 
-- Jeevesh has not confirmed the product direction or this cycle.
-- Gemini account creation, key, region, quota, model access, and terms are unverified.
-- The exact Python 3.12 security patch and complete dependency locks are undecided.
-- Personal microphone-to-cloud testing is prohibited in this development cycle.
-- No scaffold implementation is authorized by this design PR alone.
+Shutdown sequence:
 
-## 12. Rollback
+1. Stop closes microphone tracks and audio nodes.
+2. Browser sends `session.stop` if the socket is open.
+3. Backend cancels tasks, closes the adapter, releases the gate, and closes the
+   socket.
+4. Browser clears playback and status. No audio or transcript is saved.
 
-Revert the eventual design commit. No runtime file, dependency, key, account,
-or external service is created by this proposal.
+Error categories:
 
-**Signed:** OpenCode, `agentrouter/gpt-5.6-sol`, 2026-11-08. Scope: this
-implementation proposal only. Installation, build, runtime tests, provider
-access, Mac execution, independent review, and implementation approval are
-not run or obtained.
+| Category | Meaning |
+| --- | --- |
+| `invalid-control` | Malformed JSON, unknown event, or missing field. |
+| `invalid-audio` | Odd length, oversized frame, or audio before ready. |
+| `max-duration` | Code-level 15-minute limit reached. |
+| `session-timeout` | 60-second idle limit reached. |
+| `session-busy` | One active session already exists. |
+| `provider-unavailable` | Connection, DNS, TLS, or network failure. |
+| `provider-limits` | Quota or rate limit. |
+| `provider-unsupported` | Unsupported model, transport, or configuration. |
+| `provider-session-ended` | Provider GoAway or session close. |
+| `session-failed` | Redacted catch-all. |
+
+No provider message, stack trace, URL, key, audio, or transcript is sent to the
+browser.
+
+## 6. Gemini Live adapter
+
+The adapter uses the Python `google-genai` SDK pinned in section 11. The SDK
+surface below was checked against the official Live guides on 2026-11-09. The
+runtime behavior with a real key has not been tested. That is the main residual
+uncertainty in this design.
+
+Connection and configuration:
+
+```python
+from google import genai
+from google.genai import types
+
+client = genai.Client(api_key=api_key)
+async with client.aio.live.connect(model=model, config=config) as session:
+    ...
+```
+
+Proposed configuration:
+
+- Response modality: audio.
+- Input audio transcription: off.
+- Output audio transcription: off.
+- Tools: none.
+- System instruction: minimal and static. No personal data.
+- Voice: fixed default for the first slice. Model and voice selection are open
+  questions.
+- Automatic voice activity detection: provider default. Exact tuning is
+  verified in the live synthetic test.
+
+Send path:
+
+```python
+await session.send_realtime_input(
+    audio=types.Blob(data=frame, mime_type="audio/pcm;rate=16000")
+)
+```
+
+- Input frames are PCM16 LE mono at 16 kHz.
+- On mute or stop, the adapter sends `audio_stream_end=True` once.
+- On unmute, it starts a new stream with the next audio frame.
+- No text input is sent.
+
+Receive path:
+
+```python
+async for response in session.receive():
+    ...
+```
+
+Mapping:
+
+| Provider event | Adapter event or action |
+| --- | --- |
+| `server_content.model_turn.parts[].inline_data.data` | `AudioChunk(data, rate_hz=24000)` |
+| `server_content.turn_complete` | `TurnComplete()` |
+| `server_content.interrupted` | `Interrupted()` |
+| `server_content.go_away` | Fail closed with `provider-session-ended` |
+| `session_resumption_update` | Store the handle only. No reconnect in this slice. |
+
+Session limits:
+
+- The code-level maximum is 15 minutes.
+- The provider connection lifetime is about 10 minutes and can send GoAway
+  before it ends.
+- On GoAway, the adapter ends the session with `provider-session-ended`. It does
+  not reconnect and does not silently start a new provider session.
+- Session resumption is a future design. It needs its own review because it
+  changes continuity and retention behavior.
+- One provider session per browser session.
+
+Error mapping:
+
+| Failure | Category |
+| --- | --- |
+| Connection, DNS, TLS, or network | `provider-unavailable` |
+| Quota or rate limit | `provider-limits` |
+| Unsupported model, transport, or config | `provider-unsupported` |
+| GoAway or provider session close | `provider-session-ended` |
+| Anything else | `session-failed` |
+
+Barge-in:
+
+- The browser detects local speech while playback is active. It stops local
+  playback and sends `playback.interrupt`.
+- The backend bumps the epoch and calls `adapter.interrupt()`.
+- The adapter sends `audio_stream_end=True` to the provider and waits for the
+  provider's `interrupted` event or turn completion. If the provider does not
+  interrupt, the session ends with a fixed error. It does not pretend the
+  interruption succeeded.
+- If the provider sends `interrupted` on its own, the adapter emits
+  `Interrupted()`. The backend bumps the epoch and sends
+  `playback.interrupted` with `source: "provider"`.
+- Exact barge-in behavior is verified by the synthetic live test before the
+  console is accepted.
+
+Logging:
+
+- Log fixed categories, state transitions, frame counts, drop counts, and
+  timing.
+- Never log audio, transcript, key, provider payload, request URL, or personal
+  context.
+- Provider exceptions are reduced to a fixed category before logging.
+
+## 7. Credential design (R-01.5)
+
+Threat model:
+
+- A malicious local process that tries to connect to the loopback port.
+- A malicious web page that tries to open a WebSocket to the loopback port.
+- Accidental token leakage through logs, URLs, repository files, or browser
+  storage.
+- Not a remote network attacker. The server binds only to `127.0.0.1`.
+
+Device credential:
+
+- `SUPER_AGENT_LOCAL_TOKEN`, at least 32 bytes, generated with
+  `secrets.token_urlsafe(32)`.
+- Stored only in the backend process environment. No project `.env`, no
+  repository file, no browser storage, no log.
+- Compared with `hmac.compare_digest`.
+- Expiry is the backend process lifetime. A proposed optional
+  `SUPER_AGENT_TOKEN_MAX_AGE_SECONDS` (24 hours, provisional) refuses auth after
+  the age and requires a restart with a new token.
+- Rotation is a restart with a new token.
+- Revocation is a restart, which closes every session.
+
+Session credential:
+
+- The authenticated WebSocket is the session credential.
+- One active session.
+- The session ends on stop, disconnect, idle timeout, 15-minute maximum, or
+  provider end.
+- No separate bearer token is issued in the minimal flow. A same-origin cookie
+  flow is a proposed alternative below.
+
+Failed-auth throttling:
+
+- In-memory global counter, not per-IP, because every client is loopback.
+- Five failures within 60 seconds trigger a 60-second cooldown with a fixed
+  delay and a fixed error. Successful auth resets the counter.
+- Values are provisional and need measurement.
+- Throttling does not reveal whether the token was close or whether a session
+  exists.
+
+Browser flow, minimal:
+
+- The user pastes the local token into a password field.
+- The token stays in memory for the page session. It is not written to
+  `localStorage` or `sessionStorage`.
+- The browser sends it in `session.auth` as the first WebSocket message.
+- The backend rejects a bad token with close code 1008.
+
+Browser flow, recommended shipped path:
+
+- FastAPI serves the built Angular console on the same origin.
+- The user enters the device token once.
+- The backend sets an HttpOnly, SameSite=Strict session cookie. `Secure` is set
+  only when the console is served over HTTPS, which is not part of this local
+  slice.
+- The WebSocket handshake sends the cookie. The backend checks the Origin and
+  the cookie.
+- This removes the device token from JavaScript after enrollment and removes
+  CORS from the shipped path.
+- This needs maintainer approval and the security review in section 9.
+
+Same-origin trade-off:
+
+- Benefits: one origin, no CORS, cookie auth, simpler CSRF story, one URL for
+  the user.
+- Costs: a build and static-file serving step, a different development flow,
+  and a cookie/CSRF review.
+- The Angular dev server flow stays dev-only. It is not the shipped check path.
+
+## 8. Real console UX
+
+Minimum console:
+
+- Header with connection state, provider mode, and session timer.
+- Large Start and Stop control.
+- Mute toggle.
+- Interrupt control.
+- Visible states: disconnected, connecting, listening, speaking, muted,
+  stopping, error.
+- Fixed error messages for microphone permission, invalid token, provider
+  unavailable, provider limits, provider session ended, and network failure.
+- Accessible labels, focus states, and an ARIA live status region.
+- Keyboard shortcuts: `S` start or stop, `M` mute, `I` interrupt. Shortcuts are
+  ignored while a text field has focus.
+- Local token input with `type="password"` and no autocomplete.
+
+Recommended real-console features:
+
+- AudioWorklet capture at 16 kHz. Keep the existing ScriptProcessorNode only as
+  a fallback with a visible warning if AudioWorklet is unavailable.
+- Playback buffers use the `rateHz` from `audio.chunk`. Gemini output is 24 kHz.
+  Do not hard-code 16 kHz.
+- Input and output device selection through `enumerateDevices`. Device
+  selection is a preference, not a secret. Keep it in memory for the first
+  slice.
+- Level meter from the AudioWorklet.
+- Session timer with a warning one minute before the code maximum and a note
+  that the provider may end earlier.
+- Provider consent before the first Gemini session. The console says:
+  "Audio is sent to Google Gemini Live for this session. This app does not
+  store it. Free-tier terms may allow Google to use inputs for product
+  improvement." The user must opt in.
+- The fake mode says: "Local echo only. Audio stays on this machine."
+
+Optional polish, out of the minimum:
+
+- Ephemeral captions. These need a privacy review because they expose provider
+  transcription. Persistent transcripts remain prohibited.
+- Waveform visualization.
+- Model and voice selection.
+- Configurable barge-in sensitivity.
+
+No persistent transcript, no stored audio, no analytics, and no personal
+context in prompts.
+
+## 9. Security and privacy (R-01.6)
+
+Controls:
+
+- Host header must equal the configured loopback host.
+- Origin header must equal the configured console origin.
+- WebSocket auth happens before any audio is accepted.
+- One active session. Additional connections are closed with 1013.
+- Control messages are bounded to 64 KiB.
+- Audio frames are bounded to 32 KiB and must have even length.
+- The total session is bounded to 15 minutes.
+- The idle timeout is 60 seconds.
+- No automatic reconnect and no silent provider fallback.
+- Provider payloads and raw errors never reach the browser.
+- No secret in the browser, URL, prompt, log, or repository.
+- The provider key is read from the backend process environment only.
+- Dependency versions are pinned, audited, and license-checked.
+
+Provider egress:
+
+- In `gemini` mode, audio is sent to Google Gemini Live.
+- PH-01 live evidence uses generated synthetic PCM only.
+- Personal microphone audio to Gemini requires a separate dated decision by
+  both maintainers, an updated provider terms and retention record, and a
+  runtime gate. Until then, personal audio stays local and the fake adapter is
+  the only path that may receive it.
+- The console must show the disclosure and require opt-in before a Gemini
+  session.
+
+Fail-closed table:
+
+| Condition | Behavior |
+| --- | --- |
+| Missing `GEMINI_API_KEY` in `gemini` mode | Refuse to start a provider session. Fixed `provider-unavailable` error. |
+| Bad token | Close 1008, count the failure, throttle after five failures. |
+| Host or Origin mismatch | Close 1008 before auth. |
+| Second session | Close 1013. |
+| Audio before ready | Fixed `invalid-audio` error and close. |
+| Odd or oversized audio frame | Fixed `invalid-audio` error and close. |
+| Provider connect failure | Fixed `provider-unavailable` error and close. |
+| Provider quota or rate limit | Fixed `provider-limits` error and close. |
+| Provider GoAway | Fixed `provider-session-ended` error and close. |
+| Provider unsupported model or transport | Fixed `provider-unsupported` error and close. |
+| Queue overflow | Drop oldest audio for audio queues. Fail closed for control queues. |
+| Unexpected exception | Fixed `session-failed` error, redacted, close. |
+
+Independent security review scope:
+
+- Authentication and failed-auth throttling.
+- Host, Origin, CORS, WebSocket, and CSRF controls.
+- Backend-only secret handling and log redaction.
+- Provider egress, consent, and disclosure.
+- Session limits, queue bounds, cancellation, and cleanup.
+- Dependency supply chain and license.
+- Same-origin cookie flow, if approved.
+- Fail-closed behavior for each error path.
+
+The review must record PASS or FAIL, findings, and dispositions. It must not
+have access to the provider key.
+
+## 10. Testing and evidence
+
+Offline tests:
+
+- Adapter contract with a scripted fake streaming adapter: ordered audio,
+  turn complete, interruption, error, close, and queue drop.
+- Backend: auth, Host, Origin, one-session gate, total and idle timeouts,
+  oversized and odd frames, invalid control, provider start failure, provider
+  error redaction, epoch on local and provider interruption, cleanup.
+- Frontend: playback epoch, 24 kHz buffer handling, mute, barge-in, stop, and
+  error states. Add a self-test script next to the existing epoch self-test.
+- No live provider call in CI or the default test command.
+
+Opt-in synthetic live command (R-01.8):
+
+- Proposed path: `apps/api/scripts/live_synthetic.py`.
+- It generates PCM at runtime. It does not read or write audio files.
+- It requires `VOICE_PROVIDER=gemini` and `GEMINI_API_KEY` in the process
+  environment. It refuses to run if the key is missing.
+- It sends generated audio through the real adapter. It records first-audio
+  latency, turn completion, interruption, stop, and fixed error categories.
+- It logs timing and state only. No audio, transcript, key, URL, or provider
+  payload.
+- It is excluded from default tests and CI.
+- It includes an unsupported model or transport case that must fail closed.
+
+Synthetic live test (R-01.9):
+
+- The operator runs the command in the PowerShell session that holds
+  `GEMINI_API_KEY`. The agent cannot see the key and does not run the live test.
+- Record date, model, region, latency, turn behavior, interruption behavior,
+  stop behavior, and the fail-closed case.
+- Save the redacted output in a dated implementation record.
+- No audio or transcript is saved.
+- If the key is unavailable or the quota is exhausted, record "not run" and do
+  not claim the gate.
+
+Human checks:
+
+- R-01.3: Jeevesh runs the offline checks on macOS and records real output.
+- R-01.4: the operator runs the local microphone test with the fake adapter:
+  start, mute, barge-in, and stop. No audio leaves the machine.
+
+R-01.10:
+
+- RT-002 and RT-003 records complete.
+- RT-G01 evidence includes the reviewed scaffold and commands, deployed
+  authentication, Host, Origin, CORS, WebSocket, and CSRF controls,
+  backend-only secrets, measured native media, manual activation, stop
+  controls, visible states, and fail-closed transport behavior.
+
+## 11. Dependencies
+
+No dependency is installed by this design.
+
+| Component | Proposed version | License | Evidence |
+| --- | --- | --- | --- |
+| `google-genai` | `2.33.0` | Apache-2.0 | Released 2026-10-23, 17 days old on 2026-11-09. Satisfies the 14-day rule. |
+| Python | 3.12 supported line | PSF | Exact security patch selected at implementation. |
+| FastAPI | `0.162.0` | MIT | Already pinned in the scaffold. |
+| Uvicorn | `0.54.0` | BSD-3-Clause | Already pinned in the scaffold. |
+| websockets | `17.3` | BSD-3-Clause | Already pinned in the scaffold. |
+| Angular | `22.2.3` | MIT | Already pinned in the scaffold. |
+| TypeScript | `6.0.3` | Apache-2.0 | Already pinned in the scaffold. |
+
+Rejected versions:
+
+- `google-genai==3.0.0`, released 2026-11-06, 3 days old.
+- `google-genai==2.34.0`, released 2026-10-29, 11 days old.
+
+Dependency notes:
+
+- `google-genai==2.33.0` requires Python >=3.10.
+- Transitive packages include anyio, google-auth, httpx, pydantic, requests,
+  tenacity, websockets, typing-extensions, distro, and sniffio.
+- PyPI license metadata is empty. The Apache-2.0 license was verified from the
+  `LICENSE` file at GitHub tag `v2.33.0`.
+- Add the dependency to `apps/api/requirements.in`, regenerate
+  `apps/api/requirements.lock` with the existing pip-tools flow, install with
+  `--only-binary=:all:` where possible, run the Python audit, and record the
+  result.
+- No new frontend dependency is required. AudioWorklet, Web Audio, and
+  `enumerateDevices` are browser APIs.
+- Do not add `python-dotenv`. The key stays in the process environment.
+- If a dev dependency is needed for async tests, justify it and pin it. Prefer
+  the existing pytest stack.
+
+Sources checked 2026-11-09:
+
+- <https://pypi.org/project/google-genai/2.33.0/>
+- <https://github.com/googleapis/python-genai/blob/v2.33.0/LICENSE>
+- <https://ai.google.dev/gemini-api/docs/live-api>
+- <https://ai.google.dev/gemini-api/docs/live-api/get-started-websocket>
+
+## 12. Implementation plan and estimate
+
+Work order:
+
+1. **Close PH-00.** Merge PR #21 and the bookkeeping PR. Record the final
+   RT-G00 resolution. Move `Current phase` to PH-01.
+2. **Human checks.** R-01.3 Mac offline checks and R-01.4 local microphone test
+   with the fake adapter.
+3. **Credential design and throttling (R-01.5).** Approve the token flow and
+   same-origin decision. Implement failed-auth throttling and the chosen
+   session flow. Independent review.
+4. **Streaming seam (R-01.7 part 1).** Replace the request/response adapter
+   with the streaming protocol. Add the scripted fake adapter and backend tests.
+   Keep the console working with the fake adapter.
+5. **Gemini adapter (R-01.7 part 2).** Add `google-genai==2.33.0`, implement
+   `GeminiLiveAdapter`, map errors, handle GoAway, and add offline tests with a
+   mocked SDK.
+6. **Console UI.** Add the real console states, 24 kHz playback handling,
+   AudioWorklet, device selection, level meter, timer, disclosure, and
+   accessibility. Keep the fake mode working.
+7. **Security review (R-01.6).** Review the implemented boundary and provider
+   egress. Fix findings. Record PASS or FAIL.
+8. **Opt-in live command (R-01.8).** Build the synthetic command and its
+   fail-closed cases.
+9. **Live test (R-01.9).** The operator runs it in the PowerShell session with
+   the key. Record redacted results.
+10. **Records and gates (R-01.10).** Complete RT-002 and RT-003. Record RT-G01
+    evidence. Tick roadmap items only after the evidence exists.
+
+Estimate:
+
+| Work | Focused days | Calendar dependency |
+| --- | --- | --- |
+| Close PH-00 and bookkeeping | 0.5 | Jeevesh review and merge |
+| R-01.3 and R-01.4 human checks | 0.5 to 1 | Jeevesh and operator availability |
+| R-01.5 credential design and review | 1 to 2 | Independent review |
+| R-01.6 security review and fixes | 1 to 2 | Reviewer availability |
+| R-01.7 streaming seam and Gemini adapter | 3 to 4 | None beyond PH-00 |
+| R-01.8 opt-in live command | 1 | None |
+| R-01.9 live test | 0.5 to 1 | Operator key and quota |
+| R-01.10 records | 0.5 to 1 | Prior evidence |
+| Console UI, minimal | 1 to 2 | None |
+| Console UI, polish | 3 to 6 | None |
+
+Totals:
+
+- Minimal real console: about 8 focused days over about 2 calendar weeks.
+- Polished console: about 15 to 20 focused days over about 4 calendar weeks.
+- The estimates assume prompt reviews, available human checks, and no provider
+  surprises. They are estimates, not commitments.
+- The live test cannot run from the agent process because the key is
+  session-scoped. The operator must be available for R-01.9.
+
+## 13. Risks and open questions
+
+Risks:
+
+- The streaming seam changes the core backend loop. Regression risk is higher
+  than adding an adapter class.
+- The Gemini SDK surface is verified from documentation, not from a live call.
+  The live test may find differences.
+- The provider connection lifetime is about 10 minutes, shorter than the
+  15-minute code maximum. A real session may end earlier than the UI timer.
+- Barge-in behavior with real audio is unverified. The live synthetic test must
+  measure it.
+- Free-tier quota and terms may limit the live test.
+- Personal microphone audio to Gemini is not approved in this cycle. The
+  console may be technically ready before it is allowed to use personal audio.
+- Same-origin serving changes the development flow and needs approval.
+- AudioWorklet and 24 kHz playback need Windows and macOS browser testing.
+- Human checks and independent reviews are on the critical path.
+
+Open questions for the operator:
+
+1. May personal microphone audio be sent to Gemini? This needs a dated decision
+   by both maintainers, a provider terms and retention update, and a runtime
+   gate. Until then, PH-01 remains synthetic-only.
+2. Should sessions beyond the about 10-minute provider lifetime be accepted as
+   normal, or should a later design add provider session resumption?
+3. Are ephemeral captions in scope? The proposal keeps them out of the minimum.
+4. Is same-origin serving from FastAPI approved for the shipped path, with the
+   Angular dev server kept dev-only?
+5. Should the console keep the paste-per-session token, or use the HttpOnly
+   same-origin session cookie?
+6. Is the model and voice fixed for the first slice, or configurable?
+7. Is the barge-in threshold fixed or user-configurable?
+
+## 14. Rollback
+
+This design changes no runtime state. Revert the design commit to remove it.
+
+After implementation, revert the phase PR. The fake adapter remains the default
+and the offline scaffold continues to work. No provider account, key, or
+external service is created by the implementation. Stop closes any active
+provider session.
+
+## 15. Documentation impact
+
+When the implementation lands, update:
+
+- `README.md` and `build.md` for the real console commands and provider mode.
+- `apps/voice-foundation.md` for the console and the synthetic-only boundary.
+- The voice implementation record for the streaming seam and adapter.
+- A dated Gemini Live synthetic test record for R-01.9.
+- `docs/implementation/phase-prs.md` for the PH-01 phase PR.
+- `roadmap.md` ticks R-01.3 through R-01.10 only with real evidence.
+- `phases.md` and `progress.md` when PH-01 is done.
+- `tasks/002-local-scaffold-and-boundary.md` and
+  `tasks/003-native-voice-session.md` when their evidence exists.
+- Any approval record needed for personal audio egress or same-origin serving.
+
+This document does not tick any roadmap item and does not change the current
+phase.
+
+## Appendix A. Revision 1
+
+Revision 1 is preserved verbatim in
+[voice-foundation-revision-1.md](voice-foundation-revision-1.md).
