@@ -105,8 +105,8 @@ Gemini account verification, and runtime acceptance remain pending.
 
 Model access, region support, and the Gemini terms were checked and recorded in
 the [Gemini account verification](docs/implementation/gemini-account-verification.md).
-Free-tier quota and billing state still need the owner's checklist items. The
-free tier allows human review of inputs, so synthetic data only remains the
+The owner then answered the checklist: no billing linked, no rate limits shown,
+18 or older, and the synthetic-audio live test is unblocked. The free tier allows human review of inputs, so synthetic data only remains the
 rule. A new [learnings folder](docs/learnings/README.md) holds short dated
 notes for the A2 and A3 spikes, the PR #8 stacking accident, and this check.
 

@@ -5,7 +5,7 @@
 | Date | 2026-11-09 |
 | Owner | `jeevesh2515` (this is the maintainer's pending item in the [voice-foundation confirmation](../approvals/voice-foundation-confirmation.md)) |
 | Prepared by | Claude Code (claude-sonnet-5-5); terms and region pages read by a Haiku subagent |
-| Status | **Partly verified.** Model access, region support, and terms are recorded below. Free-tier quota and the billing state need the owner to read two screens (checklist at the end). No runtime gate is closed. |
+| Status | **Verified as far as the owner could check (2026-11-09).** Model access, region support, terms, billing state, and the quota screen are recorded. The quota result is the owner's report and is not independently confirmed. No runtime gate is closed. |
 | Design reference | [Voice foundation design, sections 3 and 11](../design/voice-foundation.md) |
 
 The design requires that Gemini account, region, quota, model access, and terms
@@ -21,8 +21,8 @@ authorizes no microphone upload and no spend.
 | Live session works | **Verified.** 5 of 5 sessions on `gemini-3.8-live` completed with a tool call; median 873 ms to first audio. | [Spike A3 results](../../spikes/a3-gemini-live/README.md), 2026-11-07, text input and synthetic data only. |
 | Region | **Appears supported.** The A3 sessions and the model listing succeeded from the maintainer's network, and the maintainer's region is on Google's [available regions](https://aistudio.google.com/docs/available-regions) list. The country is deliberately not recorded in the repository. | Official page read 2026-11-09; the page shows no date. This is an inference from successful calls plus the page, not a statement from Google about this account. |
 | Terms | Recorded below. | [Gemini API Additional Terms](https://aistudio.google.com/docs/terms), shown as effective March 23, 2026, read 2026-11-09. |
-| Free-tier quota | **Not verifiable from public docs.** Google's rate-limit page lists no figures for Live models and refers to AI Studio. Limits apply per project, and daily limits reset at midnight Pacific time. | [Rate limits](https://aistudio.google.com/docs/rate-limits) page read 2026-11-09; no date shown. |
-| Billing | **Unconfirmed.** The project is meant to have no billing account (hard $0 cap). | Owner to confirm in the checklist below. |
+| Free-tier quota | **Not verifiable from public docs.** Google's rate-limit page lists no figures for Live models and refers to AI Studio. Limits apply per project, and daily limits reset at midnight Pacific time. The owner reports AI Studio showed no rate limits. | [Rate limits](https://aistudio.google.com/docs/rate-limits) page read 2026-11-09 (no date shown); owner report as given, not independently confirmed. |
+| Billing | **None linked**, per the owner. This matches the hard $0 cap. | Owner report, 2026-11-09; not independently checked. |
 
 ## What the terms say (unpaid tier)
 
@@ -52,14 +52,26 @@ That is recorded here as a deviation. A3 sent only text and made-up job data;
 no audio and no personal data was sent. No further live test should run until
 the checklist below is complete.
 
-## Owner checklist (needs `jeevesh2515`, about 5 minutes)
+## Owner checklist (answered by `jeevesh2515`, 2026-11-09)
 
-Record real values here. Do not paste the key or screenshots that show it.
+Answers are the owner's own report, recorded as given. Nothing here was
+independently checked, and no key or screenshot is stored.
 
-- [ ] Billing: open the Google Cloud console for the AI Studio project and confirm no billing account is linked. Result: ______
-- [ ] Quota: open <https://aistudio.google.com/rate-limit> and copy the free-tier limits shown for `gemini-3.8-live` (RPM, TPM, RPD, concurrent sessions). Result: ______
-- [ ] Account age and use: confirm the Google account owner is 18 or older and the use is development work. Result: ______
-- [ ] Decision: after the three items above, state whether the opt-in synthetic live test may be unblocked. Result: ______
+- [x] Billing: **none linked** to the AI Studio project.
+- [x] Quota: the owner reported **"no rate limits"** on the AI Studio screen. This is recorded as reported. It does not mean the service is unlimited: Google's pages say limits apply per project and can change, so the first live test must still handle rate-limit and quota errors.
+- [x] Account age and use: **yes**, the account owner is 18 or older and the use is development work.
+- [x] Decision: the owner states **yes** to unblocking the opt-in synthetic live test, limited to generated made-up audio. Personal microphone audio is still prohibited in this cycle.
+
+### What "unblocked" means
+
+This closes the Gemini account step of the design's section 11 blocker list
+and nothing else. The opt-in live command described in the design does not
+exist yet, so no such test has run. Before one runs, it still needs: an
+explicit invocation with the key in the process environment, no logging of
+audio or payloads, and the remaining design gates (scaffold review, Mac
+evidence, and the maintainer approvals in the
+[confirmation record](../approvals/voice-foundation-confirmation.md), which
+this record does not change).
 
 ## Not covered
 
