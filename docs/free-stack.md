@@ -22,7 +22,7 @@ real microphone audio or personal context ([REQ-13](../prd.md#req-13),
 | Tool reasoning, local | Ollama with `qwen3:8b` | Ollama MIT; Qwen3 Apache 2.0 (*unverified*) | Native tool calling; about 8 GB at Q4 per third-party guides (*unmeasured*) | Small-model tool accuracy must be measured on our own schemas |
 | Voice pipeline framework | Pipecat | BSD-2 | Swappable providers and local transport; listed as supporting Moshi and Gemini Live | One more dependency to pin and audit |
 | Optional cascade fallback (dev only) | Silero VAD; Parakeet or Whisper (MLX) for speech-to-text; Kokoro-82M for speech | MIT / Apache 2.0 / Apache 2.0 (*unverified*) | All local and free | Breaks [REQ-01](../prd.md#req-01) if used as the main path; allowed only as a clearly labelled dev fallback |
-| Agent supervision | Claude Code `PermissionRequest` hooks; OpenCode local server API | Documented hook feature; OpenCode MIT | Prototyped in spike A2 (branch `spike/a2-permission-hook`, not merged) | Each agent has its own integration surface |
+| Agent supervision | Claude Code `PermissionRequest` hooks; OpenCode local server API | Documented hook feature; OpenCode MIT | Prototyped in [spike A2](../spikes/a2-permission-hook/README.md) | Each agent has its own integration surface |
 | Phone notifications and approve buttons | ntfy, self-hosted | Apache 2.0 | Push with up to three action buttons; free Android and iOS apps | Topics on the public ntfy.sh server are readable by anyone who guesses the name; self-host or require access tokens |
 | CI | GitHub Actions | Free for public repos | Already in use | None at current scale |
 | Security scanning | CodeQL, Dependabot, secret scanning with push protection, OSV-Scanner, gitleaks, Semgrep Community Edition | Free for public repos or open source (*unverified* per tool) | Covers code, dependencies, and secrets | Findings still need a human to triage |
@@ -52,16 +52,15 @@ This split is a proposal and needs its own decision record before any code.
 
 ## What to measure next
 
-1. Spike A3: Gemini Live free-tier latency and tool calling. Script drafted
-   locally, not yet committed or run; needs a free API key.
+1. Spike A3 is done: Gemini Live free-tier latency and tool calling, median
+   873 ms to first audio ([results](../spikes/a3-gemini-live/README.md)).
+   Microphone input and barge-in are not tested.
 2. Spike A3b: Moshi MLX on the M5: first-audio latency, barge-in, memory.
 3. Spike A3c: `qwen3:8b` tool-call accuracy on the job-status and approval tools.
 
 ## Licensing note
 
-The repository is public but has no `LICENSE` file, so others have no legal
-right to reuse or contribute to it yet. Choosing one (Apache 2.0 and MIT are
-the usual options for open-core) is a maintainer decision for its own PR.
+The repository is MIT licensed (see [LICENSE](../LICENSE)).
 
 ## Sources
 
