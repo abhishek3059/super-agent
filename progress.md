@@ -114,6 +114,23 @@ notes for the A2 and A3 spikes, the PR #8 stacking accident, and this check.
 This does not change PH-00 or RT-001 from `not started`: runtime consent,
 budget, host, retention, and the opt-in live test are still open.
 
+## PH-00 setup decisions (2026-11-09)
+
+The operator recorded the PH-00 setup decisions in the
+[PH-00 setup decisions](docs/approvals/ph-00-setup-decisions.md). The first
+real task pair is local document summary plus action-item extraction. Job
+metadata retention is 24 hours after a terminal state, with at most 2 automatic
+retries for idempotent read-only steps. Windows and macOS remain the hosts.
+PH-01 is authorized for offline work plus a synthetic-only Gemini adapter and
+opt-in live test. The secret mechanism is `GEMINI_API_KEY` in the process
+environment, with no project `.env` file.
+
+RT-001 is now `in progress`. RT-G00 is not resolved: the operator still has to
+confirm the process-environment key setup, the decision record still needs
+review and merge, and the final setup decision remains to be written. No
+runtime gate is closed and no provider call or microphone capture was made
+while recording these decisions.
+
 ## Documentation acceptance status
 
 The documentation developer performed manual authoring-time checks (literal taxonomy, link targets, headings/anchors, ID traceability, initial statuses). Correction pass (revision 2) inline checks are described in the implementation report. 

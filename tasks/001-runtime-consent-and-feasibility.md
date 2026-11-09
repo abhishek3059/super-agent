@@ -3,8 +3,8 @@
 | Field | Value |
 | --- | --- |
 | Task ID | RT-001 |
-| Status | not started |
-| Execution evidence | none |
+| Status | in progress |
+| Execution evidence | [PH-00 setup decisions](../docs/approvals/ph-00-setup-decisions.md); final RT-G00 evidence pending |
 | Revision 2 note | Corrections applied 2026-11-07 for independent review finding R-05 (see ../docs/reviews/super-agent.md): today's unset/unapproved values moved to a dated status note; future acceptance is now stated as truthful approval criteria. |
 
 ## Scope
@@ -37,9 +37,32 @@ A dated setup decision record.
 
 As of this date: the monetary budget and bounded retention/retry limits **remain unset and unapproved**; the first real task pair is **not yet chosen**; recipients, eligibility, native access, account/region/quota/cost/data terms, and host facts are **unset and unverified**; no separate implementation authorization exists. No amount, free-tier assumption, or model-price inference authorizes runtime use. This is today's input state, not a future success criterion: it changes when the task runs, and the task is not started today.
 
+This 2026-11-07 snapshot is historical. See the 2026-11-09 progress note below for current decisions.
+
 ## Evidence note (2026-11-09)
 
-Partial feasibility evidence now exists in the [Gemini account verification](../docs/implementation/gemini-account-verification.md): model access is verified for the maintainer's free-tier key, region support appears confirmed, and the data terms are recorded. Quota, billing, runtime consent, budget, host, and retention are still unresolved. This task remains `not started`.
+Partial feasibility evidence now exists in the [Gemini account verification](../docs/implementation/gemini-account-verification.md): model access is verified for the maintainer's free-tier key, region support appears confirmed, and the data terms are recorded. Quota, billing, runtime consent, budget, host, and retention were still unresolved on that date. This task moved to `in progress` on 2026-11-09; see the setup decision progress note below.
+
+## Setup decision progress (2026-11-09)
+
+The operator recorded the PH-00 setup decisions in the
+[PH-00 setup decisions](../docs/approvals/ph-00-setup-decisions.md):
+
+- First real task pair: local document summary and action-item extraction.
+- Retention: job metadata deleted 24 hours after terminal state; no raw audio,
+  transcripts, or model-content logs.
+- Retries: at most 2 automatic retries for idempotent read-only steps; no retry
+  after an unknown outcome.
+- Hosts: Windows and macOS.
+- PH-01 authorization: offline work plus the Gemini Live adapter and an opt-in
+  synthetic-audio test; personal microphone audio stays local.
+- Secret setup: `GEMINI_API_KEY` in the process environment; actual setup
+  confirmation pending.
+- Budget: $0 cap with no paid fallback.
+
+This task is now `in progress`. RT-G00 is not resolved until the secret setup
+is confirmed, the decision record is merged, and the final setup decision is
+recorded.
 
 ## Acceptance
 
@@ -58,7 +81,9 @@ No consent, eligibility, access, budget, retention, or task-choice facts may be 
 
 ## Evidence
 
-None. Future task status is `not started`; no execution evidence exists.
+Setup decision record in progress: [PH-00 setup decisions](../docs/approvals/ph-00-setup-decisions.md).
+No runtime gate is closed. Secret setup confirmation and final RT-G00 evidence
+are still pending.
 
 ## Navigation
 
