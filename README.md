@@ -36,6 +36,7 @@ background task delegation.
 - [Initial review archive](docs/reviews/super-agent-initial.md) — preserved FAIL
 - [Design-stage security assessment](docs/security/super-agent.md) — PASS
 - [Implementation report](docs/implementation/super-agent.md)
+- [Learnings index](docs/learnings/README.md)
 - [Zero-cost build stack](docs/free-stack.md) (research proposal)
 - [Personal-agent architecture](docs/product/personal-agent-architecture.md) (brainstorm proposal)
 - [Lucidchart architecture references](docs/References/README.md)
