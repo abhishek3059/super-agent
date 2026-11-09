@@ -3,6 +3,13 @@
 This is an offline scaffold. It uses a deterministic local adapter that echoes
 PCM audio. It does not use Gemini, persist audio, or provide tools or actions.
 
+## Current state (2026-11-09)
+
+The fake adapter is the only adapter implemented. The Gemini Live adapter and
+the opt-in synthetic live command are not implemented (R-01.7 to R-01.9). You
+can run the local scaffold and test start, mute, barge-in, and stop, but it
+cannot connect to Gemini. Personal microphone audio stays local.
+
 ## Backend
 
 Use a private process environment token. Do not create a project `.env` file.
@@ -43,5 +50,6 @@ npm audit --prefix apps/web
 npm run check
 ```
 
-Mac execution is pending Jeevesh's confirmation and evidence. No personal
-microphone audio may be forwarded to a cloud provider in this cycle.
+Jeevesh confirmed the cycle and accepted Mac test responsibility. Manual Mac
+execution and microphone evidence are still pending. No personal microphone
+audio may be forwarded to a cloud provider in this cycle.

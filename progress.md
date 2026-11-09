@@ -92,14 +92,15 @@ Jeevesh's cross-platform/product confirmation explicitly pending.
 
 ## Offline voice scaffold (2026-11-08)
 
-An initial implementation is being prepared on a stacked feature branch. It
-contains a FastAPI loopback boundary, deterministic fake voice adapter, Angular
-active-session UI, local microphone controls, and offline tests. It contains no
-provider call or external action. See the
+An initial implementation was prepared on a stacked feature branch and merged
+in PR #13. It contains a FastAPI loopback boundary, deterministic fake voice
+adapter, Angular active-session UI, local microphone controls, and offline
+tests. It contains no provider call or external action. See the
 [implementation record](docs/implementation/voice-foundation-scaffold.md).
 
-This does not change PH-00 or RT-001 from `not started`. Merge, Mac evidence,
-Gemini account verification, and runtime acceptance remain pending.
+At the time of this note, this did not change PH-00 or RT-001 from `not
+started`. Merge, Mac evidence, Gemini account verification, and runtime
+acceptance remained pending.
 
 ## Gemini verification and learnings (2026-11-09)
 
@@ -111,8 +112,40 @@ level (the opt-in command does not exist yet). The free tier allows human review
 of inputs, so synthetic data only remains the rule. A new [learnings folder](docs/learnings/README.md) holds short dated
 notes for the A2 and A3 spikes, the PR #8 stacking accident, and this check.
 
-This does not change PH-00 or RT-001 from `not started`: runtime consent,
-budget, host, retention, and the opt-in live test are still open.
+At the time of this check, this did not change PH-00 or RT-001 from `not
+started`: runtime consent, budget, host, retention, and the opt-in live test
+were still open.
+
+## PH-00 setup decisions (2026-11-09)
+
+The operator recorded the PH-00 setup decisions in the
+[PH-00 setup decisions](docs/approvals/ph-00-setup-decisions.md). The first
+real task pair is local document summary plus action-item extraction. Job
+metadata retention is 24 hours after a terminal state, with at most 2 automatic
+retries for idempotent read-only steps. Windows and macOS remain the hosts.
+PH-01 is authorized for offline work plus a synthetic-only Gemini adapter and
+opt-in live test. The secret mechanism is `GEMINI_API_KEY` in the process
+environment, with no project `.env` file. The app still uses the fake adapter;
+the Gemini Live adapter and opt-in synthetic live test are not implemented
+(R-01.7 to R-01.9).
+
+RT-001 is now `in progress`. RT-G00 is not resolved: the decision record still
+needs review and merge, and the final RT-G00 resolution and roadmap evidence
+remain to be recorded.
+The operator confirmed on 2026-11-09 that `GEMINI_API_KEY` is set in an
+interactive PowerShell process environment. The variable is session-scoped, so
+the opt-in test must run from that shell. No runtime gate is closed and no
+provider call or microphone capture was made while recording these decisions.
+
+## Phase PR tracking (2026-11-09)
+
+Phase work now ships in one pull request per phase. The active PR, its branch,
+scope, and what it does not cover are recorded in the
+[phase PR log](docs/implementation/phase-prs.md). The current PH-00
+consolidation PR is [#21](https://github.com/abhishek3059/super-agent/pull/21);
+it folds in the superseded PRs #18, #19, and #20. It does not tick items whose
+evidence is only in the open PR. A follow-up bookkeeping PR closes those items
+after merge.
 
 ## Documentation acceptance status
 

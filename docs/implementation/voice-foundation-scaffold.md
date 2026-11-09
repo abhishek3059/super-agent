@@ -5,8 +5,8 @@
 | Date | 2026-11-08 |
 | Design | [Voice-foundation design](../design/voice-foundation.md) |
 | Review | [Initial review and correction disposition](../reviews/voice-foundation-scaffold.md) |
-| Delivery | Design PR #12 merged; implementation PR #13 targets `develop` and also carries the later maintainer-confirmation record |
-| Status | Reviewer correction set complete locally on Windows; hosted voice workflow, macOS, and manual microphone evidence pending. No runtime gate accepted. |
+| Delivery | Design PR #12 merged; implementation PR #13 merged into `develop` and also carries the later maintainer-confirmation record |
+| Status | Offline scaffold merged in PR #13. Hosted voice workflow green on Windows and macOS. Manual microphone and manual macOS evidence pending. No Gemini adapter and no runtime gate accepted. |
 
 ## Implemented scope
 
@@ -63,7 +63,17 @@ microphone evidence remain pending. No cloud test is authorized here.
 | Repository check | PASS, 143 files scanned, 896 local links, 258 fragments, 0 errors |
 | Manual microphone/browser test | Not run |
 | Gemini/provider test | Not run and not included |
-| macOS execution | Not run; Jeevesh pending |
+| Manual macOS execution | Not run; Jeevesh accepted the task. Hosted macOS CI passed. |
+
+## Current status (2026-11-09)
+
+- Hosted voice workflow: **green** on Windows and macOS (PR #14; rerun on PR #21).
+- Manual microphone/browser test: **not run**.
+- Manual macOS execution: **not run**; Jeevesh accepted the task.
+- Gemini Live adapter: **not implemented** (R-01.7).
+- Opt-in synthetic live command and test: **not implemented and not run** (R-01.8, R-01.9).
+- Repository check: **pass** on PR #21; see the PR checks for current counts.
+- Runtime gate: **none closed**. RT-G00 remains open.
 
 ## Reviewer correction set
 
@@ -97,3 +107,5 @@ The corrected workflow then ran: macOS passed, while Windows exposed a timing
 classification race in the total-duration test. The total deadline fired, but
 the post-timeout clock comparison labeled it as idle timeout. The backend now
 selects the fixed category before awaiting, avoiding platform clock jitter.
+PR #14 merged the correction. The workflow then passed on both Windows and
+macOS on `develop` (run 42574431372) and on PR #21.

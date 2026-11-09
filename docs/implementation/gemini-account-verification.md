@@ -12,15 +12,22 @@ The design requires that Gemini account, region, quota, model access, and terms
 are verified before any live test. This record holds that evidence. It
 authorizes no microphone upload and no spend.
 
+> **Current application state (2026-11-09):** This record verifies the account
+> and key, not the application integration. The app's Gemini Live adapter and
+> opt-in synthetic live command are not implemented (R-01.7 to R-01.9). The app
+> still uses the fake adapter.
+
 ## Evidence
 
 | Item | Result | How it was checked |
 | --- | --- | --- |
-| Key custody | Key lives only in `~/.super-agent/gemini-key` (mode 600, outside the repo). It was never printed or committed. | File size and mode checked on 2026-11-07; the key text was not read back. |
+| Key custody | The 2026-11-07 record said the spike key was in `~/.super-agent/gemini-key` (mode 600, outside the repo). The 2026-11-09 PH-00 setup uses a session-scoped `GEMINI_API_KEY` in the operator's PowerShell process environment. The agent process cannot see it. No key value is recorded. | File size and mode checked on 2026-11-07; the key text was not read back. The 2026-11-09 setup was confirmed by the operator; the agent checked only boolean scope presence. |
 | Model access | **Verified.** The key listed 61 models, nine of them with the Live (`bidiGenerateContent`) method, including `gemini-3.8-live`, `gemini-3.8-live-extended-thinking`, `gemini-3.1-flash-live-preview`, and `gemini-2.5-flash-native-audio-latest`. | `GET /v1beta/models` with the key, 2026-11-09, HTTP 200. Names and methods only were printed. The counts come from that one call and are not reproducible from the repository. |
 | Live session works | **Verified.** 5 of 5 sessions on `gemini-3.8-live` completed with a tool call; median 873 ms to first audio. | [Spike A3 results](../../spikes/a3-gemini-live/README.md), 2026-11-07, text input and synthetic data only. |
 | Region | **Appears supported.** The A3 sessions and the model listing succeeded from the maintainer's network, and the maintainer's region is on Google's [available regions](https://aistudio.google.com/docs/available-regions) list. The country is deliberately not recorded in the repository. | Official page read 2026-11-09; the page shows no date. This is an inference from successful calls plus the page, not a statement from Google about this account. |
 | Terms | Recorded below. | [Gemini API Additional Terms](https://aistudio.google.com/docs/terms), shown as effective March 23, 2026, read 2026-11-09. |
+| Recipients | **Google LLC, Gemini API** for generated synthetic text or audio only. No other cloud recipient is approved. | First-cycle confirmation and the [PH-00 setup decisions](../approvals/ph-00-setup-decisions.md), 2026-11-09. |
+| Provider retention | **No fixed deletion window is stated for the unpaid tier.** Google says it may use submitted content and responses to improve its products and machine learning, and human reviewers may read and annotate inputs and outputs after disconnecting them from the account, key, and project. | [Gemini API Additional Terms](https://aistudio.google.com/docs/terms), read 2026-11-09. This is a disclosure, not a guarantee of deletion. |
 | Free-tier quota | **Not verifiable from public docs.** Google's rate-limit page lists no figures for Live models and refers to AI Studio. Limits apply per project, and daily limits reset at midnight Pacific time. The owner reports AI Studio showed no rate limits. | [Rate limits](https://aistudio.google.com/docs/rate-limits) page read 2026-11-09 (no date shown); owner report as given, not independently confirmed. |
 | Billing | **None linked**, per the owner. This matches the hard $0 cap. | Owner report, 2026-11-09; not independently checked. |
 
@@ -65,13 +72,21 @@ independently checked, and no key or screenshot is stored.
 ### What "unblocked" means
 
 This closes the Gemini account step of the design's section 11 blocker list
-and nothing else. The opt-in live command described in the design does not
-exist yet, so no such test has run. Before one runs, it still needs: an
-explicit invocation with the key in the process environment, no logging of
-audio or payloads, and the remaining design gates (scaffold review, Mac
-evidence, and the maintainer approvals in the
+and nothing else. The application's Gemini Live adapter and the opt-in live
+command do not exist yet, so no such test has run. Before one runs, it still
+needs: the implemented adapter and command, an explicit invocation with the key
+in the process environment, no logging of audio or payloads, manual Mac
+evidence, and the independent security review. The maintainer approvals are
+recorded in the
 [confirmation record](../approvals/voice-foundation-confirmation.md), which
-this record does not change).
+this record does not change.
+
+## Recipient and retention disclosure (2026-11-09)
+
+The recipients and provider-retention rows above were added for the roadmap's
+provider-disclosure item (R-00.10). They record what the reviewed pages say.
+They do not add a provider, change the account facts, authorize a live test, or
+claim that Google deletes data on a schedule it does not state.
 
 ## Not covered
 

@@ -4,6 +4,7 @@
 | --- | --- |
 | Date | 2026-11-09 |
 | Current phase | PH-00 |
+| Current phase PR | [#21 PH-00 consolidation](https://github.com/abhishek3059/super-agent/pull/21) (open; details in [phase PR log](docs/implementation/phase-prs.md)) |
 | Gate definitions | [phases.md](phases.md) (entry prerequisites and exit gates stay defined there) |
 | Task records | [tasks/](tasks/README.md) |
 | Enforced by | `npm run check` ([scripts/check-roadmap.mjs](scripts/check-roadmap.mjs), form only), code-owner review ([.github/CODEOWNERS](.github/CODEOWNERS)), and [AGENTS.md](AGENTS.md) section 11 |
@@ -47,8 +48,8 @@ Item format (one line, starting at column 0): `- [ ] R-<phase>.<n> [tags] Descri
 
 Maps to [RT-001](tasks/001-runtime-consent-and-feasibility.md) and RT-G00. Nothing in PH-01 may start (beyond the offline scaffold already merged) until RT-G00 is resolved.
 
-- [ ] R-00.1 [human] Both maintainers record approval of the first-cycle scope. Evidence: none yet
-- [ ] R-00.2 Gemini account verification recorded: provider eligibility, native transport and model access, region, quota, billing. Evidence: none yet
+- [x] R-00.1 [human] Both maintainers record approval of the first-cycle scope. Evidence: [voice-foundation confirmation](docs/approvals/voice-foundation-confirmation.md)
+- [x] R-00.2 Gemini account verification recorded: provider eligibility, native transport and model access, region, quota, billing. Evidence: [verification record](docs/implementation/gemini-account-verification.md)
 - [ ] R-00.3 [human] First real task pair chosen and approved. Evidence: none yet
 - [ ] R-00.4 [human] Named runtime recipients and data boundary approved, including that personal microphone audio stays local. Evidence: none yet
 - [ ] R-00.5 [human] Hosts confirmed (Mac and Windows) and retention and retry windows approved. Evidence: none yet
@@ -66,7 +67,7 @@ Maps to [RT-001](tasks/001-runtime-consent-and-feasibility.md) and RT-G00. Nothi
 Maps to [RT-002](tasks/002-local-scaffold-and-boundary.md), [RT-003](tasks/003-native-voice-session.md), and RT-G01. Design: [voice foundation](docs/design/voice-foundation.md).
 
 - [x] R-01.1 [exception: [confirmation record](docs/approvals/voice-foundation-confirmation.md)] Offline voice scaffold (fake adapter, no provider, no tools) merged. Evidence: [PR 13](https://github.com/abhishek3059/super-agent/pull/13)
-- [ ] R-01.2 Voice workflow green on `develop` for Windows and macOS. Evidence: none yet
+- [x] R-01.2 [exception: [confirmation record](docs/approvals/voice-foundation-confirmation.md)] Voice workflow green on `develop` for Windows and macOS. Evidence: [voice-foundation run on develop](https://github.com/abhishek3059/super-agent/actions/runs/42574431372)
 - [ ] R-01.3 [human] Mac offline checks run with real output recorded. Evidence: none yet
 - [ ] R-01.4 [human] Local microphone test (start, mute, barge-in, stop) recorded; no audio leaves the machine. Evidence: none yet
 - [ ] R-01.5 Credential design written and independently reviewed: high-entropy device or session credentials, storage, expiry, revocation, throttling (RT-A05 obligation). Evidence: none yet
@@ -147,7 +148,7 @@ Maps to [RT-012](tasks/012-private-native-audio-feasibility.md).
 
 These do not gate any phase, but they are on the path and must be ticked.
 
-- [ ] R-R.1 PRs #14 (voice CI fix), #15 (status docs), and #16 (Gemini verification and learnings) merged. Evidence: none yet
+- [x] R-R.1 PRs #14 (voice CI fix), #15 (status docs), and #16 (Gemini verification and learnings) merged. Evidence: [PR 14](https://github.com/abhishek3059/super-agent/pull/14), [PR 15](https://github.com/abhishek3059/super-agent/pull/15), [PR 16](https://github.com/abhishek3059/super-agent/pull/16)
 - [ ] R-R.2 Release PR from `develop` to `main` merged with a merge commit, so both maintainers appear on the Contributors graph. Evidence: none yet
 - [ ] R-R.3 [human] Private vulnerability reporting enabled on GitHub. Evidence: none yet
 - [ ] R-R.4 [human] Branch protection on `main` and `develop` agreed and set, including required code-owner review for `roadmap.md` and `phases.md`. Evidence: none yet
