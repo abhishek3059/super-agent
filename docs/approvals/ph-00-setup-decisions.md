@@ -21,7 +21,7 @@ cloud provider, and does not authorize spend.
 | R-00.5 retry | At most **2 automatic retries per job**, only for idempotent read-only steps. No retry after an unknown outcome. No retry for external effects, which are not authorized. | The retry count and stop condition must be enforced outside the model. |
 | R-00.5 hosts | **Windows and macOS** are the confirmed development hosts. | macOS evidence still has to be run and recorded by `jeevesh2515`. |
 | R-00.8 PH-01 authorization | **Authorized beyond the merged offline scaffold:** credential design, independent security review, Gemini Live adapter behind the replaceable seam, and an opt-in synthetic-audio live test. | Synthetic PCM only. Personal microphone audio stays local. No tools, shell, plugins, calls, messages, purchases, or other external actions. |
-| R-00.9 secret setup | **`GEMINI_API_KEY` in the process environment.** No project `.env` file. No key in the repository, browser code, URLs, or logs. | The opt-in command must read only the process environment. A key file outside the repository may be used by the operator to populate the environment, but the application must not read it directly. The actual environment setup is **not yet confirmed**, and no value is recorded here. On the Windows host used for this record, no `~/.super-agent/gemini-key` file was present on 2026-11-09. |
+| R-00.9 secret setup | **`GEMINI_API_KEY` in the process environment.** No project `.env` file. No key in the repository, browser code, URLs, or logs. | The operator confirmed on 2026-11-09 that the key is set in an interactive PowerShell process environment using a secure prompt. The variable is session-scoped; the agent process cannot see it, and no value is recorded here. The opt-in live test must be launched from that same shell, or the operator can set a User-level variable before the agent runs it. No key file is used or required. |
 | R-00.4 data boundary | **Synthetic-only cloud data boundary.** Gemini is the named cloud recipient for generated synthetic text or audio only. Personal microphone audio stays local. | Both maintainers accepted this boundary in the first-cycle confirmation. No other cloud recipient is approved. |
 | R-00.6 budget | **$0 cap with no paid fallback.** | No paid service, plan, or API may be used. A free tier is not a spending approval. |
 | R-00.10 provider disclosure | Gemini terms, provider retention, and recipients are recorded in the [Gemini account verification](../implementation/gemini-account-verification.md). | The unpaid tier may use inputs for product improvement and human review. No fixed provider deletion window is stated. Synthetic data only. |
@@ -41,10 +41,19 @@ Both tasks are read-only and local. They do not prove general planning ability,
 do not authorize a worker to change files, and do not grant voice any new
 authority.
 
+## Secret setup confirmation (2026-11-09)
+
+`abhishek3059` confirmed in chat that he ran the secure prompt and set
+`$env:GEMINI_API_KEY` in an interactive PowerShell session. The agent's checks
+of the process, user, and machine scopes all returned false because the
+variable is session-scoped and the agent is a separate process. No value was
+read or recorded. This is an operator confirmation, not independent agent
+verification.
+
 ## What is still missing before RT-G00 can be resolved
 
-- The operator must set `GEMINI_API_KEY` in the process environment and confirm
-  that it is set without revealing the value.
+- The operator must launch the opt-in synthetic live test from the shell that
+  holds `GEMINI_API_KEY`, or set a User-level variable before the agent runs it.
 - This record must be reviewed and merged. An open pull request is not evidence.
 - RT-001 must record the final setup decision, and the roadmap must show the
   RT-G00 evidence.

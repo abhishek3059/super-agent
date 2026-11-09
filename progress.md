@@ -125,11 +125,12 @@ PH-01 is authorized for offline work plus a synthetic-only Gemini adapter and
 opt-in live test. The secret mechanism is `GEMINI_API_KEY` in the process
 environment, with no project `.env` file.
 
-RT-001 is now `in progress`. RT-G00 is not resolved: the operator still has to
-confirm the process-environment key setup, the decision record still needs
-review and merge, and the final setup decision remains to be written. No
-runtime gate is closed and no provider call or microphone capture was made
-while recording these decisions.
+RT-001 is now `in progress`. RT-G00 is not resolved: the decision record still
+needs review and merge, and the final setup decision remains to be written.
+The operator confirmed on 2026-11-09 that `GEMINI_API_KEY` is set in an
+interactive PowerShell process environment. The variable is session-scoped, so
+the opt-in test must run from that shell. No runtime gate is closed and no
+provider call or microphone capture was made while recording these decisions.
 
 ## Documentation acceptance status
 

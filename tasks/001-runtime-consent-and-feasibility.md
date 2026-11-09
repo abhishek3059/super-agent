@@ -56,13 +56,15 @@ The operator recorded the PH-00 setup decisions in the
 - Hosts: Windows and macOS.
 - PH-01 authorization: offline work plus the Gemini Live adapter and an opt-in
   synthetic-audio test; personal microphone audio stays local.
-- Secret setup: `GEMINI_API_KEY` in the process environment; actual setup
-  confirmation pending.
+- Secret setup: `GEMINI_API_KEY` set in an interactive PowerShell process
+  environment on 2026-11-09; the variable is session-scoped and not visible to
+  the agent process.
 - Budget: $0 cap with no paid fallback.
 
-This task is now `in progress`. RT-G00 is not resolved until the secret setup
-is confirmed, the decision record is merged, and the final setup decision is
-recorded.
+This task is now `in progress`. RT-G00 is not resolved until the decision record
+is merged, the final setup decision is recorded, and the roadmap evidence is
+added. The secret setup itself is confirmed for the operator's shell; the live
+test must run there.
 
 ## Acceptance
 
