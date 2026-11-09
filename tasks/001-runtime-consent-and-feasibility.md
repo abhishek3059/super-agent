@@ -37,6 +37,10 @@ A dated setup decision record.
 
 As of this date: the monetary budget and bounded retention/retry limits **remain unset and unapproved**; the first real task pair is **not yet chosen**; recipients, eligibility, native access, account/region/quota/cost/data terms, and host facts are **unset and unverified**; no separate implementation authorization exists. No amount, free-tier assumption, or model-price inference authorizes runtime use. This is today's input state, not a future success criterion: it changes when the task runs, and the task is not started today.
 
+## Evidence note (2026-11-09)
+
+Partial feasibility evidence now exists in the [Gemini account verification](../docs/implementation/gemini-account-verification.md): model access is verified for the maintainer's free-tier key, region support appears confirmed, and the data terms are recorded. Quota, billing, runtime consent, budget, host, and retention are still unresolved. This task remains `not started`.
+
 ## Acceptance
 
 When this task runs (after separate implementation authorization), its deliverable is accepted only if the dated setup decision record is truthful and complete:
