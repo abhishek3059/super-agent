@@ -106,8 +106,9 @@ Gemini account verification, and runtime acceptance remain pending.
 Model access, region support, and the Gemini terms were checked and recorded in
 the [Gemini account verification](docs/implementation/gemini-account-verification.md).
 The owner then answered the checklist: no billing linked, no rate limits shown,
-18 or older, and the synthetic-audio live test is unblocked. The free tier allows human review of inputs, so synthetic data only remains the
-rule. A new [learnings folder](docs/learnings/README.md) holds short dated
+18 or older, and the synthetic-audio live test is unblocked at the Gemini account
+level (the opt-in command does not exist yet). The free tier allows human review
+of inputs, so synthetic data only remains the rule. A new [learnings folder](docs/learnings/README.md) holds short dated
 notes for the A2 and A3 spikes, the PR #8 stacking accident, and this check.
 
 This does not change PH-00 or RT-001 from `not started`: runtime consent,
