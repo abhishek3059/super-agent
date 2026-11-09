@@ -4,10 +4,10 @@ Design and planning documentation for a Jarvis-like personal assistant with
 native voice-to-voice conversation, hands-free active-session use, and bounded
 background task delegation.
 
-> **Documentation only.** There is no application scaffold, runnable assistant,
-> application dependency, provider account, or executed application build/test in
-> this repository. Husky is installed for repository checks only. All runtime
-> gates remain open.
+> **Mostly documentation.** The only application code is an offline voice
+> scaffold in [`apps/`](apps/voice-foundation.md): a local echo adapter with no
+> Gemini, no tools, and no stored audio. Two throwaway spikes live in `spikes/`.
+> There is no runnable assistant, and all runtime gates remain open.
 
 ## Start here
 

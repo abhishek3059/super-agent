@@ -1,6 +1,6 @@
 # Super-agent — build position and future command contract (documentation pack)
 
-**Documentation-only project. There is no runnable assistant, application scaffold, or verified application build command.** A minimal `package.json` and Husky hooks exist for repository quality checks only; they do not scaffold or run the assistant.
+**Mostly documentation. There is no runnable assistant.** The repository root has a minimal `package.json` and Husky hooks for repository checks only. The one application scaffold is the offline voice echo scaffold in `apps/` (see [apps/voice-foundation.md](apps/voice-foundation.md)); it has its own setup and checks and is not an assistant. Throwaway experiments live in `spikes/`.
 
 No application dependency installation, application scaffold creation, model download, service restart, global change, credential reading, model API contact, or audio capture is part of this documentation delivery. Repository-only tooling was added separately at the user's explicit request; see below.
 
@@ -49,7 +49,7 @@ This is repository automation, not an application scaffold.
 - The `commit-msg` hook runs `node scripts/check-commit-msg.mjs`, enforcing Conventional Commits.
 - `.github/pull_request_template.md` is the AI-agent pull-request template.
 - `npm ci` installs repository tooling only. `npm run check` is runnable now and validates the repository; neither is an application test, build, or runtime proof.
-- The application commands `npm run dev`, `npm run typecheck`, `npm test`, and `npm run build` remain proposed and **NOT RUNNABLE** because no application scaffold or application scripts exist.
+- The application commands `npm run dev`, `npm run typecheck`, `npm test`, and `npm run build` remain proposed and **NOT RUNNABLE** at the repository root. The offline voice scaffold has its own commands (`npm start --prefix apps/web`, `npm run test:epoch --prefix apps/web`, `pytest apps/api`), documented in [apps/voice-foundation.md](apps/voice-foundation.md).
 
 ### Proposed future application command contract — NOT RUNNABLE IN THIS PROJECT; DO NOT RUN UNTIL AN APPROVED SCAFFOLD EXISTS
 
