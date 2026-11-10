@@ -73,7 +73,8 @@ microphone evidence remain pending. No cloud test is authorized here.
 - Gemini Live adapter: **not implemented** (R-01.7).
 - Opt-in synthetic live command and test: **not implemented and not run** (R-01.8, R-01.9).
 - Repository check: **pass** on PR #21; see the PR checks for current counts.
-- Runtime gate: **none closed**. RT-G00 remains open.
+- Runtime gate: RT-G00 is resolved for the bounded PH-01 scope. RT-G01 and all
+  later gates remain open.
 
 ## Reviewer correction set
 

@@ -153,11 +153,18 @@ merged Revision 2 of the real Gemini voice-console design. Neither PR added a
 Gemini adapter or started PH-01 implementation. The application still uses the
 fake adapter only.
 
-R-00.3 through R-00.10 and R-R.6 now have merged evidence. The
-[RT-G00 resolution](docs/approvals/rt-g00-resolution.md) maps every gate
-requirement to that evidence. RT-G00 remains open until the resolution record
-merges and the final bookkeeping PR ticks R-00.11, completes RT-001 and PH-00,
-and moves `Current phase` to PH-01.
+R-00.3 through R-00.10 and R-R.6 have merged evidence. The
+[RT-G00 resolution](docs/approvals/rt-g00-resolution.md) merged in PR #23 and
+maps every gate requirement to that evidence. The final bookkeeping PR ticks
+R-00.11, completes RT-001 and PH-00, and moves `Current phase` to PH-01.
+
+## PH-00 closure and PH-01 start (2026-11-10)
+
+RT-G00 is resolved for the bounded synthetic-only PH-01 scope. RT-001 and
+PH-00 are complete. PH-01 is now `in progress`. The next roadmap item is
+R-01.3, the human-run macOS offline check. R-01.4 is the operator's local
+microphone test with the fake adapter. The Gemini adapter remains
+unimplemented and RT-G01 remains open.
 
 ## Documentation acceptance status
 

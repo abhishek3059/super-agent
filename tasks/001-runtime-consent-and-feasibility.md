@@ -3,8 +3,8 @@
 | Field | Value |
 | --- | --- |
 | Task ID | RT-001 |
-| Status | in progress |
-| Execution evidence | [PH-00 setup decisions](../docs/approvals/ph-00-setup-decisions.md); [RT-G00 resolution](../docs/approvals/rt-g00-resolution.md) pending merge |
+| Status | complete |
+| Execution evidence | [PH-00 setup decisions](../docs/approvals/ph-00-setup-decisions.md); [merged RT-G00 resolution](https://github.com/abhishek3059/super-agent/pull/23) |
 | Revision 2 note | Corrections applied 2026-11-07 for independent review finding R-05 (see ../docs/reviews/super-agent.md): today's unset/unapproved values moved to a dated status note; future acceptance is now stated as truthful approval criteria. |
 
 ## Scope
@@ -61,10 +61,10 @@ The operator recorded the PH-00 setup decisions in the
   the agent process.
 - Budget: $0 cap with no paid fallback.
 
-This task is `in progress`. The setup decision record merged in PR #21.
-RT-G00 is not resolved until the [resolution record](../docs/approvals/rt-g00-resolution.md)
-merges and the follow-up roadmap evidence is added. The secret setup is
-confirmed for the operator's shell; the live test must run there.
+This task is complete. The setup decision record merged in PR #21 and the
+[RT-G00 resolution](../docs/approvals/rt-g00-resolution.md) merged in PR #23.
+The secret setup is confirmed for the operator's shell; the live test must run
+there.
 
 ## Acceptance
 
@@ -86,8 +86,8 @@ No consent, eligibility, access, budget, retention, or task-choice facts may be 
 ## Evidence
 
 Merged setup decision record: [PH-00 setup decisions](../docs/approvals/ph-00-setup-decisions.md).
-No runtime gate is closed by this open change. Secret setup is confirmed. The
-final RT-G00 resolution and follow-up roadmap evidence are still pending.
+Merged gate evidence: [PR #23](https://github.com/abhishek3059/super-agent/pull/23).
+RT-G00 is resolved for the bounded PH-01 scope. Later gates remain open.
 
 ## Navigation
 
