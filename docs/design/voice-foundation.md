@@ -735,6 +735,20 @@ Sources checked 2026-11-09:
 
 ## 12. Implementation plan and estimate
 
+Current-phase task direction (2026-11-10): the operator assigned a bounded
+local-only streaming slice while retaining the Mac and microphone checks as
+acceptance blockers. See the [direction record](../approvals/ph-01-current-phase-work.md)
+and [slice contract](voice-streaming-slice.md). The original sequence below is
+retained for context; no acceptance gate, provider grant, or data boundary is
+changed by this task assignment.
+
+Technical review correction (2026-11-10): the local slice's
+[bounded-teardown addendum](voice-streaming-teardown.md) explicitly amends
+cleanup-slot release on unresolved ownership. It requires bounded handler
+waits and retention of the existing single-session slot until worker quiescence
+and successful adapter closure are confirmed. This is a technical prototype
+correction in PR #24, not maintainer approval or native-provider acceptance.
+
 Work order:
 
 1. **Close PH-00.** Complete. RT-G00 was resolved by PR #23 and the final

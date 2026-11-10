@@ -36,7 +36,14 @@ confirmed by Jeevesh because R-01.3 is a human roadmap item.
 The operator's [partial microphone observations](r01-4-microphone-observations.md)
 are recorded without a PASS or roadmap tick. That record includes an unapproved
 proposal to prioritize the revised scaffold; it grants no implementation
-authority and changes no gate.
+authority and changes no gate. The subsequent
+[operator direction](../approvals/ph-01-current-phase-work.md) assigns existing
+PH-01 local-only implementation while leaving all acceptance blockers open.
+The first slice follows the [technical streaming contract](../design/voice-streaming-slice.md).
+Its [implementation record](voice-streaming-slice.md) records the completed local
+fake slice: 66 backend tests, 39 frontend service cases, 8 epoch cases, and final
+code-review PASS results. Hardware, credential, independent security, and native
+provider acceptance remain open.
 
 This PR consolidates the superseded PRs
 [#18](https://github.com/abhishek3059/super-agent/pull/18),
@@ -61,9 +68,45 @@ keep one PR per phase.
 | [#22](https://github.com/abhishek3059/super-agent/pull/22) | `PH-01: design real Gemini voice console` | merged | Design only. It did not start PH-01 implementation. |
 | [#23](https://github.com/abhishek3059/super-agent/pull/23) | `PH-00: resolve RT-G00` | merged | RT-G00 resolution and merged-evidence ticks. |
 | [#24](https://github.com/abhishek3059/super-agent/pull/24) | `PH-01: close PH-00 and build real voice console` | open | Single branch and PR for the approved PH-01 work bundle. |
+| [#25](https://github.com/abhishek3059/super-agent/pull/25) | `docs(ph-01): record R-01.3 macOS offline evidence` | open | Jeevesh's evidence contribution targets `docs/ph-00-close`, not `develop`. It covers the old scaffold at `4f51e00`; awaiting incorporation and the owner's evidence disposition. |
+| [#26](https://github.com/abhishek3059/super-agent/pull/26) | `fix(ci): run voice CI on Python 3.14` | open | Separate operator-requested CI interpreter update. It overlaps the voice workflow and two documentation files in this work bundle; integration is not performed here. |
+| [#27](https://github.com/abhishek3059/super-agent/pull/27) | `docs(roadmap): record approved PH-01 order and add fix item R-01.F1` | open, approval pending | Proposed roadmap reorder and silence/barge-in fix item. Targets the PH-01 branch; records Jeevesh's approval and Abhishek's pending approval. Not adopted on this branch. |
 
 ## Next phase PR
 
 PH-01 is the current phase on this branch. Its Revision 2 design merged in PR
 #22. PR #24 remains open while the approved PH-01 scope is implemented and
-evidenced. R-01.3 manual macOS evidence remains the next unticked item.
+evidenced. R-01.3 remains the next unticked item; its Mac evidence has been
+submitted in PR #25 but is not yet incorporated into this branch. That evidence
+does not validate the new streaming implementation.
+
+### Open-PR inspection (2026-11-10)
+
+The latest GitHub query found four open PRs, including the newly opened #27.
+No PR was approved, merged, closed, retargeted, or rerun by this inspection.
+
+- #24's published head is still `4f51e00`. All four published checks pass,
+  but they do not cover the uncommitted streaming changes. Human review is
+  required and the PH-01 implementation and acceptance work remain incomplete.
+- #25 contains the original Mac output and owner confirmation, plus saved
+  supplementary Python 3.14 backend output. Both test the old scaffold at
+  `4f51e00`, not the streaming rewrite.
+- #26's repository, Windows voice, and Windows spike checks pass. Its macOS
+  voice job was queued at inspection; it also needs human review.
+- #25 and #27 show no automatic checks. The current pull-request workflow
+  filters do not include their target branch, `docs/ph-00-close`. Absence of
+  checks is not a PASS.
+- #27's proposed sequencing needs the remaining maintainer approval. The
+  request to inspect PRs is not that approval and changes no roadmap item.
+- Local status edits overlap #25 and #27, and frontend workflow work overlaps
+  #26. Incorporation must preserve evidence and resolve the documentation
+  against the actually approved roadmap, without discarding local work.
+
+The free reviewer returned a [remote-head review](../reviews/pull-requests-24-27.md):
+#24, #25, and #26 PASS for their published scope; #27 HOLD for pending approval.
+The parent verified that #26's previously queued macOS check is now SUCCESS,
+so all four of its reported head checks pass. Its separately dispatched voice
+run also succeeded on both operating systems at the same head. Human review
+is still required. The report lists documentation corrections for evidence,
+next-item wording, and explicit approval records. This is not review of the
+uncommitted streaming implementation or independent security acceptance.
