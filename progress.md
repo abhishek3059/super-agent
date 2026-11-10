@@ -166,6 +166,16 @@ R-01.3, the human-run macOS offline check. R-01.4 is the operator's local
 microphone test with the fake adapter. The Gemini adapter remains
 unimplemented and RT-G01 remains open.
 
+### Partial microphone observations (2026-11-10)
+
+The operator reported `speaking` during silence and apparently working buttons,
+but could not confirm microphone input or conversational barge-in. R-01.4 is
+not complete. The [observation record](docs/implementation/r01-4-microphone-observations.md)
+also records the request to stop repeating the fake-echo test and proposes
+prioritizing the revised scaffold. That execution change is not approved; the
+roadmap order, security gates, and synthetic-only provider boundary remain
+unchanged.
+
 ## Documentation acceptance status
 
 The documentation developer performed manual authoring-time checks (literal taxonomy, link targets, headings/anchors, ID traceability, initial statuses). Correction pass (revision 2) inline checks are described in the implementation report. 
