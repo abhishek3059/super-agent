@@ -129,9 +129,9 @@ environment, with no project `.env` file. The app still uses the fake adapter;
 the Gemini Live adapter and opt-in synthetic live test are not implemented
 (R-01.7 to R-01.9).
 
-RT-001 is now `in progress`. RT-G00 is not resolved: the decision record still
-needs review and merge, and the final RT-G00 resolution and roadmap evidence
-remain to be recorded.
+RT-001 is now `in progress`. The decision record merged in PR #21. RT-G00 is
+not resolved until the final resolution record merges and the roadmap evidence
+is recorded.
 The operator confirmed on 2026-11-09 that `GEMINI_API_KEY` is set in an
 interactive PowerShell process environment. The variable is session-scoped, so
 the opt-in test must run from that shell. No runtime gate is closed and no
@@ -141,11 +141,23 @@ provider call or microphone capture was made while recording these decisions.
 
 Phase work now ships in one pull request per phase. The active PR, its branch,
 scope, and what it does not cover are recorded in the
-[phase PR log](docs/implementation/phase-prs.md). The current PH-00
-consolidation PR is [#21](https://github.com/abhishek3059/super-agent/pull/21);
-it folds in the superseded PRs #18, #19, and #20. It does not tick items whose
-evidence is only in the open PR. A follow-up bookkeeping PR closes those items
-after merge.
+[phase PR log](docs/implementation/phase-prs.md). The PH-00 consolidation PR
+[#21](https://github.com/abhishek3059/super-agent/pull/21) merged on
+2026-11-10 after folding in superseded PRs #18, #19, and #20. The resolution
+follow-up is now the active PH-00 PR.
+
+## PH-00 merge and resolution progress (2026-11-10)
+
+PR #21 merged the setup decisions and application-state corrections. PR #22
+merged Revision 2 of the real Gemini voice-console design. Neither PR added a
+Gemini adapter or started PH-01 implementation. The application still uses the
+fake adapter only.
+
+R-00.3 through R-00.10 and R-R.6 now have merged evidence. The
+[RT-G00 resolution](docs/approvals/rt-g00-resolution.md) maps every gate
+requirement to that evidence. RT-G00 remains open until the resolution record
+merges and the final bookkeeping PR ticks R-00.11, completes RT-001 and PH-00,
+and moves `Current phase` to PH-01.
 
 ## Documentation acceptance status
 
