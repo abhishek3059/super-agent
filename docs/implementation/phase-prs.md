@@ -29,6 +29,10 @@ this file is a status pointer, not evidence and not a gate.
 | Not in scope | Personal microphone audio to Gemini, tools, workers, external actions, paid services, or public deployment |
 | After merge | PH-01 is complete only if R-01.3 through R-01.10 have evidence; otherwise the same branch and PR remain open |
 
+The macOS owner and their AI agent should follow the
+[R-01.3 macOS test handover](r01-3-macos-handover.md). Agent-run output must be
+confirmed by Jeevesh because R-01.3 is a human roadmap item.
+
 This PR consolidates the superseded PRs
 [#18](https://github.com/abhishek3059/super-agent/pull/18),
 [#19](https://github.com/abhishek3059/super-agent/pull/19), and
