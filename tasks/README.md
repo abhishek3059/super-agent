@@ -4,7 +4,7 @@
 | --- | --- |
 | Date | 2026-11-07 |
 | Revision | 1 |
-| Status | RT-001 complete; RT-002 and RT-003 are next under PH-01; all later tasks `not started` |
+| Status | RT-001 complete; RT-002 in progress with local streaming-boundary work; RT-003 native provider work and all later tasks `not started` |
 
 This index covers future runtime implementation tasks only. It does not cover the authoring of this documentation pack.
 
@@ -31,7 +31,7 @@ Creating a task Markdown file does not start or authorize implementation.
 | Task ID | Exact file | Scope | Phase / requirements / decisions | Status |
 | --- | --- | --- | --- | --- |
 | [RT-001](001-runtime-consent-and-feasibility.md) | 001-runtime-consent-and-feasibility.md | Dated setup decision covering candidate eligibility/native access, account/region/quota/data/cost, named egress, budget, host, retention, and first real task pair; separate implementation authorization. No consent/access fabrication. | REQ-13, REQ-14, REQ-17; DEC-06, DEC-10, DEC-16; RT-G00 | complete |
-| [RT-002](002-local-scaffold-and-boundary.md) | 002-local-scaffold-and-boundary.md | After a new implementation request only: minimal reviewed local scaffold, exact dependency/command contract, device/session authentication and loopback HTTP/WS/CSRF boundary, without voice capture yet. | RT-001 and explicit scaffold authority; REQ-11, REQ-12; DEC-03, DEC-11, DEC-16 | not started |
+| [RT-002](002-local-scaffold-and-boundary.md) | 002-local-scaffold-and-boundary.md | After a new implementation request only: minimal reviewed local scaffold, exact dependency/command contract, device/session authentication and loopback HTTP/WS/CSRF boundary, without voice capture yet. | RT-001 and explicit scaffold authority; REQ-11, REQ-12; DEC-03, DEC-11, DEC-16 | in progress, not accepted |
 | [RT-003](003-native-voice-session.md) | 003-native-voice-session.md | Single manually activated native voice adapter and thin UI with indicators, backend control ownership, mic/playback stops, consent and failure behavior measured. No task workers or silent fallback. | RT-002 plus approved runtime grant; REQ-01-REQ-03, REQ-15; DEC-02, DEC-03, DEC-06, DEC-08 | not started |
 | [RT-004](004-task-ledger-and-policy.md) | 004-task-ledger-and-policy.md | Small durable state/admission/idempotency/revision/budget contract with synthetic tests; no arbitrary tools or provider dependencies required for ledger tests. | RT-002; REQ-05, REQ-06, REQ-09, REQ-10; DEC-04, DEC-07, DEC-09, DEC-12 | not started |
 | [RT-005](005-fixed-sample-workers.md) | 005-fixed-sample-workers.md | Two trusted bounded read-only synthetic workers, finite input/output, off-loop CPU execution, structured receipts/verification and overlap demonstration. | RT-003-RT-004; REQ-04, REQ-08; DEC-05, DEC-12 | not started |
@@ -59,5 +59,5 @@ Creating a task Markdown file does not start or authorize implementation.
 Each future task file contains: exact task ID stable bare heading or explicit anchor, status, execution evidence, future owner, scope and non-goals, prerequisites with relative task links, inputs, small scoped deliverable, meaningful concrete acceptance checks linked to the PRD/architecture/decisions, failure/rollback considerations, and future evidence field.
 
 Initially all future tasks were **not started** with no execution evidence.
-RT-001 is complete. RT-002 and RT-003 are the PH-01 path. Every later task
-remains `not started` with no execution evidence.
+RT-001 is complete. RT-002 local streaming-boundary work is in progress.
+RT-003 native provider work and every later task remain `not started`.

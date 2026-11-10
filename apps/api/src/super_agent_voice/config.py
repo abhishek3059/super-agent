@@ -16,6 +16,16 @@ class VoiceConfig:
     max_active_sessions: int = 1
     max_session_seconds: float = 15 * 60
     idle_timeout_seconds: float = 60
+    # Fixed authentication deadline (contract CT-04). The total session
+    # budget stays authoritative during auth: the effective auth deadline is
+    # the smaller of this and the remaining total budget.
+    auth_timeout_seconds: float = 5
+    # One shared monotonic teardown deadline for handler cleanup waits
+    # (teardown addendum revision 2, section 4.1). Every teardown wait loop
+    # derives its budget from this single value, so one blocked worker, one
+    # blocked close, and one blocked wire op share the budget instead of each
+    # getting its own. create_app validates it before any session runs.
+    teardown_seconds: float = 2.0
 
     @classmethod
     def from_environment(cls) -> "VoiceConfig":
