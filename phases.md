@@ -45,7 +45,7 @@ Runtime eligibility, consent, real-task selection, host, budgets, retention, and
 
 - **Entry prerequisites:** a separate authorization permitting feasibility/setup *decision work* (not runtime execution); the signed design and completed independent-review dispositions of PH-DOC for the assessed revision. No scaffold is required and none is assumed.
 - **Exit/acceptance gates:** [RT-001](tasks/001-runtime-consent-and-feasibility.md) producing a truthful dated setup decision, and [RT-G00](prd.md#rt-g00) resolved: explicit runtime consent and named microphone/context recipients; confirmed provider eligibility and native access; actual account/region/quota access and disclosed terms; disclosed retention windows; confirmed host; user-selected first real task pair; approved monetary/resource budgets. No consent/access fact may be fabricated.
-- **Status:** `in progress`. The [PH-00 setup decisions](docs/approvals/ph-00-setup-decisions.md) record the 2026-11-09 decisions. The operator confirmed the session-scoped `GEMINI_API_KEY` setup on 2026-11-09; RT-G00 remains open until the decision record merges and the final RT-G00 resolution and roadmap evidence are recorded.
+- **Status:** `in progress`. The [PH-00 setup decisions](docs/approvals/ph-00-setup-decisions.md) merged in PR #21. The operator confirmed the session-scoped `GEMINI_API_KEY` setup on 2026-11-09. RT-G00 remains open until the [resolution record](docs/approvals/rt-g00-resolution.md) merges and the follow-up roadmap PR records the evidence.
 
 Task links: [RT-001](tasks/001-runtime-consent-and-feasibility.md).
 

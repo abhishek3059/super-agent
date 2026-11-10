@@ -2,9 +2,9 @@
 
 | Field | Value |
 | --- | --- |
-| Date | 2026-11-09 |
+| Date | 2026-11-10 |
 | Current phase | PH-00 |
-| Current phase PR | [#21 PH-00 consolidation](https://github.com/abhishek3059/super-agent/pull/21) (open; details in [phase PR log](docs/implementation/phase-prs.md)) |
+| Current phase PR | [#23 PH-00 resolution](https://github.com/abhishek3059/super-agent/pull/23) (open; details in [phase PR log](docs/implementation/phase-prs.md)) |
 | Gate definitions | [phases.md](phases.md) (entry prerequisites and exit gates stay defined there) |
 | Task records | [tasks/](tasks/README.md) |
 | Enforced by | `npm run check` ([scripts/check-roadmap.mjs](scripts/check-roadmap.mjs), form only), code-owner review ([.github/CODEOWNERS](.github/CODEOWNERS)), and [AGENTS.md](AGENTS.md) section 11 |
@@ -50,14 +50,14 @@ Maps to [RT-001](tasks/001-runtime-consent-and-feasibility.md) and RT-G00. Nothi
 
 - [x] R-00.1 [human] Both maintainers record approval of the first-cycle scope. Evidence: [voice-foundation confirmation](docs/approvals/voice-foundation-confirmation.md)
 - [x] R-00.2 Gemini account verification recorded: provider eligibility, native transport and model access, region, quota, billing. Evidence: [verification record](docs/implementation/gemini-account-verification.md)
-- [ ] R-00.3 [human] First real task pair chosen and approved. Evidence: none yet
-- [ ] R-00.4 [human] Named runtime recipients and data boundary approved, including that personal microphone audio stays local. Evidence: none yet
-- [ ] R-00.5 [human] Hosts confirmed (Mac and Windows) and retention and retry windows approved. Evidence: none yet
-- [ ] R-00.6 [human] Monetary and resource limits approved and recorded ($0 cap, no paid fallback). Evidence: none yet
-- [ ] R-00.7 RT-001 dated setup decision record written. Evidence: none yet
-- [ ] R-00.8 [human] Explicit implementation authorization for PH-01 beyond the offline scaffold. Evidence: none yet
-- [ ] R-00.9 External secret setup done and documented: keys in the process environment or an OS vault, never in the repo, browser, URLs, or logs. Evidence: none yet
-- [ ] R-00.10 Provider terms, retention, and recipients disclosed in a dated record. Evidence: none yet
+- [x] R-00.3 [human] First real task pair chosen and approved. Evidence: [PH-00 setup decisions](docs/approvals/ph-00-setup-decisions.md)
+- [x] R-00.4 [human] Named runtime recipients and data boundary approved, including that personal microphone audio stays local. Evidence: [PH-00 setup decisions](docs/approvals/ph-00-setup-decisions.md)
+- [x] R-00.5 [human] Hosts confirmed (Mac and Windows) and retention and retry windows approved. Evidence: [PH-00 setup decisions](docs/approvals/ph-00-setup-decisions.md)
+- [x] R-00.6 [human] Monetary and resource limits approved and recorded ($0 cap, no paid fallback). Evidence: [PH-00 setup decisions](docs/approvals/ph-00-setup-decisions.md)
+- [x] R-00.7 RT-001 dated setup decision record written. Evidence: [PH-00 setup decisions](docs/approvals/ph-00-setup-decisions.md)
+- [x] R-00.8 [human] Explicit implementation authorization for PH-01 beyond the offline scaffold. Evidence: [PH-00 setup decisions](docs/approvals/ph-00-setup-decisions.md)
+- [x] R-00.9 External secret setup done and documented: keys in the process environment or an OS vault, never in the repo, browser, URLs, or logs. Evidence: [PH-00 setup decisions](docs/approvals/ph-00-setup-decisions.md)
+- [x] R-00.10 Provider terms, retention, and recipients disclosed in a dated record. Evidence: [Gemini verification](docs/implementation/gemini-account-verification.md)
 - [ ] R-00.11 RT-G00 evidenced and resolved. Evidence: none yet
 
 ## PH-01: local boundary and native voice connection
@@ -153,7 +153,7 @@ These do not gate any phase, but they are on the path and must be ticked.
 - [ ] R-R.3 [human] Private vulnerability reporting enabled on GitHub. Evidence: none yet
 - [ ] R-R.4 [human] Branch protection on `main` and `develop` agreed and set, including required code-owner review for `roadmap.md` and `phases.md`. Evidence: none yet
 - [ ] R-R.5 [human] Dependabot alerts, CodeQL, and secret scanning enabled. Evidence: none yet
-- [ ] R-R.6 README links to the learnings folder (the roadmap link is already there). Evidence: none yet
+- [x] R-R.6 README links to the learnings folder (the roadmap link is already there). Evidence: [PR 21](https://github.com/abhishek3059/super-agent/pull/21)
 
 ## Parallel track C: community and launch
 
