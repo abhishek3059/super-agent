@@ -7,7 +7,7 @@
 | Work-bundle PR | [#24](https://github.com/abhishek3059/super-agent/pull/24) |
 | macOS owner | `jeevesh2515` |
 | Snapshot date | 2026-11-10; consult the roadmap for later status |
-| Current status | Awaiting execution on Jeevesh's Mac and Jeevesh's confirmation |
+| Current status | Run on 2026-11-10: **PASS** against `4f51e00` ([evidence record](../approvals/r01-3-macos-evidence.md)). Awaiting the PH-01 owner's roadmap tick. |
 
 ## Purpose
 

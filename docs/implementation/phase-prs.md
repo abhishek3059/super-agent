@@ -66,4 +66,6 @@ keep one PR per phase.
 
 PH-01 is the current phase on this branch. Its Revision 2 design merged in PR
 #22. PR #24 remains open while the approved PH-01 scope is implemented and
-evidenced. R-01.3 manual macOS evidence remains the next unticked item.
+evidenced. R-01.3 manual macOS evidence was run on 2026-11-10 and passed
+([evidence record](../approvals/r01-3-macos-evidence.md)); it awaits the PH-01
+owner's tick. R-01.4 is the next item.
