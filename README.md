@@ -5,7 +5,7 @@ native voice-to-voice conversation, hands-free active-session use, and bounded
 background task delegation.
 
 > **Mostly documentation.** The only application code is an offline voice
-> scaffold in [`apps/`](apps/voice-foundation.md): a local echo adapter with no
+> scaffold in [`apps/`](apps/voice-foundation.md): a local fake streaming adapter with no
 > Gemini, no tools, and no stored audio. The Gemini Live adapter is not
 > implemented; only the fake adapter runs. Two throwaway spikes live in
 > `spikes/`. There is no runnable assistant. RT-G00 is resolved for PH-01;
@@ -23,7 +23,7 @@ background task delegation.
 | [Build](build.md) | Build position; future commands are proposed and not runnable |
 | [Decisions](descisions.md) | Decision register DEC-01–DEC-17 |
 | [Flows](flow.md) | Ten numbered workflows WF-01–WF-10 |
-| [Tasks](tasks/README.md) | Twelve task records; RT-001 is complete, RT-002 and RT-003 are next, and later tasks are `not started` |
+| [Tasks](tasks/README.md) | Twelve task records; RT-001 is complete, RT-002 is in progress, and native RT-003 and later tasks are `not started` |
 | [Council meetings](council%20meetings/README.md) | Three archived deliberation records |
 
 ## Supporting records

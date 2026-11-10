@@ -176,6 +176,105 @@ prioritizing the revised scaffold. That execution change is not approved; the
 roadmap order, security gates, and synthetic-only provider boundary remain
 unchanged.
 
+### Local-only streaming implementation started (2026-11-10)
+
+The operator directed starting existing PH-01 implementation while retaining
+the Mac and microphone checks as blockers, then requested free subagents for
+code generation. See the [direction record](docs/approvals/ph-01-current-phase-work.md).
+A free architect signed the [local streaming technical contract](docs/design/voice-streaming-slice.md),
+and a free developer is implementing that slice. The sign-off is not a security
+PASS or maintainer approval. All human and independent review acceptance items
+remain open. This slice's scope excludes provider calls and personal microphone
+egress; the implementation review must verify those boundaries in code.
+
+The first free developer reached its step limit with four backend failures and
+unfinished browser tests. The [streaming implementation record](docs/implementation/voice-streaming-slice.md)
+records that partial FAIL. Backend corrections and browser lifecycle work are
+now assigned to separate free developers. RT-002 is in progress, not accepted;
+RT-003 native provider work has not started. No roadmap item is newly ticked.
+
+The browser developer has now returned. The parent reran the actual service
+self-test (24 cases), existing epoch self-test (8 cases), production build,
+and dependency audit: all pass, with zero audit findings. See the
+[verification record](docs/implementation/voice-streaming-slice.md).
+A separate free reviewer is checking that frontend scope; backend completion
+and combined validation remain pending. Hardware and independent security
+acceptance are still open.
+
+The backend continuation has returned as well. The parent ran the full backend
+suite: 46 passed in 2.58 seconds. The developer found a cancellation-during-
+teardown bug in addition to test lifecycle and receive-ordering defects.
+Separate free reviewers are now assessing frontend lifecycle and backend
+cleanup. Passing offline tests do not close either review or any PH-01 gate.
+
+The [frontend reviewer](docs/reviews/voice-streaming-frontend.md) returned PASS
+for the core 24-case snapshot, with lifecycle edge-case findings. The parent
+requires correction of close rejection, capture factory failures, muted
+restart, stale callback coverage, and suspended-context handling before
+delivery. The free frontend developer is implementing those regressions.
+Previously passing test counts remain historical until the revised code is
+validated and reviewed again.
+
+The frontend correction round has now returned. Parent verification passes:
+37 actual-service cases, 8 epoch cases, build (115.94 kB initial total), and
+dependency audit (zero findings). The separate free reviewer is reassessing
+these changes. Backend review and all PH-01 acceptance blockers remain open.
+
+Both review reports have now returned. The backend 46-test snapshot and the
+frontend 37-case snapshot each received code PASS but a quality average of
+8.2, below the 8.5 delivery threshold. Further corrections are required.
+The [backend review](docs/reviews/voice-streaming-backend.md) motivated a free
+architect's [bounded-teardown addendum](docs/design/voice-streaming-teardown.md).
+The free backend developer is implementing that signed correction and its
+regressions. The free frontend developer is correcting two failure-path
+overclaims and two small state-label edges. Delivery remains on hold; no
+passing result is attributed to changes that have not been verified yet.
+
+Final frontend corrections have returned. Parent verification passes:
+39 service cases, 8 epoch cases, build (116.00 kB initial total), and audit
+(zero findings). The final frontend review is pending. The backend's amended
+bounded teardown is still being implemented, so its earlier 46-test result
+does not certify the new design or code. All acceptance gates remain open.
+
+Final frontend review returned PASS with scores 9/8/9/9/9, average 8.8. The
+reviewer independently reran all 39 service cases, 8 epoch cases, and repository
+checks. The parent corrected the two residual cosmetic finding-ID nits without
+application changes. See the [final frontend review](docs/reviews/voice-streaming-frontend.md).
+This clears the frontend code-review quality threshold, not independent
+security or hardware acceptance. Backend completion and re-review remain open.
+
+### Bounded teardown verification (2026-11-11)
+
+The parent completed the deterministic overflow and cleanup bookkeeping fixes.
+The free test developer returned eight teardown unit cases. The combined
+backend suite passes: **66 passed in 3.96 seconds**, exit 0. See the
+[saved output](docs/implementation/evidence/voice-streaming-backend-2026-11-11.txt).
+One consolidated code review remains. Unverified scheduling and transport
+observations go in the [uncertainty log](docs/reviews/voice-streaming-uncertain-findings.md),
+not into another implementation or review cycle without a concrete failure.
+Frontend remains passed and unchanged; acceptance gates remain open.
+
+### Final local slice code review (2026-11-11)
+
+The single [consolidated final review](docs/reviews/voice-streaming-backend.md)
+returned PASS: no confirmed blocker or major finding, average 8.52. The
+reviewer independently reran all 66 backend cases successfully. Combined with
+the existing frontend PASS at 8.8, this clears the local slice's code-review
+quality threshold. Three non-blocking observations are recorded as U-07 to
+U-09 in the uncertainty log; they do not start another review cycle.
+The local fake streaming implementation and code review are complete, not
+PH-01 acceptance. Human, credential, independent security, and native-provider
+gates remain open. No push, merge, or roadmap tick is claimed.
+
+### Local commit scope (2026-11-11)
+
+The operator requested committing the completed voice implementation, tests,
+and supporting records on `docs/ph-00-close` for the existing PH-01 PR #24.
+The user-owned Angular analytics change and the temporary teardown debug script
+are excluded and preserved. Every push and merge still needs explicit operator
+approval. The contribution PRs must be checked at their actual heads before
+incorporation; existing streaming work must be compared with PR #29.
+
 ## Documentation acceptance status
 
 The documentation developer performed manual authoring-time checks (literal taxonomy, link targets, headings/anchors, ID traceability, initial statuses). Correction pass (revision 2) inline checks are described in the implementation report. 

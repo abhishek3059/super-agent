@@ -47,10 +47,22 @@ jobs:
         env:
           HUSKY: 0
 
+      - name: Offline frontend self-tests (playback epochs and voice session)
+        run: |
+          npm run test:epoch
+          npm run test:voice
+        working-directory: apps/web
+        env:
+          NG_CLI_ANALYTICS: 'false'
+
       - name: Audit frontend dependencies
         run: npm audit
         working-directory: apps/web
+        env:
+          NG_CLI_ANALYTICS: 'false'
 
       - name: Build frontend
         run: npm run build
         working-directory: apps/web
+        env:
+          NG_CLI_ANALYTICS: 'false'

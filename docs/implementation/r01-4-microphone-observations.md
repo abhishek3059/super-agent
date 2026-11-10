@@ -68,3 +68,16 @@ This changes the current ordered prerequisites. Under
 approval in a roadmap PR, with corresponding phase definitions if a gate
 moves. This proposal changes no roadmap item, status, approval, or runtime
 authority. No real-scaffold implementation has started under this proposal.
+
+## Subsequent operator direction (2026-11-10)
+
+The operator subsequently directed existing current-phase implementation while
+keeping the Mac and microphone checks as blockers. That narrower task
+assignment is recorded in [PH-01 current-phase work direction](../approvals/ph-01-current-phase-work.md).
+It uses the operator task-direction provision in AGENTS.md section 11.1; it
+does not approve the sequencing proposal above or change an acceptance gate.
+The earlier proposal contemplated editing the roadmap sequence. The later
+direction instead assigns another existing PH-01 task without such an edit.
+The local-only streaming slice addresses the silent-frame display issue
+with offline regression tests. Hardware behavior remains unverified and
+R-01.4 remains unaccepted.

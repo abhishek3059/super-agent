@@ -65,14 +65,20 @@ microphone evidence remain pending. No cloud test is authorized here.
 | Gemini/provider test | Not run and not included |
 | Manual macOS execution | Not run; Jeevesh accepted the task. Hosted macOS CI passed. |
 
-## Current status (2026-11-10)
+## Current status (2026-11-11)
+
+The [local fake streaming upgrade](voice-streaming-slice.md) is implemented for
+PR #24 and passes its final code review. The earlier command results above are
+historical scaffold evidence, not results for the streaming rewrite.
 
 - Hosted voice workflow: **green** on Windows and macOS (PR #14; rerun on PR #21).
 - Manual microphone/browser test: **partial and inconclusive**. The operator
   reported `speaking` while silent and working buttons, but did not confirm
   microphone input or conversational barge-in. See the
   [observation record and unapproved next-step proposal](r01-4-microphone-observations.md).
-- Manual macOS execution: **not run**; Jeevesh accepted the task.
+- Manual macOS execution: evidence and owner confirmation submitted in
+  [PR #25](https://github.com/abhishek3059/super-agent/pull/25) for the old scaffold
+  at `4f51e00`; incorporation and roadmap disposition remain pending.
 - Gemini Live adapter: **not implemented** (R-01.7).
 - Opt-in synthetic live command and test: **not implemented and not run** (R-01.8, R-01.9).
 - Repository check: **pass** on PR #21; see the PR checks for current counts.
