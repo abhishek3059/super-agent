@@ -14,3 +14,4 @@ button { padding: .7rem 1rem; border: 0; border-radius: .5rem; background: #38a3
 button.stop { background: #fb7185; }
 button:disabled { cursor: not-allowed; opacity: .4; }
 .error { color: #fda4af; }
+meter { display: block; width: 100%; margin: .5rem 0 1.5rem; }

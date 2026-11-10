@@ -1,38 +1,104 @@
 from __future__ import annotations
 
+import asyncio
+from collections.abc import AsyncIterator
 from dataclasses import dataclass
 from typing import Protocol
 
 
 @dataclass(frozen=True)
-class AudioReply:
-    audio: bytes
-    turn_complete: bool = True
+class AudioChunk:
+    data: bytes
+    rate_hz: int
+
+
+@dataclass(frozen=True)
+class TurnComplete:
+    pass
+
+
+@dataclass(frozen=True)
+class Interrupted:
+    pass
+
+
+AdapterEvent = AudioChunk | TurnComplete | Interrupted
 
 
 class VoiceAdapter(Protocol):
-    async def send_audio(self, audio: bytes) -> AudioReply: ...
+    async def start(self) -> None: ...
+
+    async def enqueue_audio(self, audio: bytes) -> None: ...
 
     async def interrupt(self) -> None: ...
+
+    def events(self) -> AsyncIterator[AdapterEvent]: ...
 
     async def close(self) -> None: ...
 
 
 class FakeVoiceAdapter:
-    """Deterministic offline adapter; echoes bounded synthetic PCM."""
+    """Local streaming echo; no network, persistent audio, or provider key."""
 
-    def __init__(self) -> None:
+    def __init__(self, max_input_frames: int = 16) -> None:
+        if max_input_frames < 1:
+            raise ValueError("input queue must be bounded and nonempty")
+        self._input: asyncio.Queue[tuple[int, bytes] | None] = asyncio.Queue(
+            maxsize=max_input_frames
+        )
+        self._started = False
+        self._consuming = False
+        self._generation = 0
         self.closed = False
         self.interruptions = 0
+        self.input_frames = 0
+        self.dropped_input_frames = 0
 
-    async def send_audio(self, audio: bytes) -> AudioReply:
-        if self.closed:
-            raise RuntimeError("adapter closed")
-        return AudioReply(audio=bytes(audio))
+    async def start(self) -> None:
+        if self._started or self.closed:
+            raise RuntimeError("adapter cannot start")
+        self._started = True
+
+    async def enqueue_audio(self, audio: bytes) -> None:
+        if not self._started or self.closed:
+            raise RuntimeError("adapter is not ready")
+        if not isinstance(audio, bytes) or not audio or len(audio) % 2 or len(audio) > 32 * 1024:
+            raise ValueError("invalid PCM frame")
+        self.input_frames += 1
+        if self._input.full():
+            self._input.get_nowait()
+            self.dropped_input_frames += 1
+        self._input.put_nowait((self._generation, audio))
+
+    async def events(self) -> AsyncIterator[AdapterEvent]:
+        if not self._started or self._consuming:
+            raise RuntimeError("adapter requires one started event consumer")
+        self._consuming = True
+        while not self.closed:
+            frame = await self._input.get()
+            if frame is None:
+                return
+            generation, audio = frame
+            if generation != self._generation:
+                continue
+            yield AudioChunk(data=audio, rate_hz=16000)
+            # A control may interrupt between the audio and turn events.
+            if generation == self._generation and not self.closed:
+                yield TurnComplete()
 
     async def interrupt(self) -> None:
         if not self.closed:
             self.interruptions += 1
+            self._generation += 1
+            self._clear_input()
 
     async def close(self) -> None:
+        if self.closed:
+            return
         self.closed = True
+        self._clear_input()
+        self._input.put_nowait(None)
+
+    def _clear_input(self) -> None:
+        while not self._input.empty():
+            self._input.get_nowait()
