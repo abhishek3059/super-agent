@@ -42,7 +42,9 @@ Do not mark R-01.4 complete. Do not repeatedly ask the operator to test the same
 uncertain echo behavior. The misleading state is a known issue that must be
 fixed and evidenced, not silently waived. R-01.3 remains pending as well.
 
-## Proposed execution change, not approved
+## Proposed execution change
+
+**Status (2026-11-10):** approved by `jeevesh2515`; `abhishek3059` approves by merging the PR that adds the [PH-01 sequencing record](../approvals/ph-01-sequencing.md). The roadmap now orders PH-01 this way and adds fix item R-01.F1. The original proposal text follows unchanged.
 
 The operator requested prioritizing the real scaffold. A possible roadmap
 revision would:
