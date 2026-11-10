@@ -36,8 +36,8 @@
 
 ## Deviations from the handover
 
-1. **Python 3.12 was named explicitly.** The handover runs `python3`, but on
-   this Mac `python3` is 3.14.5. The run used `/opt/homebrew/bin/python3.12`,
+1. **Python 3.12 was named explicitly in the main run.** The handover runs
+   `python3`, but on this Mac `python3` is 3.14.5. The run used `/opt/homebrew/bin/python3.12`,
    which matches the hosted CI baseline (Python 3.12). The run added a `note=`
    line as the second line of the output to record this; it is not command
    output.
@@ -52,12 +52,24 @@ procedure in a clean tree against the detached PR head, with no edits to code
 or lock files. The output file shows each step's section header and result, not
 the commands themselves; the commands are in the handover.
 
-## Side observation (not evidence)
+## Supplementary run on Python 3.14 (2026-11-10, 16:00 UTC)
 
-In a separate scratch environment, the same lock file installed with binary
-wheels on the Mac's default Python 3.14.5, and `fastapi`, `pydantic_core`, and
-`websockets` imported. This was seen in the agent's session only; the output
-was not saved and no tests ran on 3.14. Treat it as a lead, not a result.
+PR [#26](https://github.com/abhishek3059/super-agent/pull/26) proposes moving
+hosted voice CI from Python 3.12 to 3.14. To keep this Mac evidence comparable
+with that baseline, the backend part was rerun on the Mac's default Python
+3.14.5 against the same commit `4f51e00`, in a separate detached worktree:
+
+| Step | Result | Evidence in the output |
+| --- | --- | --- |
+| Locked Python install (`--only-binary=:all:`) | PASS | cp314 wheels; `fastapi==0.162.0`, `pydantic_core==2.50.1`, `uvicorn==0.54.0`, `websockets==17.3` |
+| Backend tests | PASS | `11 passed in 0.76s` |
+| Overall | PASS | `overall_exit=0` |
+
+Full output: [r01-3-macos-py314-output-20261110T160044Z.txt](../implementation/evidence/r01-3-macos-py314-output-20261110T160044Z.txt).
+The frontend steps do not depend on Python and were not repeated. A first
+attempt at this rerun ran the same tests (11 passed) but did not capture the exit
+code because of a shell difference; that file was deleted and the run repeated
+under `bash`.
 
 ## What was not used
 

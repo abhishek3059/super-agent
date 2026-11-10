@@ -16,7 +16,8 @@ the record.
 ## What we learned
 
 - `python3` on a maintainer's Mac can be a newer Python than CI (here 3.14.5, CI uses 3.12). The handover's plain `python3` would have tested a different interpreter than CI. Naming the interpreter in the procedure keeps the Mac result comparable with CI.
-- In a side check that was not saved, the lock file also installed on Python 3.14. That is a lead to confirm, not evidence.
+- A supplementary backend run on Python 3.14.5 also passed (11 tests, `overall_exit=0`), which supports PR #26's move of CI to 3.14.
+- Capture the exit code in the same shell that runs the pipeline. A zsh wrapper around a bash-style `PIPESTATUS` left `overall_exit` blank once; the run was repeated under `bash`.
 - A handover that fixes the commit, refuses a dirty tree, saves the output, and stops on the first failure made the run quick to execute and easy to check.
 - Raw output contains the home directory and temporary paths. Redact those before committing evidence, and say so in the record.
 
@@ -26,4 +27,4 @@ Name the Python interpreter (or minimum version) in future handovers, and keep a
 
 ## Still unknown
 
-Whether the backend tests pass on Python 3.14, and how the real browser microphone path behaves on macOS (R-01.4).
+How the real browser microphone path behaves on macOS (R-01.4).
