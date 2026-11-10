@@ -48,7 +48,7 @@ microphone evidence remain pending. No cloud test is authorized here.
 
 | Check | Result |
 | --- | --- |
-| Python runtime | Windows Python 3.14.4; design target Python 3.12 remains for hosted CI |
+| Python runtime | Windows Python 3.14.4; hosted CI runs Python 3.14 since 2026-11-10 (the earlier 3.12 design target in [revision 1](../design/voice-foundation-revision-1.md) is superseded for hosted CI) |
 | Backend tests | PASS, 11 tests, exit 0 |
 | Backend compile check | PASS, exit 0 |
 | Uvicorn factory and loopback health | PASS on `127.0.0.1:8000`, fake provider |
