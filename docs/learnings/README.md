@@ -15,6 +15,7 @@ goes in [descisions.md](../../descisions.md).
 | 2026-11-07 | [Spike A3: Gemini Live](2026-11-07-spike-a3-gemini-live.md) | Latency, tool calling, and client pitfalls |
 | 2026-11-08 | [Stacked PRs and the PR #8 accident](2026-11-08-stacked-prs-and-pr8-accident.md) | Process lesson |
 | 2026-11-09 | [Gemini account verification](2026-11-09-gemini-verification.md) | Terms, region, quota, and what they mean for open source |
+| 2026-11-10 | [R-01.5 credential review](2026-11-10-r01-5-credential-review.md) | Loopback credentials: lockout as an attack, per-OS storage, localhost CSRF |
 
 ## How to add a note
 

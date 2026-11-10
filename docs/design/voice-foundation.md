@@ -9,6 +9,7 @@
 | Maintainer confirmation | [Decision record](../approvals/voice-foundation-confirmation.md) |
 | Runtime gate | [RT-G00](../approvals/rt-g00-resolution.md) is resolved; [RT-001](../../tasks/001-runtime-consent-and-feasibility.md) is complete. RT-G01 remains open. |
 | Revision 1 | Preserved verbatim in [voice-foundation-revision-1.md](voice-foundation-revision-1.md). |
+| Revision 2.1 | 2026-11-10: section 7 credential design and the section 9 bad-token row updated for the [R-01.5 review](../reviews/r01-5-credential-design.md). |
 
 > **Current state (2026-11-10).** PH-00 is complete. RT-G00 is resolved. PH-01
 > is `in progress` after the closure PR merges. The only voice adapter is
@@ -411,73 +412,126 @@ Logging:
 
 ## 7. Credential design (R-01.5)
 
+Revision 2.1 (2026-11-10) resolves the conditions of the
+[R-01.5 credential design review](../reviews/r01-5-credential-design.md)
+(CR-01 to CR-05 and CR-07). CR-06, CR-08, and CR-09 are implementation
+conditions, listed at the end of this section and tested under R-01.6. Nothing
+in this section is implemented yet unless a line says so.
+
 Threat model:
 
-- A malicious local process that tries to connect to the loopback port.
-- A malicious web page that tries to open a WebSocket to the loopback port.
-- Accidental token leakage through logs, URLs, repository files, or browser
-  storage.
-- Not a remote network attacker. The server binds only to `127.0.0.1`.
+| Actor | In scope | Control |
+| --- | --- | --- |
+| Malicious web page in the user's browser | Yes | Exact Host and Origin checks on every handshake and request; no CORS in the shipped path. |
+| DNS rebinding | Yes | One exact Host (`127.0.0.1:<port>`, as in section 9 and the current code) checked before auth; Origin must also match exactly. |
+| Another OS user on the same machine | Yes | Loopback is shared by every local user, so the token file is mode 0600 in the owner's home directory. |
+| Malicious process running as the same user | **Out of scope** | It can read the token file, environment, and process memory. Stated, not defended. |
+| Browser extension with page access | Partly | Can read the password field and page memory. Mitigated by the cookie flow, a strict CSP, and zeroing the in-memory token after use. |
+| Shoulder surfing, clipboard, shell history | Yes | Token never shown after generation, never typed inline in a shell command; clipboard copy is optional and documented as a leak path. |
+| Logs, error bodies, close reasons, crash dumps | Yes | Token never logged or echoed; fixed error text; secret-scan tests. |
+| Remote network attacker | **Out of scope** | The server binds only to `127.0.0.1`. |
 
 Device credential:
 
-- `SUPER_AGENT_LOCAL_TOKEN`, at least 32 bytes, generated with
-  `secrets.token_urlsafe(32)`.
-- Stored only in the backend process environment. No project `.env`, no
-  repository file, no browser storage, no log.
-- Compared with `hmac.compare_digest`.
-- Expiry is the backend process lifetime. A proposed optional
-  `SUPER_AGENT_TOKEN_MAX_AGE_SECONDS` (24 hours, provisional) refuses auth after
-  the age and requires a restart with a new token.
-- Rotation is a restart with a new token.
-- Revocation is a restart, which closes every session.
+- 32 random bytes from `secrets.token_urlsafe(32)` (about 256 bits). PIN or
+  password credentials are rejected by design.
+- **Generation and delivery:** a documented `generate-token` helper writes the
+  token to `~/.super-agent/voice-token` with mode 0600 on macOS (or the
+  Keychain), and on Windows to `%USERPROFILE%\.super-agent\voice-token` with an
+  owner-only ACL (or the Windows Credential Manager). The
+  backend reads that file at start. Docs must never show the token inline in an
+  `export` or `$env:` command, so it does not land in shell history.
+- **Weak values rejected at start:** fewer than 32 bytes, or fewer than 16
+  distinct characters, stops the backend with a fixed error.
+- Compared as UTF-8 bytes with `hmac.compare_digest`; any decode or type error
+  is treated as a failed attempt, never a crash.
+- **Expiry is mandatory:** `SUPER_AGENT_TOKEN_MAX_AGE_SECONDS`, default 86400
+  (24 hours, provisional), measured from backend process start. A missing value
+  uses the default; a zero, negative, or unparsable value stops the backend.
+- Rotation: run `generate-token` and restart. Revocation: restart, which closes
+  every session and invalidates every cookie session id.
 
 Session credential:
 
-- The authenticated WebSocket is the session credential.
-- One active session.
-- The session ends on stop, disconnect, idle timeout, 15-minute maximum, or
-  provider end.
-- No separate bearer token is issued in the minimal flow. A same-origin cookie
-  flow is a proposed alternative below.
+- One active session, ended by stop, disconnect, idle timeout, a 15-minute
+  maximum, or provider end.
+- **Authenticate before taking the session slot.** A pre-auth connection gets
+  at most 5 seconds and does not hold the single active-session slot, so
+  unauthenticated clients cannot starve the user. Pre-auth connections are
+  capped separately (provisional: 4 at once).
+- **A failed attempt is closed immediately** and never held open during its
+  delay; the delay is enforced by refusing or deferring that source's next
+  attempt. Failed attempts therefore cannot fill the pre-auth cap and lock the
+  user out (review N1, tested in R-01.6).
 
-Failed-auth throttling:
+Failed-auth throttling (CR-01):
 
-- In-memory global counter, not per-IP, because every client is loopback.
-- Five failures within 60 seconds trigger a 60-second cooldown with a fixed
-  delay and a fixed error. Successful auth resets the counter.
-- Values are provisional and need measurement.
-- Throttling does not reveal whether the token was close or whether a session
-  exists.
+- Guessing a 256-bit token online is infeasible, so throttling exists to limit
+  log, CPU, and connection abuse, **not** to stop guessing.
+- No hard lockout. After 5 failures in 60 seconds, each further failed attempt
+  gets an increasing delay (provisional: 0.5 s doubling, capped at 8 s).
+- **A correct token is always accepted**, even while failures are being
+  delayed, so a local process cannot lock the user out.
+- The counter resets on success and decays after 60 quiet seconds. Responses
+  use a fixed error and fixed close code, revealing nothing about closeness or
+  session state.
+- Values are provisional and must be measured in R-01.6.
+- Accepting a correct token immediately while delaying wrong ones reveals
+  whether a guess was right. That is harmless at 256 bits of entropy and is
+  accepted on purpose (review N5).
 
-Browser flow, minimal:
+Browser flow, minimal (development only):
 
-- The user pastes the local token into a password field.
-- The token stays in memory for the page session. It is not written to
-  `localStorage` or `sessionStorage`.
-- The browser sends it in `session.auth` as the first WebSocket message.
-- The backend rejects a bad token with close code 1008.
+- The user pastes the token into a password field. The page keeps it only until
+  the first `session.auth` message is sent, then zeroes it in the service and
+  the field. It is never written to `localStorage` or `sessionStorage`.
+- A strict Content-Security-Policy is required: no inline scripts, no
+  third-party scripts.
+- A bad token closes the socket with code 1008.
 
-Browser flow, recommended shipped path:
+Browser flow, recommended shipped path (needs maintainer approval):
 
 - FastAPI serves the built Angular console on the same origin.
-- The user enters the device token once.
-- The backend sets an HttpOnly, SameSite=Strict session cookie. `Secure` is set
-  only when the console is served over HTTPS, which is not part of this local
-  slice.
-- The WebSocket handshake sends the cookie. The backend checks the Origin and
-  the cookie.
-- This removes the device token from JavaScript after enrollment and removes
-  CORS from the shipped path.
-- This needs maintainer approval and the security review in section 9.
+- **Enrollment:** a POST with the device token, checked for exact Host and
+  Origin and throttled like the WebSocket. On success the backend issues a
+  fresh `secrets.token_urlsafe(32)` session id, stored only in a server-side
+  in-memory map, and replaces any previous id (rotation on enrollment).
+- **Cookie:** HttpOnly, SameSite=Strict, Path=/, Max-Age 900 seconds (matches
+  the 15-minute session cap). `Secure` is not set because this local slice is
+  plain HTTP on loopback; therefore the `__Host-` prefix is not possible. On
+  loopback only a local administrator could read the traffic, which is out of
+  scope above.
+- SameSite=Strict does not separate different localhost ports, so the
+  **exact Origin and Host checks on enrollment and on the WebSocket upgrade are
+  the real CSRF control**.
+- The cookie is accepted only on the WebSocket upgrade, never on other routes.
+  A logout or stop clears the server-side id; a restart clears all of them.
 
 Same-origin trade-off:
 
-- Benefits: one origin, no CORS, cookie auth, simpler CSRF story, one URL for
-  the user.
+- Benefits: one origin, no CORS, cookie auth, a simpler CSRF story, one URL for
+  the user, and the device token leaves JavaScript after enrollment.
 - Costs: a build and static-file serving step, a different development flow,
-  and a cookie/CSRF review.
+  and a cookie and CSRF review.
 - The Angular dev server flow stays dev-only. It is not the shipped check path.
+
+Implementation conditions from the review (tested in R-01.6):
+
+- CR-06: the current scaffold takes the session slot before authentication
+  (`apps/api/src/super_agent_voice/app.py`, slot at line 80, auth wait at
+  line 96). Change the order as stated above.
+- CR-08: the current scaffold compares `str` values with `hmac.compare_digest`,
+  which raises on non-ASCII input. Compare UTF-8 bytes and treat errors as a
+  failed attempt.
+- CR-09: the current scaffold checks only `len >= 32` bytes. Add the
+  distinct-character check and the `generate-token` helper.
+- N3: the server-side cookie session id expires after 900 seconds, matching
+  the cookie Max-Age; enrollment rejects a missing or `null` Origin; enrollment
+  is refused once the device token has expired.
+- N4: one exact Host is allowed, matching section 9 and the current code.
+- Required negative tests: the nine listed in the review record, section
+  "Required negative tests for R-01.6", plus a test that failed attempts cannot
+  fill the pre-auth cap (N1) and a Windows ACL check on the token file (N2).
 
 ## 8. Real console UX
 
@@ -559,7 +613,7 @@ Fail-closed table:
 | Condition | Behavior |
 | --- | --- |
 | Missing `GEMINI_API_KEY` in `gemini` mode | Refuse to start a provider session. Fixed `provider-unavailable` error. |
-| Bad token | Close 1008, count the failure, throttle after five failures. |
+| Bad token | Close 1008, count the failure; after five failures add an increasing delay (no hard lockout); a correct token is always accepted. |
 | Host or Origin mismatch | Close 1008 before auth. |
 | Second session | Close 1013. |
 | Audio before ready | Fixed `invalid-audio` error and close. |
