@@ -1,6 +1,6 @@
 # Super-agent — build position and future command contract (documentation pack)
 
-**Mostly documentation. There is no runnable assistant.** The repository root has a minimal `package.json` and Husky hooks for repository checks only. The one application scaffold is the offline voice echo scaffold in `apps/` (see [apps/voice-foundation.md](apps/voice-foundation.md)); it has its own setup and checks and is not an assistant. Throwaway experiments live in `spikes/`.
+**Mostly documentation. There is no runnable assistant.** The repository root has a minimal `package.json` and Husky hooks for repository checks only. The one application scaffold is the offline voice echo scaffold in `apps/` (see [apps/voice-foundation.md](apps/voice-foundation.md)); it has its own setup and checks and is not an assistant. The scaffold uses the fake adapter only. The Gemini Live adapter and the opt-in synthetic live test are not implemented. Throwaway experiments live in `spikes/`.
 
 No application dependency installation, application scaffold creation, model download, service restart, global change, credential reading, model API contact, or audio capture is part of this documentation delivery. Repository-only tooling was added separately at the user's explicit request; see below.
 

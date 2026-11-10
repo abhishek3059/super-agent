@@ -116,6 +116,11 @@ These are agent conventions checked in review, not by CI.
 
 ## 8. Documentation rules
 
+- **Before every commit or conclusion, check whether the change made any
+  document stale.** If it did, update those documents in the same commit. If
+  none needed a change, say so in the PR body or final report. This includes
+  status fields, evidence tables, run instructions, roadmap state, and
+  application-state descriptions.
 - REQ, DEC, PH, RT, and WF IDs stay consistent across files. Update every file
   that references what you change.
 - Relative links only; `npm run check` validates them.

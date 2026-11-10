@@ -6,8 +6,9 @@ background task delegation.
 
 > **Mostly documentation.** The only application code is an offline voice
 > scaffold in [`apps/`](apps/voice-foundation.md): a local echo adapter with no
-> Gemini, no tools, and no stored audio. Two throwaway spikes live in `spikes/`.
-> There is no runnable assistant, and all runtime gates remain open.
+> Gemini, no tools, and no stored audio. The Gemini Live adapter is not
+> implemented; only the fake adapter runs. Two throwaway spikes live in
+> `spikes/`. There is no runnable assistant, and all runtime gates remain open.
 
 ## Start here
 
@@ -21,7 +22,7 @@ background task delegation.
 | [Build](build.md) | Build position; future commands are proposed and not runnable |
 | [Decisions](descisions.md) | Decision register DEC-01–DEC-17 |
 | [Flows](flow.md) | Ten numbered workflows WF-01–WF-10 |
-| [Tasks](tasks/README.md) | Twelve future task records, all `not started` |
+| [Tasks](tasks/README.md) | Twelve future task records; RT-001 is `in progress`, the rest are `not started` |
 | [Council meetings](council%20meetings/README.md) | Three archived deliberation records |
 
 ## Supporting records
@@ -36,6 +37,7 @@ background task delegation.
 - [Initial review archive](docs/reviews/super-agent-initial.md) — preserved FAIL
 - [Design-stage security assessment](docs/security/super-agent.md) — PASS
 - [Implementation report](docs/implementation/super-agent.md)
+- [Learnings index](docs/learnings/README.md)
 - [Zero-cost build stack](docs/free-stack.md) (research proposal)
 - [Personal-agent architecture](docs/product/personal-agent-architecture.md) (brainstorm proposal)
 - [Lucidchart architecture references](docs/References/README.md)

@@ -74,6 +74,8 @@ Evidence (logs, screenshots, output excerpts):
 - [ ] Future phases/tasks remain `not started` unless the change is the actual
       approved implementation.
 - [ ] Documentation status, PASS/FAIL claims, and links are accurate.
+- [ ] Documentation checked for stale status, commands, evidence, and
+      application-state descriptions; updated in this PR or confirmed unchanged.
 - [ ] Rollback path is stated below.
 
 ## Runtime and privacy impact

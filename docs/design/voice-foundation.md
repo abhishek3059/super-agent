@@ -7,7 +7,15 @@
 | Status | Signed proposal for review. No scaffold, dependency installation, provider call, microphone transmission, or runtime approval. |
 | Product context | [Personal-agent architecture](../product/personal-agent-architecture.md) |
 | Maintainer confirmation | [Decision record](../approvals/voice-foundation-confirmation.md) |
-| Runtime gate | RT-G00 remains open; [RT-001](../../tasks/001-runtime-consent-and-feasibility.md) remains `not started`. |
+| Runtime gate | RT-G00 remains open; [RT-001](../../tasks/001-runtime-consent-and-feasibility.md) is `in progress`. |
+
+> **Implementation status (2026-11-09):** The offline scaffold is merged
+> (PR #13) and the hosted voice workflow is green on Windows and macOS
+> (PR #14). RT-001 is `in progress`; RT-G00 remains open. The Gemini Live
+> adapter and the opt-in synthetic live test are **not implemented**
+> (R-01.7 to R-01.9). The sections below are the 2026-11-08 signed design;
+> see the [implementation record](../implementation/voice-foundation-scaffold.md)
+> for current state.
 
 ## 1. Objective
 
@@ -190,6 +198,11 @@ records real output. Neither platform substitutes for the other.
 - Independent review accepts the implemented security boundary before runtime acceptance.
 
 ## 11. Remaining blockers
+
+**2026-11-08 snapshot.** Several items are now resolved: Jeevesh confirmed the
+cycle, the Gemini account and dependencies are verified or locked, and the
+offline scaffold is merged. The Gemini adapter and opt-in live test remain
+unimplemented.
 
 - Jeevesh has not confirmed the product direction or this cycle.
 - Gemini account creation, key, region, quota, model access, and terms are unverified.
