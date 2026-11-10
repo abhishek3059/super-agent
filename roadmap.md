@@ -4,7 +4,7 @@
 | --- | --- |
 | Date | 2026-11-10 |
 | Current phase | PH-01 |
-| Current phase PR | [#24 PH-00 closure and PH-01 start](https://github.com/abhishek3059/super-agent/pull/24) (open; details in [phase PR log](docs/implementation/phase-prs.md)) |
+| Current phase PR | [#24 PH-01 real voice console](https://github.com/abhishek3059/super-agent/pull/24) (open work bundle; details in [phase PR log](docs/implementation/phase-prs.md)) |
 | Gate definitions | [phases.md](phases.md) (entry prerequisites and exit gates stay defined there) |
 | Task records | [tasks/](tasks/README.md) |
 | Enforced by | `npm run check` ([scripts/check-roadmap.mjs](scripts/check-roadmap.mjs), form only), code-owner review ([.github/CODEOWNERS](.github/CODEOWNERS)), and [AGENTS.md](AGENTS.md) section 11 |
@@ -17,7 +17,7 @@ It authorizes nothing at runtime and closes no gate by itself.
 
 1. **Read this file** at the start of a session, and again after finishing any piece of work. Then do the next unticked item of the current phase, in order.
 2. **Tick only with evidence.** Change `[ ]` to `[x]` and replace the line's ending `Evidence: none yet` with `Evidence: [label](target)`, where the target is a record under `docs/`, `spikes/`, `tasks/`, `apps/`, `scripts/` or `.github/`, a root policy file, or a merged pull request, commit, or Actions run of this repository. `README.md` and this file are not evidence. No evidence, no tick.
-3. **Tick in the same PR as the work** (or in a follow-up PR once the work has merged). Never tick work that is only in an open PR.
+3. **Keep one phase or work-bundle PR open until its approved scope is complete.** Put implementation, tests, evidence records, documentation, and ticks in that PR when the evidence is a repository record in the same PR or is already merged. Do not open bookmark or bookkeeping PRs for each status update. Use a follow-up only when evidence can exist only after merge or the operator explicitly requests one. Never tick an unsupported claim.
 4. **If a check fails or a tick cannot be made, fix that first.** Add a fix item under the same phase (`R-xx.Fn`), solve the bug, tick the fix, tick the original item, and only then move on.
 5. **Stay on the path.** Do not start items of a later phase while the current phase has unticked required items. A deliberate exception needs `[exception: [label](docs/approvals/...)]` on the item, pointing to an approvals or review record that both maintainers have approved.
 6. **`[human]` items** need a person. An agent may tick one only when the person says so in chat or in a reviewed PR, and the evidence must include a record under `docs/approvals/` that says who decided and when.
