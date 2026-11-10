@@ -3,12 +3,16 @@
 This is an offline scaffold. It uses a deterministic local adapter that echoes
 PCM audio. It does not use Gemini, persist audio, or provide tools or actions.
 
-## Current state (2026-11-09)
+## Current state (2026-11-10)
 
-The fake adapter is the only adapter implemented. The Gemini Live adapter and
-the opt-in synthetic live command are not implemented (R-01.7 to R-01.9). You
-can run the local scaffold and test start, mute, barge-in, and stop, but it
-cannot connect to Gemini. Personal microphone audio stays local.
+The backend uses the streaming adapter seam from the design (section 4). The
+app still runs only the deterministic fake adapter by default. A Gemini Live
+adapter exists behind the seam and is covered by offline tests with injected
+fakes ([R-01.7 record](../docs/implementation/r01-7-streaming-seam.md)), but it
+is not wired into the app and the `google-genai` SDK is not installed. The
+opt-in synthetic live command (R-01.8) and the live test (R-01.9) do not exist
+yet, so the console cannot connect to Gemini. Personal microphone audio stays
+local.
 
 ## Backend
 

@@ -13,6 +13,8 @@ export class VoiceSessionService {
   private processor?: ScriptProcessorNode;
   private readonly playing = new Set<AudioBufferSourceNode>();
   private readonly epochs = new PlaybackEpochTracker();
+  // Sample rate announced by the latest audio.chunk; Gemini Live sends 24 kHz.
+  private chunkRateHz = 16000;
 
   async start(token: string): Promise<void> {
     if (this.socket || token.length < 32) {
@@ -71,6 +73,7 @@ export class VoiceSessionService {
       type?: string;
       category?: string;
       playbackEpoch?: number;
+      rateHz?: number;
     };
     if (message.type === 'session.ready') {
       this.epochs.onReady(message.playbackEpoch);
@@ -83,6 +86,9 @@ export class VoiceSessionService {
       this.status.set(this.muted() ? 'muted' : 'listening');
     } else if (message.type === 'audio.chunk') {
       this.epochs.onChunkMeta(message.playbackEpoch);
+      const rate = message.rateHz;
+      // Reject a missing or implausible rate rather than play garbled audio.
+      this.chunkRateHz = typeof rate === 'number' && rate >= 8000 && rate <= 48000 ? rate : 0;
     } else if (message.type === 'turn.complete') {
       this.epochs.onTurnComplete(message.playbackEpoch);
     } else if (message.type === 'playback.interrupted') {
@@ -134,8 +140,10 @@ export class VoiceSessionService {
     // Binary frames are untagged; only a frame covered by a current-epoch
     // JSON chunk may play. Stale or untagged audio is dropped here.
     if (!this.epochs.acceptBinary()) return;
+    if (!this.chunkRateHz) return;
     const pcm = new Int16Array(data);
-    const buffer = context.createBuffer(1, pcm.length, 16000);
+    // The Web Audio API resamples to the device rate; never assume 16 kHz.
+    const buffer = context.createBuffer(1, pcm.length, this.chunkRateHz);
     const output = buffer.getChannelData(0);
     for (let index = 0; index < pcm.length; index += 1) {
       output[index] = (pcm[index] ?? 0) / 0x8000;

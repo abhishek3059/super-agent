@@ -16,6 +16,9 @@ class VoiceConfig:
     max_active_sessions: int = 1
     max_session_seconds: float = 15 * 60
     idle_timeout_seconds: float = 60
+    # Bounds so a hung provider or stalled client cannot hold the session slot.
+    provider_start_timeout_seconds: float = 10
+    teardown_timeout_seconds: float = 2
 
     @classmethod
     def from_environment(cls) -> "VoiceConfig":

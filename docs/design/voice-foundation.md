@@ -169,6 +169,13 @@ class VoiceAdapter(Protocol):
     async def close(self) -> None: ...
 ```
 
+Implementation note (2026-11-10, R-01.7): the implemented protocol adds
+`name` and `output_rate_hz` attributes and an `end_audio_stream()` method,
+because section 6 requires the adapter to send `audio_stream_end` on mute and
+the contract above had no call for it. `enqueue_audio()` is async and
+non-blocking as specified. See the
+[R-01.7 record](../implementation/r01-7-streaming-seam.md).
+
 Contract:
 
 - `start()` opens the provider session or prepares the fake stream. It raises a
@@ -362,7 +369,7 @@ Mapping:
 | `server_content.model_turn.parts[].inline_data.data` | `AudioChunk(data, rate_hz=24000)` |
 | `server_content.turn_complete` | `TurnComplete()` |
 | `server_content.interrupted` | `Interrupted()` |
-| `server_content.go_away` | Fail closed with `provider-session-ended` |
+| `go_away` (top-level message field) | Fail closed with `provider-session-ended` |
 | `session_resumption_update` | Store the handle only. No reconnect in this slice. |
 
 Session limits:
@@ -395,6 +402,11 @@ Barge-in:
   provider's `interrupted` event or turn completion. If the provider does not
   interrupt, the session ends with a fixed error. It does not pretend the
   interruption succeeded.
+- Implementation note (2026-11-10, R-01.7): `audio_stream_end` does not cancel
+  model output, so `interrupt()` does not send it. With a model turn in flight
+  the adapter waits for `interrupted` or a turn completion and otherwise fails
+  closed; with no turn in flight a local interrupt is local only. The provider's
+  real barge-in behavior is still verified by the synthetic live test (R-01.9).
 - If the provider sends `interrupted` on its own, the adapter emits
   `Interrupted()`. The backend bumps the epoch and sends
   `playback.interrupted` with `source: "provider"`.
