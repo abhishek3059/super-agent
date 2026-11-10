@@ -7,12 +7,11 @@
 | Status | Proposal for review. No implementation, dependency installation, provider call, microphone transmission, or runtime approval. |
 | Product context | [Personal-agent architecture](../product/personal-agent-architecture.md) |
 | Maintainer confirmation | [Decision record](../approvals/voice-foundation-confirmation.md) |
-| Runtime gate | RT-G00 remains open pending the [resolution record](../approvals/rt-g00-resolution.md); [RT-001](../../tasks/001-runtime-consent-and-feasibility.md) is `in progress`. |
+| Runtime gate | [RT-G00](../approvals/rt-g00-resolution.md) is resolved; [RT-001](../../tasks/001-runtime-consent-and-feasibility.md) is complete. RT-G01 remains open. |
 | Revision 1 | Preserved verbatim in [voice-foundation-revision-1.md](voice-foundation-revision-1.md). |
 
-> **Current state (2026-11-10).** PH-00 is `in progress`. PR #21 and this
-> design merged. The RT-G00 resolution follow-up is in progress.
-> PH-01 is `not started`. RT-G00 is not resolved. The only voice adapter is
+> **Current state (2026-11-10).** PH-00 is complete. RT-G00 is resolved. PH-01
+> is `in progress` after the closure PR merges. The only voice adapter is
 > the deterministic fake echo adapter. The Gemini Live adapter and the opt-in
 > synthetic live test are **not implemented** (R-01.7 to R-01.9). No live
 > provider test has run. This document is a proposal, not a claim that the real
@@ -684,8 +683,8 @@ Sources checked 2026-11-09:
 
 Work order:
 
-1. **Close PH-00.** Merge the RT-G00 resolution and the final bookkeeping PR.
-   Move `Current phase` to PH-01.
+1. **Close PH-00.** Complete. RT-G00 was resolved by PR #23 and the final
+   bookkeeping PR moves `Current phase` to PH-01.
 2. **Human checks.** R-01.3 Mac offline checks and R-01.4 local microphone test
    with the fake adapter.
 3. **Credential design and throttling (R-01.5).** Approve the token flow and

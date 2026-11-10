@@ -6,7 +6,7 @@
 | Gate | [RT-G00](../../prd.md#rt-g00) |
 | Scope | Authority and feasibility before PH-01 implementation |
 | Decision sources | [PH-00 setup decisions](ph-00-setup-decisions.md), [maintainer confirmation](voice-foundation-confirmation.md), and [Gemini verification](../implementation/gemini-account-verification.md) |
-| Disposition | **Resolved when this record is merged into `develop`.** Before merge, RT-G00 remains open. |
+| Disposition | **Resolved.** This record merged into `develop` in [PR #23](https://github.com/abhishek3059/super-agent/pull/23) on 2026-11-10. |
 
 ## Gate evidence
 
@@ -39,7 +39,7 @@ outside the approved scope and need separate gates.
 - No provider call, live test, microphone upload, or spend is performed by
   this record.
 - The app still uses the fake adapter only.
-- PH-01 is not started until the follow-up roadmap PR merges.
+- PH-01 becomes the current phase when the follow-up roadmap PR merges.
 - RT-G01 and later runtime gates remain open.
 - Manual macOS and local microphone evidence remain PH-01 items R-01.3 and
   R-01.4.

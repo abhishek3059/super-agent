@@ -18,14 +18,14 @@ this file is a status pointer, not evidence and not a gate.
 
 | Field | Value |
 | --- | --- |
-| Phase | PH-00: runtime eligibility, consent, and setup decisions |
-| PR | [#23](https://github.com/abhishek3059/super-agent/pull/23) |
-| Branch | `docs/ph-00-resolution` |
-| Status | open, awaiting review and merge |
+| Phase | PH-01: local boundary and native voice connection |
+| PR | [#24](https://github.com/abhishek3059/super-agent/pull/24) |
+| Branch | `docs/ph-00-close` |
+| Status | open PH-00 closure and PH-01 start bookkeeping |
 | Application state | Offline fake adapter only. The Gemini Live adapter and opt-in synthetic live test are not implemented (R-01.7 to R-01.9). |
-| Scope | Tick R-00.3 to R-00.10 and R-R.6 from merged evidence, record the final RT-G00 disposition, and correct stale PH-00 status text |
-| Not in scope | R-00.11, phase closure, runtime code, provider calls, microphone capture, spend, or PH-01 implementation |
-| After merge | A final bookkeeping PR ticks R-00.11 from this merged resolution, marks RT-001 and PH-00 done, and moves `Current phase` to PH-01 |
+| Scope | Tick R-00.11 from merged PR #23, complete RT-001 and PH-00, move `Current phase` to PH-01, and correct status documents |
+| Not in scope | PH-01 human checks, runtime code, provider calls, microphone capture, spend, or Gemini implementation |
+| After merge | R-01.3 manual macOS evidence is next, followed by R-01.4 local microphone evidence |
 
 This PR consolidates the superseded PRs
 [#18](https://github.com/abhishek3059/super-agent/pull/18),
@@ -48,10 +48,11 @@ keep one PR per phase.
 | [#20](https://github.com/abhishek3059/super-agent/pull/20) | `docs(ph-00): record setup decisions and RT-001 progress` | consolidated | Changes preserved in #21. |
 | [#21](https://github.com/abhishek3059/super-agent/pull/21) | `PH-00: consolidate setup evidence and document voice state` | merged | Setup decisions and current-state documentation. |
 | [#22](https://github.com/abhishek3059/super-agent/pull/22) | `PH-01: design real Gemini voice console` | merged | Design only. It did not start PH-01 implementation. |
-| [#23](https://github.com/abhishek3059/super-agent/pull/23) | `PH-00: resolve RT-G00` | open | Current PH-00 resolution PR. |
+| [#23](https://github.com/abhishek3059/super-agent/pull/23) | `PH-00: resolve RT-G00` | merged | RT-G00 resolution and merged-evidence ticks. |
+| [#24](https://github.com/abhishek3059/super-agent/pull/24) | `PH-00: close phase and start PH-01` | open | Final PH-00 bookkeeping and PH-01 start. |
 
 ## Next phase PR
 
-PH-01 is not started. Its Revision 2 design merged in PR #22, but implementation
-waits for the final PH-00 bookkeeping PR. The human checks R-01.3 and R-01.4
-must be recorded before implementation items that depend on them.
+PH-01 starts when PR #24 merges. Its Revision 2 design merged in PR #22. The
+human checks R-01.3 and R-01.4 are next before implementation items that depend
+on them.

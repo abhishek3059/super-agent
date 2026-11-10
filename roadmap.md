@@ -3,8 +3,8 @@
 | Field | Value |
 | --- | --- |
 | Date | 2026-11-10 |
-| Current phase | PH-00 |
-| Current phase PR | [#23 PH-00 resolution](https://github.com/abhishek3059/super-agent/pull/23) (open; details in [phase PR log](docs/implementation/phase-prs.md)) |
+| Current phase | PH-01 |
+| Current phase PR | [#24 PH-00 closure and PH-01 start](https://github.com/abhishek3059/super-agent/pull/24) (open; details in [phase PR log](docs/implementation/phase-prs.md)) |
 | Gate definitions | [phases.md](phases.md) (entry prerequisites and exit gates stay defined there) |
 | Task records | [tasks/](tasks/README.md) |
 | Enforced by | `npm run check` ([scripts/check-roadmap.mjs](scripts/check-roadmap.mjs), form only), code-owner review ([.github/CODEOWNERS](.github/CODEOWNERS)), and [AGENTS.md](AGENTS.md) section 11 |
@@ -44,7 +44,7 @@ Item format (one line, starting at column 0): `- [ ] R-<phase>.<n> [tags] Descri
 
 ## PH-00: runtime eligibility, consent, and setup decisions
 
-**Status:** in progress
+**Status:** done
 
 Maps to [RT-001](tasks/001-runtime-consent-and-feasibility.md) and RT-G00. Nothing in PH-01 may start (beyond the offline scaffold already merged) until RT-G00 is resolved.
 
@@ -58,11 +58,11 @@ Maps to [RT-001](tasks/001-runtime-consent-and-feasibility.md) and RT-G00. Nothi
 - [x] R-00.8 [human] Explicit implementation authorization for PH-01 beyond the offline scaffold. Evidence: [PH-00 setup decisions](docs/approvals/ph-00-setup-decisions.md)
 - [x] R-00.9 External secret setup done and documented: keys in the process environment or an OS vault, never in the repo, browser, URLs, or logs. Evidence: [PH-00 setup decisions](docs/approvals/ph-00-setup-decisions.md)
 - [x] R-00.10 Provider terms, retention, and recipients disclosed in a dated record. Evidence: [Gemini verification](docs/implementation/gemini-account-verification.md)
-- [ ] R-00.11 RT-G00 evidenced and resolved. Evidence: none yet
+- [x] R-00.11 RT-G00 evidenced and resolved. Evidence: [PR 23](https://github.com/abhishek3059/super-agent/pull/23)
 
 ## PH-01: local boundary and native voice connection
 
-**Status:** not started
+**Status:** in progress
 
 Maps to [RT-002](tasks/002-local-scaffold-and-boundary.md), [RT-003](tasks/003-native-voice-session.md), and RT-G01. Design: [voice foundation](docs/design/voice-foundation.md).
 

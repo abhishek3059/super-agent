@@ -344,9 +344,9 @@ Future phases and task files initially say **not started**. That is a dated init
 | PH-06 | Optional desktop/wake/locked-screen/always-on host feasibility; RT-011. | not started; explicit device/host/security/power decision |
 | PH-07 | Optional genuinely native private audio feasibility/migration; RT-012. | not started; compatible hardware/quality/latency/egress benchmark |
 
-Current status (2026-11-09): PH-00 is `in progress`. The table above keeps the
-initial status from the signed design. See [roadmap.md](../../roadmap.md) for
-the checklist of record.
+Current status (2026-11-10): PH-00 is done and PH-01 is `in progress` after the
+closure PR merges. The table above keeps the initial status from the signed
+design. See [roadmap.md](../../roadmap.md) for the checklist of record.
 
 The future task index and twelve files must contain the following scopes. These are planning records only; creating a task Markdown file does not start or authorize its implementation.
 
