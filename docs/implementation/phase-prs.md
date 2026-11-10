@@ -33,6 +33,11 @@ The macOS owner and their AI agent should follow the
 [R-01.3 macOS test handover](r01-3-macos-handover.md). Agent-run output must be
 confirmed by Jeevesh because R-01.3 is a human roadmap item.
 
+The operator's [partial microphone observations](r01-4-microphone-observations.md)
+are recorded without a PASS or roadmap tick. That record includes an unapproved
+proposal to prioritize the revised scaffold; it grants no implementation
+authority and changes no gate.
+
 This PR consolidates the superseded PRs
 [#18](https://github.com/abhishek3059/super-agent/pull/18),
 [#19](https://github.com/abhishek3059/super-agent/pull/19), and
