@@ -55,17 +55,38 @@ re-read the page. The ID is a config default, not a hard-coded value.
 
 - With a model turn in flight, `interrupt()` waits 5 seconds for the provider's
   `interrupted` or turn completion and otherwise fails the session, as the
-  design says. Muting during a long model answer may therefore end the session.
-  This is unmeasured; check it in the synthetic live run (R-01.9).
+  design says. Muting or pressing Interrupt during a long model answer may
+  therefore end the session. This is unmeasured; check it in the synthetic live
+  run (R-01.9).
+- `classify` maps HTTP 401, 403, and 5xx to `session-failed`. The design table
+  has no row for a rejected key. Decide the category before the live run.
 - The end-of-stream marker shares the bounded drop-oldest input queue, so under
   sustained overload it can be evicted.
 - The adapter's outgoing event queue is unbounded.
 
-## Verification (macOS, Python 3.14.5, Node 22.22.3, commit `c3fdf6f`)
+## Independent review
+
+A separate `claude-sonnet-5-5` reviewer, which did not write the code, read the
+branch against `develop` on 2026-11-11 and scored it 7.2 out of 10, below the
+8.5 bar in [AGENTS.md](../../AGENTS.md) section 9. Its findings and the fixes:
+
+| Finding | Fix |
+| --- | --- |
+| `close()` returned at once on a second call, so the app's retry after a cancelled close would report a closure that never finished | One shielded release task shared by every `close()` call; a retry returns only when the provider session is really released. Tested. |
+| An acknowledgement for an earlier turn could satisfy a later interrupt in the same event-loop tick | Each interrupt timer waits on its own event. The sequential case is tested; the same-tick case is fixed by construction and has no test. |
+| Token generator followed a symlink and changed mode by path | The file is removed and created with `O_EXCL` and mode 0600 |
+| Missing tests: silent provider end, `go_away` on `server_content`, model ID from the environment, weak token in the file; fixed sleeps as barriers | Added; send-path tests now wait on the recorded sends |
+| Stale roadmap PR row; record did not name the Interrupt button | Corrected |
+
+Not changed: the token reader does not check file ownership or the parent
+directory mode, and the Windows ACL is not set (review item N2, R-01.6). The
+reviewer has not re-scored the fixed branch.
+
+## Verification (macOS, Python 3.14.5, Node 22.22.3)
 
 ```text
 $ python3 -m pytest apps/api
-80 passed in 3.66s
+82 passed
 
 $ npm run check
   "errors": 0
@@ -87,7 +108,8 @@ $ python3 -c "import sys; sys.path.insert(0,'apps/api/src'); import super_agent_
 lazy ok
 ```
 
-The 80 backend tests are the 66 from the streaming slice, 1 for the token
-generator, 9 ported adapter tests, and 4 new seam tests. Not run: a fresh
+The 82 backend tests are the 66 from the streaming slice, 1 for the token
+generator, 9 ported adapter tests, 2 adapter tests added after review, and 4
+new seam tests. Not run: a fresh
 `npm ci` and a fresh locked `pip install`; the runs used existing local
 installs. Hosted CI on macOS and Windows has not run on this commit yet.

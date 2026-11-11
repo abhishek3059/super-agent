@@ -39,6 +39,7 @@ class FakeConnect:
     def __init__(self, session: FakeSession | None = None, error: Exception | None = None) -> None:
         self.session = session
         self.error = error
+        self.exit_gate: asyncio.Event | None = None
 
     def __call__(self):
         outer = self
@@ -50,6 +51,8 @@ class FakeConnect:
                 return outer.session
 
             async def __aexit__(self, *exc):
+                if outer.exit_gate:
+                    await outer.exit_gate.wait()
                 outer.session.closed = True
 
         return Context()
@@ -83,6 +86,13 @@ async def take(adapter: GeminiLiveAdapter, count: int) -> list:
     return out
 
 
+async def sent(session: FakeSession, count: int) -> None:
+    async def poll():
+        while len(session.sent) < count:
+            await asyncio.sleep(0)
+    await asyncio.wait_for(poll(), 2)
+
+
 def run(coro):
     return asyncio.run(coro)
 
@@ -107,10 +117,10 @@ def test_send_path_uses_blob_and_ends_stream_once_on_mute() -> None:
         adapter = make(session)
         await adapter.start()
         await adapter.enqueue_audio(b"\x05\x00")
-        await asyncio.sleep(0.05)
+        await sent(session, 1)
         await adapter.end_audio_stream()
         await adapter.end_audio_stream()  # second call is a no-op
-        await asyncio.sleep(0.05)  # the send loop delivers the queued stream end
+        await sent(session, 2)
         await adapter.close()
         await adapter.close()  # idempotent
         return session.sent
@@ -119,15 +129,57 @@ def test_send_path_uses_blob_and_ends_stream_once_on_mute() -> None:
 
 
 def test_go_away_and_silent_provider_end_fail_closed() -> None:
-    async def go_away():
-        adapter = make(FakeSession([[NS(server_content=None, go_away=NS(time_left="5s"))]]))
+    async def ended(turn: list[object]) -> str:
+        adapter = make(FakeSession([turn]))
         await adapter.start()
         with pytest.raises(AdapterError) as error:
             await take(adapter, 1)
         await adapter.close()
         return error.value.category
 
-    assert run(go_away()) == "provider-session-ended"
+    for turn in (
+        [NS(server_content=None, go_away=NS(time_left="5s"))],
+        [flag(go_away=NS(time_left="5s"))],
+        [],  # the provider ends the stream without sending anything
+    ):
+        assert run(ended(turn)) == "provider-session-ended"
+
+
+def test_cancelled_close_is_not_confirmed_until_the_session_is_released() -> None:
+    async def scenario():
+        session = FakeSession()
+        connect = FakeConnect(session)
+        connect.exit_gate = asyncio.Event()
+        adapter = GeminiLiveAdapter(MODEL, connect=connect, blob=bytes)
+        await adapter.start()
+        first = asyncio.create_task(adapter.close())
+        await asyncio.sleep(0)
+        first.cancel()
+        retry = asyncio.create_task(adapter.close())
+        await asyncio.sleep(0.05)
+        pending_while_held = not retry.done() and not session.closed
+        connect.exit_gate.set()
+        await asyncio.wait_for(retry, 2)
+        return pending_while_held, session.closed
+
+    assert run(scenario()) == (True, True)
+
+
+def test_ack_for_an_earlier_turn_does_not_satisfy_a_new_interrupt() -> None:
+    async def scenario():
+        session = FakeSession([[audio(b"\x01\x00"), flag(turn_complete=True)], [audio(b"\x02\x00")]])
+        adapter = make(session, interrupt_timeout=0.05)
+        await adapter.start()
+        await take(adapter, 1)
+        await adapter.interrupt()  # acknowledged by the first turn completing
+        await take(adapter, 2)  # TurnComplete, then the second turn's audio
+        await adapter.interrupt()  # never acknowledged
+        with pytest.raises(AdapterError) as error:
+            await take(adapter, 1)
+        await adapter.close()
+        return error.value.category
+
+    assert run(scenario()) == "session-failed"
 
 
 def test_interrupt_during_turn_without_provider_ack_fails_closed() -> None:
@@ -169,7 +221,7 @@ def test_stream_end_is_ordered_after_queued_audio_and_needs_open_stream() -> Non
         await adapter.enqueue_audio(b"\x01\x00")
         await adapter.enqueue_audio(b"\x02\x00")
         await adapter.end_audio_stream()
-        await asyncio.sleep(0.05)
+        await sent(session, 3)
         await adapter.close()
         return session.sent
 

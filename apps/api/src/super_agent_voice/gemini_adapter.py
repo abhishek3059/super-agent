@@ -89,6 +89,7 @@ class GeminiLiveAdapter:
         self._turn_active = False
         self._ack = asyncio.Event()
         self._ack_task: asyncio.Task[None] | None = None
+        self._release: asyncio.Task[None] | None = None
         self.closed = False
 
     async def start(self) -> None:
@@ -115,14 +116,16 @@ class GeminiLiveAdapter:
 
     async def interrupt(self) -> None:
         # With no model turn in flight there is nothing to stop: local only.
-        if not self._turn_active:
+        if self.closed or not self._turn_active:
             return
         # Otherwise the provider must confirm with `interrupted` or a turn
         # completion, or the session fails closed instead of pretending.
-        self._ack.clear()
         self._put(None)
-        if self._ack_task is None or self._ack_task.done():
-            self._ack_task = asyncio.create_task(self._await_ack())
+        # A fresh event per timer: an ack for an earlier turn must not satisfy
+        # this one. A pending timer is kept so repeats cannot extend it.
+        if self._ack_task is None or self._ack_task.done() or self._ack.is_set():
+            self._ack = asyncio.Event()
+            self._ack_task = asyncio.create_task(self._await_ack(self._ack))
 
     async def events(self) -> AsyncIterator[AdapterEvent]:
         while True:
@@ -134,9 +137,14 @@ class GeminiLiveAdapter:
             yield item
 
     async def close(self) -> None:
-        if self.closed:
-            return
         self.closed = True
+        # The app cancels a slow close, retries once, and reads a clean return
+        # as confirmed closure. Shielding one shared release makes that true.
+        if self._release is None:
+            self._release = asyncio.create_task(self._release_session())
+        await asyncio.shield(self._release)
+
+    async def _release_session(self) -> None:
         tasks = [*self._tasks, *([self._ack_task] if self._ack_task else [])]
         for task in tasks:
             task.cancel()
@@ -155,9 +163,9 @@ class GeminiLiveAdapter:
         if not self.closed:
             self._events.put_nowait(AdapterError(category))
 
-    async def _await_ack(self) -> None:
+    async def _await_ack(self, ack: asyncio.Event) -> None:
         try:
-            await asyncio.wait_for(self._ack.wait(), self._interrupt_timeout)
+            await asyncio.wait_for(ack.wait(), self._interrupt_timeout)
         except TimeoutError:
             self._fail("session-failed")
 

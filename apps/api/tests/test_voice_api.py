@@ -252,6 +252,12 @@ def test_environment_requires_high_entropy_local_token(monkeypatch, tmp_path) ->
         monkeypatch.setenv("SUPER_AGENT_LOCAL_TOKEN", weak)
         with pytest.raises(RuntimeError, match="at least 32 bytes"):
             VoiceConfig.from_environment()
+    # A weak token in the file is rejected the same way.
+    monkeypatch.delenv("SUPER_AGENT_LOCAL_TOKEN")
+    (tmp_path / "voice-token").write_text("ab" * 32)
+    (tmp_path / "voice-token").chmod(0o600)
+    with pytest.raises(RuntimeError, match="at least 32 bytes"):
+        VoiceConfig.from_environment()
 
 
 def test_generated_token_file_is_private_and_accepted(monkeypatch, tmp_path, capsys) -> None:
@@ -260,7 +266,11 @@ def test_generated_token_file_is_private_and_accepted(monkeypatch, tmp_path, cap
     monkeypatch.setattr(config_module, "TOKEN_FILE", token_file)
     monkeypatch.setattr(generate_token, "TOKEN_FILE", token_file)
     generate_token.main()
-    token = VoiceConfig.from_environment().local_token
+    generate_token.main()  # rotation replaces the file
+    monkeypatch.setenv("SUPER_AGENT_GEMINI_MODEL", "model-from-env")
+    settings = VoiceConfig.from_environment()
+    token = settings.local_token
+    assert settings.gemini_model == "model-from-env"
     assert token == token_file.read_text() and token not in capsys.readouterr().out
     if os.name == "posix":
         assert token_file.stat().st_mode & 0o777 == 0o600
