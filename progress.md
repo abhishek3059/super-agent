@@ -176,6 +176,17 @@ prioritizing the revised scaffold. That execution change is not approved; the
 roadmap order, security gates, and synthetic-only provider boundary remain
 unchanged.
 
+## R-01.3 macOS offline checks (2026-11-10)
+
+The R-01.3 handover procedure ran on Jeevesh's Apple Silicon Mac against the
+PR #24 head `4f51e00` and passed: locked Python install, 11 backend tests,
+frontend audit with zero vulnerabilities, playback self-test, production build,
+and the repository and roadmap checks (`overall_exit=0`). The run used Python
+3.12 to match CI because the Mac's default `python3` is 3.14. See the
+[R-01.3 evidence record](docs/approvals/r01-3-macos-evidence.md). That commit is the earlier scaffold, not the later streaming
+implementation, so this evidence does not validate the new code. R-01.3 is not
+ticked yet; the PH-01 owner ticks it.
+
 ### Local-only streaming implementation started (2026-11-10)
 
 The operator directed starting existing PH-01 implementation while retaining
