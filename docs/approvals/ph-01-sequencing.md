@@ -6,7 +6,7 @@
 | Scope | Order of the PH-01 roadmap items only |
 | Proposal | `abhishek3059`, in the [R-01.4 observations](../implementation/r01-4-microphone-observations.md), "Proposed execution change, not approved" |
 | `jeevesh2515` | **Approved, 2026-11-10**, in chat with Claude Code (`claude-opus-5-5`), which recorded it at his instruction |
-| `abhishek3059` | **Pending.** He wrote the proposal; his approval is recorded by approving and merging the PR that adds this file |
+| `abhishek3059` | **Approved**, by merging PR #27 on 2026-11-10T19:32Z (GitHub merge commit `2849361`; the rebased branch carries this record as commit `9092bd0`) |
 | Gates | Unchanged. No PH-01 item is removed, waived, or ticked by this decision. [phases.md](../../phases.md) is unchanged because no gate moves. |
 
 ## Why
