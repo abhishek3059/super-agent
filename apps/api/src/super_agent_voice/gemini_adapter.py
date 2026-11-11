@@ -99,6 +99,10 @@ class GeminiLiveAdapter:
             self._session = await self._stack.enter_async_context(self._connect())
         except Exception as error:
             raise AdapterError(classify(error)) from None
+        if self.closed:  # closed while connecting: that close saw nothing to release
+            with contextlib.suppress(Exception):
+                await self._stack.aclose()
+            raise AdapterError("session-failed")
         self._tasks = [
             asyncio.create_task(self._send_loop()),
             asyncio.create_task(self._receive_loop()),

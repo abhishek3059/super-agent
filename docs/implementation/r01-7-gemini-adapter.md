@@ -73,7 +73,7 @@ branch against `develop` on 2026-11-11 and scored it 7.2 out of 10, below the
 | Finding | Fix |
 | --- | --- |
 | `close()` returned at once on a second call, so the app's retry after a cancelled close would report a closure that never finished | One shielded release task shared by every `close()` call; a retry returns only when the provider session is really released. Tested. |
-| An acknowledgement for an earlier turn could satisfy a later interrupt in the same event-loop tick | Each interrupt timer waits on its own event. The sequential case is tested; the same-tick case is fixed by construction and has no test. |
+| An acknowledgement for an earlier turn could satisfy a later interrupt in the same event-loop tick | Each interrupt timer waits on its own event. The sequential and same-tick cases are tested. |
 | Token generator followed a symlink and changed mode by path | The file is removed and created with `O_EXCL` and mode 0600 |
 | Missing tests: silent provider end, `go_away` on `server_content`, model ID from the environment, weak token in the file; fixed sleeps as barriers | Added; send-path tests now wait on the recorded sends |
 | Roadmap header still named PR 24 as the open work bundle | Now names PR 32 |
@@ -89,24 +89,30 @@ verification block that mixed re-run and carried-over results.
 
 Not changed: the token reader does not check the parent directory mode, the
 Windows ACL is not set (review item N2, R-01.6), removing and recreating the
-token file is not atomic, and these cases have no test: eviction of the
-stream-end marker itself, `close()` while `start()` is still connecting, and
-the same-tick acknowledgement race.
+token file is not atomic, and eviction of the stream-end marker itself has no
+test.
 
 The third pass, on `60a13cb`, scored 7.8: correctness 8, security 8, honesty 7,
 scope 8, clarity 8. It found no code defect; its deductions were for stale
-fields in the PR description, since corrected. After it, two tests were added
-(drop-oldest input queue, start refused after close) with a guard in `start()`.
+fields in the PR description, since corrected.
+
+The fourth pass, on `9f48706`, scored 8.1: correctness 8, security 8, honesty 8,
+scope 8, clarity 8.5. It found no code defect and asked for tests of the
+same-tick race and of `close()` during `start()`. Both are now added, with a
+guard that releases a session that finishes connecting after `close()`. Each of
+the four lifecycle tests added after review (cancelled close, close while
+connecting, same-tick acknowledgement, start after close) was run against the
+first version of the adapter and failed there.
 
 ## Verification (macOS, Python 3.14.5, Node 22.22.3)
 
-Every command below was re-run on 2026-11-11 after the first two rounds of
-review fixes. After the last change, which touched only the adapter, its
-tests, and this record, the backend tests and `npm run check` were run again.
+Every command below was run on 2026-11-11 on the final code of this PR, after
+all review fixes, by the coordinating agent. The reviewer re-ran only the
+backend tests.
 
 ```text
 $ python3 -m pytest apps/api
-84 passed in 3.60s
+86 passed in 3.67s
 
 $ npm run check
   "errors": 0
@@ -128,8 +134,7 @@ $ python3 -c "import sys; sys.path.insert(0,'apps/api/src'); import super_agent_
 lazy ok
 ```
 
-The 84 backend tests are the 66 from the streaming slice, 1 for the token
-generator, 9 ported adapter tests, 4 adapter tests added after review, and 4
-new seam tests. Not run: a fresh
-`npm ci` and a fresh locked `pip install`; the runs used existing local
-installs. Hosted CI on macOS and Windows has not run on this commit yet.
+The 86 backend tests are the 66 from the streaming slice, 1 for the token
+generator, 9 ported adapter tests, 6 adapter tests added after review, and 4
+new seam tests. Not run: a fresh `npm ci` and a fresh locked `pip install`; the runs used
+existing local installs. Hosted CI results are on the pull request, not here.

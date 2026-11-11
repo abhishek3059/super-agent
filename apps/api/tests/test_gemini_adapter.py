@@ -40,12 +40,15 @@ class FakeConnect:
         self.session = session
         self.error = error
         self.exit_gate: asyncio.Event | None = None
+        self.enter_gate: asyncio.Event | None = None
 
     def __call__(self):
         outer = self
 
         class Context:
             async def __aenter__(self):
+                if outer.enter_gate:
+                    await outer.enter_gate.wait()
                 if outer.error:
                     raise outer.error
                 return outer.session
@@ -247,12 +250,48 @@ def test_full_input_queue_drops_the_oldest_frames() -> None:
     assert len(frames) == 64 and frames[0] == {"audio": ("blob", b"\x02\x00")}
 
 
+def test_close_while_connecting_releases_the_late_session() -> None:
+    async def scenario():
+        session = FakeSession()
+        connect = FakeConnect(session)
+        connect.enter_gate = asyncio.Event()
+        adapter = GeminiLiveAdapter(MODEL, connect=connect, blob=bytes)
+        starting = asyncio.create_task(adapter.start())
+        await asyncio.sleep(0)
+        await adapter.close()
+        connect.enter_gate.set()
+        with pytest.raises(AdapterError) as error:
+            await starting
+        return error.value.category, session.closed, adapter._tasks
+
+    assert run(scenario()) == ("session-failed", True, [])
+
+
+def test_same_tick_ack_then_interrupt_still_arms_a_timer() -> None:
+    async def scenario():
+        adapter = make(FakeSession([[audio(b"\x01\x00")]]), interrupt_timeout=0.05)
+        await adapter.start()
+        await take(adapter, 1)
+        await adapter.interrupt()
+        await asyncio.sleep(0)  # the first timer is now waiting on its event
+        # No await between these: the first timer has not yet seen its ack.
+        adapter._map(flag(turn_complete=True).server_content)
+        adapter._map(audio(b"\x02\x00").server_content)
+        await adapter.interrupt()
+        with pytest.raises(AdapterError) as error:
+            await take(adapter, 3)  # TurnComplete and audio, then the timeout
+        await adapter.close()
+        return error.value.category
+
+    assert run(scenario()) == "session-failed"
+
+
 def test_start_after_close_is_refused() -> None:
     async def scenario():
         session = FakeSession()
         adapter = make(session)
         await adapter.close()
-        with pytest.raises(AdapterError):
+        with pytest.raises(AdapterError, match="session-failed"):
             await adapter.start()
         return session.sent, adapter._tasks
 
