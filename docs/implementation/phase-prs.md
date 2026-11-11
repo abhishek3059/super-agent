@@ -23,11 +23,11 @@ this file is a status pointer, not evidence and not a gate.
 | Phase | PH-01: local boundary and native voice connection |
 | PR | [#24](https://github.com/abhishek3059/super-agent/pull/24) |
 | Branch | `docs/ph-00-close` |
-| Status | open PH-01 work bundle |
+| Status | open PH-01 work bundle, retargeted to `develop`; all four checks pass, code-owner review pending |
 | Application state | Offline fake adapter only. The Gemini Live adapter and opt-in synthetic live test are not implemented (R-01.7 to R-01.9). |
 | Scope | Close PH-00, complete the PH-01 human evidence, credential and security gates, streaming Gemini adapter, real console, synthetic live command, and RT-G01 evidence |
 | Not in scope | Personal microphone audio to Gemini, tools, workers, external actions, paid services, or public deployment |
-| After merge | PH-01 is complete only if R-01.3 through R-01.10 have evidence; otherwise the same branch and PR remain open |
+| After merge | PH-01 remains in progress until R-01.3 through R-01.10 have evidence and owner acceptance, even if #24 lands on `develop`. Follow-up work uses new PRs. |
 
 The macOS owner and their AI agent should follow the
 [R-01.3 macOS test handover](r01-3-macos-handover.md). Agent-run output must be
@@ -67,22 +67,27 @@ keep one PR per phase.
 | [#21](https://github.com/abhishek3059/super-agent/pull/21) | `PH-00: consolidate setup evidence and document voice state` | merged | Setup decisions and current-state documentation. |
 | [#22](https://github.com/abhishek3059/super-agent/pull/22) | `PH-01: design real Gemini voice console` | merged | Design only. It did not start PH-01 implementation. |
 | [#23](https://github.com/abhishek3059/super-agent/pull/23) | `PH-00: resolve RT-G00` | merged | RT-G00 resolution and merged-evidence ticks. |
-| [#24](https://github.com/abhishek3059/super-agent/pull/24) | `PH-01: close PH-00 and build real voice console` | open | Single branch and PR for the approved PH-01 work bundle. |
-| [#25](https://github.com/abhishek3059/super-agent/pull/25) | `docs(ph-01): record R-01.3 macOS offline evidence` | open | Jeevesh's evidence contribution targets `docs/ph-00-close`, not `develop`. It covers the old scaffold at `4f51e00`; awaiting incorporation and the owner's evidence disposition. |
-| [#26](https://github.com/abhishek3059/super-agent/pull/26) | `fix(ci): run voice CI on Python 3.14` | open | Separate operator-requested CI interpreter update. It overlaps the voice workflow and two documentation files in this work bundle; integration is not performed here. |
-| [#27](https://github.com/abhishek3059/super-agent/pull/27) | `docs(roadmap): record approved PH-01 order and add fix item R-01.F1` | open, approval pending | Proposed roadmap reorder and silence/barge-in fix item. Targets the PH-01 branch; records Jeevesh's approval and Abhishek's pending approval. Not adopted on this branch. |
+| [#24](https://github.com/abhishek3059/super-agent/pull/24) | `PH-01: close PH-00 and build real voice console` | open, review pending | Single branch and PR for the approved PH-01 work bundle. Targets `develop`; all four checks pass. A code-owner approval is required before merge. |
+| [#25](https://github.com/abhishek3059/super-agent/pull/25) | `docs(ph-01): record R-01.3 macOS offline evidence` | merged | Merged into this branch as `67649aa`. R-01.3 macOS evidence covers the old scaffold at `4f51e00`; the roadmap tick awaits the PH-01 owner. |
+| [#26](https://github.com/abhishek3059/super-agent/pull/26) | `fix(ci): run voice CI on Python 3.14` | merged | Merged into `develop` as `f44051c`. Moves voice CI to Python 3.14. |
+| [#27](https://github.com/abhishek3059/super-agent/pull/27) | `docs(roadmap): record approved PH-01 order and add fix item R-01.F1` | merged | Merged as `2849361`; the rebased branch carries the same content in `9092bd0`. Records the approved PH-01 order and R-01.F1. Abhishek's approval is recorded in the sequencing record. |
+| [#28](https://github.com/abhishek3059/super-agent/pull/28) | `docs(ph-01): independent R-01.5 credential review and design 2.1` | merged | Merged into this branch as `aa9b0b3`. R-01.5 design 2.1 and independent ACCEPT review; the roadmap tick awaits the PH-01 owner. |
+| [#29](https://github.com/abhishek3059/super-agent/pull/29) | `feat(voice): streaming seam and offline-tested Gemini Live adapter (R-01.7)` | closed | Competing streaming seam plus a Gemini Live adapter. Not merged. The adapter still needs porting onto this branch's seam. |
 
 ## Next phase PR
 
 PH-01 is the current phase on this branch. Its Revision 2 design merged in PR
-#22. PR #24 remains open while the approved PH-01 scope is implemented and
-evidenced. R-01.3 manual macOS evidence was run on 2026-11-10 and passed
-([evidence record](../approvals/r01-3-macos-evidence.md), merged into this branch
-with PR #25); it awaits the PH-01 owner's tick. It tested the earlier
-scaffold at `4f51e00`, not the streaming implementation, so it does not
-validate that code. R-01.4 follows the roadmap order.
+#22. PR #24 now targets `develop`. PRs #25, #27, and #28 are merged into this
+branch, and #26 is merged into `develop`; #29 is closed without merge. R-01.3
+manual macOS evidence was run on 2026-11-10 and passed
+([evidence record](../approvals/r01-3-macos-evidence.md), merged with PR #25);
+it awaits the PH-01 owner's tick. It tested the earlier scaffold at `4f51e00`,
+not the streaming implementation, so it does not validate that code. The R-01.5
+design and independent review are merged with PR #28 and also await the owner's
+tick. R-01.7 remains open: the Gemini Live adapter from #29 must be ported onto
+this branch's seam. R-01.F1 and R-01.4 follow the roadmap order.
 
-### Open-PR inspection (2026-11-10)
+### Open-PR inspection (2026-11-10, historical)
 
 The latest GitHub query found four open PRs, including the newly opened #27.
 No PR was approved, merged, closed, retargeted, or rerun by this inspection.
@@ -112,3 +117,19 @@ run also succeeded on both operating systems at the same head. Human review
 is still required. The report lists documentation corrections for evidence,
 next-item wording, and explicit approval records. This is not review of the
 uncommitted streaming implementation or independent security acceptance.
+
+### PR reconciliation (2026-11-11)
+
+- The operator approved merging #25, #27, and #28 into this branch, #26 into
+  `develop`, and retargeting #24 to `develop`. #29 stays unmerged.
+- #25 merged as `67649aa`, #27 as `2849361` (content carried in `9092bd0` after
+  the branch rebase), and #28 as `aa9b0b3`.
+- #26 merged into `develop` as `f44051c`. #29 was closed without merge.
+- Combined verification on the reconciled branch: 66 backend tests pass on
+  Python 3.14.4, 39 browser service cases pass, 8 playback-epoch cases pass,
+  the production build is 116.00 kB initial total, `npm audit` reports zero
+  vulnerabilities, and `npm run check` reports zero errors.
+- Python 3.12 is not installed on this Windows host; the backend run used
+  3.14.4 with the locked dependencies.
+- #24 is mergeable but GitHub requires one code-owner approval. No approval,
+  merge, or roadmap tick is claimed here.

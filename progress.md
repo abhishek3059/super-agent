@@ -275,7 +275,9 @@ quality threshold. Three non-blocking observations are recorded as U-07 to
 U-09 in the uncertainty log; they do not start another review cycle.
 The local fake streaming implementation and code review are complete, not
 PH-01 acceptance. Human, credential, independent security, and native-provider
-gates remain open. No push, merge, or roadmap tick is claimed.
+gates remain open. No push, merge, or roadmap tick is claimed at this point.
+**Later update:** the operator approved the pushes and contribution merges on
+2026-11-11; see the merge reconciliation below.
 
 ### Local commit scope (2026-11-11)
 
@@ -285,6 +287,26 @@ The user-owned Angular analytics change and the temporary teardown debug script
 are excluded and preserved. Every push and merge still needs explicit operator
 approval. The contribution PRs must be checked at their actual heads before
 incorporation; existing streaming work must be compared with PR #29.
+
+## Contribution merges and PR #24 retarget (2026-11-11)
+
+The operator approved the pushes and contribution merges. #25 merged as
+`67649aa`, #27 as `2849361` (content carried in `9092bd0` after the branch
+rebase), and #28 as `aa9b0b3` into `docs/ph-00-close`. #26 merged into `develop`
+as `f44051c`. #29 was closed without merge because it carries a competing
+streaming seam; its Gemini Live adapter still needs porting onto this branch's
+seam for R-01.7.
+
+PR #24 was retargeted to `develop`; its head is `3ab222f`. All four checks pass.
+GitHub blocks the merge on one required code-owner approval, so no merge is
+claimed. R-01.3 and R-01.5 evidence is recorded and merged, but their roadmap
+ticks await the PH-01 owner. No other roadmap item is ticked.
+
+Combined verification on the reconciled branch: 66 backend tests pass on Python
+3.14.4, 39 browser service cases pass, 8 playback-epoch cases pass, the build is
+116.00 kB initial total, the audit reports zero vulnerabilities, and
+`npm run check` reports zero errors. Python 3.12 is not installed on this
+Windows host, so the backend run used 3.14.4 with the locked dependencies.
 
 ## Documentation acceptance status
 
