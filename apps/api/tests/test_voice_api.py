@@ -11,6 +11,7 @@ from fastapi.testclient import TestClient
 from starlette.websockets import WebSocketDisconnect
 
 from super_agent_voice.adapter import (
+    AdapterError,
     AudioChunk,
     FakeVoiceAdapter,
     Interrupted,
@@ -40,6 +41,9 @@ class ScriptedAdapter:
     a live provider) until close or cleanup cancellation.
     """
 
+    name = "fake"
+    output_rate_hz = 16000
+
     def __init__(self, events: Sequence[object]) -> None:
         self._events = list(events)
         self.closed = False
@@ -55,6 +59,8 @@ class ScriptedAdapter:
         if not isinstance(audio, bytes) or not audio or len(audio) % 2 or len(audio) > 32 * 1024:
             raise ValueError("invalid PCM frame")
         self.enqueued.append(audio)
+
+    async def end_audio_stream(self) -> None: ...
 
     async def interrupt(self) -> None:
         self.interruptions += 1
@@ -420,6 +426,64 @@ def test_failing_adapter_start_never_reaches_ready() -> None:
         }
         with pytest.raises(WebSocketDisconnect):
             websocket.receive_json()
+
+
+def test_adapter_error_category_passes_through_on_start() -> None:
+    class RefusingAdapter(FakeVoiceAdapter):
+        async def start(self) -> None:
+            raise AdapterError("provider-limits")
+
+    with make_client(RefusingAdapter()) as client, connect(client) as websocket:
+        websocket.send_json({"type": "session.auth", "token": TOKEN})
+        assert websocket.receive_json() == {
+            "type": "session.error",
+            "category": "provider-limits",
+        }
+
+
+def test_adapter_error_category_passes_through_mid_stream() -> None:
+    class FailingStream(ScriptedAdapter):
+        async def events(self):
+            raise AdapterError("provider-session-ended")
+            yield
+
+    with make_client(FailingStream([])) as client, connect(client) as websocket:
+        authenticate(websocket)
+        assert websocket.receive_json() == {
+            "type": "session.error",
+            "category": "provider-session-ended",
+        }
+
+
+def test_ready_reports_the_adapters_rate_and_name() -> None:
+    class GeminiLike(ScriptedAdapter):
+        name = "gemini-live"
+        output_rate_hz = 24000
+
+    with make_client(GeminiLike([])) as client, connect(client) as websocket:
+        websocket.send_json({"type": "session.auth", "token": TOKEN})
+        assert websocket.receive_json() == {
+            "type": "session.ready",
+            "playbackEpoch": 0,
+            "outputRateHz": 24000,
+            "provider": "gemini-live",
+        }
+
+
+def test_mute_ends_the_adapter_audio_stream() -> None:
+    adapter = FakeVoiceAdapter()
+    ends = 0
+
+    async def counted() -> None:
+        nonlocal ends
+        ends += 1
+
+    adapter.end_audio_stream = counted  # type: ignore[method-assign]
+    with make_client(adapter) as client, connect(client) as websocket:
+        authenticate(websocket)
+        websocket.send_json({"type": "capture.mute"})
+        assert websocket.receive_json() == {"type": "session.state", "muted": True}
+        assert ends == 1
 
 
 def test_silent_adapter_times_out_and_is_closed() -> None:

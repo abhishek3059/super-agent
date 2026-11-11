@@ -29,6 +29,8 @@ class VoiceConfig:
     # blocked close, and one blocked wire op share the budget instead of each
     # getting its own. create_app validates it before any session runs.
     teardown_seconds: float = 2.0
+    # Live model ID, overridable because Google retires preview models.
+    gemini_model: str = "gemini-3.8-live"
 
     @classmethod
     def from_environment(cls) -> "VoiceConfig":
@@ -38,7 +40,10 @@ class VoiceConfig:
             raise RuntimeError(
                 "SUPER_AGENT_LOCAL_TOKEN must contain at least 32 bytes and 16 distinct characters"
             )
-        return cls(local_token=token)
+        return cls(
+            local_token=token,
+            gemini_model=os.environ.get("SUPER_AGENT_GEMINI_MODEL") or cls.gemini_model,
+        )
 
 
 def _read_token_file() -> str:

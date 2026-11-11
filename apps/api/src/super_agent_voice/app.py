@@ -12,7 +12,7 @@ from dataclasses import dataclass, field
 from fastapi import FastAPI, HTTPException, Request, WebSocket
 from starlette.websockets import WebSocketDisconnect
 
-from .adapter import AudioChunk, FakeVoiceAdapter, Interrupted, TurnComplete, VoiceAdapter
+from .adapter import AdapterError, AudioChunk, FakeVoiceAdapter, Interrupted, TurnComplete, VoiceAdapter
 from .config import VoiceConfig
 
 AdapterFactory = Callable[[], VoiceAdapter]
@@ -408,6 +408,8 @@ async def _voice_socket(
             await asyncio.wait_for(adapter.start(), timeout=remaining)
         except TimeoutError:
             raise _SessionFailure("max-duration") from None
+        except AdapterError as error:
+            raise _SessionFailure(error.category) from None
         except Exception:
             raise _SessionFailure("provider-unavailable") from None
 
@@ -415,7 +417,7 @@ async def _voice_socket(
         outbound = _OutboundQueue()
         outbound.put(_Outbound({
             "type": "session.ready", "playbackEpoch": 0,
-            "outputRateHz": 16000, "provider": "fake",
+            "outputRateHz": adapter.output_rate_hz, "provider": adapter.name,
         }))
         tasks = [
             asyncio.create_task(_receive(websocket, adapter, settings, state, outbound)),
@@ -638,6 +640,7 @@ async def _receive(
         if event == "capture.mute":
             state.muted = True
             outbound.clear_playback()
+            await adapter.end_audio_stream()
             await adapter.interrupt()
             outbound.put(_Outbound({"type": "session.state", "muted": True}))
         elif event == "capture.unmute":
@@ -657,6 +660,18 @@ async def _receive(
 
 
 async def _forward(
+    adapter: VoiceAdapter,
+    settings: VoiceConfig,
+    state: _SessionState,
+    outbound: _OutboundQueue,
+) -> None:
+    try:
+        await _forward_events(adapter, settings, state, outbound)
+    except AdapterError as error:
+        raise _SessionFailure(error.category) from None
+
+
+async def _forward_events(
     adapter: VoiceAdapter,
     settings: VoiceConfig,
     state: _SessionState,
