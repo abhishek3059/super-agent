@@ -104,6 +104,14 @@ the four lifecycle tests added after review (cancelled close, close while
 connecting, same-tick acknowledgement, start after close) was run against the
 first version of the adapter and failed there.
 
+The fifth and last pass, on `fa8d2d7`, scored 8.3: correctness 8.5, security 8,
+honesty 8.5, scope 8, clarity 8.5. It found no defect and confirmed that the
+four lifecycle tests fail on the first version. **8.3 is below the 8.5 bar.**
+The reviewer named what holds it down: the Windows ACL and token-directory
+checks (open for R-01.6), provider behaviour that cannot be verified until the
+SDK is installed (R-01.8), and the unrelated `AGENTS.md` edit. Whether to merge
+at 8.3 or wait for those items is a maintainer decision.
+
 ## Verification (macOS, Python 3.14.5, Node 22.22.3)
 
 Every command below was run on 2026-11-11 on the final code of this PR, after
