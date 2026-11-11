@@ -21,13 +21,17 @@ this file is a status pointer, not evidence and not a gate.
 | Field | Value |
 | --- | --- |
 | Phase | PH-01: local boundary and native voice connection |
-| PR | [#24](https://github.com/abhishek3059/super-agent/pull/24) |
-| Branch | `docs/ph-00-close` |
-| Status | open PH-01 work bundle, retargeted to `develop`; all four checks pass, code-owner review pending |
-| Application state | Offline fake adapter only. The Gemini Live adapter and opt-in synthetic live test are not implemented (R-01.7 to R-01.9). |
-| Scope | Close PH-00, complete the PH-01 human evidence, credential and security gates, streaming Gemini adapter, real console, synthetic live command, and RT-G01 evidence |
-| Not in scope | Personal microphone audio to Gemini, tools, workers, external actions, paid services, or public deployment |
-| After merge | PH-01 remains in progress until R-01.3 through R-01.10 have evidence and owner acceptance, even if #24 lands on `develop`. Follow-up work uses new PRs. |
+| PR | [#32](https://github.com/abhishek3059/super-agent/pull/32) |
+| Branch | `feat/ph-01-gemini-live` |
+| Status | open, targets `develop`; awaits hosted CI and code-owner review |
+| Application state | The application uses only the offline fake adapter. A Gemini Live adapter exists behind the seam with offline tests ([record](r01-7-gemini-adapter.md)); nothing constructs it and its SDK is not installed. The opt-in synthetic live test is not implemented (R-01.8, R-01.9). |
+| Scope | Ticks for R-01.3, R-01.5, and R-01.F1; credential findings CR-09 and CR-02; R-01.7 adapter port |
+| Not in scope | Personal microphone audio to Gemini, the `google-genai` dependency, tools, workers, external actions, paid services, or public deployment |
+| After merge | PH-01 remains in progress until R-01.4, R-01.6, and R-01.8 to R-01.10 have evidence. |
+
+The previous work bundle, [#24](https://github.com/abhishek3059/super-agent/pull/24),
+merged into `develop` on 2026-11-11. The paragraphs below describe that PR and
+are kept as history.
 
 The macOS owner and their AI agent should follow the
 [R-01.3 macOS test handover](r01-3-macos-handover.md). Agent-run output must be

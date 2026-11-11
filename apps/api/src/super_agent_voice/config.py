@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import stat
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -48,10 +49,12 @@ class VoiceConfig:
 
 def _read_token_file() -> str:
     try:
-        mode = TOKEN_FILE.stat().st_mode
+        status = TOKEN_FILE.stat()
     except OSError:
         return ""
-    # Mode bits are not meaningful on Windows; the ACL check is review item N2.
-    if os.name == "posix" and mode & 0o077:
-        raise RuntimeError("local token file must be mode 0600")
+    # Mode and owner are not meaningful on Windows; the ACL check is review item N2.
+    if os.name == "posix" and (
+        status.st_mode & 0o077 or status.st_uid != os.getuid() or not stat.S_ISREG(status.st_mode)
+    ):
+        raise RuntimeError("local token file must be a mode 0600 file owned by this user")
     return TOKEN_FILE.read_text(encoding="utf-8").strip()

@@ -4,7 +4,7 @@
 | --- | --- |
 | Date | 2026-11-11 |
 | Current phase | PH-01 |
-| Current phase PR | [#24 PH-01 real voice console](https://github.com/abhishek3059/super-agent/pull/24) (open work bundle; details in [phase PR log](docs/implementation/phase-prs.md)) |
+| Current phase PR | [#32 PH-01 ticks, token hardening, and Gemini Live adapter](https://github.com/abhishek3059/super-agent/pull/32) (open work bundle; #24 is merged; details in [phase PR log](docs/implementation/phase-prs.md)) |
 | Gate definitions | [phases.md](phases.md) (entry prerequisites and exit gates stay defined there) |
 | Task records | [tasks/](tasks/README.md) |
 | Enforced by | `npm run check` ([scripts/check-roadmap.mjs](scripts/check-roadmap.mjs), form only), code-owner review ([.github/CODEOWNERS](.github/CODEOWNERS)), and [AGENTS.md](AGENTS.md) section 11 |

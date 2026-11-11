@@ -76,17 +76,31 @@ branch against `develop` on 2026-11-11 and scored it 7.2 out of 10, below the
 | An acknowledgement for an earlier turn could satisfy a later interrupt in the same event-loop tick | Each interrupt timer waits on its own event. The sequential case is tested; the same-tick case is fixed by construction and has no test. |
 | Token generator followed a symlink and changed mode by path | The file is removed and created with `O_EXCL` and mode 0600 |
 | Missing tests: silent provider end, `go_away` on `server_content`, model ID from the environment, weak token in the file; fixed sleeps as barriers | Added; send-path tests now wait on the recorded sends |
-| Stale roadmap PR row; record did not name the Interrupt button | Corrected |
+| Roadmap header still named PR 24 as the open work bundle | Now names PR 32 |
+| Record did not name the Interrupt button | Named under Known limits |
+| `AGENTS.md` edit (stale `taks/` rename note removed) is unrelated to R-01.7 | Kept, and called out in the PR 32 description for code-owner review |
+| Token reader did not check ownership or file type | The reader now refuses a file that is not a regular file owned by the current user. Tested. |
 
-Not changed: the token reader does not check file ownership or the parent
-directory mode, and the Windows ACL is not set (review item N2, R-01.6). The
-reviewer has not re-scored the fixed branch.
+The reviewer's second pass, on the commit with the first four fixes, scored
+7.6: correctness 8, security 7.5, honesty 7, scope 7.5, clarity 8. It confirmed
+the close and interrupt fixes and found two record errors, both corrected here:
+a "Corrected" claim made before the roadmap edit was committed, and a
+verification block that mixed re-run and carried-over results.
+
+Not changed: the token reader does not check the parent directory mode, the
+Windows ACL is not set (review item N2, R-01.6), removing and recreating the
+token file is not atomic, and these cases have no test: drop-oldest eviction of
+the stream-end marker, `close()` during `start()`, and the same-tick
+acknowledgement race.
 
 ## Verification (macOS, Python 3.14.5, Node 22.22.3)
 
+Every command below was re-run on 2026-11-11 on the final code of this PR,
+after the review fixes.
+
 ```text
 $ python3 -m pytest apps/api
-82 passed
+82 passed in 3.61s
 
 $ npm run check
   "errors": 0

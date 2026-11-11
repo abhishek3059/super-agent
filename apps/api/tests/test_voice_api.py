@@ -277,6 +277,10 @@ def test_generated_token_file_is_private_and_accepted(monkeypatch, tmp_path, cap
         token_file.chmod(0o644)
         with pytest.raises(RuntimeError, match="mode 0600"):
             VoiceConfig.from_environment()
+        token_file.chmod(0o600)
+        monkeypatch.setattr(os, "getuid", lambda: token_file.stat().st_uid + 1)
+        with pytest.raises(RuntimeError, match="owned by this user"):
+            VoiceConfig.from_environment()
 
 
 def test_rejects_bad_origin_and_token() -> None:
