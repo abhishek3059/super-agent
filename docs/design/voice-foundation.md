@@ -366,6 +366,9 @@ Mapping:
 | `server_content.go_away` | Fail closed with `provider-session-ended` |
 | `session_resumption_update` | Store the handle only. No reconnect in this slice. |
 
+The [R-01.7 implementation record](../implementation/r01-7-gemini-adapter.md)
+lists where the code differs from this mapping.
+
 Session limits:
 
 - The code-level maximum is 15 minutes.

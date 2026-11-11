@@ -3,10 +3,13 @@
 This is an offline scaffold. It uses a deterministic local adapter that echoes
 PCM audio. It does not use Gemini, persist audio, or provide tools or actions.
 
-## Current state (2026-11-09)
+## Current state (2026-11-11)
 
-The fake adapter is the only adapter implemented. The Gemini Live adapter and
-the opt-in synthetic live command are not implemented (R-01.7 to R-01.9). You
+The fake adapter is the only adapter the application uses. A Gemini Live
+adapter exists behind the same seam with offline tests
+([record](../docs/implementation/r01-7-gemini-adapter.md)), but nothing
+constructs it and its SDK is not installed. The opt-in synthetic live command
+is not implemented (R-01.8, R-01.9). You
 can run the local scaffold and test start, mute, barge-in, and stop, but it
 cannot connect to Gemini. Personal microphone audio stays local.
 

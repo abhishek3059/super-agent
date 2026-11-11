@@ -1,0 +1,93 @@
+# R-01.7: Gemini Live adapter behind the seam
+
+| Field | Value |
+| --- | --- |
+| Roadmap item | R-01.7, Gemini Live adapter behind the replaceable seam, covered by offline tests with the fake |
+| Date | 2026-11-11 |
+| Operator | `jeevesh2515` |
+| Built by | Claude Code. A `claude-sonnet-5-5` subagent ported the code; `claude-fable-5-2` reviewed the diff and re-ran the tests. |
+| Source | Adapter and tests ported from the closed [PR 29](https://github.com/abhishek3059/super-agent/pull/29) by `jeevesh2515`, who keeps commit authorship |
+| Design | [Voice foundation](../design/voice-foundation.md), section 6 |
+| Gate effect | None. RT-G01 stays open. No provider call has been made with this code. |
+
+## What exists now
+
+- `apps/api/src/super_agent_voice/gemini_adapter.py`: `GeminiLiveAdapter`,
+  implementing the `VoiceAdapter` protocol.
+- `apps/api/src/super_agent_voice/adapter.py`: the seam gains `AdapterError`
+  with five fixed categories, `end_audio_stream()`, and the adapter's `name`
+  and `output_rate_hz`.
+- `apps/api/src/super_agent_voice/app.py`: an `AdapterError` from start or
+  from the event stream ends the session with its category; `session.ready`
+  reports the adapter's rate and name; mute calls `end_audio_stream()`.
+  Teardown, deadline, auth, and session-gate code is unchanged.
+- `apps/api/src/super_agent_voice/config.py`: `gemini_model`, default
+  `gemini-3.8-live`, overridden by `SUPER_AGENT_GEMINI_MODEL`.
+
+## What does not exist
+
+- The `google-genai` SDK is not a dependency. It is imported only inside the
+  function that opens a real session, so that path has never run. It is first
+  exercised by the opt-in live command (R-01.8).
+- The application never builds a `GeminiLiveAdapter`. `create_app` still
+  defaults to the fake adapter, and no setting switches the browser console
+  to Gemini. Personal microphone audio stays local.
+- No reconnect, session resumption, or context window compression. The design
+  defers resumption to a separately reviewed design.
+
+## Differences from the design text
+
+| Design section 6 says | Implementation | Reason |
+| --- | --- | --- |
+| `server_content.go_away` | Checks `go_away` on the message and on `server_content`; either fails closed | The location in the SDK is unverified until the SDK is installed (R-01.8) |
+| `session_resumption_update`: store the handle only | Ignored | Storing a handle nothing reads is dead code |
+| Send `audio_stream_end` on mute or stop | Sent on mute; stop closes the provider session | Sending it on stop would change the reviewed teardown path |
+| Missing key: `provider-unavailable` | Same | PR 29 used `provider-unsupported`; the design wins |
+
+## Model ID check
+
+On 2026-11-11 the subagent read <https://aistudio.google.com/docs/models>. It
+reported `gemini-3.8-live` as the default Live API model and
+`gemini-3.1-flash-live-preview` as legacy. The orchestrating agent did not
+re-read the page. The ID is a config default, not a hard-coded value.
+
+## Known limits
+
+- With a model turn in flight, `interrupt()` waits 5 seconds for the provider's
+  `interrupted` or turn completion and otherwise fails the session, as the
+  design says. Muting during a long model answer may therefore end the session.
+  This is unmeasured; check it in the synthetic live run (R-01.9).
+- The end-of-stream marker shares the bounded drop-oldest input queue, so under
+  sustained overload it can be evicted.
+- The adapter's outgoing event queue is unbounded.
+
+## Verification (macOS, Python 3.14.5, Node 22.22.3, commit `c3fdf6f`)
+
+```text
+$ python3 -m pytest apps/api
+80 passed in 3.66s
+
+$ npm run check
+  "errors": 0
+roadmap self-test: all checks passed
+
+$ npm run test:epoch --prefix apps/web
+playback-epoch self-test: PASS (8 cases)
+
+$ npm run test:voice --prefix apps/web
+voice-session self-test: PASS (39 cases)
+
+$ npm audit --prefix apps/web
+found 0 vulnerabilities
+
+$ npm run build --prefix apps/web
+Application bundle generation complete.
+
+$ python3 -c "import sys; sys.path.insert(0,'apps/api/src'); import super_agent_voice.gemini_adapter; assert 'google' not in sys.modules; print('lazy ok')"
+lazy ok
+```
+
+The 80 backend tests are the 66 from the streaming slice, 1 for the token
+generator, 9 ported adapter tests, and 4 new seam tests. Not run: a fresh
+`npm ci` and a fresh locked `pip install`; the runs used existing local
+installs. Hosted CI on macOS and Windows has not run on this commit yet.

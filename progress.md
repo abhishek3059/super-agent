@@ -336,3 +336,20 @@ See [PRD](prd.md) for requirement and acceptance detail.
 - [Tasks](tasks/README.md)
 - [Council meetings](council%20meetings/README.md)
 - [Implementation report](docs/implementation/super-agent.md)
+
+## PH-01 ticks, credential fixes, and Gemini adapter (2026-11-11)
+
+PR #24 merged into `develop`. On branch `feat/ph-01-gemini-live`:
+
+- `jeevesh2515` confirmed the R-01.3, R-01.5, and R-01.F1 ticks in chat. The
+  R-01.3 run tested the earlier scaffold at `4f51e00`; he confirmed it knowing
+  that.
+- CR-09 and CR-02 are implemented: weak tokens are rejected and
+  `python -m super_agent_voice.generate_token` writes a 0600 token file.
+- R-01.7: the Gemini Live adapter is ported onto the current seam with offline
+  tests ([record](docs/implementation/r01-7-gemini-adapter.md)). The SDK is not
+  a dependency and the application still uses only the fake adapter.
+
+The next items are R-01.4 (human microphone test), R-01.6 (independent security
+review), and R-01.8 (opt-in live command, which needs maintainer approval for
+the `google-genai` dependency). RT-G01 remains open.
