@@ -697,7 +697,7 @@ No dependency is installed by this design.
 | Component | Proposed version | License | Evidence |
 | --- | --- | --- | --- |
 | `google-genai` | `2.33.0` | Apache-2.0 | Released 2026-10-23, 17 days old on 2026-11-09. Satisfies the 14-day rule. |
-| Python | 3.12 supported line | PSF | Exact security patch selected at implementation. |
+| Python | 3.14 supported line | PSF | Exact security patch selected at implementation. Hosted CI moved from 3.12 to 3.14 on 2026-11-10. |
 | FastAPI | `0.162.0` | MIT | Already pinned in the scaffold. |
 | Uvicorn | `0.54.0` | BSD-3-Clause | Already pinned in the scaffold. |
 | websockets | `17.3` | BSD-3-Clause | Already pinned in the scaffold. |

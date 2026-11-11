@@ -64,15 +64,16 @@ Maps to [RT-001](tasks/001-runtime-consent-and-feasibility.md) and RT-G00. Nothi
 
 **Status:** in progress
 
-Maps to [RT-002](tasks/002-local-scaffold-and-boundary.md), [RT-003](tasks/003-native-voice-session.md), and RT-G01. Design: [voice foundation](docs/design/voice-foundation.md).
+Maps to [RT-002](tasks/002-local-scaffold-and-boundary.md), [RT-003](tasks/003-native-voice-session.md), and RT-G01. Design: [voice foundation](docs/design/voice-foundation.md). Item order below follows the [PH-01 sequencing record](docs/approvals/ph-01-sequencing.md); every item is still required to close PH-01.
 
 - [x] R-01.1 [exception: [confirmation record](docs/approvals/voice-foundation-confirmation.md)] Offline voice scaffold (fake adapter, no provider, no tools) merged. Evidence: [PR 13](https://github.com/abhishek3059/super-agent/pull/13)
 - [x] R-01.2 [exception: [confirmation record](docs/approvals/voice-foundation-confirmation.md)] Voice workflow green on `develop` for Windows and macOS. Evidence: [voice-foundation run on develop](https://github.com/abhishek3059/super-agent/actions/runs/42574431372)
 - [ ] R-01.3 [human] Mac offline checks run with real output recorded. Evidence: none yet
-- [ ] R-01.4 [human] Local microphone test (start, mute, barge-in, stop) recorded; no audio leaves the machine. Evidence: none yet
 - [ ] R-01.5 Credential design written and independently reviewed: high-entropy device or session credentials, storage, expiry, revocation, throttling (RT-A05 obligation). Evidence: none yet
-- [ ] R-01.6 Independent security review accepted for the implemented boundary: deployed authentication, Host, Origin, CORS, WebSocket, and CSRF controls, and backend-only secrets. Evidence: none yet
 - [ ] R-01.7 Gemini Live adapter behind the replaceable seam, covered by offline tests with the fake. Evidence: none yet
+- [ ] R-01.F1 Fix the misleading console state found in the [R-01.4 observations](docs/implementation/r01-4-microphone-observations.md): input level shown separately from model speech, silent frames never set `speaking`, and conversational barge-in (not the Interrupt button) is the tested path, with offline tests for silence, playback, interruption, stale output, mute, and stop. Evidence: none yet
+- [ ] R-01.4 [human] Local microphone test (start, mute, conversational barge-in, stop) recorded on the revised scaffold after R-01.F1; no audio leaves the machine. Evidence: none yet
+- [ ] R-01.6 Independent security review accepted for the implemented boundary: deployed authentication, Host, Origin, CORS, WebSocket, and CSRF controls, and backend-only secrets. Evidence: none yet
 - [ ] R-01.8 Opt-in synthetic-audio live command built (key from process environment only, excluded from default tests and CI, logs timing and state only). Evidence: none yet
 - [ ] R-01.9 Synthetic live test run and recorded; unsupported transport fails closed. Evidence: none yet
 - [ ] R-01.10 RT-002 and RT-003 records complete and RT-G01 evidenced. Evidence: none yet
