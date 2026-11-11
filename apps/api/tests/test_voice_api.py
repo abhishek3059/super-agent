@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import os
 import threading
 import time
 from collections.abc import Callable, Sequence
@@ -15,6 +16,8 @@ from super_agent_voice.adapter import (
     Interrupted,
     TurnComplete,
 )
+from super_agent_voice import config as config_module
+from super_agent_voice import generate_token
 from super_agent_voice.app import create_app
 from super_agent_voice.config import VoiceConfig
 
@@ -234,13 +237,30 @@ def test_idle_timeout_is_retained() -> None:
         assert time.monotonic() - started < 5
 
 
-def test_environment_requires_high_entropy_local_token(monkeypatch) -> None:
+def test_environment_requires_high_entropy_local_token(monkeypatch, tmp_path) -> None:
     monkeypatch.delenv("SUPER_AGENT_LOCAL_TOKEN", raising=False)
+    monkeypatch.setattr(config_module, "TOKEN_FILE", tmp_path / "voice-token")
     with pytest.raises(RuntimeError, match="at least 32 bytes"):
         VoiceConfig.from_environment()
-    monkeypatch.setenv("SUPER_AGENT_LOCAL_TOKEN", "short")
-    with pytest.raises(RuntimeError, match="at least 32 bytes"):
-        VoiceConfig.from_environment()
+    for weak in ("short", "ab" * 32):  # too short; long but low entropy (CR-09)
+        monkeypatch.setenv("SUPER_AGENT_LOCAL_TOKEN", weak)
+        with pytest.raises(RuntimeError, match="at least 32 bytes"):
+            VoiceConfig.from_environment()
+
+
+def test_generated_token_file_is_private_and_accepted(monkeypatch, tmp_path, capsys) -> None:
+    monkeypatch.delenv("SUPER_AGENT_LOCAL_TOKEN", raising=False)
+    token_file = tmp_path / "home" / "voice-token"
+    monkeypatch.setattr(config_module, "TOKEN_FILE", token_file)
+    monkeypatch.setattr(generate_token, "TOKEN_FILE", token_file)
+    generate_token.main()
+    token = VoiceConfig.from_environment().local_token
+    assert token == token_file.read_text() and token not in capsys.readouterr().out
+    if os.name == "posix":
+        assert token_file.stat().st_mode & 0o777 == 0o600
+        token_file.chmod(0o644)
+        with pytest.raises(RuntimeError, match="mode 0600"):
+            VoiceConfig.from_environment()
 
 
 def test_rejects_bad_origin_and_token() -> None:

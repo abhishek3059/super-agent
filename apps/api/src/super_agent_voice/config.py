@@ -2,6 +2,9 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass
+from pathlib import Path
+
+TOKEN_FILE = Path.home() / ".super-agent" / "voice-token"
 
 
 @dataclass(frozen=True)
@@ -29,7 +32,21 @@ class VoiceConfig:
 
     @classmethod
     def from_environment(cls) -> "VoiceConfig":
-        token = os.environ.get("SUPER_AGENT_LOCAL_TOKEN", "")
-        if len(token.encode("utf-8")) < 32:
-            raise RuntimeError("SUPER_AGENT_LOCAL_TOKEN must contain at least 32 bytes")
+        token = os.environ.get("SUPER_AGENT_LOCAL_TOKEN") or _read_token_file()
+        # CR-09: length alone lets a repeated character through.
+        if len(token.encode("utf-8")) < 32 or len(set(token)) < 16:
+            raise RuntimeError(
+                "SUPER_AGENT_LOCAL_TOKEN must contain at least 32 bytes and 16 distinct characters"
+            )
         return cls(local_token=token)
+
+
+def _read_token_file() -> str:
+    try:
+        mode = TOKEN_FILE.stat().st_mode
+    except OSError:
+        return ""
+    # Mode bits are not meaningful on Windows; the ACL check is review item N2.
+    if os.name == "posix" and mode & 0o077:
+        raise RuntimeError("local token file must be mode 0600")
+    return TOKEN_FILE.read_text(encoding="utf-8").strip()
