@@ -45,7 +45,7 @@ Runtime eligibility, consent, real-task selection, host, budgets, retention, and
 
 - **Entry prerequisites:** a separate authorization permitting feasibility/setup *decision work* (not runtime execution); the signed design and completed independent-review dispositions of PH-DOC for the assessed revision. No scaffold is required and none is assumed.
 - **Exit/acceptance gates:** [RT-001](tasks/001-runtime-consent-and-feasibility.md) producing a truthful dated setup decision, and [RT-G00](prd.md#rt-g00) resolved: explicit runtime consent and named microphone/context recipients; confirmed provider eligibility and native access; actual account/region/quota access and disclosed terms; disclosed retention windows; confirmed host; user-selected first real task pair; approved monetary/resource budgets. No consent/access fact may be fabricated.
-- **Status:** `in progress`. The [PH-00 setup decisions](docs/approvals/ph-00-setup-decisions.md) merged in PR #21. The operator confirmed the session-scoped `GEMINI_API_KEY` setup on 2026-11-09. RT-G00 remains open until the [resolution record](docs/approvals/rt-g00-resolution.md) merges and the follow-up roadmap PR records the evidence.
+- **Status:** `done`. RT-001 is complete and [RT-G00](docs/approvals/rt-g00-resolution.md) was resolved by merged PR #23 on 2026-11-10.
 
 Task links: [RT-001](tasks/001-runtime-consent-and-feasibility.md).
 
@@ -53,9 +53,9 @@ Task links: [RT-001](tasks/001-runtime-consent-and-feasibility.md).
 
 Separately approved local scaffold/boundary and manually activated native voice connection.
 
-- **Entry prerequisites:** [RT-G00](prd.md#rt-g00) resolved (runtime consent, eligibility, host, task selection, budgets/retention) **and** an explicit new implementation/scaffold authorization for a new implementation request. No scaffold or native connection exists yet when the phase begins — producing them is the phase's work, not its prerequisite.
+- **Entry prerequisites:** [RT-G00](prd.md#rt-g00) resolved (runtime consent, eligibility, host, task selection, budgets/retention) **and** explicit implementation authorization. The offline scaffold exists through the approved PH-01 exception. The real native provider connection remains phase work.
 - **Exit/acceptance gates:** [RT-002](tasks/002-local-scaffold-and-boundary.md) and [RT-003](tasks/003-native-voice-session.md) complete, and [RT-G01](prd.md#rt-g01) evidenced: actually reviewed scaffold/commands, deployed authentication/Host/Origin/CORS/WS/CSRF controls, backend-only secrets, and measured native media and backend event/control connection with manual activation, stop controls, visible states, and fail-closed transport behavior.
-- **Status:** `not started`.
+- **Status:** `in progress`. Revision 2 of the [voice design](docs/design/voice-foundation.md) is merged. R-01.3 manual macOS evidence is the next unticked roadmap item.
 
 Task links: [RT-002](tasks/002-local-scaffold-and-boundary.md), [RT-003](tasks/003-native-voice-session.md).
 
@@ -124,8 +124,8 @@ Task links: [RT-012](tasks/012-private-native-audio-feasibility.md).
 | Phase ID | Entry prerequisites | Exit/acceptance gates | Task links | Status |
 | --- | --- | --- | --- | --- |
 | PH-DOC | Signed design + delivery sources. | DOC-A01–DOC-A06; manager-recorded independent review/security dispositions. | None. | Pack authored; earlier assessed revisions hold design review PASS and design-stage security PASS; revision-4 status clarifications pending independent re-review and manager-recorded final acceptance (see [progress](progress.md)). |
-| PH-00 | Separate authorization for feasibility/setup decision work; PH-DOC dispositions. | RT-001 dated setup decision; RT-G00 resolved. | [RT-001](tasks/001-runtime-consent-and-feasibility.md) | `in progress` |
-| PH-01 | RT-G00 resolved **and** explicit new scaffold authorization. | RT-002 + RT-003 complete; RT-G01 evidenced. | [RT-002](tasks/002-local-scaffold-and-boundary.md), [RT-003](tasks/003-native-voice-session.md) | `not started` |
+| PH-00 | Separate authorization for feasibility/setup decision work; PH-DOC dispositions. | RT-001 dated setup decision; RT-G00 resolved. | [RT-001](tasks/001-runtime-consent-and-feasibility.md) | `done` |
+| PH-01 | RT-G00 resolved **and** explicit new scaffold authorization. | RT-002 + RT-003 complete; RT-G01 evidenced. | [RT-002](tasks/002-local-scaffold-and-boundary.md), [RT-003](tasks/003-native-voice-session.md) | `in progress` |
 | PH-02 | RT-G01 evidenced. | RT-004 + RT-005 complete; RT-G02 evidenced. | [RT-004](tasks/004-task-ledger-and-policy.md), [RT-005](tasks/005-fixed-sample-workers.md) | `not started` |
 | PH-03 | RT-G02 evidenced / RT-005 complete. | RT-006 + RT-007 complete; RT-G03 evidenced; RT-008 complete; RT-G04 evidenced. | [RT-006](tasks/006-steering-and-stop-controls.md), [RT-007](tasks/007-recovery-and-retention.md), [RT-008](tasks/008-runtime-validation.md) | `not started` |
 | PH-04 | Fixed slice accepted (RT-G04); user-approved real task pair and worker/recipient capabilities. | RT-009 complete; RT-G05 bounded-planner evidence. | [RT-009](tasks/009-bounded-real-task-planner.md) | `not started` |

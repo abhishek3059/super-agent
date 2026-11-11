@@ -6,7 +6,7 @@
 | Scope | PH-00 and RT-001 setup decisions before PH-01 implementation |
 | Decider | `abhishek3059`, maintainer, in chat on 2026-11-09 |
 | Earlier approval | `jeevesh2515` approved the first-cycle scope on 2026-11-09 in the [voice-foundation confirmation](voice-foundation-confirmation.md) |
-| Runtime status | Merged in PR #21. This record alone closes no runtime gate. The final disposition is in the [RT-G00 resolution](rt-g00-resolution.md). |
+| Runtime status | Merged in PR #21. [RT-G00](rt-g00-resolution.md) was resolved by merged PR #23. |
 
 This record turns the operator's 2026-11-09 chat answers into dated decisions.
 It does not invent approval, does not authorize personal microphone audio to a
@@ -50,11 +50,11 @@ variable is session-scoped and the agent is a separate process. No value was
 read or recorded. This is an operator confirmation, not independent agent
 verification.
 
-## Resolution progress
+## Resolution
 
 - This record merged in PR #21 on 2026-11-10.
-- The [RT-G00 resolution](rt-g00-resolution.md) must merge, then a follow-up
-  roadmap PR must tick R-00.11 and move `Current phase` to PH-01.
+- The [RT-G00 resolution](rt-g00-resolution.md) merged in PR #23 on 2026-11-10.
+- The follow-up roadmap PR ticks R-00.11 and moves `Current phase` to PH-01.
 - Any macOS or microphone evidence remains separately required by PH-01.
 
 ## Before the opt-in live test (R-01.9)

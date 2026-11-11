@@ -17,14 +17,20 @@ import { VoiceSessionService } from './voice-session.service';
         <span [class.active]="session.status() !== 'stopped'">●</span>
         {{ session.status() }}
       </section>
+      <label for="input-level">Microphone input level (not speech detection)</label>
+      <meter id="input-level" min="0" max="1" [value]="session.inputLevel()"></meter>
       @if (session.error()) { <p class="error">{{ session.error() }}</p> }
       <div class="controls">
-        <button (click)="start()" [disabled]="session.status() !== 'stopped'">Start</button>
+        <!-- Start is also allowed after an error: the service can restart from the error state. -->
+        <button (click)="start()" [disabled]="session.status() !== 'stopped' && session.status() !== 'error'">Start</button>
+        <!-- Mute and manual stop playback are no-ops unless a session is live;
+             they re-enable only for a session that can act on them. The
+             service API still accepts a mute while permission is pending. -->
         <button (click)="session.setMuted(!session.muted())"
-          [disabled]="session.status() === 'stopped'">
+          [disabled]="session.status() === 'connecting' || session.status() === 'stopped' || session.status() === 'error'">
           {{ session.muted() ? 'Unmute' : 'Mute' }}
         </button>
-        <button (click)="session.interrupt()" [disabled]="session.status() === 'stopped'">Interrupt</button>
+        <button (click)="session.interrupt()" [disabled]="session.status() === 'connecting' || session.status() === 'stopped' || session.status() === 'error'">Stop playback</button>
         <button class="stop" (click)="session.stop()" [disabled]="session.status() === 'stopped'">Stop</button>
       </div>
     </main>

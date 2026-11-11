@@ -6,7 +6,7 @@
 | Design | [Voice-foundation design](../design/voice-foundation.md) |
 | Review | [Initial review and correction disposition](../reviews/voice-foundation-scaffold.md) |
 | Delivery | Design PR #12 merged; implementation PR #13 merged into `develop` and also carries the later maintainer-confirmation record |
-| Status | Offline scaffold merged in PR #13. Hosted voice workflow green on Windows and macOS. Manual microphone and manual macOS evidence pending. No Gemini adapter and no runtime gate accepted. |
+| Status | Offline scaffold merged in PR #13. Hosted voice workflow green on Windows and macOS. Microphone observations are partial and inconclusive; manual macOS evidence is pending. No Gemini adapter. RT-G00 is resolved; RT-G01 remains open. |
 
 ## Implemented scope
 
@@ -61,19 +61,29 @@ microphone evidence remain pending. No cloud test is authorized here.
 | Documented `npm start` path | PASS, HTTP 200 on `127.0.0.1:4200`; process tree and listener removed |
 | Root dependency audit | PASS, 0 vulnerabilities |
 | Repository check | PASS, 143 files scanned, 896 local links, 258 fragments, 0 errors |
-| Manual microphone/browser test | Not run |
+| Manual microphone/browser test | Operator reported partial observations on 2026-11-10; not an acceptance PASS. See [observation record](r01-4-microphone-observations.md). |
 | Gemini/provider test | Not run and not included |
 | Manual macOS execution | Not run; Jeevesh accepted the task. Hosted macOS CI passed. |
 
-## Current status (2026-11-09)
+## Current status (2026-11-11)
+
+The [local fake streaming upgrade](voice-streaming-slice.md) is implemented for
+PR #24 and passes its final code review. The earlier command results above are
+historical scaffold evidence, not results for the streaming rewrite.
 
 - Hosted voice workflow: **green** on Windows and macOS (PR #14; rerun on PR #21).
-- Manual microphone/browser test: **not run**.
-- Manual macOS execution: **not run**; Jeevesh accepted the task.
+- Manual microphone/browser test: **partial and inconclusive**. The operator
+  reported `speaking` while silent and working buttons, but did not confirm
+  microphone input or conversational barge-in. See the
+  [observation record and unapproved next-step proposal](r01-4-microphone-observations.md).
+- Manual macOS execution: evidence and owner confirmation submitted in
+  [PR #25](https://github.com/abhishek3059/super-agent/pull/25) for the old scaffold
+  at `4f51e00`; incorporation and roadmap disposition remain pending.
 - Gemini Live adapter: **not implemented** (R-01.7).
 - Opt-in synthetic live command and test: **not implemented and not run** (R-01.8, R-01.9).
 - Repository check: **pass** on PR #21; see the PR checks for current counts.
-- Runtime gate: **none closed**. RT-G00 remains open.
+- Runtime gate: RT-G00 is resolved for the bounded PH-01 scope. RT-G01 and all
+  later gates remain open.
 
 ## Reviewer correction set
 

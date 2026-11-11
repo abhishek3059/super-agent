@@ -5,10 +5,11 @@ native voice-to-voice conversation, hands-free active-session use, and bounded
 background task delegation.
 
 > **Mostly documentation.** The only application code is an offline voice
-> scaffold in [`apps/`](apps/voice-foundation.md): a local echo adapter with no
+> scaffold in [`apps/`](apps/voice-foundation.md): a local fake streaming adapter with no
 > Gemini, no tools, and no stored audio. The Gemini Live adapter is not
 > implemented; only the fake adapter runs. Two throwaway spikes live in
-> `spikes/`. There is no runnable assistant, and all runtime gates remain open.
+> `spikes/`. There is no runnable assistant. RT-G00 is resolved for PH-01;
+> RT-G01 and all later runtime gates remain open.
 
 ## Start here
 
@@ -22,7 +23,7 @@ background task delegation.
 | [Build](build.md) | Build position; future commands are proposed and not runnable |
 | [Decisions](descisions.md) | Decision register DEC-01–DEC-17 |
 | [Flows](flow.md) | Ten numbered workflows WF-01–WF-10 |
-| [Tasks](tasks/README.md) | Twelve future task records; RT-001 is `in progress`, the rest are `not started` |
+| [Tasks](tasks/README.md) | Twelve task records; RT-001 is complete, RT-002 is in progress, and native RT-003 and later tasks are `not started` |
 | [Council meetings](council%20meetings/README.md) | Three archived deliberation records |
 
 ## Supporting records
@@ -63,9 +64,9 @@ background task delegation.
   out-of-band or device authentication.
 - Cloud models are authorized for synthetic-only development. Personal
   microphone and context egress remain unapproved. Provider access, budgets,
-  retention, and the first task pair are recorded; RT-G00 remains open until
-  the [resolution record](docs/approvals/rt-g00-resolution.md) merges and the
-  roadmap records it.
+  retention, and the first task pair are recorded. RT-G00 is resolved for the
+  bounded PH-01 scope. Personal microphone and context egress remain
+  unapproved.
 - Raw audio and persistent transcripts are off by default.
 - The observed 8 GB RAM / 4 GB VRAM laptop has no verified native-local or
   always-on/locked-screen capability.

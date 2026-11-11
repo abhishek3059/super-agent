@@ -42,6 +42,11 @@ npm run check
   Hotfixes and releases follow [CONTRIBUTING.md](CONTRIBUTING.md).
 - Never push directly to `main` or `develop`.
 - One phase or one concern per PR. A stacked PR names the PR it depends on.
+- Keep one branch and one PR open for the approved phase or work bundle until
+  that scope is complete. Accumulate code, tests, evidence, documentation, and
+  status edits there. Do not open bookmark or bookkeeping PRs for each small
+  update. Use a follow-up PR only when evidence can exist only after merge or
+  when the operator explicitly requests one.
 - Conventional Commits: `type(scope): summary` (enforced by the `commit-msg` hook).
 - Fill in [.github/pull_request_template.md](.github/pull_request_template.md)
   completely, including agent, model, human operator, and quality scores.

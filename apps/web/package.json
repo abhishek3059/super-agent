@@ -5,7 +5,8 @@
   "scripts": {
     "build": "ng build",
     "start": "ng serve --host 127.0.0.1 --port 4200",
-    "test:epoch": "node scripts/selftest-playback-epoch.mjs"
+    "test:epoch": "node scripts/selftest-playback-epoch.mjs",
+    "test:voice": "node scripts/selftest-voice-session.mjs"
   },
   "dependencies": {
     "@angular/common": "22.2.3",

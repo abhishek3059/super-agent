@@ -3,10 +3,18 @@
 | Field | Value |
 | --- | --- |
 | Task ID | RT-002 |
-| Status | not started |
-| Execution evidence | none |
+| Status | in progress; local streaming boundary slice, not accepted |
+| Execution evidence | [Streaming implementation record](../docs/implementation/voice-streaming-slice.md); [operator direction](../docs/approvals/ph-01-current-phase-work.md) |
 
 ## Scope
+
+Current status (2026-11-11): the offline scaffold already exists. The operator
+assigned the local streaming-boundary upgrade within PH-01. Its local fake
+implementation and code review are complete. Development
+commands are runnable as documented in [apps/voice-foundation.md](../apps/voice-foundation.md),
+but this task is not accepted and no native provider connection is delivered.
+The original scope and acceptance language below define the obligation; they
+must not be read as today's application-state report.
 
 After a new implementation request only: minimal reviewed local scaffold, exact dependency/command contract, device/session authentication and loopback HTTP/WS/CSRF boundary, without voice capture yet.
 
@@ -38,11 +46,16 @@ Minimal reviewed local scaffold with exact dependency/command contract and devic
 
 ## Failure considerations
 
-No current build commands are runnable; future commands remain proposed/non-runnable until an approved scaffold exists.
+Do not accept the scaffold boundary before its credential and independent
+security review obligations are met. The runnable local development scaffold
+does not authorize provider egress or close RT-G01.
 
 ## Evidence
 
-None. Future task status is `not started`; no execution evidence exists.
+See the [implementation record](../docs/implementation/voice-streaming-slice.md).
+The local fake slice passes 66 backend tests and final code review at 8.52;
+frontend review remains PASS at 8.8. The task remains in progress pending
+acceptance obligations. No task acceptance or independent security PASS is claimed.
 
 ## Navigation
 
