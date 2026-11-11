@@ -93,6 +93,8 @@ class GeminiLiveAdapter:
         self.closed = False
 
     async def start(self) -> None:
+        if self.closed:  # a late start would open a session nothing closes
+            raise AdapterError("session-failed")
         try:
             self._session = await self._stack.enter_async_context(self._connect())
         except Exception as error:

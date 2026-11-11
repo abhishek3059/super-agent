@@ -89,18 +89,24 @@ verification block that mixed re-run and carried-over results.
 
 Not changed: the token reader does not check the parent directory mode, the
 Windows ACL is not set (review item N2, R-01.6), removing and recreating the
-token file is not atomic, and these cases have no test: drop-oldest eviction of
-the stream-end marker, `close()` during `start()`, and the same-tick
-acknowledgement race.
+token file is not atomic, and these cases have no test: eviction of the
+stream-end marker itself, `close()` while `start()` is still connecting, and
+the same-tick acknowledgement race.
+
+The third pass, on `60a13cb`, scored 7.8: correctness 8, security 8, honesty 7,
+scope 8, clarity 8. It found no code defect; its deductions were for stale
+fields in the PR description, since corrected. After it, two tests were added
+(drop-oldest input queue, start refused after close) with a guard in `start()`.
 
 ## Verification (macOS, Python 3.14.5, Node 22.22.3)
 
-Every command below was re-run on 2026-11-11 on the final code of this PR,
-after the review fixes.
+Every command below was re-run on 2026-11-11 after the first two rounds of
+review fixes. After the last change, which touched only the adapter, its
+tests, and this record, the backend tests and `npm run check` were run again.
 
 ```text
 $ python3 -m pytest apps/api
-82 passed in 3.61s
+84 passed in 3.60s
 
 $ npm run check
   "errors": 0
@@ -122,8 +128,8 @@ $ python3 -c "import sys; sys.path.insert(0,'apps/api/src'); import super_agent_
 lazy ok
 ```
 
-The 82 backend tests are the 66 from the streaming slice, 1 for the token
-generator, 9 ported adapter tests, 2 adapter tests added after review, and 4
+The 84 backend tests are the 66 from the streaming slice, 1 for the token
+generator, 9 ported adapter tests, 4 adapter tests added after review, and 4
 new seam tests. Not run: a fresh
 `npm ci` and a fresh locked `pip install`; the runs used existing local
 installs. Hosted CI on macOS and Windows has not run on this commit yet.

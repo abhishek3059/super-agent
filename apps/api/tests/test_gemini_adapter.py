@@ -232,6 +232,33 @@ def test_stream_end_is_ordered_after_queued_audio_and_needs_open_stream() -> Non
     ]
 
 
+def test_full_input_queue_drops_the_oldest_frames() -> None:
+    async def scenario():
+        session = FakeSession()
+        adapter = make(session)
+        for index in range(66):  # two more than the queue holds, before any send
+            await adapter.enqueue_audio(bytes([index, 0]))
+        await adapter.start()
+        await sent(session, 64)
+        await adapter.close()
+        return session.sent
+
+    frames = run(scenario())
+    assert len(frames) == 64 and frames[0] == {"audio": ("blob", b"\x02\x00")}
+
+
+def test_start_after_close_is_refused() -> None:
+    async def scenario():
+        session = FakeSession()
+        adapter = make(session)
+        await adapter.close()
+        with pytest.raises(AdapterError):
+            await adapter.start()
+        return session.sent, adapter._tasks
+
+    assert run(scenario()) == ([], [])
+
+
 def test_start_failures_map_to_fixed_categories() -> None:
     def start_error(error: Exception) -> str:
         async def scenario():
