@@ -9,7 +9,7 @@
 | Tested commit | `4f51e0035ea9d42b827b7626a4792cbc4d351891` (PR [#24](https://github.com/abhishek3059/super-agent/pull/24) head at run time) |
 | Result | **PASS**, `overall_exit=0` |
 | Full output | [r01-3-macos-output-20261110T154316Z.txt](../implementation/evidence/r01-3-macos-output-20261110T154316Z.txt) |
-| Roadmap tick | Not ticked here. The handover reserves the tick for the PH-01 owner. |
+| Roadmap tick | Ticked on 2026-11-11. `jeevesh2515` confirmed in chat with Claude Code (`claude-fable-5-2`) that this run counts as the R-01.3 evidence, knowing it tested the earlier scaffold at `4f51e00` and not the streaming implementation. |
 
 ## Platform
 

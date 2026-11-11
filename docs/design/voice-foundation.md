@@ -523,8 +523,12 @@ Implementation conditions from the review (tested in R-01.6):
 - CR-08: the current scaffold compares `str` values with `hmac.compare_digest`,
   which raises on non-ASCII input. Compare UTF-8 bytes and treat errors as a
   failed attempt.
-- CR-09: the current scaffold checks only `len >= 32` bytes. Add the
-  distinct-character check and the `generate-token` helper.
+- CR-09: implemented 2026-11-11. `VoiceConfig.from_environment` rejects fewer
+  than 32 bytes or fewer than 16 distinct characters, and
+  `python -m super_agent_voice.generate_token` writes the token file with mode
+  0600. The backend reads that file when `SUPER_AGENT_LOCAL_TOKEN` is unset and
+  refuses a file readable by group or others. Not implemented: the Windows
+  owner-only ACL (N2) and token expiry.
 - N3: the server-side cookie session id expires after 900 seconds, matching
   the cookie Max-Age; enrollment rejects a missing or `null` Origin; enrollment
   is refused once the device token has expired.

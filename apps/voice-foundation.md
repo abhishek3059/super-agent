@@ -12,14 +12,17 @@ cannot connect to Gemini. Personal microphone audio stays local.
 
 ## Backend
 
-Use a private process environment token. Do not create a project `.env` file.
+The backend reads the local token from `~/.super-agent/voice-token`, written
+with mode 0600 by the generator below. Do not create a project `.env` file and
+do not type the token into a shell command. On Windows the file relies on the
+profile directory's ACL; an explicit owner-only ACL is not implemented yet.
 
 ```powershell
 $voiceVenv = Join-Path $env:LOCALAPPDATA "Temp\super-agent-voice-venv"
 python -m venv $voiceVenv
 & "$voiceVenv\Scripts\python" -m pip install --only-binary=:all: -r apps\api\requirements-dev.in
-$env:SUPER_AGENT_LOCAL_TOKEN = python -c "import secrets; print(secrets.token_urlsafe(32))"
 $env:PYTHONPATH = "apps\api\src"
+& "$voiceVenv\Scripts\python" -m super_agent_voice.generate_token
 & "$voiceVenv\Scripts\python" -m uvicorn super_agent_voice.app:create_app --factory --host 127.0.0.1 --port 8000
 ```
 
@@ -32,7 +35,7 @@ npm ci --ignore-scripts --prefix apps/web
 npm start --prefix apps/web
 ```
 
-Open `http://127.0.0.1:4200`, paste the same local token into the in-memory
+Open `http://127.0.0.1:4200`, paste the contents of the token file into the in-memory
 field, and select **Start**. Browser permission is requested only then.
 
 The current browser audio processor is a scaffold seam, not accepted audio
