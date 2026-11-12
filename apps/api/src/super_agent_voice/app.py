@@ -174,11 +174,8 @@ def create_app(
         _validated_positive(name, getattr(settings, name))
     for name in ("max_pre_auth_connections", "auth_failure_threshold", "max_delayed_rejections"):
         _validated_positive(name, getattr(settings, name), integer=True)
-    # Frame logging at DEBUG would write the token from the first message
-    # (REQ-12). Refuse to start instead of relying on a log filter.
-    for name in ("uvicorn.error", "websockets"):
-        if logging.getLogger(name).isEnabledFor(logging.DEBUG):
-            raise RuntimeError("debug logging would record the session token; use --log-level info")
+    if _frame_logging_enabled():
+        raise RuntimeError("debug logging would record the session token; use --log-level info")
     gate = SessionGate(settings.max_active_sessions)
     auth = _AuthControl(settings)
     # Strong references to one residual supervisor per quarantined session
@@ -197,6 +194,15 @@ def create_app(
         await _voice_socket(websocket, settings, adapter_factory, gate, supervisors, auth)
 
     return app
+
+
+def _frame_logging_enabled() -> bool:
+    """DEBUG frame logging would write the token from the first message (REQ-12).
+
+    Checked at startup and again per connection, because a launcher can build
+    the app before uvicorn sets up logging, or raise the level later.
+    """
+    return any(logging.getLogger(name).isEnabledFor(logging.DEBUG) for name in ("uvicorn.error", "websockets"))
 
 
 def _control(text: str | None, settings: VoiceConfig) -> dict[str, object]:
@@ -476,6 +482,9 @@ async def _voice_socket(
         or websocket.headers.get("origin") != settings.allowed_origin
     ):
         await websocket.close(code=1008)
+        return
+    if _frame_logging_enabled():
+        await websocket.close(code=1011)
         return
     loop = asyncio.get_running_loop()
     deadline = loop.time() + settings.max_session_seconds

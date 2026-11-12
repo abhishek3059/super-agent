@@ -29,9 +29,8 @@ The output is timing and state only. The key stays in the process environment.
 ## Backend
 
 Keep the two `--ws-max-*` flags: without them uvicorn buffers up to 16 MiB per
-message before the application can reject it. Do not start the backend with
-`--log-level debug`; it refuses to start, because frame logging would record
-the session token.
+message before the application can reject it. Do not run the backend at debug log level: it refuses to start and refuses
+connections, because frame logging would record the session token.
 
 The backend reads the local token from `~/.super-agent/voice-token`, written
 with mode 0600 by the generator below. Do not create a project `.env` file and

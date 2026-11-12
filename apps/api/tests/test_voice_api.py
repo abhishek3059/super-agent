@@ -1352,6 +1352,10 @@ def test_tokens_never_appear_in_logs_output_or_client_messages(caplog, capsys) -
     client = make_client(config=VoiceConfig(local_token=secret))  # create_app refuses DEBUG logging
     caplog.set_level(logging.DEBUG)
     logging.getLogger().setLevel(logging.DEBUG)
+    guarded = [logging.getLogger(name) for name in ("uvicorn.error", "websockets")]
+    earlier = [(logger, logger.level) for logger in guarded]
+    for logger in guarded:  # the connection guard refuses DEBUG on these two
+        logger.setLevel(logging.INFO)
     seen: list[str] = []
     with client:
         with connect(client) as websocket:
@@ -1364,6 +1368,8 @@ def test_tokens_never_appear_in_logs_output_or_client_messages(caplog, capsys) -
             seen.append(repr(websocket.receive_json()))
             websocket.send_json({"type": "session.stop"})
             seen.append(repr(websocket.receive_json()))
+    for logger, level in earlier:
+        logger.setLevel(level)
     output = capsys.readouterr()
     haystack = "\n".join([caplog.text, output.out, output.err, *seen])
     assert caplog.records  # the log capture is live, so absence below means something
@@ -1375,6 +1381,14 @@ def test_debug_logging_stops_startup(logger_name: str, caplog) -> None:
     caplog.set_level(logging.DEBUG, logger=logger_name)
     with pytest.raises(RuntimeError, match="would record the session token"):
         create_app(VoiceConfig(local_token=TOKEN), FakeVoiceAdapter)
+
+
+def test_debug_logging_raised_after_startup_refuses_connections(caplog) -> None:
+    client = make_client()  # built at the default level, as a programmatic launcher would
+    caplog.set_level(logging.DEBUG, logger="uvicorn.error")
+    with client, pytest.raises(WebSocketDisconnect) as refused, connect(client):
+        pass
+    assert refused.value.code == 1011
 
 
 def test_token_file_symlink_is_refused(monkeypatch, tmp_path) -> None:

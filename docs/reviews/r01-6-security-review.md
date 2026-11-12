@@ -14,7 +14,7 @@
 
 | ID | Severity | Finding | Status |
 | --- | --- | --- | --- |
-| F1 | MEDIUM | At `--log-level debug` uvicorn logs the first WebSocket frame, which contains the token. Reproduced by the reviewer with a 32-character token (whole token logged) and re-checked by the coordinating agent on the pinned versions (uvicorn 0.54.0, websockets 17.3): the frame is truncated but 15 of 43 characters are logged. The TestClient secret test could not see this. | **Fixed (C1).** `create_app` refuses to start when `uvicorn.error` or `websockets` is enabled for DEBUG. Tests: two logger cases, plus a real uvicorn server at `info` (token absent from the log) and at `debug` (exits non-zero, token absent). |
+| F1 | MEDIUM | At `--log-level debug` uvicorn logs the first WebSocket frame, which contains the token. Reproduced by the reviewer with a 32-character token (whole token logged) and re-checked by the coordinating agent on the pinned versions (uvicorn 0.54.0, websockets 17.3): the frame is truncated but 15 of 43 characters are logged. The TestClient secret test could not see this. | **Fixed (C1), with one residual found in the closure check (N-1) and fixed afterwards.** `create_app` refuses to start when `uvicorn.error` or `websockets` is enabled for DEBUG, and every connection is refused (close 1011) while either is. The per-connection check covers a launcher that builds the app before uvicorn configures logging, which the closure check showed leaked the whole token (`uvicorn.run(create_app(...), log_level="debug")`). Tests: logger cases, a raised-after-startup case, and a real uvicorn server at `info` (token absent from the log) and at `debug` (exits non-zero, token absent). The `wsproto` transport was not tested. |
 | F2 | MEDIUM (LOW for one user on one machine) | A local process that forges the Origin header can hold all 4 pre-auth places by reopening idle sockets. Measured: 0 successful logins in 30 s, at about 0.8 connections per second. A shorter auth timeout does not help. | **Not fixed. Documented (C3).** Design section 7 now says so plainly. Needs the maintainers' acceptance for a loopback development path; must be fixed (handshake-time authentication or the cookie flow) before any multi-user or always-on host. |
 | F3 | LOW | Before authentication uvicorn buffers up to 16 MiB per message and 32 queued messages. The reviewer drove the server to 519 to 637 MiB. | **Mitigated.** The documented launch command adds `--ws-max-size 65600 --ws-max-queue 4`. A real-server test sends a 70,000-byte frame and passes only with those flags (verified: it fails without them). The flags are a launch convention; the application cannot enforce them. |
 | F4 | LOW | No Content-Security-Policy anywhere, although design CR-07 requires one. | **Fixed (C2).** `index.html` carries `script-src 'self'` and `connect-src` for the backend; production no longer inlines critical CSS, so the build has no inline script. Checked in a real browser on the production build and on the dev server: the page renders, the Vite reload socket connects, and an injected inline script is blocked. Inline styles stay allowed because Angular injects them. |
@@ -36,10 +36,24 @@
 The reviewer has been asked to confirm that these three are closed. Its answer
 is recorded in the next section.
 
-## Confirmation
+## Confirmation (closure check of `d5808c6`, 2026-11-12)
 
-Pending at the time of writing. Roadmap item R-01.6 is not ticked until this
-section records the reviewer's confirmation.
+Verdict: **ACCEPT WITH CONDITIONS.** Scores: correctness 8, security 8, honesty
+8, scope 9, clarity 8, average 8.2.
+
+| Condition | Result |
+| --- | --- |
+| C1 token in logs | Partly closed at `d5808c6`: 10 launch routes tested on the pinned versions; only a programmatic launcher (N-1) still leaked. N-1 is fixed in the next commit (per-connection check plus test); the reviewer has not re-run it. |
+| C2 CSP | Closed. Fresh production build has no inline script, no `eval`, `Function`, or `innerHTML`; the policy text is sound. Residuals: no `frame-ancestors` (a meta tag cannot carry it; low risk because the token field is cleared after Start), and Vite's own script sits above the meta tag in the dev server (same origin, informational). |
+| C3 documentation | Closed. |
+| F2 accepted risk | **Still blocking.** Both maintainers must record that they accept the total-lockout risk for a single-user loopback development path. Until that record exists in `docs/approvals/`, R-01.6 is not ticked. |
+
+The reviewer also re-checked F3 by execution on the pinned versions (peak
+memory 55 MiB with the flags, against 519 to 637 MiB without), F7, and F12.
+It judged F5, F6, N2, and the parent-directory mode acceptable to leave open
+for this item, and recommended a tracked item for N2 before Windows is called
+supported, a roadmap gate for F5 before Gemini or job control is wired into a
+session, and a real-uvicorn test for F6 (not done).
 
 ## What was not checked
 
