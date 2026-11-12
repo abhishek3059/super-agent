@@ -520,18 +520,30 @@ Same-origin trade-off:
 
 Implementation conditions from the review (tested in R-01.6):
 
-- CR-06: the current scaffold takes the session slot before authentication
-  (`apps/api/src/super_agent_voice/app.py`, slot at line 80, auth wait at
-  line 96). Change the order as stated above.
-- CR-08: the current scaffold compares `str` values with `hmac.compare_digest`,
-  which raises on non-ASCII input. Compare UTF-8 bytes and treat errors as a
-  failed attempt.
+- CR-06: implemented 2026-11-12. Authentication runs before the session slot
+  is taken. Unauthenticated sockets have their own cap
+  (`max_pre_auth_connections`, 4). A residual window remains: a local process
+  can keep the 4 pre-auth places busy by reopening each every 5 seconds
+  (`auth_timeout_seconds`), and the real user then gets 1013 at connect.
+  Loopback has no per-source key, so only a shorter pre-auth timeout or the
+  cookie flow would narrow it.
+- CR-08: implemented 2026-11-12. The token is compared as UTF-8 bytes, a lone
+  surrogate in the JSON is a failed attempt, and no type or decode problem can
+  raise out of the check.
 - CR-09: implemented 2026-11-11. `VoiceConfig.from_environment` rejects fewer
   than 32 bytes or fewer than 16 distinct characters, and
   `python -m super_agent_voice.generate_token` writes the token file with mode
   0600. The backend reads that file when `SUPER_AGENT_LOCAL_TOKEN` is unset and
-  refuses a file readable by group or others. Not implemented: the Windows
-  owner-only ACL (N2) and token expiry.
+  refuses a file that is not a regular file owned by the current user with no
+  group or other access. Not implemented: the Windows owner-only ACL (N2) and a
+  check of the parent directory's mode.
+- CR-01 and CR-05: implemented 2026-11-12. After 5 failures in 60 seconds each
+  further failed attempt is rejected after 0.5 s doubling to 8 s; the delayed
+  socket holds no pre-auth place and at most 8 sockets may be delayed at once.
+  A correct token is never delayed. Token expiry
+  (`SUPER_AGENT_TOKEN_MAX_AGE_SECONDS`, default 86400) is measured from backend
+  process start and applies to new authentication attempts only. The values are
+  the provisional design numbers and are not measured.
 - N3: the server-side cookie session id expires after 900 seconds, matching
   the cookie Max-Age; enrollment rejects a missing or `null` Origin; enrollment
   is refused once the device token has expired.

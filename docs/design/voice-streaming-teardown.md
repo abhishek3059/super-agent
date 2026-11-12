@@ -379,7 +379,7 @@ revision 4 of that contract tightens their wording (no other terms):
    failing close holds the gate (4.3/4.4/4.7). The old raising-close
    gate-release expectation is superseded per T-3/T-4, with category
    preservation and the bounded cleanup attempt unchanged.
-2. **CT-05 acceptance-table note.** Kept as-is: pre-auth single-slot
+2. **CT-05 acceptance-table note.** *Superseded 2026-11-12 (R-01.6): authentication now precedes the slot.* Kept as-is at the time: pre-auth single-slot
    placement is accepted intent, bounded by the auth deadline inside the
    total budget ([app.py:171-180](../../apps/api/src/super_agent_voice/app.py)).
 

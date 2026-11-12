@@ -193,7 +193,7 @@ that expires during the auth window yields `max-duration` and releases the
 gate. The idle timeout mechanism and its tests are unchanged and are not
 reused for the auth deadline.
 
-3.6 **CT-05 (gate placement).** The session gate is acquired before accept and
+3.6 **CT-05 (gate placement).** *Amended 2026-11-12 for R-01.6: the gate is now acquired after successful authentication, and unauthenticated sockets have their own cap; the text below describes the original code.* The session gate is acquired before accept and
 before auth ([app.py:167-170](../../apps/api/src/super_agent_voice/app.py)), so an
 unauthenticated connection can hold the single voice slot for its whole life.
 The window is bounded by the 5-second auth timeout but not by a global
