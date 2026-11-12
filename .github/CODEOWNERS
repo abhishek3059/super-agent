@@ -1,6 +1,7 @@
 # Owners are requested as reviewers on changes to the path and its guards.
-# Under DEC-19 the shared AI reviewer (AGENTS.md section 9) is the merge gate;
-# these requests block merging only if a ruleset requires code-owner review.
+# Under DEC-19 the shared AI reviewer (AGENTS.md section 9) is the merge gate
+# for `develop`; `main` keeps a required human review. These requests block
+# merging only where a ruleset requires code-owner review.
 # Any one of the listed owners can satisfy a rule.
 /roadmap.md @abhishek3059 @jeevesh2515
 /phases.md @abhishek3059 @jeevesh2515

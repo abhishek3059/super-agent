@@ -30,7 +30,8 @@ GitHub; the build writes only gitignored output.
 3. **Read the change in context.** For every hunk, read the enclosing function
    or section, and grep the callers of every changed function. Done when every
    changed file has been opened.
-4. **Run the checks.** Always `npm run check`. When `apps/api` changed:
+4. **Run the checks.** Always `npm run check`, and for a PR, `gh pr checks <n>`
+   to read the GitHub status checks. When `apps/api` changed:
    `python -m pytest apps/api -q`. When `apps/web` changed: `npm run test:epoch`,
    `npm run test:ui`, `npm run test:voice`, and `npm run build`, each with
    `--prefix apps/web`. Done when each command has a recorded result: pass,
@@ -75,7 +76,8 @@ kind and found none.
   at least 7.
 - **REVISE:** anything else. List what must change to pass.
 
-These are a REVISE whatever the average: a failing required check; a
+These are a REVISE whatever the average: a failing step 4 command or failing
+required GitHub status check; a
 security or honesty finding that causes a concrete failure (a secret or
 egress exposed, an invariant broken, a tick or status claim the evidence
 does not support); and a missing both-maintainer approval from step 6.

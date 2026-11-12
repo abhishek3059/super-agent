@@ -94,5 +94,5 @@ documentation-only changes.
 
 ## Merge decision
 
-- [ ] The shared reviewer verdict above is PASS. Human review is optional ([DEC-19](../descisions.md#dec-19)).
+- [ ] The shared reviewer verdict above is PASS. Human review is optional for PRs into `develop`; a release into `main` needs a human approval ([DEC-19](../descisions.md#dec-19)).
 - Maintainer who decides the merge / date: <!-- GitHub handle and date -->
