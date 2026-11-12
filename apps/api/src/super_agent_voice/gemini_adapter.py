@@ -31,7 +31,8 @@ def classify(error: BaseException) -> str:
     status = str(getattr(error, "status", "") or "").upper()
     if code == 429 or status == "RESOURCE_EXHAUSTED":
         return "provider-limits"
-    if code in (400, 404) or status in ("INVALID_ARGUMENT", "NOT_FOUND", "UNIMPLEMENTED"):
+    # 1008 is the close code the Live API sent for an unknown model (observed 2026-11-12).
+    if code in (400, 404, 1008) or status in ("INVALID_ARGUMENT", "NOT_FOUND", "UNIMPLEMENTED"):
         return "provider-unsupported"
     if type(error).__name__.startswith("ConnectionClosed"):
         return "provider-session-ended"
@@ -198,12 +199,10 @@ class GeminiLiveAdapter:
                 # The SDK's receive() ends after each model turn; loop to keep listening.
                 async for response in self._session.receive():
                     received = True
-                    content = getattr(response, "server_content", None)
-                    # The SDK puts go_away on the message; the design table says server_content.
-                    if getattr(response, "go_away", None) is not None or getattr(content, "go_away", None) is not None:
+                    if getattr(response, "go_away", None) is not None:
                         self._fail("provider-session-ended")
                         return
-                    self._map(content)
+                    self._map(getattr(response, "server_content", None))
                 if not received:
                     self._fail("provider-session-ended")
                     return

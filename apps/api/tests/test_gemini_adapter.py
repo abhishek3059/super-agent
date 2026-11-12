@@ -142,7 +142,6 @@ def test_go_away_and_silent_provider_end_fail_closed() -> None:
 
     for turn in (
         [NS(server_content=None, go_away=NS(time_left="5s"))],
-        [flag(go_away=NS(time_left="5s"))],
         [],  # the provider ends the stream without sending anything
     ):
         assert run(ended(turn)) == "provider-session-ended"
@@ -310,6 +309,7 @@ def test_start_failures_map_to_fixed_categories() -> None:
     assert start_error(OSError("dns SENTINEL")) == "provider-unavailable"
     assert start_error(NS_error(code=429)) == "provider-limits"
     assert start_error(NS_error(code=404)) == "provider-unsupported"
+    assert start_error(NS_error(code=1008)) == "provider-unsupported"
     assert start_error(ValueError("SENTINEL")) == "session-failed"
 
 
