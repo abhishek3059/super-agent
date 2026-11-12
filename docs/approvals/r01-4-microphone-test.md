@@ -8,7 +8,7 @@
 | Tested commit | `a790530` on `feat/ph-01-gemini-live` |
 | Adapter under test | The offline fake adapter (echo). Gemini was not involved. |
 | macOS | 27.2 |
-| Browser, version, microphone device | Not stated by the tester; not recorded |
+| Browser, version, microphone device | Google Chrome (version not stated), with headphones as the audio device (model not stated) |
 | Provider key | The count of `GEMINI` variables in the backend shell was `0`, checked by the agent before the backend started. The backend log shows only local connections. |
 | Result | **PASS for the R-01.4 scope** (start, mute, conversational barge-in, stop). One observation on the manual Stop playback button, below. |
 
@@ -16,8 +16,16 @@
 
 `jeevesh2515` ran all nine handover steps twice and reported, in chat, that
 every feature worked as expected except one: pressing **Stop playback**
-(step 6) gave no visible or audible response. No per-step notes, error text,
-or timings were supplied, so none are recorded here. The terminal 1 log for
+(step 6) gave no visible or audible response.
+
+In the tester's words, summarized: the test ran in Chrome with headphones
+on. Their own voice came back live in the headphones, loud and clear. Other
+voices in the room were also picked up and played back. While the tester was
+quiet, the session only listened and the level meter looked fine. The tester
+judged listening and detection to be perfect.
+
+No per-step notes, error text, or timings were supplied, so none are
+recorded here. The terminal 1 log for
 the session shows three accepted local WebSocket connections and no
 traceback.
 
