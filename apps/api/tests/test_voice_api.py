@@ -358,6 +358,7 @@ def test_adapter_never_created_without_valid_auth() -> None:
         "[]",
         '"text"',
         '{"type": "capture.mute"}',
+        '{"type": "capture.mute", "token": "%s"}' % TOKEN,
         '{"type": "session.auth"}',
         '{"type": "session.auth", "token": null}',
         '{"type": "session.auth", "token": 40}',
@@ -1348,10 +1349,11 @@ def test_auth_count_settings_fail_closed(field: str, bad: object) -> None:
 def test_tokens_never_appear_in_logs_output_or_client_messages(caplog, capsys) -> None:
     secret = "k7Qx9ZpLmN2vB4cD8fGh3JsRtW6yAe1U"
     attempted = "w3Rx0NgLq8Zv5Tb1Mc7Kd9Hy2Pa6SeUj"
+    client = make_client(config=VoiceConfig(local_token=secret))  # create_app refuses DEBUG logging
     caplog.set_level(logging.DEBUG)
     logging.getLogger().setLevel(logging.DEBUG)
     seen: list[str] = []
-    with make_client(config=VoiceConfig(local_token=secret)) as client:
+    with client:
         with connect(client) as websocket:
             wrong_auth(websocket, attempted)
             with pytest.raises(WebSocketDisconnect) as closed:
@@ -1366,3 +1368,23 @@ def test_tokens_never_appear_in_logs_output_or_client_messages(caplog, capsys) -
     haystack = "\n".join([caplog.text, output.out, output.err, *seen])
     assert caplog.records  # the log capture is live, so absence below means something
     assert secret not in haystack and attempted not in haystack
+
+
+@pytest.mark.parametrize("logger_name", ["uvicorn.error", "websockets"])
+def test_debug_logging_stops_startup(logger_name: str, caplog) -> None:
+    caplog.set_level(logging.DEBUG, logger=logger_name)
+    with pytest.raises(RuntimeError, match="would record the session token"):
+        create_app(VoiceConfig(local_token=TOKEN), FakeVoiceAdapter)
+
+
+def test_token_file_symlink_is_refused(monkeypatch, tmp_path) -> None:
+    real = tmp_path / "real"
+    real.write_text("abcdefghijklmnopqrstuvwxyz0123456789ABCDEF")
+    real.chmod(0o600)
+    link = tmp_path / "voice-token"
+    link.symlink_to(real)
+    monkeypatch.delenv("SUPER_AGENT_LOCAL_TOKEN", raising=False)
+    monkeypatch.setattr(config_module, "TOKEN_FILE", link)
+    if os.name == "posix":
+        with pytest.raises(RuntimeError, match="regular|mode 0600"):
+            VoiceConfig.from_environment()

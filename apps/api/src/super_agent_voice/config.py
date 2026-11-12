@@ -76,7 +76,7 @@ class VoiceConfig:
 
 def _read_token_file() -> str:
     try:
-        status = TOKEN_FILE.stat()
+        status = TOKEN_FILE.lstat()  # a symlink is refused: S_ISREG is false for it
     except OSError:
         return ""
     # Mode and owner are not meaningful on Windows; the ACL check is review item N2.

@@ -462,10 +462,12 @@ Session credential:
   at most 5 seconds and does not hold the single active-session slot, so
   unauthenticated clients cannot starve the user. Pre-auth connections are
   capped separately (provisional: 4 at once).
-- **A failed attempt is closed immediately** and never held open during its
-  delay; the delay is enforced by refusing or deferring that source's next
-  attempt. Failed attempts therefore cannot fill the pre-auth cap and lock the
-  user out (review N1, tested in R-01.6).
+- **A failed attempt releases its pre-auth place before any delay** (review N1,
+  tested in R-01.6). Past the throttle threshold the rejected socket is held
+  open for the delay and then closed, in a separate pool of at most 8
+  (`max_delayed_rejections`); beyond that pool it is closed at once. A held
+  socket therefore cannot fill the pre-auth cap and lock the user out. (This
+  replaces the earlier wording that failed attempts close immediately.)
 
 Failed-auth throttling (CR-01):
 
@@ -522,11 +524,15 @@ Implementation conditions from the review (tested in R-01.6):
 
 - CR-06: implemented 2026-11-12. Authentication runs before the session slot
   is taken. Unauthenticated sockets have their own cap
-  (`max_pre_auth_connections`, 4). A residual window remains: a local process
-  can keep the 4 pre-auth places busy by reopening each every 5 seconds
-  (`auth_timeout_seconds`), and the real user then gets 1013 at connect.
-  Loopback has no per-source key, so only a shorter pre-auth timeout or the
-  cookie flow would narrow it.
+  (`max_pre_auth_connections`, 4). **Not solved:** a local process that forges
+  the Origin header can hold all 4 places by reopening idle sockets, and the
+  real user then gets 1013 for as long as it runs. The security review measured
+  0 successful logins in 30 seconds against 4 such sockets at about 0.8
+  connections per second. A shorter `auth_timeout_seconds` does not help.
+  Accepted for a single-user loopback development path; it must be fixed before
+  any multi-user or always-on host, for example by authenticating during the
+  handshake (the cookie flow, or a token in `Sec-WebSocket-Protocol` checked
+  before accept).
 - CR-08: implemented 2026-11-12. The token is compared as UTF-8 bytes, a lone
   surrogate in the JSON is a failed attempt, and no type or decode problem can
   raise out of the check.

@@ -31,7 +31,7 @@ python3 -m venv /tmp/sa-venv
 /tmp/sa-venv/bin/python -m pip install --only-binary=:all: -r apps/api/requirements.lock
 PYTHONPATH=apps/api/src /tmp/sa-venv/bin/python -m super_agent_voice.generate_token
 env | grep -c GEMINI                            # expect 0
-PYTHONPATH=apps/api/src /tmp/sa-venv/bin/python -m uvicorn super_agent_voice.app:create_app --factory --host 127.0.0.1 --port 8000
+PYTHONPATH=apps/api/src /tmp/sa-venv/bin/python -m uvicorn super_agent_voice.app:create_app --factory --host 127.0.0.1 --port 8000 --ws-max-size 65600 --ws-max-queue 4
 ```
 
 `generate_token` writes `~/.super-agent/voice-token` with mode 0600 and prints

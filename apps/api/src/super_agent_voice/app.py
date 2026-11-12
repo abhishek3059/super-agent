@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import hmac
 import json
+import logging
 import math
 import threading
 import time
@@ -173,6 +174,11 @@ def create_app(
         _validated_positive(name, getattr(settings, name))
     for name in ("max_pre_auth_connections", "auth_failure_threshold", "max_delayed_rejections"):
         _validated_positive(name, getattr(settings, name), integer=True)
+    # Frame logging at DEBUG would write the token from the first message
+    # (REQ-12). Refuse to start instead of relying on a log filter.
+    for name in ("uvicorn.error", "websockets"):
+        if logging.getLogger(name).isEnabledFor(logging.DEBUG):
+            raise RuntimeError("debug logging would record the session token; use --log-level info")
     gate = SessionGate(settings.max_active_sessions)
     auth = _AuthControl(settings)
     # Strong references to one residual supervisor per quarantined session

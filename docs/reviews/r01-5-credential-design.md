@@ -82,7 +82,7 @@ reviewer on 2026-11-10.
 | CR-04 cookie flow | Resolved in design; remaining details carried as N3 |
 | CR-05 expiry | Resolved: mandatory, default 24 hours from process start, bad values stop startup |
 | CR-06 pre-auth slot hold | Carried as an implementation condition with a test |
-| CR-07 token in page memory | Resolved: strict CSP required, token zeroed after first message |
+| CR-07 token in page memory | Resolved in design: strict CSP required, token zeroed after first message. *Implementation note 2026-11-12: the CSP was not present until R-01.6; see the [R-01.6 review](r01-6-security-review.md).* |
 | CR-08 `str` compare | Carried as an implementation condition with a test |
 | CR-09 weak token accepted | Carried as an implementation condition with a test |
 
@@ -90,7 +90,7 @@ New issues raised on the second pass:
 
 | Finding | Severity | Final status |
 | --- | --- | --- |
-| N1 pre-auth cap could be filled by failed attempts held during their delay | MEDIUM | Resolved: failed attempts close immediately; the delay applies to the next attempt; test added |
+| N1 pre-auth cap could be filled by failed attempts held during their delay | MEDIUM | Resolved: a failed attempt releases its pre-auth place before any delay; test added. *Implementation note 2026-11-12: rejected sockets are held open for the delay in a pool of 8, not closed immediately.* |
 | N2 0600 file does not cover Windows | MEDIUM | Resolved: Windows owner-only ACL or Credential Manager; ACL check added |
 | N3 cookie session id expiry, enrollment Origin, enrollment after token expiry | LOW | Carried as an implementation condition |
 | N4 Host allowlist differed from section 9 and the code | LOW | Resolved: one exact Host, `127.0.0.1:<port>` |
