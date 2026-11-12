@@ -93,7 +93,7 @@ documentation-only changes.
 
 <!-- How can this change be reverted safely? -->
 
-## Human approval
+## Merge decision
 
-- [ ] This change requires human review before merge.
-- Approver / date: <!-- GitHub handle and date -->
+- [ ] The shared reviewer verdict above is PASS. Human review is optional ([DEC-19](../descisions.md#dec-19)).
+- Maintainer who decides the merge / date: <!-- GitHub handle and date -->
