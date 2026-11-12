@@ -6,7 +6,7 @@
 | Design | [Voice-foundation design](../design/voice-foundation.md) |
 | Review | [Initial review and correction disposition](../reviews/voice-foundation-scaffold.md) |
 | Delivery | Design PR #12 merged; implementation PR #13 merged into `develop` and also carries the later maintainer-confirmation record |
-| Status | Offline scaffold merged in PR #13. Hosted voice workflow green on Windows and macOS. Microphone observations are partial and inconclusive; manual macOS evidence is pending. No Gemini adapter. RT-G00 is resolved; RT-G01 remains open. |
+| Status | Offline scaffold merged in PR #13. Later PH-01 work added the local streaming boundary and a separate Gemini adapter/live check; the browser still constructs only the fake. R-01.4 and RT-G01 remain open. |
 
 ## Implemented scope
 
@@ -40,11 +40,11 @@ are predominantly permissive; `lightningcss` is MPL-2.0 and `caniuse-lite`
 data is CC-BY-4.0. No non-commercial or custom license was found. This is
 metadata review, not independent legal advice.
 
-## Evidence status
+## PR #13 evidence status
 
-Windows backend tests, Angular build, dependency audits, repository checks, and
-manual browser behavior are recorded only after execution. macOS and personal
-microphone evidence remain pending. No cloud test is authorized here.
+This table preserves the evidence available for the original PR #13 increment.
+Later evidence is recorded in the linked PH-01 implementation records. No cloud
+test was authorized by PR #13.
 
 | Check | Result |
 | --- | --- |
@@ -65,7 +65,7 @@ microphone evidence remain pending. No cloud test is authorized here.
 | Gemini/provider test | Not run and not included |
 | Manual macOS execution | Not run; Jeevesh accepted the task. Hosted macOS CI passed. |
 
-## Current status (2026-11-11)
+## Current status (2026-11-12)
 
 The [local fake streaming upgrade](voice-streaming-slice.md) is implemented for
 PR #24 and passes its final code review. The earlier command results above are
@@ -76,11 +76,13 @@ historical scaffold evidence, not results for the streaming rewrite.
   reported `speaking` while silent and working buttons, but did not confirm
   microphone input or conversational barge-in. See the
   [observation record and unapproved next-step proposal](r01-4-microphone-observations.md).
-- Manual macOS execution: evidence and owner confirmation submitted in
+- Manual macOS execution: evidence and owner confirmation merged in
   [PR #25](https://github.com/abhishek3059/super-agent/pull/25) for the old scaffold
-  at `4f51e00`; incorporation and roadmap disposition remain pending.
-- Gemini Live adapter: **not implemented** (R-01.7).
-- Opt-in synthetic live command and test: **not implemented and not run** (R-01.8, R-01.9).
+  at `4f51e00`; R-01.3 is ticked, but that evidence does not cover the rewrite.
+- Gemini Live adapter: implemented behind the seam and ticked as R-01.7; the
+  browser application does not construct it.
+- Opt-in synthetic live command and test: implemented and run once against the
+  real service with synthetic speech; R-01.8 and R-01.9 are ticked.
 - Repository check: **pass** on PR #21; see the PR checks for current counts.
 - Runtime gate: RT-G00 is resolved for the bounded PH-01 scope. RT-G01 and all
   later gates remain open.

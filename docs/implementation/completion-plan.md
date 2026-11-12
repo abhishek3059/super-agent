@@ -3,11 +3,16 @@
 | Field | Value |
 | --- | --- |
 | Date | 2026-11-11 |
-| Status | Planning record. Ticks nothing, closes no gate, adds no roadmap item. [roadmap.md](../../roadmap.md) stays the checklist of record. |
-| Baseline | `docs/ph-00-close` at `49a9f3f` (open [PR 24](https://github.com/abhishek3059/super-agent/pull/24)) |
+| Status | Historical planning snapshot. Superseded by merged PRs #24 and #32. Ticks nothing and closes no gate; [roadmap.md](../../roadmap.md) is current. |
+| Baseline | `docs/ph-00-close` at `49a9f3f`, when [PR 24](https://github.com/abhishek3059/super-agent/pull/24) was open |
 | Hand-off prompt | [fable-handoff-prompt.md](fable-handoff-prompt.md) |
 
-## 1. Branch and PR map (verified 2026-11-11)
+At `develop` `651e33c`, PRs #24, #31, and #32 are merged. R-01.3, R-01.5,
+R-01.F1, and R-01.6 through R-01.9 are complete. R-01.4 and R-01.10 remain.
+The sections below preserve the 2026-11-11 baseline rather than rewriting its
+historical reasoning.
+
+## 1. Branch and PR map at the 2026-11-11 baseline
 
 - `docs/ph-00-close` is the most complete line: 22 commits ahead of
   `develop`, nothing behind. It carries the local streaming slice and merged
@@ -25,7 +30,7 @@ Local test run on `49a9f3f` (macOS, Python 3.14.5, Node 22.22.3):
 `npm run check` 0 errors; `python -m pytest apps/api` 66 passed;
 `npm run test:epoch` 8 cases PASS; `npm run test:voice` 39 cases PASS.
 
-## 2. Status by phase
+## 2. Status by phase at the baseline
 
 | Phase | Status | Remaining |
 | --- | --- | --- |
@@ -47,7 +52,7 @@ Evidence that exists but is not ticked:
 - R-01.F1: code in `apps/web/src/app/voice-session.service.ts` and
   `audio-signal.ts` with the 39-case self-test.
 
-## 3. Gaps and contradictions to fix
+## 3. Gaps at the baseline
 
 1. `config.py` checks token length only; review finding CR-09 (low-entropy
    tokens accepted) and the CR-02 token generator are still open in code.
@@ -118,7 +123,7 @@ Sources: <https://aistudio.google.com/docs/pricing>,
 <https://docs.oracle.com/iaas/Content/FreeTier/resourceref.htm>,
 <https://tailscale.com/pricing>.
 
-## 6. Recommended order to finish
+## 6. Recommended order at the baseline
 
 1. Merge PR 24 into `develop` (code-owner review), then tick R-01.3, R-01.5,
    R-01.F1 with their evidence.

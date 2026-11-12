@@ -6,6 +6,7 @@
     "build": "ng build",
     "start": "ng serve --host 127.0.0.1 --port 4200",
     "test:epoch": "node scripts/selftest-playback-epoch.mjs",
+    "test:ui": "node scripts/selftest-voice-ui.mjs",
     "test:voice": "node scripts/selftest-voice-session.mjs"
   },
   "dependencies": {

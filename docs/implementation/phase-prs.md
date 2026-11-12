@@ -16,17 +16,18 @@ this file is a status pointer, not evidence and not a gate.
 - Use a follow-up PR only when the evidence can exist only after merge or when
   the operator explicitly requests one.
 
-## Current phase PR
+## Current phase PR status
 
 | Field | Value |
 | --- | --- |
 | Phase | PH-01: local boundary and native voice connection |
-| PR | [#32](https://github.com/abhishek3059/super-agent/pull/32) |
-| Branch | `feat/ph-01-gemini-live` |
-| Status | open, targets `develop`; awaits hosted CI and code-owner review |
-| Application state | The application uses only the offline fake adapter. A Gemini Live adapter exists behind the seam; the application never constructs it, but the opt-in `live_check` command ran it once against the real service with synthetic speech ([R-01.7](r01-7-gemini-adapter.md), [R-01.8 and R-01.9](r01-8-live-check.md)). Authentication, throttling, expiry, and a CSP are in place and independently reviewed ([R-01.6](../reviews/r01-6-security-review.md)). |
-| Scope | Ticks for R-01.3, R-01.5, and R-01.F1; credential findings CR-09 and CR-02; R-01.6 auth boundary; R-01.7 adapter port; R-01.8 and R-01.9 live check |
-| Not in scope | Personal microphone audio to Gemini, the `google-genai` dependency, tools, workers, external actions, paid services, or public deployment |
+| PR | [#34](https://github.com/abhishek3059/super-agent/pull/34) is open for review; [#32](https://github.com/abhishek3059/super-agent/pull/32) is the latest merged phase PR |
+| Branch | `fix/ph-01-scaffold-readiness` at `03e4608`, based on `develop` at `651e33c` |
+| Status | #34 opened on 2026-11-12; PH-01 remains in progress |
+| Application state | The browser console is the reference-led live voice interface and uses only the offline fake adapter. The token stays in memory, the endpoint is fixed to the reviewed loopback address, and the spectrum is labeled as microphone level, not speech detection. A Gemini Live adapter exists behind the seam; the application never constructs it, but the opt-in `live_check` command ran it once against the real service with synthetic speech ([R-01.7](r01-7-gemini-adapter.md), [R-01.8 and R-01.9](r01-8-live-check.md)). Authentication, throttling, expiry, and a CSP are in place and independently reviewed ([R-01.6](../reviews/r01-6-security-review.md)). |
+| Merged scope (#32) | Ticks for R-01.3, R-01.5, and R-01.F1; credential findings CR-09 and CR-02; R-01.6 auth boundary; R-01.7 adapter port; locked `google-genai`; R-01.8 and R-01.9 live check |
+| Open scope (#34) | Reference-led live voice UI and UI self-test; Windows launcher; R-01.F2 Windows-portable symlink test; R-01.F3 Origin diagnostic; reconciled PH-01 status and microphone handoff |
+| Not in scope | Personal microphone audio to Gemini, tools, workers, external actions, paid services, or public deployment |
 | After merge | PH-01 remains in progress until R-01.4 and R-01.10 have evidence. |
 
 The previous work bundle, [#24](https://github.com/abhishek3059/super-agent/pull/24),
@@ -71,25 +72,20 @@ keep one PR per phase.
 | [#21](https://github.com/abhishek3059/super-agent/pull/21) | `PH-00: consolidate setup evidence and document voice state` | merged | Setup decisions and current-state documentation. |
 | [#22](https://github.com/abhishek3059/super-agent/pull/22) | `PH-01: design real Gemini voice console` | merged | Design only. It did not start PH-01 implementation. |
 | [#23](https://github.com/abhishek3059/super-agent/pull/23) | `PH-00: resolve RT-G00` | merged | RT-G00 resolution and merged-evidence ticks. |
-| [#24](https://github.com/abhishek3059/super-agent/pull/24) | `PH-01: close PH-00 and build real voice console` | open, review pending | Single branch and PR for the approved PH-01 work bundle. Targets `develop`; all four checks pass. A code-owner approval is required before merge. |
-| [#25](https://github.com/abhishek3059/super-agent/pull/25) | `docs(ph-01): record R-01.3 macOS offline evidence` | merged | Merged into this branch as `67649aa`. R-01.3 macOS evidence covers the old scaffold at `4f51e00`; the roadmap tick awaits the PH-01 owner. |
+| [#24](https://github.com/abhishek3059/super-agent/pull/24) | `PH-01: close PH-00 and build real voice console` | merged | Merged into `develop` as `7f45b17` on 2026-11-11. |
+| [#25](https://github.com/abhishek3059/super-agent/pull/25) | `docs(ph-01): record R-01.3 macOS offline evidence` | merged | R-01.3 is ticked. Its Mac evidence covers the old scaffold at `4f51e00`, not the later streaming code. |
 | [#26](https://github.com/abhishek3059/super-agent/pull/26) | `fix(ci): run voice CI on Python 3.14` | merged | Merged into `develop` as `f44051c`. Moves voice CI to Python 3.14. |
 | [#27](https://github.com/abhishek3059/super-agent/pull/27) | `docs(roadmap): record approved PH-01 order and add fix item R-01.F1` | merged | Merged as `2849361`; the rebased branch carries the same content in `9092bd0`. Records the approved PH-01 order and R-01.F1. Abhishek's approval is recorded in the sequencing record. |
-| [#28](https://github.com/abhishek3059/super-agent/pull/28) | `docs(ph-01): independent R-01.5 credential review and design 2.1` | merged | Merged into this branch as `aa9b0b3`. R-01.5 design 2.1 and independent ACCEPT review; the roadmap tick awaits the PH-01 owner. |
-| [#29](https://github.com/abhishek3059/super-agent/pull/29) | `feat(voice): streaming seam and offline-tested Gemini Live adapter (R-01.7)` | closed | Competing streaming seam plus a Gemini Live adapter. Not merged. The adapter still needs porting onto this branch's seam. |
+| [#28](https://github.com/abhishek3059/super-agent/pull/28) | `docs(ph-01): independent R-01.5 credential review and design 2.1` | merged | R-01.5 is ticked with the merged design review. |
+| [#29](https://github.com/abhishek3059/super-agent/pull/29) | `feat(voice): streaming seam and offline-tested Gemini Live adapter (R-01.7)` | closed | Not merged directly; its adapter was later ported onto the current seam in #32. |
+| [#31](https://github.com/abhishek3059/super-agent/pull/31) | `docs(plan): completion plan, JARVIS architecture, and agent hand-off prompt` | merged | Historical planning snapshot; no gate effect. |
+| [#32](https://github.com/abhishek3059/super-agent/pull/32) | `PH-01: tick evidenced items, token hardening, and Gemini Live adapter (R-01.7)` | merged | Merged as `651e33c`; R-01.3, R-01.5, R-01.F1, and R-01.6 through R-01.9 are ticked. |
 
-## Next phase PR
+## Next PH-01 work
 
-PH-01 is the current phase on this branch. Its Revision 2 design merged in PR
-#22. PR #24 now targets `develop`. PRs #25, #27, and #28 are merged into this
-branch, and #26 is merged into `develop`; #29 is closed without merge. R-01.3
-manual macOS evidence was run on 2026-11-10 and passed
-([evidence record](../approvals/r01-3-macos-evidence.md), merged with PR #25);
-it awaits the PH-01 owner's tick. It tested the earlier scaffold at `4f51e00`,
-not the streaming implementation, so it does not validate that code. The R-01.5
-design and independent review are merged with PR #28 and also await the owner's
-tick. R-01.7 remains open: the Gemini Live adapter from #29 must be ported onto
-this branch's seam. R-01.F1 and R-01.4 follow the roadmap order.
+PRs #24 and #32 are merged. R-01.3, R-01.5, R-01.F1, and R-01.6 through
+R-01.9 are ticked. R-01.4, the human local-only microphone test, is next;
+R-01.10 follows it. No open successor phase PR is identified in this snapshot.
 
 ### Open-PR inspection (2026-11-10, historical)
 

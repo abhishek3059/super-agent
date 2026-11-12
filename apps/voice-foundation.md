@@ -1,7 +1,8 @@
 # Voice foundation scaffold
 
-This is an offline scaffold. It uses a deterministic local adapter that echoes
-PCM audio. It does not use Gemini, persist audio, or provide tools or actions.
+The browser console is a local-only scaffold. It uses a deterministic adapter
+that echoes PCM audio. It does not construct the separate Gemini adapter,
+persist audio, or provide tools or actions.
 
 ## Current state (2026-11-12)
 
@@ -37,6 +38,20 @@ with mode 0600 by the generator below. Do not create a project `.env` file and
 do not type the token into a shell command. On Windows the file relies on the
 profile directory's ACL; an explicit owner-only ACL is not implemented yet.
 
+### Windows: start both services
+
+From any PowerShell working directory, call the launcher by its path. It uses
+its own location to find the repository, installs the locked dependencies,
+creates a fresh local token, starts the backend, waits for its health check,
+and then runs the frontend. `Ctrl+C` stops both services.
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\start-voice-windows.ps1
+```
+
+When calling it outside the repository, replace the relative path with the
+full path to the script. The manual commands below remain useful for diagnosis.
+
 ```powershell
 $voiceVenv = Join-Path $env:LOCALAPPDATA "Temp\super-agent-voice-venv"
 python -m venv $voiceVenv
@@ -55,12 +70,21 @@ npm ci --ignore-scripts --prefix apps/web
 npm start --prefix apps/web
 ```
 
-Open `http://127.0.0.1:4200`, paste the contents of the token file into the in-memory
-field, and select **Start**. Browser permission is requested only then.
+Open exactly `http://127.0.0.1:4200`, select the blue start control or settings
+button, paste the token into the in-memory connection dialog, and select
+**Connect locally**. Do not use `localhost`: the page loads through that alias,
+but the reviewed backend Origin policy rejects its session. Browser permission
+is requested only after the backend authenticates the session.
+
+The browser UI follows the [live voice interface design](../docs/design/live-voice-interface.md).
+It keeps the token in memory only, fixes the WebSocket endpoint to the reviewed
+loopback address, and maps its colors and labels to real session state. The
+copied standalone reference is a design artifact only; its simulated research
+states, browser token persistence, and external assets are not used.
 
 The current browser audio processor is a scaffold seam, not accepted audio
-quality. Mute suppresses outbound PCM. The microphone meter is an input level
-meter, not speech detection and not voice activity detection. A loud input
+quality. Mute suppresses outbound PCM. The spectrum is an input-level display,
+not speech detection and not voice activity detection. A loud input
 while model audio plays barges in automatically and advances the backend
 playback epoch; the separate **Stop playback** button is a manual fallback.
 Stopping (or any redacted error) stops the microphone tracks and closes or
@@ -78,6 +102,7 @@ a listening state.
 ```powershell
 & "$voiceVenv\Scripts\python" -m pytest apps\api
 npm run test:epoch --prefix apps/web
+npm run test:ui --prefix apps/web
 npm run test:voice --prefix apps/web
 npm run build --prefix apps/web
 npm audit --prefix apps/web
@@ -100,6 +125,11 @@ deferred resume keeping speaking after the resume, and invalid metadata,
 odd, oversized, untagged, and malformed payloads. No microphone, provider
 call, or key is involved.
 
-Jeevesh confirmed the cycle and accepted Mac test responsibility. Manual Mac
-execution and microphone evidence are still pending. No personal microphone
-audio may be forwarded to a cloud provider in this cycle.
+`npm run test:ui` covers the status labels, timer formatting, and spectrum
+mapping used by the live voice interface. `npm run test:epoch` keeps the 8
+focused playback-epoch cases separate.
+
+The R-01.3 Mac offline check is complete, although it covered the earlier
+scaffold at `4f51e00`. The revised-scaffold human microphone test, R-01.4, is
+still pending. No personal microphone audio may be forwarded to a cloud
+provider in this cycle.

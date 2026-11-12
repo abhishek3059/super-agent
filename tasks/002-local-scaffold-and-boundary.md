@@ -4,27 +4,30 @@
 | --- | --- |
 | Task ID | RT-002 |
 | Status | in progress; local streaming boundary slice, not accepted |
-| Execution evidence | [Streaming implementation record](../docs/implementation/voice-streaming-slice.md); [operator direction](../docs/approvals/ph-01-current-phase-work.md) |
+| Execution evidence | [Streaming implementation record](../docs/implementation/voice-streaming-slice.md); [credential review](../docs/reviews/r01-5-credential-design.md); [implemented-boundary security review](../docs/reviews/r01-6-security-review.md) |
 
 ## Scope
 
-Current status (2026-11-11): the offline scaffold already exists. The operator
-assigned the local streaming-boundary upgrade within PH-01. Its local fake
-implementation and code review are complete. Development
-commands are runnable as documented in [apps/voice-foundation.md](../apps/voice-foundation.md),
-but this task is not accepted and no native provider connection is delivered.
-The original scope and acceptance language below define the obligation; they
-must not be read as today's application-state report.
+Current status (2026-11-12): the local fake streaming boundary is implemented
+and reviewed. Authentication, throttling, expiry, Host/Origin checks, CSP, and
+bounded teardown exist. A Gemini adapter and standalone synthetic live check
+also exist, but the browser console still constructs only the fake adapter.
+Development commands are in [apps/voice-foundation.md](../apps/voice-foundation.md).
+This task remains unaccepted until RT-002/RT-003 and RT-G01 are completed.
 
-After a new implementation request only: minimal reviewed local scaffold, exact dependency/command contract, device/session authentication and loopback HTTP/WS/CSRF boundary, without voice capture yet.
+## Original obligation
+
+Minimal reviewed local scaffold, exact dependency/command contract,
+device/session authentication, and loopback HTTP/WS/CSRF boundary.
 
 ## Non-goals
 
-No voice capture, runtime action, or implementation beyond the reviewed local scaffold boundary; future commands remain proposed/non-runnable.
+No tools, task workers, external actions, public deployment, or silent provider
+fallback. Local browser capture exists; personal microphone audio stays local.
 
-## Future owner
+## Owner
 
-Implementation owner after separate scaffold authority granted.
+PH-01 implementation owner under the recorded runtime authorization.
 
 ## Prerequisites
 
@@ -36,13 +39,14 @@ Separate scaffold authority, reviewed local scaffold contract, device/session au
 
 ## Deliverable
 
-Minimal reviewed local scaffold with exact dependency/command contract and device/session authentication and loopback HTTP/WS/CSRF boundary; no voice capture yet.
+Minimal reviewed local scaffold with exact dependency/command contract and
+device/session authentication and loopback HTTP/WS/CSRF boundary.
 
 ## Acceptance
 
-- After a new implementation request only: minimal reviewed local scaffold, exact dependency/command contract, device/session authentication and loopback HTTP/WS/CSRF boundary delivered without voice capture yet; no current build command is runnable and future commands remain proposed/non-runnable: [DEC-16](../descisions.md#dec-16).
+- Minimal reviewed local scaffold, exact dependency/command contract, and device/session authentication and loopback HTTP/WS/CSRF boundary delivered under the approved PH-01 authorization: [DEC-16](../descisions.md#dec-16).
 - Unauthenticated clients, hostile/null origins, and incorrect Hosts cannot create sessions or jobs; fail closed: [REQ-11](../prd.md#req-11).
-- Future authentication-design obligation (security assessment LOW-01, tracked as an unimplemented future requirement — not an implemented vulnerability): before any scaffold acceptance, a future design must define — and be independently reviewed for — cryptographically strong/high-entropy device/session credentials, their secure storage, expiry/rotation/revocation, and failed-authentication throttling/rate-limiting; short PIN-only authentication is rejected and online guessing controls are tested. Source: [design-stage security assessment](../docs/security/super-agent.md), finding LOW-01; mirrored in [RT-A05](../prd.md#rt-a05). The exact credential scheme and parameters are deliberately unspecified today and require their own separate design and design-stage security review; this tracking adds no code, no cryptographic algorithm choice, and no security approval.
+- The credential design is reviewed and entropy checks, token generation/file loading, expiry, and throttling are implemented. The Windows owner-only ACL and token-directory limitations remain open as recorded in the [security review](../docs/reviews/r01-6-security-review.md).
 
 ## Failure considerations
 
@@ -53,9 +57,11 @@ does not authorize provider egress or close RT-G01.
 ## Evidence
 
 See the [implementation record](../docs/implementation/voice-streaming-slice.md).
-The local fake slice passes 66 backend tests and final code review at 8.52;
-frontend review remains PASS at 8.8. The task remains in progress pending
-acceptance obligations. No task acceptance or independent security PASS is claimed.
+The local fake slice passed its code reviews. The implemented boundary later
+received an independent ACCEPT WITH CONDITIONS review; its blocking conditions
+were closed, and both maintainers accepted the bounded F2 risk through the
+recorded route. The task remains in progress because RT-002/RT-003 completion
+and RT-G01 are still open.
 
 ## Navigation
 
