@@ -409,5 +409,5 @@ under `docs/design/references/`; its external assets, token persistence,
 configurable endpoint, simulated research states, and future job claims are not
 used by the application. Verification on Windows: UI-state self-test 24 cases,
 voice-session self-test 39 cases, playback-epoch self-test 8 cases, production
-build 159.43 kB initial total, frontend audit 0 vulnerabilities, and repository
+build 159.39 kB initial total, frontend audit 0 vulnerabilities, and repository
 check 0 errors. R-01.4 remains open until the human microphone run is recorded.

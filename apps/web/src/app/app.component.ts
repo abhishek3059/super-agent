@@ -100,10 +100,7 @@ export class AppComponent implements OnDestroy {
     this.sessionStartedAt = performance.now();
     this.elapsedMs.set(0);
     void this.session.start(token);
-    if (token.length >= 32) {
-      this.token = '';
-      this.settingsOpen.set(false);
-    }
+    this.closeSettings();
   }
 
   centerAction(): void {
