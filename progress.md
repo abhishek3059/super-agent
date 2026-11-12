@@ -370,3 +370,10 @@ On branch `feat/ph-01-gemini-live` (PR #32):
   acceptance comes with the PR review.
 - R-01.4 (human microphone test, [steps](docs/implementation/r01-4-microphone-handover.md))
   and R-01.10 remain. RT-G01 is open.
+
+## Capability ladder proposal (2026-11-12)
+
+`jeevesh2515` proposed replacing the flat ban on assistant capabilities with a
+tiered ladder ([DEC-18](descisions.md#dec-18)). It is a proposal until
+`abhishek3059` approves ([record](docs/approvals/capability-ladder-decision.md)).
+It enables no tier and moves no gate. Roadmap track A holds the items.
