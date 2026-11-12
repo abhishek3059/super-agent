@@ -369,4 +369,6 @@ On branch `feat/ph-01-gemini-live` (PR #32):
   ([record](docs/approvals/r01-6-f2-risk-acceptance.md)); `abhishek3059`'s
   acceptance comes with the PR review.
 - R-01.4 (human microphone test, [steps](docs/implementation/r01-4-microphone-handover.md))
-  and R-01.10 remain. RT-G01 is open.
+  passed on 2026-11-12 against the fake adapter, except that the manual Stop
+  playback button gave no visible response ([record](docs/approvals/r01-4-microphone-test.md)).
+  R-01.10 remains. RT-G01 is open.

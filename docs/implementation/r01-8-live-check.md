@@ -7,7 +7,7 @@
 | Operator | `jeevesh2515` |
 | Built and run by | Claude Code (`claude-sonnet-5-5`) on the operator's Mac |
 | Output | [r01-9-live-check-output-20261112T000230Z.txt](evidence/r01-9-live-check-output-20261112T000230Z.txt) |
-| Gate effect | None. RT-G01 stays open (R-01.4, R-01.6, R-01.10 remain). |
+| Gate effect | None. RT-G01 stays open (R-01.10 remains). |
 
 ## The command
 
