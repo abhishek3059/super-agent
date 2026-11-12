@@ -70,7 +70,7 @@ Steering a named job, cancelling that job, stopping speech, stopping microphone 
 
 ### REQ-08
 
-Initial workers are small trusted fixed functions over synthetic data, not arbitrary/generated code, plugins, unrestricted shell, or external actions.
+Initial workers are small trusted fixed functions over synthetic data, not arbitrary/generated code, plugins, unrestricted shell, or external actions. Authority beyond that grows only through the capability ladder in [DEC-18](descisions.md#dec-18): one tier at a time, each with its own approved design. Purchases, money movement, credential handling, and permanent deletion stay disabled.
 
 ### REQ-09
 
@@ -127,7 +127,7 @@ Canonical mapping from the signed design's requirements table (`docs/design/supe
 | [REQ-05](#req-05) | [Brief](docs/delivery/super-agent-brief.md):68-70; [Council](docs/delivery/council.md):192-193 | [DEC-04](descisions.md#dec-04), [DEC-09](descisions.md#dec-09) | [RT-A03](#rt-a03), [RT-A04](#rt-a04) |
 | [REQ-06](#req-06) | [Council](docs/delivery/council.md):44-45, :55-58, :201 | [DEC-09](descisions.md#dec-09) | [RT-A04](#rt-a04) |
 | [REQ-07](#req-07) | [Brief](docs/delivery/super-agent-brief.md):63-65, :82-84 | [DEC-08](descisions.md#dec-08) | [RT-A02](#rt-a02), [RT-A04](#rt-a04) |
-| [REQ-08](#req-08) | [Brief](docs/delivery/super-agent-brief.md):36-37; [Council](docs/delivery/council.md):60-75, :131-135 | [DEC-05](descisions.md#dec-05) | [RT-A03](#rt-a03), [RT-A05](#rt-a05) |
+| [REQ-08](#req-08) | [Brief](docs/delivery/super-agent-brief.md):36-37; [Council](docs/delivery/council.md):60-75, :131-135 | [DEC-05](descisions.md#dec-05), [DEC-18](descisions.md#dec-18) | [RT-A03](#rt-a03), [RT-A05](#rt-a05) |
 | [REQ-09](#req-09) | [Brief](docs/delivery/super-agent-brief.md):73-78; [Council](docs/delivery/council.md):188-189 | [DEC-07](descisions.md#dec-07) | [RT-A05](#rt-a05) |
 | [REQ-10](#req-10) | [Brief](docs/delivery/super-agent-brief.md):71-74; [Council](docs/delivery/council.md):199-205 | [DEC-07](descisions.md#dec-07), [DEC-11](descisions.md#dec-11), [DEC-12](descisions.md#dec-12) | [RT-A05](#rt-a05), [RT-A06](#rt-a06) |
 | [REQ-11](#req-11) | [Council](docs/delivery/council.md):200 | [DEC-11](descisions.md#dec-11) | [RT-A05](#rt-a05) |
