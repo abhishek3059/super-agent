@@ -42,10 +42,12 @@ GitHub; the build writes only gitignored output.
    unverified.
 6. **Check both-maintainer approval.** When the diff makes a change that
    AGENTS.md section 3 lists as needing both maintainers, confirm that both
-   `abhishek3059` and `jeevesh2515` approved: in
-   `gh pr view <n> --json reviews`, or in a record under `docs/approvals/`.
-   Done when each such change is marked approved by both or missing an
-   approval.
+   `abhishek3059` and `jeevesh2515` approved. The PR author's approval is the
+   PR itself. The other maintainer's approval counts only as an approving
+   review in `gh pr view <n> --json reviews`, or as a `docs/approvals/` record
+   that links to that maintainer's own GitHub review or comment; open the
+   link and confirm who wrote it. Done when each such change is marked
+   approved by both or missing an approval.
 7. **Score and decide.** Score each criterion below, then apply the verdict
    rule. Done when the report is written in the format below.
 

@@ -17,5 +17,5 @@
 
 ## Open questions for the maintainers
 
-1. Should `main` keep a required human review for release PRs?
+1. This proposal keeps a required human review on `main` for release PRs. Should releases move to the shared reviewer later?
 2. Should the reviewer's model be revisited when a newer Opus model ships?

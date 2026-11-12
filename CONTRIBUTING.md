@@ -50,7 +50,7 @@ git switch develop
 git pull origin develop
 gh pr create --base main --head develop --title "release: describe the release"
 
-# Wait for the "Repository checks" CI job and a shared-reviewer PASS, then:
+# Wait for the "Repository checks" CI job, a shared-reviewer PASS, and human approval, then:
 gh pr merge --merge
 ```
 

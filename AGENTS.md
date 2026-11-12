@@ -50,8 +50,9 @@ npm run check
 - Conventional Commits: `type(scope): summary` (enforced by the `commit-msg` hook).
 - Fill in [.github/pull_request_template.md](.github/pull_request_template.md)
   completely, including agent, model, human operator, and quality scores.
-- Merge when the shared reviewer passes (section 9), the required checks pass,
-  and a maintainer says to merge. Agents never approve their own PRs or merge
+- Merge into `develop` when the shared reviewer passes (section 9), the
+  required checks pass, and a maintainer says to merge. A release into `main`
+  also needs a human approval. Agents never approve their own PRs or merge
   on their own initiative.
 - These changes need both maintainers: a paid service (section 6), moving a
   gate or phase (section 11 rule 5), a roadmap `[exception: ...]` (roadmap
