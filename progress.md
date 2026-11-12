@@ -418,3 +418,10 @@ check 0 errors. R-01.4 remains open until the human microphone run is recorded.
 tiered ladder ([DEC-18](descisions.md#dec-18)). It is a proposal until
 `abhishek3059` approves ([record](docs/approvals/capability-ladder-decision.md)).
 It enables no tier and moves no gate. Roadmap track A holds the items.
+
+## DEC-18 approved (2026-11-12)
+
+`abhishek3059` approved DEC-18 in a [PR #35 review](https://github.com/abhishek3059/super-agent/pull/35#pullrequestreview-5878510644), and PR #35
+merged into `develop` as `4dbb5b0`. R-A.1 is ticked with the updated
+[approval record](docs/approvals/capability-ladder-decision.md). No tier is
+enabled and no gate moves. R-A.2, the cloud data and cost decision, stays open.

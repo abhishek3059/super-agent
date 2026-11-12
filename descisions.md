@@ -220,7 +220,7 @@ Adopt repository-only automation (Husky hooks and an AI-agent pull-request templ
 
 Replace the blanket ban on assistant capabilities with a capability ladder: authority grows one tier at a time, each tier only after its own approved design.
 
-- **Status:** Proposed 2026-11-12 by `jeevesh2515`. Not in force until `abhishek3059` approves in the PR that carries it ([approval record](docs/approvals/capability-ladder-decision.md)). It authorizes no runtime work by itself.
+- **Status:** Approved by both maintainers 2026-11-12: proposed by `jeevesh2515`, approved by `abhishek3059` in a [PR #35 review](https://github.com/abhishek3059/super-agent/pull/35#pullrequestreview-5878510644) ([approval record](docs/approvals/capability-ladder-decision.md)). In force. It authorizes no runtime work by itself; each tier still needs its own approved design.
 - **Rationale:** The product goal is a personal assistant that talks like a person, advises on productivity, and does day-to-day work for its owner. A fixed-worker-only rule ([REQ-08](prd.md#req-08)) cannot reach that goal. A single switch that opens everything would remove the main defense against prompt injection, which is the main threat to a voice agent that reads email and web pages.
 - **The ladder:**
 
