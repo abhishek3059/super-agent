@@ -4,12 +4,12 @@ Design and planning documentation for a Jarvis-like personal assistant with
 native voice-to-voice conversation, hands-free active-session use, and bounded
 background task delegation.
 
-> **Mostly documentation.** The only application code is an offline voice
-> scaffold in [`apps/`](apps/voice-foundation.md): a local fake streaming adapter with no
-> Gemini, no tools, and no stored audio. The Gemini Live adapter is not
-> implemented; only the fake adapter runs. Two throwaway spikes live in
-> `spikes/`. There is no runnable assistant. RT-G00 is resolved for PH-01;
-> RT-G01 and all later runtime gates remain open.
+> **Mostly documentation.** The runnable application code is a local voice
+> scaffold in [`apps/`](apps/voice-foundation.md). Its browser console constructs
+> only the fake streaming adapter. A Gemini Live adapter and locked SDK exist
+> behind the seam, and an opt-in command has run it with synthetic speech. The
+> browser is not wired to Gemini. There are no tools, workers, stored audio, or
+> complete runnable assistant. RT-G01 and later runtime gates remain open.
 
 ## Start here
 
@@ -20,10 +20,10 @@ background task delegation.
 | [Roadmap](roadmap.md) | The path and checklist of record: phases with tickable items (agents tick with evidence) |
 | [Phases](phases.md) | Milestone plan PH-DOC–PH-07 with entry and exit gates |
 | [Progress](progress.md) | Dated documentation milestone and dispositions |
-| [Build](build.md) | Build position; future commands are proposed and not runnable |
+| [Build](build.md) | Current app-specific commands and the historical repository-root command proposal |
 | [Decisions](descisions.md) | Decision register DEC-01–DEC-17 |
 | [Flows](flow.md) | Ten numbered workflows WF-01–WF-10 |
-| [Tasks](tasks/README.md) | Twelve task records; RT-001 is complete, RT-002 is in progress, and native RT-003 and later tasks are `not started` |
+| [Tasks](tasks/README.md) | Twelve task records; RT-001 is complete, RT-002 and RT-003 are in progress, and RT-004 and later tasks are `not started` |
 | [Council meetings](council%20meetings/README.md) | Three archived deliberation records |
 
 ## Supporting records

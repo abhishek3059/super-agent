@@ -92,7 +92,7 @@ export class VoiceSessionService {
     };
     socket.onerror = () => {
       if (this.socket === socket && this.generation === generation) {
-        this.fail('Local voice connection failed.');
+        this.fail('Cannot connect to the local voice backend. Open http://127.0.0.1:4200 and confirm port 8000 is running.');
       }
     };
     socket.onclose = () => {

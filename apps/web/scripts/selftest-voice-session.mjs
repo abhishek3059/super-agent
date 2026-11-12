@@ -359,6 +359,11 @@ await (async function connectingBeforeReady() {
   await flushed();
   assert.equal(service.status(), 'connecting');
   assert.equal(env.micCalls, 0);
+  socket.fireError();
+  await flushed();
+  assert.equal(service.status(), 'error');
+  assert.equal(service.error(), 'Cannot connect to the local voice backend. Open http://127.0.0.1:4200 and confirm port 8000 is running.');
+  assert.equal(env.micCalls, 0);
 })();
 
 await (async function silentPcmIsNotSpeaking() {

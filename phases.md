@@ -2,13 +2,16 @@
 
 | Field | Value |
 | --- | --- |
-| Date | 2026-11-07 |
-| Revision | 4 |
-| Status | Future phases initially `not started`; documentation milestone separate from measured runtime acceptance |
+| Date | 2026-11-12 |
+| Revision | 5 |
+| Status | PH-DOC and PH-00 done; PH-01 in progress; later phases not started |
 | Revision 2 note | Corrections applied 2026-11-07 for independent review finding R-02 (see [docs/reviews/super-agent.md](docs/reviews/super-agent.md)): entry prerequisites and exit/acceptance gates are now stated separately per phase; no gate is asserted to have passed. |
 | Revision 4 note | Status metadata updated 2026-11-07: actual independent reports now exist at [docs/reviews/super-agent.md](docs/reviews/super-agent.md) (design review, opens PASS for the revision-3 correction set) and [docs/security/super-agent.md](docs/security/super-agent.md) (design-stage security, opens PASS, findings LOW-01 and INFO-01–03, for signed design revision 1 plus that set); see [progress](progress.md). No future-phase gate is claimed passed and no runtime work has started; PH-DOC status is a status-revision clarification, not a final acceptance. |
 
-This document orders future phases and tasks. It is part of the documentation pack and authorizes nothing at runtime. For every phase below, **entry prerequisites** (what must already exist before the phase may begin) are stated separately from **exit/acceptance gates** (the evidence the phase's own work must produce). No status other than the initial `not started` value is asserted.
+This document orders phases and tasks and records their current status. It
+authorizes nothing at runtime. For every phase below, **entry prerequisites**
+(what must already exist before the phase may begin) are separate from
+**exit/acceptance gates** (the evidence the phase's own work must produce).
 
 ## Navigation
 
@@ -35,7 +38,7 @@ Current documentation pack; DOC-001–DOC-012 below.
 
 - **Entry prerequisites:** the signed design and the two delivery sources. No runtime authorization of any kind.
 - **Exit/acceptance gates:** DOC-A01–DOC-A06; the delivery manager's independent design-review and design-stage security assessment dispositions for the assessed revision. Documentation authoring alone does not close the review gate.
-- **Status:** documentation pack authored; the previously assessed revisions hold actual independent design review PASS ([docs/reviews/super-agent.md](docs/reviews/super-agent.md)) and design-stage security PASS ([docs/security/super-agent.md](docs/security/super-agent.md)); this revision-4 status-clarification snapshot awaits its independent re-review and the delivery manager's recorded final acceptance; see [progress](progress.md).
+- **Status:** `done`. The delivery record contains the final documentation-stage acceptance; it certifies no runtime behavior.
 
 Future task links: none.
 
@@ -53,7 +56,7 @@ Task links: [RT-001](tasks/001-runtime-consent-and-feasibility.md).
 
 Separately approved local scaffold/boundary and manually activated native voice connection.
 
-- **Entry prerequisites:** [RT-G00](prd.md#rt-g00) resolved (runtime consent, eligibility, host, task selection, budgets/retention) **and** explicit implementation authorization. The offline scaffold exists through the approved PH-01 exception. The real native provider connection remains phase work.
+- **Entry prerequisites:** [RT-G00](prd.md#rt-g00) resolved (runtime consent, eligibility, host, task selection, budgets/retention) **and** explicit implementation authorization. The offline scaffold exists through the approved PH-01 exception. The Gemini adapter and standalone synthetic live check exist; browser-console provider integration, human microphone evidence, task completion, and RT-G01 acceptance remain phase work.
 - **Exit/acceptance gates:** [RT-002](tasks/002-local-scaffold-and-boundary.md) and [RT-003](tasks/003-native-voice-session.md) complete, and [RT-G01](prd.md#rt-g01) evidenced: actually reviewed scaffold/commands, deployed authentication/Host/Origin/CORS/WS/CSRF controls, backend-only secrets, and measured native media and backend event/control connection with manual activation, stop controls, visible states, and fail-closed transport behavior.
 - **Status:** `in progress`. Revision 2 of the [voice design](docs/design/voice-foundation.md) is merged. The Gemini Live adapter exists behind the seam with offline tests and has run once against the real service with synthetic speech. R-01.4, the human microphone test, is the next unticked roadmap item; R-01.10 is the last.
 
@@ -123,7 +126,7 @@ Task links: [RT-012](tasks/012-private-native-audio-feasibility.md).
 
 | Phase ID | Entry prerequisites | Exit/acceptance gates | Task links | Status |
 | --- | --- | --- | --- | --- |
-| PH-DOC | Signed design + delivery sources. | DOC-A01–DOC-A06; manager-recorded independent review/security dispositions. | None. | Pack authored; earlier assessed revisions hold design review PASS and design-stage security PASS; revision-4 status clarifications pending independent re-review and manager-recorded final acceptance (see [progress](progress.md)). |
+| PH-DOC | Signed design + delivery sources. | DOC-A01–DOC-A06; manager-recorded independent review/security dispositions. | None. | `done` |
 | PH-00 | Separate authorization for feasibility/setup decision work; PH-DOC dispositions. | RT-001 dated setup decision; RT-G00 resolved. | [RT-001](tasks/001-runtime-consent-and-feasibility.md) | `done` |
 | PH-01 | RT-G00 resolved **and** explicit new scaffold authorization. | RT-002 + RT-003 complete; RT-G01 evidenced. | [RT-002](tasks/002-local-scaffold-and-boundary.md), [RT-003](tasks/003-native-voice-session.md) | `in progress` |
 | PH-02 | RT-G01 evidenced. | RT-004 + RT-005 complete; RT-G02 evidenced. | [RT-004](tasks/004-task-ledger-and-policy.md), [RT-005](tasks/005-fixed-sample-workers.md) | `not started` |
@@ -133,10 +136,10 @@ Task links: [RT-012](tasks/012-private-native-audio-feasibility.md).
 | PH-06 (optional) | Separate device/host/security/power consent decision. | RT-011 complete; RT-G05 feasibility/decision evidence. | [RT-011](tasks/011-always-on-and-desktop-feasibility.md) | `not started` |
 | PH-07 (optional) | Separate private-runtime/hardware approval; confirmed candidate OS/hardware. | RT-012 complete; RT-G05 benchmark/denied-egress evidence. | [RT-012](tasks/012-private-native-audio-feasibility.md) | `not started` |
 
-These dependencies match the task-level prerequisites in the signed design (`docs/design/super-agent.md:349-362`): no phase makes its own exit gate a prerequisite, and no phase asserts that a gate has already passed.
+These dependencies match the task-level prerequisites in the signed design (`docs/design/super-agent.md:349-362`): no phase makes its own exit gate a prerequisite. PH-00 records the already-evidenced RT-G00 resolution; no incomplete phase is asserted complete.
 
 ## Milestone separation
 
 The documentation milestone (PH-DOC) is separate from measured runtime acceptance. A signed documentation contract, a completed pack, or development-model permission cannot close any runtime gate.
 
-See [progress](progress.md) for the dated documentation-only milestone and [build](build.md) for the no-runnable-build position.
+See [progress](progress.md) for dated milestones and [build](build.md) for the current distinction between the runnable voice scaffold and the unimplemented full assistant.

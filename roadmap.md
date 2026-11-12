@@ -2,9 +2,9 @@
 
 | Field | Value |
 | --- | --- |
-| Date | 2026-11-11 |
+| Date | 2026-11-12 |
 | Current phase | PH-01 |
-| Current phase PR | [#32 PH-01 ticks, token hardening, and Gemini Live adapter](https://github.com/abhishek3059/super-agent/pull/32) (open work bundle; #24 is merged; details in [phase PR log](docs/implementation/phase-prs.md)) |
+| Current phase PR | [PR #34](https://github.com/abhishek3059/super-agent/pull/34) is open with the live console, Windows launcher, and R-01.F2/F3/F4 evidence; PH-01 remains open with R-01.4 and R-01.10 pending. Details: [phase PR log](docs/implementation/phase-prs.md). |
 | Gate definitions | [phases.md](phases.md) (entry prerequisites and exit gates stay defined there) |
 | Task records | [tasks/](tasks/README.md) |
 | Enforced by | `npm run check` ([scripts/check-roadmap.mjs](scripts/check-roadmap.mjs), form only), code-owner review ([.github/CODEOWNERS](.github/CODEOWNERS)), and [AGENTS.md](AGENTS.md) section 11 |
@@ -72,6 +72,9 @@ Maps to [RT-002](tasks/002-local-scaffold-and-boundary.md), [RT-003](tasks/003-n
 - [x] R-01.5 Credential design written and independently reviewed: high-entropy device or session credentials, storage, expiry, revocation, throttling (RT-A05 obligation). Evidence: [credential design review](docs/reviews/r01-5-credential-design.md)
 - [x] R-01.7 Gemini Live adapter behind the replaceable seam, covered by offline tests with the fake. Evidence: [R-01.7 implementation record](docs/implementation/r01-7-gemini-adapter.md)
 - [x] R-01.F1 Fix the misleading console state found in the [R-01.4 observations](docs/implementation/r01-4-microphone-observations.md): input level shown separately from model speech, silent frames never set `speaking`, and conversational barge-in (not the Interrupt button) is the tested path, with offline tests for silence, playback, interruption, stale output, mute, and stop. Evidence: [streaming slice record](docs/implementation/voice-streaming-slice.md), [frontend test output](docs/implementation/voice-streaming-frontend-output.md)
+- [x] R-01.F2 Make the POSIX token-symlink security test portable so unprivileged Windows test runs skip the POSIX-only fixture instead of failing before the assertion. Evidence: [R-01.F2 implementation record](docs/implementation/r01-f2-windows-symlink-test.md)
+- [x] R-01.F3 Make the exact browser Origin requirement and backend-unavailable failure actionable without widening the reviewed Origin allowlist. Evidence: [R-01.F3 implementation record](docs/implementation/r01-f3-origin-diagnostic.md)
+- [x] R-01.F4 Add one Windows launcher that starts the locked backend and frontend from its own checkout path and cleans up the backend when the frontend exits. Evidence: [R-01.F4 implementation record](docs/implementation/r01-f4-windows-launcher.md)
 - [ ] R-01.4 [human] Local microphone test (start, mute, conversational barge-in, stop) recorded on the revised scaffold after R-01.F1; no audio leaves the machine. Evidence: none yet
 - [x] R-01.6 Independent security review accepted for the implemented boundary: deployed authentication, Host, Origin, CORS, WebSocket, and CSRF controls, and backend-only secrets. Evidence: [security review](docs/reviews/r01-6-security-review.md), [F2 risk acceptance](docs/approvals/r01-6-f2-risk-acceptance.md)
 - [x] R-01.8 Opt-in synthetic-audio live command built (key from process environment only, excluded from default tests and CI, logs timing and state only). Evidence: [R-01.8 and R-01.9 record](docs/implementation/r01-8-live-check.md)
@@ -155,6 +158,20 @@ These do not gate any phase, but they are on the path and must be ticked.
 - [ ] R-R.4 [human] Branch protection on `main` and `develop` agreed and set, including required code-owner review for `roadmap.md` and `phases.md`. Evidence: none yet
 - [ ] R-R.5 [human] Dependabot alerts, CodeQL, and secret scanning enabled. Evidence: none yet
 - [x] R-R.6 README links to the learnings folder (the roadmap link is already there). Evidence: [PR 21](https://github.com/abhishek3059/super-agent/pull/21)
+
+## Parallel track A: capability ladder (DEC-18)
+
+Tiers are defined in [DEC-18](descisions.md#dec-18). R-A.1 and R-A.2 can happen any time. R-A.3 starts after PH-01 is done and R-A.1 and R-A.2 are ticked. R-A.4 and R-A.5 start after RT-G02 (PH-02 exit). R-A.6 to R-A.9 start after RT-G03 (PH-03 exit). Each tier is built only after its design item is ticked. This track gates no phase and moves no gate.
+
+- [ ] R-A.1 [human] Both maintainers approve DEC-18 and the matching REQ-08 and AGENTS.md section 5 edits. Evidence: none yet
+- [ ] R-A.2 [human] Data-boundary and cost decision for real voice and personal data sent to a cloud provider (REQ-13, free-tier training, the $0 cap). Evidence: none yet
+- [ ] R-A.3 T0 advice-only conversation persona shipped with tests; no tools, no personal data access, no new authority. Evidence: none yet
+- [ ] R-A.4 [human] T1 read-only connector design (scopes, allowlists, injection handling) approved after independent security review. Evidence: none yet
+- [ ] R-A.5 T1 read-only connectors built behind the policy layer, with negative tests. Evidence: none yet
+- [ ] R-A.6 [human] T2 reversible-write design (logging, undo path, sandbox folder) approved after independent security review. Evidence: none yet
+- [ ] R-A.7 T2 reversible writes built behind the policy layer, with negative tests. Evidence: none yet
+- [ ] R-A.8 [human] T3 consequential-action design (on-device approval, shell and recipient allowlists, kill switch) approved after independent security review. Evidence: none yet
+- [ ] R-A.9 T3 consequential actions built behind the policy layer, with negative tests. Evidence: none yet
 
 ## Parallel track C: community and launch
 

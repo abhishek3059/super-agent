@@ -25,7 +25,7 @@ answers to the form at the end. Nothing here is a PASS until you report one.
 
 ```bash
 cd ~/dev/super-agent
-git switch feat/ph-01-gemini-live && git pull
+git switch develop && git pull --ff-only origin develop
 git rev-parse --short HEAD                      # write this down
 python3 -m venv /tmp/sa-venv
 /tmp/sa-venv/bin/python -m pip install --only-binary=:all: -r apps/api/requirements.lock
@@ -45,9 +45,11 @@ npm ci --ignore-scripts --prefix apps/web
 npm start --prefix apps/web
 ```
 
-Open <http://127.0.0.1:4200> in your browser. Copy the token with
+Open exactly <http://127.0.0.1:4200> in your browser; do not substitute
+`localhost`, because the backend intentionally rejects that different Origin. Copy the token with
 `pbcopy < ~/.super-agent/voice-token`, paste it into the token field, and
-clear the clipboard afterwards with `pbcopy < /dev/null`. Select **Start**
+clear the clipboard afterwards with `pbcopy < /dev/null`. Select the blue start
+control, paste the token into the connection dialog, select **Connect locally**,
 and allow the microphone when the browser asks.
 
 ## What to do and what to expect
@@ -57,14 +59,14 @@ anything unexpected.
 
 | # | Do this | Expected | Why |
 | --- | --- | --- | --- |
-| 1 | Press Start, allow the microphone | Status goes from `connecting` to `listening` | Auth and ready handshake |
-| 2 | Stay silent for 10 seconds | Status stays `listening` and never shows `speaking`. The level meter stays near zero. | R-01.F1: silent frames must not look like model speech |
-| 3 | Say a short sentence | The meter moves while you talk. You hear your own voice come back. Status shows `speaking` only while that playback is audible, then returns to `listening` within about a second. | Level and speech states are separate |
-| 4 | Press Mute, talk for 5 seconds | No echo. Meter stays flat. Press Unmute and talk again: echo and meter return. | Mute stops upload and clears level |
+| 1 | Open the start dialog, select Connect locally, and allow the microphone | State goes from Connecting to Listening | Auth and ready handshake |
+| 2 | Stay silent for 10 seconds | State stays Listening and never shows Local echo. The spectrum stays near its baseline. | R-01.F1: silent frames must not look like model speech |
+| 3 | Say a short sentence | The spectrum moves while you talk. You hear your own voice come back. State shows Local echo only while that playback is audible, then returns to Listening within about a second. | Input and playback states are separate |
+| 4 | Select the microphone control in the dock, talk for 5 seconds | No echo. The spectrum stays flat. Select the control again and talk: echo and spectrum return. | Mute stops upload and clears level |
 | 5 | Without touching any button, talk continuously for about 10 seconds | Say whether the echo plays smoothly or in cut-up bursts, and whether the page ever shows an error. Bursts or gaps mean automatic interruption fired. | Conversational barge-in is the path under test, not the button |
-| 6 | While your voice is echoing, press **Stop playback** | The playback cuts. The session stays up and no error appears. | Manual control is secondary |
-| 7 | Press Stop | Status becomes `stopped`. The browser's microphone indicator goes away within a few seconds. | Cleanup |
-| 8 | Press Start again and talk once | A fresh session works as in step 3. | Restart |
+| 6 | While your voice is echoing, select the square **Stop local echo playback** control | The playback cuts. The session stays up and no error appears. | Manual control is secondary |
+| 7 | Select the red **End voice session** control | State becomes Disconnected. The browser's microphone indicator goes away within a few seconds. | Cleanup |
+| 8 | Select the blue start control, connect again, and talk once | A fresh session works as in step 3. | Restart |
 | 9 | Close the tab. In terminal 1, press Ctrl+C | No traceback other than the normal shutdown | Disconnect and shutdown |
 
 Step 5 is the weakest observation: the fake adapter echoes immediately, so

@@ -216,12 +216,34 @@ Adopt repository-only automation (Husky hooks and an AI-agent pull-request templ
 - **Source evidence:** Explicit user request in this session (2026-11-07); `.github/pull_request_template.md`, `.husky/pre-commit`, `.husky/commit-msg`, `.husky/pre-push`, `scripts/check-repo.mjs`, `scripts/check-commit-msg.mjs`; [build.md](build.md).
 - **Reopen:** A decision to remove or replace Husky, add CI enforcement, or expand hooks to application tests after an approved scaffold.
 
+### DEC-18
+
+Replace the blanket ban on assistant capabilities with a capability ladder: authority grows one tier at a time, each tier only after its own approved design.
+
+- **Status:** Proposed 2026-11-12 by `jeevesh2515`. Not in force until `abhishek3059` approves in the PR that carries it ([approval record](docs/approvals/capability-ladder-decision.md)). It authorizes no runtime work by itself.
+- **Rationale:** The product goal is a personal assistant that talks like a person, advises on productivity, and does day-to-day work for its owner. A fixed-worker-only rule ([REQ-08](prd.md#req-08)) cannot reach that goal. A single switch that opens everything would remove the main defense against prompt injection, which is the main threat to a voice agent that reads email and web pages.
+- **The ladder:**
+
+  | Tier | Capability | Gate to enable |
+  | --- | --- | --- |
+  | T0 | Conversation, coaching, planning, advice. No tools, no personal data access. | Data-boundary and cost decision (R-A.2). |
+  | T1 | Read-only access to calendar, email, notes, and allowlisted folders. | Approved design plus independent security review (R-A.4), after the PH-02 policy layer exists. |
+  | T2 | Reversible writes: drafts, calendar events, reminders, notes, files in a sandbox folder. Logged, with an undo path. | Approved design plus review (R-A.6), after the PH-03 stop controls exist. |
+  | T3 | Consequential actions: sending email or messages, allowlisted shell commands, browser actions, moving files to trash. Each action needs on-device approval. | Approved design plus review (R-A.8), after the PH-03 stop controls exist. |
+  | T4 | Purchases, money movement, credential handling, permanent deletion. | Stays disabled. Each needs its own separately approved design. |
+
+- **Invariants that do not change:** loopback-only API with a token ([REQ-11](prd.md#req-11)); voice is not identity, and voice alone never approves a T3 action ([REQ-09](prd.md#req-09), [DEC-07](#dec-07)); limits, scopes, recipients, and budgets are enforced in code, outside the model ([REQ-10](prd.md#req-10)); content from email, web pages, files, and tool output is data and never instructions; fail closed; every action is logged; an emergency stop always works.
+- **Alternatives and trade-offs:** (a) Keep REQ-08 as written: safest, but caps the product at demos. (b) Open all capabilities at once: fastest, but one injected email could send messages or run commands as the owner. (c) The ladder: slower, but each step is reviewed on its own and can be rolled back alone.
+- **Implications:** [REQ-08](prd.md#req-08) and [AGENTS.md](AGENTS.md) section 5 are amended to point here. Real voice and personal data going to a cloud provider needs the decision in R-A.2, because the PH-00 boundary kept personal microphone audio local and a free tier may train on inputs ([REQ-13](prd.md#req-13)). The $0 cap may need a decision for a paid tier, which needs both maintainers. The fixed workers in PH-02 and PH-03 are unchanged and stay the first implementation. Roadmap items are in parallel track A of [roadmap.md](roadmap.md); no phase moves.
+- **Source evidence:** `jeevesh2515` in chat with Claude Code, 2026-11-12, asking for max-capability use as the project's CTO; [AGENTS.md](AGENTS.md) sections 5 and 10.
+- **Reopen:** Any tier's design review fails or an incident occurs at that tier (drop back one tier); or the maintainers decide to add, merge, or remove a tier.
+
 ## Register fields
 
-Every DEC entry from [DEC-01](#dec-01) to [DEC-17](#dec-17) above carries the seven contracted fields inline: status, rationale, alternatives and trade-offs, implications, source evidence, and reopen conditions. This summary restates the register; it does not replace the individual records.
+Every DEC entry from [DEC-01](#dec-01) to [DEC-18](#dec-18) above carries the seven contracted fields inline: status, rationale, alternatives and trade-offs, implications, source evidence, and reopen conditions. This summary restates the register; it does not replace the individual records.
 
 ## Provisional and post-review status
 
-[DEC-04](#dec-04) is conditional; [DEC-06](#dec-06) records a provisional post-review Researcher follow-up candidate, not a re-voted council consensus and not a tested or approved runtime selection; [DEC-13](#dec-13), [DEC-14](#dec-14), and [DEC-15](#dec-15) are deferred; [DEC-17](#dec-17) is repository tooling only. None of these statuses is a runtime approval, and no decision in this register claims tested access or an approved provider.
+[DEC-04](#dec-04) is conditional; [DEC-06](#dec-06) records a provisional post-review Researcher follow-up candidate, not a re-voted council consensus and not a tested or approved runtime selection; [DEC-13](#dec-13), [DEC-14](#dec-14), and [DEC-15](#dec-15) are deferred; [DEC-17](#dec-17) is repository tooling only; [DEC-18](#dec-18) is proposed and not yet approved by both maintainers. None of these statuses is a runtime approval, and no decision in this register claims tested access or an approved provider.
 
 See [Native transport research](docs/design/super-agent.md) in the signed design and the council meeting records.

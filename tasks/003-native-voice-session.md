@@ -3,20 +3,25 @@
 | Field | Value |
 | --- | --- |
 | Task ID | RT-003 |
-| Status | not started |
-| Execution evidence | none |
+| Status | in progress; adapter and synthetic live check implemented, browser integration and acceptance incomplete |
+| Execution evidence | [Gemini adapter record](../docs/implementation/r01-7-gemini-adapter.md); [synthetic live-check record](../docs/implementation/r01-8-live-check.md) |
 
 ## Scope
 
-Single manually activated native voice adapter and thin UI with indicators, backend control ownership, mic/playback stops, consent and failure behavior measured. No task workers or silent fallback.
+The Gemini Live adapter, offline tests, and one standalone synthetic real-service
+run exist. The browser console still constructs the fake adapter, so the full
+native path and its acceptance measurements are incomplete. The target remains
+a manually activated path with indicators, backend control ownership,
+mic/playback stops, and no task workers or silent fallback.
 
 ## Non-goals
 
 No task workers, no silent transport/provider fallback, no assumed native model access.
 
-## Future owner
+## Owner
 
-Implementation owner after RT-002 plus approved runtime grant.
+PH-01 implementation owner under the approved sequencing record. Final
+acceptance still depends on RT-002 and RT-G01.
 
 ## Prerequisites
 
@@ -41,7 +46,9 @@ No silent transport/provider fallback; no assumed native model access; no task w
 
 ## Evidence
 
-None. Future task status is `not started`; no execution evidence exists.
+The Gemini Live adapter, offline tests, and one synthetic real-service run are
+recorded above. The application still defaults to the fake adapter. R-01.4,
+task completion, and RT-G01 remain open.
 
 ## Navigation
 

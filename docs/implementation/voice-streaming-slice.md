@@ -75,7 +75,7 @@ separate push and merge approvals. No phase acceptance or roadmap tick is claime
 | Repository checks after final review record | Parent ran `npm run check` on 2026-11-11: PASS, 0 errors; roadmap self-test passed |
 | Whitespace check after final review record | Parent ran `git diff --check` on 2026-11-11: PASS, line-ending advisories only |
 | Completed-code review | Backend final PASS with 8.52 average; frontend PASS with 8.8 average; both code-review quality thresholds cleared |
-| Mac hardware acceptance | Old-scaffold evidence merged via PR #25 against `4f51e00`; the R-01.3 tick awaits the PH-01 owner and is not evidence for the new streaming code |
+| Mac hardware acceptance | Old-scaffold evidence merged via PR #25 against `4f51e00`; R-01.3 is ticked, but that evidence is not evidence for the new streaming code |
 | Local microphone acceptance | Inconclusive operator report, R-01.4 remains open |
 | Native provider test | Not run; no Gemini adapter in this slice |
 

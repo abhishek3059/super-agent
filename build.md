@@ -1,8 +1,16 @@
 # Super-agent — build position and future command contract (documentation pack)
 
-**Mostly documentation. There is no runnable assistant.** The repository root has a minimal `package.json` and Husky hooks for repository checks only. The one application scaffold is the offline voice echo scaffold in `apps/` (see [apps/voice-foundation.md](apps/voice-foundation.md)); it has its own setup and checks and is not an assistant. The scaffold uses the fake adapter only. The Gemini Live adapter and the opt-in synthetic live test are not implemented. Throwaway experiments live in `spikes/`.
+**Mostly documentation. There is no complete runnable assistant.** The repository
+root has a minimal `package.json` and Husky hooks for repository checks. The
+runnable voice scaffold lives in `apps/` (see
+[apps/voice-foundation.md](apps/voice-foundation.md)) and defaults to the fake
+adapter. A Gemini Live adapter and locked SDK exist, and a separate opt-in
+synthetic live check has contacted the provider. The browser console does not
+construct the Gemini adapter. Throwaway experiments live in `spikes/`.
 
-No application dependency installation, application scaffold creation, model download, service restart, global change, credential reading, model API contact, or audio capture is part of this documentation delivery. Repository-only tooling was added separately at the user's explicit request; see below.
+The original documentation delivery performed no application installation,
+provider contact, or audio capture. Later approved PH-01 work added the scaffold
+and synthetic-only live check described above.
 
 ## Navigation
 
@@ -51,28 +59,35 @@ This is repository automation, not an application scaffold.
 - `npm ci` installs repository tooling only. `npm run check` is runnable now and validates the repository; neither is an application test, build, or runtime proof.
 - The application commands `npm run dev`, `npm run typecheck`, `npm test`, and `npm run build` remain proposed and **NOT RUNNABLE** at the repository root. The offline voice scaffold has its own commands (`npm start --prefix apps/web`, `npm run test:epoch --prefix apps/web`, `pytest apps/api`), documented in [apps/voice-foundation.md](apps/voice-foundation.md).
 
-### Proposed future application command contract — NOT RUNNABLE IN THIS PROJECT; DO NOT RUN UNTIL AN APPROVED SCAFFOLD EXISTS
+### Historical proposed repository-root application command contract
 
 If a later scaffold uses the proposed Node stack, candidate application command names are `npm run dev`, `npm run typecheck`, `npm test`, and `npm run build`.
 
 | Candidate command | Labelling | Prerequisites | Purpose | Future owner | Execution evidence |
 | --- | --- | --- | --- | --- | --- |
 | `npm ci` | **Runnable for repository tooling only** | Node/npm and the committed `package-lock.json`. | Install Husky and repository check tooling; does not install or run an application. | Repository maintainer. | Run during tooling setup; no application dependency installed. |
-| `npm run dev` | Proposed; **NOT RUNNABLE IN THIS PROJECT; DO NOT RUN UNTIL AN APPROVED SCAFFOLD EXISTS** | Approved scaffold and lockfile. | Run future development server. | Future implementation owner. | none |
-| `npm run typecheck` | Proposed; **NOT RUNNABLE IN THIS PROJECT; DO NOT RUN UNTIL AN APPROVED SCAFFOLD EXISTS** | Approved scaffold and lockfile. | Type-check future sources. | Future implementation owner. | none |
-| `npm test` | Proposed; **NOT RUNNABLE IN THIS PROJECT; DO NOT RUN UNTIL AN APPROVED SCAFFOLD EXISTS** | Approved scaffold and lockfile. | Run future test suite. | Future implementation owner. | none |
-| `npm run build` | Proposed; **NOT RUNNABLE IN THIS PROJECT; DO NOT RUN UNTIL AN APPROVED SCAFFOLD EXISTS** | Approved scaffold and lockfile. | Build future application. | Future implementation owner. | none |
+| `npm run dev` | Historical proposal; not defined at repository root | Root application script. | Run a future root development server. | Future implementation owner. | none |
+| `npm run typecheck` | Historical proposal; not defined at repository root | Root application script. | Type-check future root sources. | Future implementation owner. | none |
+| `npm test` | Historical proposal; not defined at repository root | Root application script. | Run a future root test suite. | Future implementation owner. | none |
+| `npm run build` | Historical proposal; not defined at repository root | Root application script. | Build a future root application. | Future implementation owner. | none |
 
-The only package scripts currently defined are repository checks (`prepare`, `check`, `check:commit`); there is no application source, application script, or application lockfile. These names are not APIs or scripts discovered in the source, and install commands from provider examples are not current setup instructions.
+At the repository root, package scripts remain repository checks. Application
+source, scripts, a frontend lockfile, and a backend requirements lock exist
+under `apps/`; their current commands are documented in
+[apps/voice-foundation.md](apps/voice-foundation.md).
 
-### Future verification protocol
+### Verification protocol
 
-After a separately authorized scaffolding, replace proposals with actual commands supported by opened manifests/scripts; record versions, date, working directory, exit status, and redacted result/evidence.
+Use the actual commands supported by the manifests and locks under `apps/`;
+record versions, date, working directory, exit status, and redacted evidence.
 
 Diagnose locally without reading credentials; native tests require RT-G00. A successful build is not proof of native access, safety, or latency.
 
 ## Consent gates and secret handling
 
-- No runtime microphone/context transmission, paid service provisioning, model download, application dependency installation, source scaffold, application build, test suite, voice performance measurement, or worker integration is part of this delivery.
-- Provider eligibility/access, runtime consent, a first real task pair, target host, usage budgets, and retention windows remain unresolved implementation gates.
+- Personal microphone/context cloud transmission, paid service provisioning,
+  model download, and worker integration are not authorized by PH-01.
+- Provider eligibility, consent, task pair, hosts, budgets, and retention are
+  resolved for the bounded synthetic-only PH-01 scope. Personal microphone and
+  context cloud egress remain unapproved; RT-G01 remains open.
 - No secrets, credentials, or personal data are stored in this documentation pack.

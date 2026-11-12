@@ -6,7 +6,7 @@
 | Date | 2026-11-12 |
 | Finding | F2 in the [R-01.6 security review](../reviews/r01-6-security-review.md): a local process that forges the Origin header can hold all 4 pre-auth sockets by reopening idle connections, and the real user is refused (close 1013) for as long as it runs. Measured: 0 successful logins in 30 seconds. |
 | `jeevesh2515` | **Accepted, 2026-11-12**, in chat with Claude Code (`claude-sonnet-5-5`), which recorded it at their instruction, in answer to a question that stated the measurement and the condition below |
-| `abhishek3059` | **Pending.** Given by approving or merging the pull request that carries this record (the same route as the [PH-01 sequencing record](ph-01-sequencing.md)). Until then the acceptance is one maintainer's. |
+| `abhishek3059` | **Accepted, 2026-11-12**, by approving and merging [PR #32](https://github.com/abhishek3059/super-agent/pull/32), the acceptance route stated in this record. |
 
 ## What is accepted
 
