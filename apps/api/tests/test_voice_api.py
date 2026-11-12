@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import asyncio
+import logging
+import os
 import threading
 import time
 from collections.abc import Callable, Sequence
@@ -10,11 +12,14 @@ from fastapi.testclient import TestClient
 from starlette.websockets import WebSocketDisconnect
 
 from super_agent_voice.adapter import (
+    AdapterError,
     AudioChunk,
     FakeVoiceAdapter,
     Interrupted,
     TurnComplete,
 )
+from super_agent_voice import config as config_module
+from super_agent_voice import generate_token
 from super_agent_voice.app import create_app
 from super_agent_voice.config import VoiceConfig
 
@@ -37,6 +42,9 @@ class ScriptedAdapter:
     a live provider) until close or cleanup cancellation.
     """
 
+    name = "fake"
+    output_rate_hz = 16000
+
     def __init__(self, events: Sequence[object]) -> None:
         self._events = list(events)
         self.closed = False
@@ -52,6 +60,8 @@ class ScriptedAdapter:
         if not isinstance(audio, bytes) or not audio or len(audio) % 2 or len(audio) > 32 * 1024:
             raise ValueError("invalid PCM frame")
         self.enqueued.append(audio)
+
+    async def end_audio_stream(self) -> None: ...
 
     async def interrupt(self) -> None:
         self.interruptions += 1
@@ -187,9 +197,10 @@ def test_only_one_active_session_is_allowed() -> None:
     with make_client() as client:
         with connect(client) as first:
             authenticate(first)
-            # CT-05 keeps the gate before authentication: the second socket is
-            # accepted only to be closed with 1013 while the slot is held.
+            # CR-06: the slot is taken after authentication, so the second
+            # client authenticates and is then refused with 1013.
             with connect(client) as second:
+                second.send_json({"type": "session.auth", "token": TOKEN})
                 with pytest.raises(WebSocketDisconnect) as rejected:
                     second.receive_json()
                 assert rejected.value.code == 1013
@@ -234,13 +245,44 @@ def test_idle_timeout_is_retained() -> None:
         assert time.monotonic() - started < 5
 
 
-def test_environment_requires_high_entropy_local_token(monkeypatch) -> None:
+def test_environment_requires_high_entropy_local_token(monkeypatch, tmp_path) -> None:
     monkeypatch.delenv("SUPER_AGENT_LOCAL_TOKEN", raising=False)
+    monkeypatch.setattr(config_module, "TOKEN_FILE", tmp_path / "voice-token")
     with pytest.raises(RuntimeError, match="at least 32 bytes"):
         VoiceConfig.from_environment()
-    monkeypatch.setenv("SUPER_AGENT_LOCAL_TOKEN", "short")
+    for weak in ("short", "ab" * 32):  # too short; long but low entropy (CR-09)
+        monkeypatch.setenv("SUPER_AGENT_LOCAL_TOKEN", weak)
+        with pytest.raises(RuntimeError, match="at least 32 bytes"):
+            VoiceConfig.from_environment()
+    # A weak token in the file is rejected the same way.
+    monkeypatch.delenv("SUPER_AGENT_LOCAL_TOKEN")
+    (tmp_path / "voice-token").write_text("ab" * 32)
+    (tmp_path / "voice-token").chmod(0o600)
     with pytest.raises(RuntimeError, match="at least 32 bytes"):
         VoiceConfig.from_environment()
+
+
+def test_generated_token_file_is_private_and_accepted(monkeypatch, tmp_path, capsys) -> None:
+    monkeypatch.delenv("SUPER_AGENT_LOCAL_TOKEN", raising=False)
+    token_file = tmp_path / "home" / "voice-token"
+    monkeypatch.setattr(config_module, "TOKEN_FILE", token_file)
+    monkeypatch.setattr(generate_token, "TOKEN_FILE", token_file)
+    generate_token.main()
+    generate_token.main()  # rotation replaces the file
+    monkeypatch.setenv("SUPER_AGENT_GEMINI_MODEL", "model-from-env")
+    settings = VoiceConfig.from_environment()
+    token = settings.local_token
+    assert settings.gemini_model == "model-from-env"
+    assert token == token_file.read_text() and token not in capsys.readouterr().out
+    if os.name == "posix":
+        assert token_file.stat().st_mode & 0o777 == 0o600
+        token_file.chmod(0o644)
+        with pytest.raises(RuntimeError, match="mode 0600"):
+            VoiceConfig.from_environment()
+        token_file.chmod(0o600)
+        monkeypatch.setattr(os, "getuid", lambda: token_file.stat().st_uid + 1)
+        with pytest.raises(RuntimeError, match="owned by this user"):
+            VoiceConfig.from_environment()
 
 
 def test_rejects_bad_origin_and_token() -> None:
@@ -316,6 +358,7 @@ def test_adapter_never_created_without_valid_auth() -> None:
         "[]",
         '"text"',
         '{"type": "capture.mute"}',
+        '{"type": "capture.mute", "token": "%s"}' % TOKEN,
         '{"type": "session.auth"}',
         '{"type": "session.auth", "token": null}',
         '{"type": "session.auth", "token": 40}',
@@ -402,6 +445,64 @@ def test_failing_adapter_start_never_reaches_ready() -> None:
             websocket.receive_json()
 
 
+def test_adapter_error_category_passes_through_on_start() -> None:
+    class RefusingAdapter(FakeVoiceAdapter):
+        async def start(self) -> None:
+            raise AdapterError("provider-limits")
+
+    with make_client(RefusingAdapter()) as client, connect(client) as websocket:
+        websocket.send_json({"type": "session.auth", "token": TOKEN})
+        assert websocket.receive_json() == {
+            "type": "session.error",
+            "category": "provider-limits",
+        }
+
+
+def test_adapter_error_category_passes_through_mid_stream() -> None:
+    class FailingStream(ScriptedAdapter):
+        async def events(self):
+            raise AdapterError("provider-session-ended")
+            yield
+
+    with make_client(FailingStream([])) as client, connect(client) as websocket:
+        authenticate(websocket)
+        assert websocket.receive_json() == {
+            "type": "session.error",
+            "category": "provider-session-ended",
+        }
+
+
+def test_ready_reports_the_adapters_rate_and_name() -> None:
+    class GeminiLike(ScriptedAdapter):
+        name = "gemini-live"
+        output_rate_hz = 24000
+
+    with make_client(GeminiLike([])) as client, connect(client) as websocket:
+        websocket.send_json({"type": "session.auth", "token": TOKEN})
+        assert websocket.receive_json() == {
+            "type": "session.ready",
+            "playbackEpoch": 0,
+            "outputRateHz": 24000,
+            "provider": "gemini-live",
+        }
+
+
+def test_mute_ends_the_adapter_audio_stream() -> None:
+    adapter = FakeVoiceAdapter()
+    ends = 0
+
+    async def counted() -> None:
+        nonlocal ends
+        ends += 1
+
+    adapter.end_audio_stream = counted  # type: ignore[method-assign]
+    with make_client(adapter) as client, connect(client) as websocket:
+        authenticate(websocket)
+        websocket.send_json({"type": "capture.mute"})
+        assert websocket.receive_json() == {"type": "session.state", "muted": True}
+        assert ends == 1
+
+
 def test_silent_adapter_times_out_and_is_closed() -> None:
     # CT-07: with a silent event source and no input, the idle deadline must
     # still end the session and the adapter must be closed.
@@ -432,12 +533,13 @@ def test_stop_with_silent_adapter_reports_stopping_and_closes() -> None:
     assert adapter.closed
 
 
-def test_auth_timeout_reports_session_timeout_and_releases_gate() -> None:
+def test_auth_timeout_reports_session_timeout_and_releases_pre_auth_slot() -> None:
     # CT-04 (a): the explicit auth deadline yields its fixed category, and
-    # the single-session slot is released for the next client. The follow-up
-    # connection stays inside the open TestClient context; the error message
-    # is sent after the gate release, so reaching it proves the release.
-    settings = VoiceConfig(local_token=TOKEN, auth_timeout_seconds=0.25)
+    # the pre-auth slot (cap 1) is released for the next client. The error
+    # message is sent after that release, so reaching it proves the release.
+    settings = VoiceConfig(
+        local_token=TOKEN, auth_timeout_seconds=0.25, max_pre_auth_connections=1
+    )
     with make_client(config=settings) as client:
         with connect(client) as websocket:
             started = time.monotonic()
@@ -454,8 +556,12 @@ def test_auth_timeout_reports_session_timeout_and_releases_gate() -> None:
 
 def test_total_budget_expiring_during_auth_reports_max_duration() -> None:
     # CT-04 (b): the total session budget survives during auth; when it
-    # expires first, the category is max-duration and the gate is released.
-    settings = VoiceConfig(local_token=TOKEN, max_session_seconds=0.4, auth_timeout_seconds=2)
+    # expires first, the category is max-duration and the pre-auth slot (cap 1)
+    # is released.
+    settings = VoiceConfig(
+        local_token=TOKEN, max_session_seconds=0.4, auth_timeout_seconds=2,
+        max_pre_auth_connections=1,
+    )
     with make_client(config=settings) as client:
         with connect(client) as websocket:
             assert websocket.receive_json() == {
@@ -507,6 +613,7 @@ def test_permanent_close_failure_holds_gate() -> None:
             assert broken.close_calls == 2
         # Fail closed: the slot is retained, the next connection is refused.
         with connect(client) as refused:
+            refused.send_json({"type": "session.auth", "token": TOKEN})
             with pytest.raises(WebSocketDisconnect) as held:
                 refused.receive_json()
             assert held.value.code == 1013
@@ -534,6 +641,7 @@ def test_hanging_close_is_bounded_and_gate_released_only_at_confirmed_close() ->
             # gate is proven still held.
             time.sleep(0.8)
             with connect(client) as second:
+                second.send_json({"type": "session.auth", "token": TOKEN})
                 with pytest.raises(WebSocketDisconnect) as held:
                     second.receive_json()
                 assert held.value.code == 1013
@@ -860,3 +968,437 @@ def test_invalid_control_and_oversized_audio_fail_closed() -> None:
         with pytest.raises(WebSocketDisconnect) as oversized:
             websocket.receive_json()
         assert oversized.value.code == 1009
+
+
+# --- R-01.6 authentication controls (CR-01, CR-05, CR-06, CR-08, N1) ---
+
+
+def wrong_auth(websocket, token: object = "wrong") -> None:
+    websocket.send_json({"type": "session.auth", "token": token})
+
+
+def expect_close(websocket, code: int) -> None:
+    """Fixed result: this close code, no reason text, and no message before it."""
+    with pytest.raises(WebSocketDisconnect) as closed:
+        websocket.receive_json()
+    assert closed.value.code == code
+    assert closed.value.reason == ""
+
+
+def reject(client, token: object = "wrong") -> float:
+    """Fail one authentication and return how long the 1008 close took."""
+    with connect(client) as websocket:
+        wrong_auth(websocket, token)
+        started = time.monotonic()
+        expect_close(websocket, 1008)
+    return time.monotonic() - started
+
+
+def counting_factory():
+    created: list[FakeVoiceAdapter] = []
+
+    def factory() -> FakeVoiceAdapter:
+        created.append(FakeVoiceAdapter())
+        return created[-1]
+
+    return created, factory
+
+
+def throttled(**overrides: object) -> VoiceConfig:
+    values: dict[str, object] = {
+        "local_token": TOKEN,
+        "auth_failure_threshold": 2,
+        "auth_delay_base_seconds": 0.1,
+        "auth_delay_cap_seconds": 0.25,
+    }
+    return VoiceConfig(**{**values, **overrides})  # type: ignore[arg-type]
+
+
+@pytest.mark.parametrize(
+    "token",
+    [
+        pytest.param("wrong", id="wrong"),
+        pytest.param("", id="empty"),
+        pytest.param("t" * 31, id="short-prefix-of-the-token"),
+        pytest.param("t" * 33, id="long-extension-of-the-token"),
+        pytest.param("é" * 40, id="non-ascii"),
+        pytest.param(123, id="int"),
+        pytest.param(None, id="null"),
+        pytest.param(["t" * 32], id="list"),
+        pytest.param({"token": TOKEN}, id="object"),
+        pytest.param("t" * 5000, id="oversized-token"),
+    ],
+)
+def test_bad_tokens_close_1008_without_adapter_or_audio(token: object) -> None:
+    created, factory = counting_factory()
+    with make_client(factory=factory) as client:
+        reject(client, token)
+        # A binary frame cannot authenticate and is never forwarded as audio.
+        with connect(client) as websocket:
+            websocket.send_bytes(b"\x01\x00")
+            assert websocket.receive_json() == {
+                "type": "session.error",
+                "category": "invalid-control",
+            }
+    assert created == []
+
+
+def test_lone_surrogate_token_is_a_failed_attempt_not_an_error() -> None:
+    created, factory = counting_factory()
+    with make_client(factory=factory) as client:
+        with connect(client) as websocket:
+            websocket.send_text('{"type":"session.auth","token":"\\ud800"}')
+            expect_close(websocket, 1008)
+        with connect(client) as websocket:
+            authenticate(websocket)
+    assert len(created) == 1
+
+
+@pytest.mark.parametrize(
+    "origin",
+    [
+        pytest.param(None, id="missing"),
+        pytest.param("", id="empty"),
+        pytest.param("null", id="null"),
+        pytest.param("http://localhost:4200", id="localhost-alias"),
+        pytest.param("http://127.0.0.1:4201", id="wrong-port"),
+        pytest.param("https://127.0.0.1:4200", id="wrong-scheme"),
+        pytest.param("http://127.0.0.1:4200/", id="trailing-slash"),
+    ],
+)
+def test_wrong_origin_is_refused_before_auth(origin: str | None) -> None:
+    created, factory = counting_factory()
+    headers = {"host": "127.0.0.1:8000"}
+    if origin is not None:
+        headers["origin"] = origin
+    settings = VoiceConfig(local_token=TOKEN, max_pre_auth_connections=1)
+    with make_client(config=settings, factory=factory) as client:
+        with pytest.raises(WebSocketDisconnect) as denied:
+            with client.websocket_connect("/ws/voice", headers=headers):
+                pass
+        assert denied.value.code == 1008
+        # The refusal never touched the pre-auth cap (cap 1 is still free).
+        with connect(client) as websocket:
+            authenticate(websocket)
+    assert len(created) == 1
+
+
+@pytest.mark.parametrize(
+    "host",
+    ["", "localhost:8000", "127.0.0.1", "127.0.0.1:8001", "127.0.0.1:8000.evil.example"],
+)
+def test_wrong_host_is_refused_before_auth(host: str) -> None:
+    created, factory = counting_factory()
+    settings = VoiceConfig(local_token=TOKEN, max_pre_auth_connections=1)
+    with make_client(config=settings, factory=factory) as client:
+        with pytest.raises(WebSocketDisconnect) as denied:
+            with client.websocket_connect(
+                "/ws/voice", headers={"host": host, "origin": ORIGIN}
+            ):
+                pass
+        assert denied.value.code == 1008
+        with connect(client) as websocket:
+            authenticate(websocket)
+    assert len(created) == 1
+
+
+def test_unauthenticated_connection_does_not_hold_the_session_slot() -> None:
+    # CR-06: an idle pre-auth socket leaves the session slot free.
+    created, factory = counting_factory()
+    with make_client(factory=factory) as client:
+        with connect(client):  # never authenticates
+            with connect(client) as real:
+                authenticate(real)
+                # The slot is taken only after authentication, so the next
+                # authenticated client is the one refused, with 1013.
+                with connect(client) as second:
+                    second.send_json({"type": "session.auth", "token": TOKEN})
+                    expect_close(second, 1013)
+                assert len(created) == 1
+
+
+def test_pre_auth_cap_refuses_extra_connections_and_recovers() -> None:
+    settings = VoiceConfig(local_token=TOKEN, max_pre_auth_connections=2)
+    with make_client(config=settings) as client:
+        with connect(client), connect(client):
+            with connect(client) as third:
+                expect_close(third, 1013)
+        # Both idle sockets left, so the cap has room again.
+        with connect(client) as again:
+            authenticate(again)
+
+
+def test_pre_auth_slot_is_released_on_every_exit_path() -> None:
+    settings = VoiceConfig(
+        local_token=TOKEN, max_pre_auth_connections=1, auth_timeout_seconds=0.2
+    )
+    with make_client(config=settings) as client:
+        reject(client)  # wrong token
+        with connect(client) as websocket:  # malformed first message
+            websocket.send_text("{not json")
+            assert websocket.receive_json() == {
+                "type": "session.error",
+                "category": "invalid-control",
+            }
+        with connect(client) as websocket:  # auth timeout
+            assert websocket.receive_json() == {
+                "type": "session.error",
+                "category": "session-timeout",
+            }
+        with connect(client):  # disconnect before sending anything
+            pass
+        # Success must release it too: a live session does not count as
+        # pre-auth, so a wrong token on a new socket gets 1008, not the cap's 1013.
+        with connect(client) as live:
+            authenticate(live)
+            with connect(client) as other:
+                wrong_auth(other)
+                expect_close(other, 1008)
+
+
+def test_failed_auth_delay_starts_after_threshold_doubles_and_is_capped() -> None:
+    with make_client(config=throttled()) as client:
+        elapsed = [reject(client) for _ in range(5)]
+    # Threshold 2: the first two are immediate, then 0.1 s, 0.2 s, and the 0.4 s
+    # step is capped at 0.25 s.
+    assert elapsed[0] < 0.09 and elapsed[1] < 0.09
+    assert 0.09 <= elapsed[2] < 0.19
+    assert 0.18 <= elapsed[3] < 0.35
+    assert 0.22 <= elapsed[4] < 0.38
+
+
+def test_oversized_first_frame_counts_as_a_failed_attempt() -> None:
+    settings = throttled(
+        auth_failure_threshold=1, auth_delay_base_seconds=0.3, auth_delay_cap_seconds=0.3
+    )
+    with make_client(config=settings) as client:
+        reject(client)
+        with connect(client) as websocket:
+            websocket.send_text("x" * (65 * 1024))
+            started = time.monotonic()
+            assert websocket.receive_json() == {
+                "type": "session.error",
+                "category": "invalid-control",
+            }
+            assert time.monotonic() - started >= 0.27
+
+
+def test_correct_token_is_accepted_at_once_and_delay_does_not_hold_the_cap() -> None:
+    # (a) a correct token ignores the failure count; (b) N1: a failed attempt
+    # sleeping in its delay holds no pre-auth slot, so with a cap of 1 the real
+    # user still gets in.
+    settings = throttled(
+        auth_failure_threshold=1,
+        auth_delay_base_seconds=0.4,
+        auth_delay_cap_seconds=0.4,
+        max_pre_auth_connections=1,
+    )
+    with make_client(config=settings) as client:
+        reject(client)
+        with connect(client) as slow:
+            wrong_auth(slow)
+            started = time.monotonic()
+            with connect(client) as quick:
+                authenticate(quick)
+                assert time.monotonic() - started < 0.3
+            expect_close(slow, 1008)
+            assert time.monotonic() - started >= 0.36
+
+
+def test_success_resets_the_failure_count() -> None:
+    settings = throttled(
+        auth_failure_threshold=1, auth_delay_base_seconds=0.3, auth_delay_cap_seconds=0.3
+    )
+    with make_client(config=settings) as client:
+        reject(client)
+        with connect(client) as websocket:
+            authenticate(websocket)
+        # Without the reset this would be the second failure and wait 0.3 s.
+        assert reject(client) < 0.2
+
+
+def test_failures_older_than_the_window_are_forgotten() -> None:
+    settings = throttled(
+        auth_failure_threshold=1,
+        auth_failure_window_seconds=0.25,
+        auth_delay_base_seconds=0.3,
+        auth_delay_cap_seconds=0.3,
+    )
+    with make_client(config=settings) as client:
+        reject(client)
+        time.sleep(0.3)
+        assert reject(client) < 0.2
+
+
+def test_delayed_rejections_are_bounded() -> None:
+    settings = throttled(
+        auth_failure_threshold=1,
+        auth_delay_base_seconds=0.6,
+        auth_delay_cap_seconds=0.6,
+        max_delayed_rejections=2,
+    )
+    with make_client(config=settings) as client:
+        reject(client)
+        with connect(client) as first, connect(client) as second, connect(client) as third:
+            for sleeping in (first, second):
+                wrong_auth(sleeping)
+                time.sleep(0.1)
+            started = time.monotonic()
+            wrong_auth(third)
+            expect_close(third, 1008)
+            # The third found both delay places taken: closed with no delay.
+            assert time.monotonic() - started < 0.3
+            expect_close(first, 1008)
+            expect_close(second, 1008)
+
+
+def test_disconnect_during_the_delay_frees_its_place_promptly() -> None:
+    settings = throttled(
+        auth_failure_threshold=1,
+        auth_delay_base_seconds=0.5,
+        auth_delay_cap_seconds=0.5,
+        max_delayed_rejections=1,
+    )
+    with make_client(config=settings) as client:
+        reject(client)
+        with connect(client) as leaving:
+            wrong_auth(leaving)
+            leaving.close()
+            time.sleep(0.05)
+            # If the leaver still held the only delay place, this would be
+            # closed at once; a freed place means it waits its own 0.5 s delay.
+            assert reject(client) >= 0.45
+
+
+def test_leaving_the_app_cancels_a_pending_delay() -> None:
+    settings = throttled(
+        auth_failure_threshold=1,
+        auth_delay_base_seconds=2.0,
+        auth_delay_cap_seconds=2.0,
+    )
+    started = time.monotonic()
+    with make_client(config=settings) as client:
+        reject(client)
+        with connect(client) as websocket:
+            wrong_auth(websocket)
+            time.sleep(0.05)
+    assert time.monotonic() - started < 1.0
+
+
+def test_expired_token_is_refused_even_when_correct() -> None:
+    created, factory = counting_factory()
+    settings = VoiceConfig(local_token=TOKEN, token_max_age_seconds=0.5)
+    with make_client(config=settings, factory=factory) as client:
+        with connect(client) as websocket:
+            authenticate(websocket)
+        time.sleep(0.6)
+        # A normal failure: closed 1008 at once, no extra delay for expiry.
+        assert reject(client, TOKEN) < 0.2
+    assert len(created) == 1
+
+
+ENV_TOKEN = "abcdefghijklmnopqrstuvwxyz012345"
+AGE_ERROR = "SUPER_AGENT_TOKEN_MAX_AGE_SECONDS must be a finite number greater than zero"
+
+
+@pytest.mark.parametrize(
+    "bad", ["junk-xyz", "0", "-5", "nan", "inf", "-inf", "1e999", " ", "12 seconds"]
+)
+def test_bad_token_max_age_stops_startup_without_echoing_it(monkeypatch, bad: str) -> None:
+    monkeypatch.setenv("SUPER_AGENT_LOCAL_TOKEN", ENV_TOKEN)
+    monkeypatch.setenv("SUPER_AGENT_TOKEN_MAX_AGE_SECONDS", bad)
+    with pytest.raises(RuntimeError) as error:
+        VoiceConfig.from_environment()
+    assert str(error.value) == AGE_ERROR
+
+
+@pytest.mark.parametrize(("raw", "expected"), [(None, 86400.0), ("", 86400.0), ("120", 120.0)])
+def test_token_max_age_environment_value(monkeypatch, raw: str | None, expected: float) -> None:
+    monkeypatch.setenv("SUPER_AGENT_LOCAL_TOKEN", ENV_TOKEN)
+    if raw is None:
+        monkeypatch.delenv("SUPER_AGENT_TOKEN_MAX_AGE_SECONDS", raising=False)
+    else:
+        monkeypatch.setenv("SUPER_AGENT_TOKEN_MAX_AGE_SECONDS", raw)
+    assert VoiceConfig.from_environment().token_max_age_seconds == expected
+
+
+@pytest.mark.parametrize(
+    "field",
+    [
+        "token_max_age_seconds",
+        "auth_failure_window_seconds",
+        "auth_delay_base_seconds",
+        "auth_delay_cap_seconds",
+    ],
+)
+@pytest.mark.parametrize("bad", [0, -1.0, float("nan"), float("inf"), True, "2", None])
+def test_auth_time_settings_fail_closed(field: str, bad: object) -> None:
+    with pytest.raises(RuntimeError, match=field):
+        create_app(VoiceConfig(local_token=TOKEN, **{field: bad}), FakeVoiceAdapter)  # type: ignore[arg-type]
+
+
+@pytest.mark.parametrize(
+    "field", ["max_pre_auth_connections", "auth_failure_threshold", "max_delayed_rejections"]
+)
+@pytest.mark.parametrize("bad", [0, -1, 2.5, float("nan"), True, "2", None])
+def test_auth_count_settings_fail_closed(field: str, bad: object) -> None:
+    with pytest.raises(RuntimeError, match=field):
+        create_app(VoiceConfig(local_token=TOKEN, **{field: bad}), FakeVoiceAdapter)  # type: ignore[arg-type]
+
+
+def test_tokens_never_appear_in_logs_output_or_client_messages(caplog, capsys) -> None:
+    secret = "k7Qx9ZpLmN2vB4cD8fGh3JsRtW6yAe1U"
+    attempted = "w3Rx0NgLq8Zv5Tb1Mc7Kd9Hy2Pa6SeUj"
+    client = make_client(config=VoiceConfig(local_token=secret))  # create_app refuses DEBUG logging
+    caplog.set_level(logging.DEBUG)
+    logging.getLogger().setLevel(logging.DEBUG)
+    guarded = [logging.getLogger(name) for name in ("uvicorn.error", "websockets")]
+    earlier = [(logger, logger.level) for logger in guarded]
+    for logger in guarded:  # the connection guard refuses DEBUG on these two
+        logger.setLevel(logging.INFO)
+    seen: list[str] = []
+    with client:
+        with connect(client) as websocket:
+            wrong_auth(websocket, attempted)
+            with pytest.raises(WebSocketDisconnect) as closed:
+                websocket.receive_json()
+            seen += [str(closed.value), repr(closed.value.reason), str(closed.value.code)]
+        with connect(client) as websocket:
+            websocket.send_json({"type": "session.auth", "token": secret})
+            seen.append(repr(websocket.receive_json()))
+            websocket.send_json({"type": "session.stop"})
+            seen.append(repr(websocket.receive_json()))
+    for logger, level in earlier:
+        logger.setLevel(level)
+    output = capsys.readouterr()
+    haystack = "\n".join([caplog.text, output.out, output.err, *seen])
+    assert caplog.records  # the log capture is live, so absence below means something
+    assert secret not in haystack and attempted not in haystack
+
+
+@pytest.mark.parametrize("logger_name", ["uvicorn.error", "websockets"])
+def test_debug_logging_stops_startup(logger_name: str, caplog) -> None:
+    caplog.set_level(logging.DEBUG, logger=logger_name)
+    with pytest.raises(RuntimeError, match="would record the session token"):
+        create_app(VoiceConfig(local_token=TOKEN), FakeVoiceAdapter)
+
+
+def test_debug_logging_raised_after_startup_refuses_connections(caplog) -> None:
+    client = make_client()  # built at the default level, as a programmatic launcher would
+    caplog.set_level(logging.DEBUG, logger="uvicorn.error")
+    with client, pytest.raises(WebSocketDisconnect) as refused, connect(client):
+        pass
+    assert refused.value.code == 1011
+
+
+def test_token_file_symlink_is_refused(monkeypatch, tmp_path) -> None:
+    real = tmp_path / "real"
+    real.write_text("abcdefghijklmnopqrstuvwxyz0123456789ABCDEF")
+    real.chmod(0o600)
+    link = tmp_path / "voice-token"
+    link.symlink_to(real)
+    monkeypatch.delenv("SUPER_AGENT_LOCAL_TOKEN", raising=False)
+    monkeypatch.setattr(config_module, "TOKEN_FILE", link)
+    if os.name == "posix":
+        with pytest.raises(RuntimeError, match="regular|mode 0600"):
+            VoiceConfig.from_environment()

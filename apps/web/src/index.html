@@ -3,6 +3,8 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <!-- Scripts only from this origin (design 7, CR-07). Inline styles stay allowed: Angular injects them. -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' ws://127.0.0.1:8000 ws://127.0.0.1:4200; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'">
     <title>Super-agent voice foundation</title>
   </head>
   <body>

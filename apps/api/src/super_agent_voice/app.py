@@ -3,8 +3,10 @@ from __future__ import annotations
 import asyncio
 import hmac
 import json
+import logging
 import math
 import threading
+import time
 from collections import deque
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
@@ -12,7 +14,7 @@ from dataclasses import dataclass, field
 from fastapi import FastAPI, HTTPException, Request, WebSocket
 from starlette.websockets import WebSocketDisconnect
 
-from .adapter import AudioChunk, FakeVoiceAdapter, Interrupted, TurnComplete, VoiceAdapter
+from .adapter import AdapterError, AudioChunk, FakeVoiceAdapter, Interrupted, TurnComplete, VoiceAdapter
 from .config import VoiceConfig
 
 AdapterFactory = Callable[[], VoiceAdapter]
@@ -43,6 +45,42 @@ class SessionGate:
     def release(self) -> None:
         with self._guard:
             self._active -= 1
+
+
+class _AuthControl:
+    """Pre-auth state: connection cap, failed-attempt delay, and token expiry.
+
+    The two gates are thread-safe like the session gate. The failure window is
+    plain loop state: it is read and updated with no await in between.
+    """
+
+    def __init__(self, settings: VoiceConfig) -> None:
+        self.settings = settings
+        self.connections = SessionGate(settings.max_pre_auth_connections)
+        self.sleepers = SessionGate(settings.max_delayed_rejections)
+        # Memory bound only: the delay reaches its cap long before 32 doublings.
+        self._failures: deque[float] = deque(maxlen=settings.auth_failure_threshold + 32)
+        self._started = time.monotonic()
+
+    def expired(self) -> bool:
+        return time.monotonic() - self._started >= self.settings.token_max_age_seconds
+
+    def failed(self) -> float:
+        """Record a failed attempt and return how long to hold its rejection."""
+        now = time.monotonic()
+        while self._failures and now - self._failures[0] > self.settings.auth_failure_window_seconds:
+            self._failures.popleft()
+        self._failures.append(now)
+        excess = len(self._failures) - self.settings.auth_failure_threshold
+        if excess <= 0:
+            return 0.0
+        return min(
+            self.settings.auth_delay_base_seconds * 2 ** (excess - 1),
+            self.settings.auth_delay_cap_seconds,
+        )
+
+    def succeeded(self) -> None:
+        self._failures.clear()
 
 
 class _SessionFailure(Exception):
@@ -129,8 +167,17 @@ def create_app(
 ) -> FastAPI:
     settings = config or VoiceConfig.from_environment()
     # Fails closed before any session can run (teardown addendum 4.1).
-    _validated_teardown_seconds(settings.teardown_seconds)
+    for name in (
+        "teardown_seconds", "token_max_age_seconds", "auth_failure_window_seconds",
+        "auth_delay_base_seconds", "auth_delay_cap_seconds",
+    ):
+        _validated_positive(name, getattr(settings, name))
+    for name in ("max_pre_auth_connections", "auth_failure_threshold", "max_delayed_rejections"):
+        _validated_positive(name, getattr(settings, name), integer=True)
+    if _frame_logging_enabled():
+        raise RuntimeError("debug logging would record the session token; use --log-level info")
     gate = SessionGate(settings.max_active_sessions)
+    auth = _AuthControl(settings)
     # Strong references to one residual supervisor per quarantined session
     # are owned here, by the app scope (addendum section 4.7).
     supervisors: list[asyncio.Task] = []
@@ -144,9 +191,18 @@ def create_app(
 
     @app.websocket("/ws/voice")
     async def voice_socket(websocket: WebSocket) -> None:
-        await _voice_socket(websocket, settings, adapter_factory, gate, supervisors)
+        await _voice_socket(websocket, settings, adapter_factory, gate, supervisors, auth)
 
     return app
+
+
+def _frame_logging_enabled() -> bool:
+    """DEBUG frame logging would write the token from the first message (REQ-12).
+
+    Checked at startup and again per connection, because a launcher can build
+    the app before uvicorn sets up logging, or raise the level later.
+    """
+    return any(logging.getLogger(name).isEnabledFor(logging.DEBUG) for name in ("uvicorn.error", "websockets"))
 
 
 def _control(text: str | None, settings: VoiceConfig) -> dict[str, object]:
@@ -161,12 +217,12 @@ def _control(text: str | None, settings: VoiceConfig) -> dict[str, object]:
     return message
 
 
-def _validated_teardown_seconds(value: object) -> None:
-    """Fail closed on a teardown budget that is not a real deadline (4.1)."""
-    if isinstance(value, bool) or not isinstance(value, (int, float)):
-        raise RuntimeError("teardown_seconds must be a real number")
+def _validated_positive(name: str, value: object, integer: bool = False) -> None:
+    """Fail closed on a budget or limit that is not a real positive number (4.1)."""
+    if isinstance(value, bool) or not isinstance(value, int if integer else (int, float)):
+        raise RuntimeError(f"{name} must be {'an integer' if integer else 'a real number'}")
     if not math.isfinite(float(value)) or value <= 0:
-        raise RuntimeError("teardown_seconds must be finite and strictly positive")
+        raise RuntimeError(f"{name} must be finite and strictly positive")
 
 
 def _settled_error(task: asyncio.Task) -> BaseException | None:
@@ -340,12 +396,86 @@ async def _run_wire_ops(record: _SessionTeardown) -> None:
 
 
 
+# Internal marker for a rejected credential: closes 1008 and sends nothing.
+_AUTH_FAILED = "auth-failed"
+
+
+async def _authenticate(
+    websocket: WebSocket, settings: VoiceConfig, auth: _AuthControl, deadline: float
+) -> None:
+    loop = asyncio.get_running_loop()
+    # CT-04: authentication has its own explicit deadline and is still
+    # bounded by whatever remains of the total session budget, so the
+    # total budget is never dropped during auth.
+    effective = min(deadline, loop.time() + settings.auth_timeout_seconds)
+    try:
+        incoming = await asyncio.wait_for(
+            websocket.receive(), timeout=effective - loop.time()
+        )
+    except TimeoutError:
+        # The category records which actual deadline expired.
+        raise _SessionFailure(
+            "max-duration" if loop.time() >= deadline else "session-timeout"
+        ) from None
+    if incoming["type"] == "websocket.disconnect":
+        raise WebSocketDisconnect(incoming.get("code", 1000))
+    message = _control(incoming.get("text"), settings)
+    supplied = message.get("token")
+    # CR-08: compare UTF-8 bytes; surrogatepass keeps a lone surrogate in the
+    # JSON from raising, so it is only a failed attempt.
+    token_ok = isinstance(supplied, str) and hmac.compare_digest(
+        supplied.encode("utf-8", "surrogatepass"), settings.local_token.encode("utf-8")
+    )
+    if message.get("type") != "session.auth" or not token_ok or auth.expired():
+        raise _SessionFailure(_AUTH_FAILED, close_code=1008)
+
+
+async def _refuse(
+    websocket: WebSocket, settings: VoiceConfig, auth: _AuthControl, failure: _SessionFailure
+) -> None:
+    """Reject a connection that never became a session.
+
+    No adapter, worker, or session slot exists yet, so the whole teardown is a
+    bounded delay (credential failures only) and the two final wire ops.
+    """
+    try:
+        if failure.category in (_AUTH_FAILED, "invalid-control"):
+            delay = auth.failed()
+            # Past the sleeper cap the rejection is immediate instead of queued.
+            if delay and auth.sleepers.acquire():
+                try:
+                    await _hold_open(websocket, delay)
+                finally:
+                    auth.sleepers.release()
+        async with asyncio.timeout(settings.teardown_seconds):
+            if failure.category != _AUTH_FAILED:
+                await websocket.send_json({"type": "session.error", "category": failure.category})
+            await websocket.close(code=failure.close_code)
+    except Exception:
+        # The client left or the wire is stuck: nothing is owed to it.
+        pass
+
+
+async def _hold_open(websocket: WebSocket, seconds: float) -> None:
+    """Wait ``seconds``, ending early if the client disconnects."""
+    loop = asyncio.get_running_loop()
+    end = loop.time() + seconds
+    while (left := end - loop.time()) > 0:
+        try:
+            incoming = await asyncio.wait_for(websocket.receive(), timeout=left)
+        except TimeoutError:
+            return
+        if incoming["type"] == "websocket.disconnect":
+            return
+
+
 async def _voice_socket(
     websocket: WebSocket,
     settings: VoiceConfig,
     adapter_factory: AdapterFactory,
     gate: SessionGate,
     supervisors: list[asyncio.Task],
+    auth: _AuthControl,
 ) -> None:
     if (
         websocket.headers.get("host") != settings.allowed_host
@@ -353,52 +483,49 @@ async def _voice_socket(
     ):
         await websocket.close(code=1008)
         return
-    # CT-05: the single-session slot is taken before authentication on
-    # purpose, so a busy session rejects the second connection immediately
-    # with 1013 instead of letting it negotiate auth. The window an
-    # unauthenticated connection can hold the slot is bounded by
-    # auth_timeout_seconds inside the total budget (CT-04). Teardown releases
-    # the slot only after worker quiescence and confirmed adapter closure.
-    if not gate.acquire():
+    if _frame_logging_enabled():
+        await websocket.close(code=1011)
+        return
+    loop = asyncio.get_running_loop()
+    deadline = loop.time() + settings.max_session_seconds
+    # CR-06: authentication happens before the single-session slot is taken, so
+    # an unauthenticated client can never starve the real user. Pre-auth sockets
+    # have their own cap instead, taken before accept so a client that sees the
+    # accept is already counted.
+    if not auth.connections.acquire():
         await websocket.accept()
+        await websocket.close(code=1013)
+        return
+    failure: _SessionFailure | None = None
+    try:
+        await websocket.accept()
+        await _authenticate(websocket, settings, auth, deadline)
+    except WebSocketDisconnect:
+        return
+    except _SessionFailure as error:
+        failure = error
+    except Exception:
+        failure = _SessionFailure("session-failed")
+    finally:
+        # Released before any failure delay (review N1): a delayed rejection
+        # must not fill the cap and lock the real user out.
+        auth.connections.release()
+    if failure is not None:
+        await _refuse(websocket, settings, auth, failure)
+        return
+    auth.succeeded()
+    # Teardown releases the slot only after worker quiescence and confirmed
+    # adapter closure.
+    if not gate.acquire():
         await websocket.close(code=1013)
         return
 
     adapter: VoiceAdapter | None = None
     tasks: list[asyncio.Task[None]] = []
-    failure: _SessionFailure | None = None
+    failure = None
     stopped = False
     close_code = 1000
-    loop = asyncio.get_running_loop()
     try:
-        await websocket.accept()
-        deadline = loop.time() + settings.max_session_seconds
-        # CT-04: authentication has its own explicit deadline and is still
-        # bounded by whatever remains of the total session budget, so the
-        # total budget is never dropped during auth.
-        auth_deadline = loop.time() + settings.auth_timeout_seconds
-        effective = min(deadline, auth_deadline)
-        try:
-            incoming = await asyncio.wait_for(
-                websocket.receive(), timeout=effective - loop.time()
-            )
-        except TimeoutError:
-            # The category records which actual deadline expired.
-            raise _SessionFailure(
-                "max-duration" if loop.time() >= deadline else "session-timeout"
-            ) from None
-        if incoming["type"] == "websocket.disconnect":
-            return
-        message = _control(incoming.get("text"), settings)
-        supplied = message.get("token")
-        if (
-            message.get("type") != "session.auth"
-            or not isinstance(supplied, str)
-            or not hmac.compare_digest(supplied.encode("utf-8"), settings.local_token.encode("utf-8"))
-        ):
-            close_code = 1008
-            return
-
         # No adapter or future provider session exists before authentication.
         adapter = adapter_factory()
         remaining = deadline - loop.time()
@@ -408,6 +535,8 @@ async def _voice_socket(
             await asyncio.wait_for(adapter.start(), timeout=remaining)
         except TimeoutError:
             raise _SessionFailure("max-duration") from None
+        except AdapterError as error:
+            raise _SessionFailure(error.category) from None
         except Exception:
             raise _SessionFailure("provider-unavailable") from None
 
@@ -415,7 +544,7 @@ async def _voice_socket(
         outbound = _OutboundQueue()
         outbound.put(_Outbound({
             "type": "session.ready", "playbackEpoch": 0,
-            "outputRateHz": 16000, "provider": "fake",
+            "outputRateHz": adapter.output_rate_hz, "provider": adapter.name,
         }))
         tasks = [
             asyncio.create_task(_receive(websocket, adapter, settings, state, outbound)),
@@ -638,6 +767,7 @@ async def _receive(
         if event == "capture.mute":
             state.muted = True
             outbound.clear_playback()
+            await adapter.end_audio_stream()
             await adapter.interrupt()
             outbound.put(_Outbound({"type": "session.state", "muted": True}))
         elif event == "capture.unmute":
@@ -657,6 +787,18 @@ async def _receive(
 
 
 async def _forward(
+    adapter: VoiceAdapter,
+    settings: VoiceConfig,
+    state: _SessionState,
+    outbound: _OutboundQueue,
+) -> None:
+    try:
+        await _forward_events(adapter, settings, state, outbound)
+    except AdapterError as error:
+        raise _SessionFailure(error.category) from None
+
+
+async def _forward_events(
     adapter: VoiceAdapter,
     settings: VoiceConfig,
     state: _SessionState,

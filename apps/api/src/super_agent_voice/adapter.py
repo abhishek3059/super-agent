@@ -24,11 +24,31 @@ class Interrupted:
 
 AdapterEvent = AudioChunk | TurnComplete | Interrupted
 
+# Fixed browser-facing categories (design section 5); provider detail never
+# leaves the adapter.
+ERROR_CATEGORIES = frozenset({
+    "provider-unavailable", "provider-limits", "provider-unsupported",
+    "provider-session-ended", "session-failed",
+})
+
+
+class AdapterError(Exception):
+    """Carries a fixed category only, never provider detail."""
+
+    def __init__(self, category: str) -> None:
+        self.category = category if category in ERROR_CATEGORIES else "session-failed"
+        super().__init__(self.category)
+
 
 class VoiceAdapter(Protocol):
+    name: str
+    output_rate_hz: int
+
     async def start(self) -> None: ...
 
     async def enqueue_audio(self, audio: bytes) -> None: ...
+
+    async def end_audio_stream(self) -> None: ...
 
     async def interrupt(self) -> None: ...
 
@@ -39,6 +59,9 @@ class VoiceAdapter(Protocol):
 
 class FakeVoiceAdapter:
     """Local streaming echo; no network, persistent audio, or provider key."""
+
+    name = "fake"
+    output_rate_hz = 16000
 
     def __init__(self, max_input_frames: int = 16) -> None:
         if max_input_frames < 1:
@@ -70,6 +93,9 @@ class FakeVoiceAdapter:
             self.dropped_input_frames += 1
         self._input.put_nowait((self._generation, audio))
 
+    async def end_audio_stream(self) -> None:
+        pass
+
     async def events(self) -> AsyncIterator[AdapterEvent]:
         if not self._started or self._consuming:
             raise RuntimeError("adapter requires one started event consumer")
@@ -81,7 +107,7 @@ class FakeVoiceAdapter:
             generation, audio = frame
             if generation != self._generation:
                 continue
-            yield AudioChunk(data=audio, rate_hz=16000)
+            yield AudioChunk(data=audio, rate_hz=self.output_rate_hz)
             # A control may interrupt between the audio and turn events.
             if generation == self._generation and not self.closed:
                 yield TurnComplete()

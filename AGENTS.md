@@ -130,8 +130,7 @@ These are agent conventions checked in review, not by CI.
   that references what you change.
 - Relative links only; `npm run check` validates them.
 - Mark proposals as proposals. Decisions go in [descisions.md](descisions.md)
-  (that spelling is intentional). The task folder is being renamed from
-  `taks/` to `tasks/` in a pending PR; use whichever exists on your base branch.
+  (that spelling is intentional).
 - When a spike, phase, or incident ends, add a short dated note to
   [docs/learnings/](docs/learnings/README.md) and update its index in the same PR.
 - Write plainly: short sentences, no marketing claims, no em dashes.

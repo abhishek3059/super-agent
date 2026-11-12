@@ -19,7 +19,9 @@
             "outputPath": "dist/web"
           },
           "configurations": {
-            "production": {},
+            "production": {
+              "optimization": { "styles": { "inlineCritical": false } }
+            },
             "development": {
               "optimization": false,
               "extractLicenses": false,

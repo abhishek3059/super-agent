@@ -3,24 +3,47 @@
 This is an offline scaffold. It uses a deterministic local adapter that echoes
 PCM audio. It does not use Gemini, persist audio, or provide tools or actions.
 
-## Current state (2026-11-09)
+## Current state (2026-11-12)
 
-The fake adapter is the only adapter implemented. The Gemini Live adapter and
-the opt-in synthetic live command are not implemented (R-01.7 to R-01.9). You
-can run the local scaffold and test start, mute, barge-in, and stop, but it
-cannot connect to Gemini. Personal microphone audio stays local.
+The fake adapter is the only adapter the application uses. A Gemini Live
+adapter exists behind the same seam with offline tests
+([record](../docs/implementation/r01-7-gemini-adapter.md)), but the application
+never constructs it. An opt-in command, `live_check`, ran it once against the
+real service with synthetic speech ([record](../docs/implementation/r01-8-live-check.md)).
+You can run the local scaffold and test start, mute, barge-in, and stop, but the
+console cannot connect to Gemini. Personal microphone audio stays local.
+
+## Synthetic live check (opt-in)
+
+Sends synthetic speech to Google's free tier, which may use inputs for
+training. Never run it with personal audio. It is not part of any test run.
+
+```bash
+# --wav takes a 16 kHz mono 16-bit file of synthetic speech; without it, macOS `say` is used
+GEMINI_API_KEY="$(cat ~/.super-agent/gemini-key)" PYTHONPATH=apps/api/src \
+  python -m super_agent_voice.live_check --send-synthetic-audio
+```
+
+The output is timing and state only. The key stays in the process environment.
 
 ## Backend
 
-Use a private process environment token. Do not create a project `.env` file.
+Keep the two `--ws-max-*` flags: without them uvicorn buffers up to 16 MiB per
+message before the application can reject it. Do not run the backend at debug log level: it refuses to start and refuses
+connections, because frame logging would record the session token.
+
+The backend reads the local token from `~/.super-agent/voice-token`, written
+with mode 0600 by the generator below. Do not create a project `.env` file and
+do not type the token into a shell command. On Windows the file relies on the
+profile directory's ACL; an explicit owner-only ACL is not implemented yet.
 
 ```powershell
 $voiceVenv = Join-Path $env:LOCALAPPDATA "Temp\super-agent-voice-venv"
 python -m venv $voiceVenv
 & "$voiceVenv\Scripts\python" -m pip install --only-binary=:all: -r apps\api\requirements-dev.in
-$env:SUPER_AGENT_LOCAL_TOKEN = python -c "import secrets; print(secrets.token_urlsafe(32))"
 $env:PYTHONPATH = "apps\api\src"
-& "$voiceVenv\Scripts\python" -m uvicorn super_agent_voice.app:create_app --factory --host 127.0.0.1 --port 8000
+& "$voiceVenv\Scripts\python" -m super_agent_voice.generate_token
+& "$voiceVenv\Scripts\python" -m uvicorn super_agent_voice.app:create_app --factory --host 127.0.0.1 --port 8000 --ws-max-size 65600 --ws-max-queue 4
 ```
 
 ## Browser client
@@ -32,7 +55,7 @@ npm ci --ignore-scripts --prefix apps/web
 npm start --prefix apps/web
 ```
 
-Open `http://127.0.0.1:4200`, paste the same local token into the in-memory
+Open `http://127.0.0.1:4200`, paste the contents of the token file into the in-memory
 field, and select **Start**. Browser permission is requested only then.
 
 The current browser audio processor is a scaffold seam, not accepted audio

@@ -336,3 +336,37 @@ See [PRD](prd.md) for requirement and acceptance detail.
 - [Tasks](tasks/README.md)
 - [Council meetings](council%20meetings/README.md)
 - [Implementation report](docs/implementation/super-agent.md)
+
+## PH-01 ticks, credential fixes, and Gemini adapter (2026-11-11)
+
+PR #24 merged into `develop`. On branch `feat/ph-01-gemini-live`:
+
+- `jeevesh2515` confirmed the R-01.3, R-01.5, and R-01.F1 ticks in chat. The
+  R-01.3 run tested the earlier scaffold at `4f51e00`; he confirmed it knowing
+  that.
+- CR-09 and CR-02 are implemented: weak tokens are rejected and
+  `python -m super_agent_voice.generate_token` writes a 0600 token file.
+- R-01.7: the Gemini Live adapter is ported onto the current seam with offline
+  tests ([record](docs/implementation/r01-7-gemini-adapter.md)). The SDK is not
+  a dependency and the application still uses only the fake adapter.
+
+The next items are R-01.4 (human microphone test), R-01.6 (independent security
+review), and R-01.8 (opt-in live command, which needs maintainer approval for
+the `google-genai` dependency). RT-G01 remains open.
+
+## PH-01 live check and auth boundary (2026-11-12)
+
+On branch `feat/ph-01-gemini-live` (PR #32):
+
+- R-01.8 and R-01.9: `google-genai` 2.33.0 added and locked. The opt-in
+  `live_check` command ran against `gemini-3.8-live` with synthetic speech and
+  failed closed on an unknown model ([record](docs/implementation/r01-8-live-check.md)).
+- R-01.6: authentication now precedes the session slot, with a pre-auth cap,
+  failed-attempt throttling, and token expiry; a Content-Security-Policy and
+  launch limits were added. An independent security review ended ACCEPT WITH
+  CONDITIONS; the conditions are closed ([review](docs/reviews/r01-6-security-review.md)).
+  `jeevesh2515` accepted the remaining lockout risk F2
+  ([record](docs/approvals/r01-6-f2-risk-acceptance.md)); `abhishek3059`'s
+  acceptance comes with the PR review.
+- R-01.4 (human microphone test, [steps](docs/implementation/r01-4-microphone-handover.md))
+  and R-01.10 remain. RT-G01 is open.

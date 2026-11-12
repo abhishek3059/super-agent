@@ -363,8 +363,11 @@ Mapping:
 | `server_content.model_turn.parts[].inline_data.data` | `AudioChunk(data, rate_hz=24000)` |
 | `server_content.turn_complete` | `TurnComplete()` |
 | `server_content.interrupted` | `Interrupted()` |
-| `server_content.go_away` | Fail closed with `provider-session-ended` |
+| `go_away` (a field of the message, not of `server_content`; checked against google-genai 2.33.0 on 2026-11-12) | Fail closed with `provider-session-ended` |
 | `session_resumption_update` | Store the handle only. No reconnect in this slice. |
+
+The [R-01.7 implementation record](../implementation/r01-7-gemini-adapter.md)
+lists where the code differs from this mapping.
 
 Session limits:
 
@@ -459,10 +462,12 @@ Session credential:
   at most 5 seconds and does not hold the single active-session slot, so
   unauthenticated clients cannot starve the user. Pre-auth connections are
   capped separately (provisional: 4 at once).
-- **A failed attempt is closed immediately** and never held open during its
-  delay; the delay is enforced by refusing or deferring that source's next
-  attempt. Failed attempts therefore cannot fill the pre-auth cap and lock the
-  user out (review N1, tested in R-01.6).
+- **A failed attempt releases its pre-auth place before any delay** (review N1,
+  tested in R-01.6). Past the throttle threshold the rejected socket is held
+  open for the delay and then closed, in a separate pool of at most 8
+  (`max_delayed_rejections`); beyond that pool it is closed at once. A held
+  socket therefore cannot fill the pre-auth cap and lock the user out. (This
+  replaces the earlier wording that failed attempts close immediately.)
 
 Failed-auth throttling (CR-01):
 
@@ -517,14 +522,34 @@ Same-origin trade-off:
 
 Implementation conditions from the review (tested in R-01.6):
 
-- CR-06: the current scaffold takes the session slot before authentication
-  (`apps/api/src/super_agent_voice/app.py`, slot at line 80, auth wait at
-  line 96). Change the order as stated above.
-- CR-08: the current scaffold compares `str` values with `hmac.compare_digest`,
-  which raises on non-ASCII input. Compare UTF-8 bytes and treat errors as a
-  failed attempt.
-- CR-09: the current scaffold checks only `len >= 32` bytes. Add the
-  distinct-character check and the `generate-token` helper.
+- CR-06: implemented 2026-11-12. Authentication runs before the session slot
+  is taken. Unauthenticated sockets have their own cap
+  (`max_pre_auth_connections`, 4). **Not solved:** a local process that forges
+  the Origin header can hold all 4 places by reopening idle sockets, and the
+  real user then gets 1013 for as long as it runs. The security review measured
+  0 successful logins in 30 seconds against 4 such sockets at about 0.8
+  connections per second. A shorter `auth_timeout_seconds` does not help.
+  Accepted for a single-user loopback development path; it must be fixed before
+  any multi-user or always-on host, for example by authenticating during the
+  handshake (the cookie flow, or a token in `Sec-WebSocket-Protocol` checked
+  before accept).
+- CR-08: implemented 2026-11-12. The token is compared as UTF-8 bytes, a lone
+  surrogate in the JSON is a failed attempt, and no type or decode problem can
+  raise out of the check.
+- CR-09: implemented 2026-11-11. `VoiceConfig.from_environment` rejects fewer
+  than 32 bytes or fewer than 16 distinct characters, and
+  `python -m super_agent_voice.generate_token` writes the token file with mode
+  0600. The backend reads that file when `SUPER_AGENT_LOCAL_TOKEN` is unset and
+  refuses a file that is not a regular file owned by the current user with no
+  group or other access. Not implemented: the Windows owner-only ACL (N2) and a
+  check of the parent directory's mode.
+- CR-01 and CR-05: implemented 2026-11-12. After 5 failures in 60 seconds each
+  further failed attempt is rejected after 0.5 s doubling to 8 s; the delayed
+  socket holds no pre-auth place and at most 8 sockets may be delayed at once.
+  A correct token is never delayed. Token expiry
+  (`SUPER_AGENT_TOKEN_MAX_AGE_SECONDS`, default 86400) is measured from backend
+  process start and applies to new authentication attempts only. The values are
+  the provisional design numbers and are not measured.
 - N3: the server-side cookie session id expires after 900 seconds, matching
   the cookie Max-Age; enrollment rejects a missing or `null` Origin; enrollment
   is refused once the device token has expired.
