@@ -24,10 +24,10 @@ this file is a status pointer, not evidence and not a gate.
 | PR | [#32](https://github.com/abhishek3059/super-agent/pull/32) |
 | Branch | `feat/ph-01-gemini-live` |
 | Status | open, targets `develop`; awaits hosted CI and code-owner review |
-| Application state | The application uses only the offline fake adapter. A Gemini Live adapter exists behind the seam with offline tests ([record](r01-7-gemini-adapter.md)); nothing constructs it and its SDK is not installed. The opt-in synthetic live test is not implemented (R-01.8, R-01.9). |
-| Scope | Ticks for R-01.3, R-01.5, and R-01.F1; credential findings CR-09 and CR-02; R-01.7 adapter port |
+| Application state | The application uses only the offline fake adapter. A Gemini Live adapter exists behind the seam; the application never constructs it, but the opt-in `live_check` command ran it once against the real service with synthetic speech ([R-01.7](r01-7-gemini-adapter.md), [R-01.8 and R-01.9](r01-8-live-check.md)). Authentication, throttling, expiry, and a CSP are in place and independently reviewed ([R-01.6](../reviews/r01-6-security-review.md)). |
+| Scope | Ticks for R-01.3, R-01.5, and R-01.F1; credential findings CR-09 and CR-02; R-01.6 auth boundary; R-01.7 adapter port; R-01.8 and R-01.9 live check |
 | Not in scope | Personal microphone audio to Gemini, the `google-genai` dependency, tools, workers, external actions, paid services, or public deployment |
-| After merge | PH-01 remains in progress until R-01.4, R-01.6, and R-01.8 to R-01.10 have evidence. |
+| After merge | PH-01 remains in progress until R-01.4 and R-01.10 have evidence. |
 
 The previous work bundle, [#24](https://github.com/abhishek3059/super-agent/pull/24),
 merged into `develop` on 2026-11-11. The paragraphs below describe that PR and

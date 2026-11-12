@@ -46,7 +46,7 @@ Verdict: **ACCEPT WITH CONDITIONS.** Scores: correctness 8, security 8, honesty
 | C1 token in logs | Partly closed at `d5808c6`: 10 launch routes tested on the pinned versions; only a programmatic launcher (N-1) still leaked. N-1 is fixed in the next commit (per-connection check plus test); the reviewer has not re-run it. |
 | C2 CSP | Closed. Fresh production build has no inline script, no `eval`, `Function`, or `innerHTML`; the policy text is sound. Residuals: no `frame-ancestors` (a meta tag cannot carry it; low risk because the token field is cleared after Start), and Vite's own script sits above the meta tag in the dev server (same origin, informational). |
 | C3 documentation | Closed. |
-| F2 accepted risk | **Still blocking.** Both maintainers must record that they accept the total-lockout risk for a single-user loopback development path. Until that record exists in `docs/approvals/`, R-01.6 is not ticked. |
+| F2 accepted risk | Blocking until a maintainer acceptance was recorded. `jeevesh2515` accepted on 2026-11-12 ([record](../approvals/r01-6-f2-risk-acceptance.md)); `abhishek3059`'s acceptance is pending and comes with approving or merging the pull request. R-01.6 is ticked on that basis. |
 
 The reviewer also re-checked F3 by execution on the pinned versions (peak
 memory 55 MiB with the flags, against 519 to 637 MiB without), F7, and F12.
