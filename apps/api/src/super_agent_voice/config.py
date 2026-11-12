@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 import os
 import stat
 from dataclasses import dataclass
@@ -30,6 +31,21 @@ class VoiceConfig:
     # blocked close, and one blocked wire op share the budget instead of each
     # getting its own. create_app validates it before any session runs.
     teardown_seconds: float = 2.0
+    # Pre-auth connections never touch the session slot (CR-06); they are
+    # capped separately so idle unauthenticated sockets stay bounded.
+    max_pre_auth_connections: int = 4
+    # Failed-auth throttling (CR-01): after the threshold inside the window,
+    # each further failure waits base * 2^n seconds up to the cap. Provisional
+    # values, to be measured in R-01.6. Only wrong tokens wait, never a correct one.
+    auth_failure_threshold: int = 5
+    auth_failure_window_seconds: float = 60.0
+    auth_delay_base_seconds: float = 0.5
+    auth_delay_cap_seconds: float = 8.0
+    # Sockets allowed to sleep in a failure delay at once; more are closed
+    # immediately without a delay.
+    max_delayed_rejections: int = 8
+    # Device token lifetime, measured from backend process start (CR-05).
+    token_max_age_seconds: float = 86400.0
     # Live model ID, overridable because Google retires preview models.
     gemini_model: str = "gemini-3.8-live"
 
@@ -41,8 +57,19 @@ class VoiceConfig:
             raise RuntimeError(
                 "SUPER_AGENT_LOCAL_TOKEN must contain at least 32 bytes and 16 distinct characters"
             )
+        raw_age = os.environ.get("SUPER_AGENT_TOKEN_MAX_AGE_SECONDS")
+        try:
+            max_age = float(raw_age) if raw_age else cls.token_max_age_seconds
+        except ValueError:
+            max_age = math.nan
+        # Fixed message: the configured value is never echoed.
+        if not math.isfinite(max_age) or max_age <= 0:
+            raise RuntimeError(
+                "SUPER_AGENT_TOKEN_MAX_AGE_SECONDS must be a finite number greater than zero"
+            )
         return cls(
             local_token=token,
+            token_max_age_seconds=max_age,
             gemini_model=os.environ.get("SUPER_AGENT_GEMINI_MODEL") or cls.gemini_model,
         )
 
