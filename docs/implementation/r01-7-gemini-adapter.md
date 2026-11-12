@@ -113,9 +113,9 @@ at 8.3 or wait for those items is a maintainer decision.
 
 ## Verification (macOS, Python 3.14.5, Node 22.22.3)
 
-For later fixes to stale playback and closure confirmation, see the
-[R-01.10 acceptance record](r01-10-acceptance.md#offline-fixes). The output
-below is historical.
+For later fixes to stale playback, closure confirmation, and the SDK
+destination, see the [R-01.10 acceptance record](r01-10-acceptance.md).
+The output below is historical.
 
 Every command below was run on 2026-11-11 on the final code of this PR, after
 all review fixes, by the coordinating agent. The reviewer re-ran only the

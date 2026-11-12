@@ -81,6 +81,8 @@ Maps to [RT-002](tasks/002-local-scaffold-and-boundary.md), [RT-003](tasks/003-n
 - [x] R-01.9 Synthetic live test run and recorded; unsupported transport fails closed. Evidence: [saved live output](docs/implementation/evidence/r01-9-live-check-output-20261112T000230Z.txt), [R-01.8 and R-01.9 record](docs/implementation/r01-8-live-check.md)
 - [x] R-01.F5 Prevent queued and late native audio from resuming playback after a local interrupt. Evidence: [PH-01 acceptance record](docs/implementation/r01-10-acceptance.md#offline-fixes)
 - [x] R-01.F6 Require a clean SDK exit before reporting an established Gemini session closed. Evidence: [PH-01 acceptance record](docs/implementation/r01-10-acceptance.md#offline-fixes)
+- [x] R-01.F7 Refuse an unexpected or missing provider before the local echo console requests microphone capture. Evidence: [browser verification](docs/implementation/r01-10-acceptance.md#browser-verification)
+- [x] R-01.F8 Keep the synthetic Live adapter on the approved Gemini Developer API destination. Evidence: [provider destination check](docs/implementation/r01-10-acceptance.md#provider-destination)
 - [ ] R-01.10 RT-002 and RT-003 records complete and RT-G01 evidenced. Evidence: none yet
 
 ## PH-02: ledger, policy, and two fixed workers

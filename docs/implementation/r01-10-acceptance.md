@@ -13,7 +13,7 @@
 | --- | --- |
 | Local loopback boundary | [Independent review and disposition](../reviews/r01-6-security-review.md) and the [Windows launcher record](r01-f4-windows-launcher.md). Review of the deployed fake console does not approve native provider wiring. |
 | Human microphone controls | [Jeevesh's test record](../approvals/r01-4-microphone-test.md) covers the revised fake scaffold at `a790530`. Manual Stop playback feedback was inconclusive. PR #34's rebuilt console was not the one used for this test. |
-| Rebuilt console | Local Chromium smoke check at `3025155`: disconnected state, local-only disclosure, masked token field, locked loopback endpoint, empty-token rejection, and Escape restoring focus. No microphone or authenticated browser session was used. |
+| Rebuilt console | Chromium smoke check at `3025155` covered the connection dialog. The later [browser verification](#browser-verification) exercised authenticated local echo, playback stop, mute, and session end with generated input. |
 | Live provider | [Saved synthetic run](r01-8-live-check.md) measured a reply and an unsupported-model refusal through the standalone adapter. The reply ended naturally. It did not demonstrate barge-in or browser-to-provider controls. |
 | Native bridge, offline | The authenticated in-process WebSocket tests use the real application and adapter with a scripted SDK. They verify PCM framing and interruption ordering without reaching a provider. |
 
@@ -45,17 +45,51 @@ passed and its dependency audit reported zero vulnerabilities. The repository
 check reported zero errors. The two new fixed phrases generated 4.57 s and
 2.90 s of PCM locally, without a provider call.
 
+## Browser verification
+
+R-01.F7 adds a check for `provider: "fake"` before the local console
+requests capture. The regression received `listening` instead of
+`error` before the fix. After the fix, a missing provider and a reported
+`gemini-live` provider both cause a fixed error, close the socket, and
+send zero PCM. The provider field is a protocol check. The proposed
+native probe needs its own endpoint authentication.
+
+An isolated headless Chrome session used the Angular console and actual
+Uvicorn WebSocket. The test supplied a generated Web Audio MediaStream
+at the browser capture boundary. It checked that the console requested
+the stream once, entered Local echo, called playback stop and sent an
+interrupt control, sent no PCM while muted, and released the track at
+session end. A local adapter reporting `gemini-live` exercised the
+negative path. These checks covered generated local audio. Physical input
+and a real provider were outside the run.
+
+```text
+Chrome/157.0.8103.52 local fake: generated audio echo, playback stop, mute, unmute, stop and track release PASS
+Simulated provider mismatch: fixed error and no additional capture request PASS
+voice-session self-test: PASS (41 cases)
+```
+
+## Provider destination
+
+R-01.F8 makes the SDK's Gemini Developer API mode and base URL explicit.
+The regression intercepted the installed SDK at the WebSocket dial and
+checked the scheme, host, and Developer API path under alternate SDK
+configuration. The baseline failed both cases. The revised adapter kept the
+approved destination in both. The check used a test value and opened no
+network connection. See the [Gemini Live WebSocket API reference](https://ai.google.dev/api/live).
+
+The full offline backend suite passed 201 tests. The frontend passed 73
+self-tests and its production build. The repository check reported zero
+errors.
+
 ## Remaining gate work
 
 1. The operator runs the revised [synthetic live command](../../apps/voice-foundation.md#synthetic-live-check-opt-in)
    from the shell holding the approved key. Save only redacted timing, state,
    and outcomes. Treat a naturally completed turn as inconclusive for barge-in.
-2. Review a synthetic-only console design before enabling provider wiring.
-   Address the open session-auth concern in the
-   [boundary review](../reviews/r01-6-security-review.md). An opt-in test
-   mode should require explicit activation, generate fixed speech on the
-   server, reject browser PCM, and leave browser microphone capture off.
-   Default local microphone use stays on the fake path. This is a proposal.
+2. Review the [synthetic-only console proposal](../design/synthetic-voice-console.md)
+   before enabling provider wiring. It covers session authentication,
+   fixed server-generated input, and playback without microphone capture.
 3. On the reviewed path, record authenticated activation, actual native
    playback and visible state, stop and interruption behavior, and
    fail-closed failure with no fallback. Include a negative check that

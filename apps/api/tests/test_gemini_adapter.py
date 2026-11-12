@@ -1,4 +1,4 @@
-"""Offline tests for the Gemini Live adapter. No SDK, key, network, or audio."""
+"""Offline tests for the Gemini Live adapter. No network, real key, or audio."""
 from __future__ import annotations
 
 import asyncio
@@ -98,6 +98,34 @@ async def sent(session: FakeSession, count: int) -> None:
 
 def run(coro):
     return asyncio.run(coro)
+
+
+@pytest.mark.parametrize("enterprise", ["false", "true"])
+def test_sdk_live_destination_stays_on_developer_api(monkeypatch, enterprise) -> None:
+    from urllib.parse import urlsplit
+
+    from google.genai import live
+
+    monkeypatch.setenv("GOOGLE_GENAI_USE_ENTERPRISE", enterprise)
+    monkeypatch.delenv("GOOGLE_GENAI_USE_VERTEXAI", raising=False)
+    monkeypatch.setenv("GOOGLE_GEMINI_BASE_URL", "https://gemini.invalid")
+    monkeypatch.setenv("GOOGLE_VERTEX_BASE_URL", "https://vertex.invalid")
+    destinations = []
+
+    def refuse_network(uri, **_):
+        destination = urlsplit(uri)
+        destinations.append((destination.scheme, destination.hostname, destination.path))
+        raise OSError
+
+    monkeypatch.setattr(live, "ws_connect", refuse_network)
+    adapter = GeminiLiveAdapter(MODEL, api_key="offline-test-placeholder")
+    with pytest.raises(AdapterError, match="^provider-unavailable$"):
+        run(adapter.start())
+    assert destinations == [(
+        "wss",
+        "generativelanguage.googleapis.com",
+        "/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent",
+    )]
 
 
 def test_maps_audio_interrupt_and_turn_complete_in_order() -> None:
