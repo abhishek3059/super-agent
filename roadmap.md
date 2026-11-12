@@ -159,6 +159,20 @@ These do not gate any phase, but they are on the path and must be ticked.
 - [ ] R-R.5 [human] Dependabot alerts, CodeQL, and secret scanning enabled. Evidence: none yet
 - [x] R-R.6 README links to the learnings folder (the roadmap link is already there). Evidence: [PR 21](https://github.com/abhishek3059/super-agent/pull/21)
 
+## Parallel track A: capability ladder (DEC-18)
+
+Tiers are defined in [DEC-18](descisions.md#dec-18). R-A.1 and R-A.2 can happen any time. R-A.3 starts after PH-01 is done and R-A.1 and R-A.2 are ticked. R-A.4 and R-A.5 start after RT-G02 (PH-02 exit). R-A.6 to R-A.9 start after RT-G03 (PH-03 exit). Each tier is built only after its design item is ticked. This track gates no phase and moves no gate.
+
+- [ ] R-A.1 [human] Both maintainers approve DEC-18 and the matching REQ-08 and AGENTS.md section 5 edits. Evidence: none yet
+- [ ] R-A.2 [human] Data-boundary and cost decision for real voice and personal data sent to a cloud provider (REQ-13, free-tier training, the $0 cap). Evidence: none yet
+- [ ] R-A.3 T0 advice-only conversation persona shipped with tests; no tools, no personal data access, no new authority. Evidence: none yet
+- [ ] R-A.4 [human] T1 read-only connector design (scopes, allowlists, injection handling) approved after independent security review. Evidence: none yet
+- [ ] R-A.5 T1 read-only connectors built behind the policy layer, with negative tests. Evidence: none yet
+- [ ] R-A.6 [human] T2 reversible-write design (logging, undo path, sandbox folder) approved after independent security review. Evidence: none yet
+- [ ] R-A.7 T2 reversible writes built behind the policy layer, with negative tests. Evidence: none yet
+- [ ] R-A.8 [human] T3 consequential-action design (on-device approval, shell and recipient allowlists, kill switch) approved after independent security review. Evidence: none yet
+- [ ] R-A.9 T3 consequential actions built behind the policy layer, with negative tests. Evidence: none yet
+
 ## Parallel track C: community and launch
 
 Starts after the PH-03 exit, except R-C.1 and R-C.2, which can happen any time.

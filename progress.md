@@ -411,3 +411,10 @@ used by the application. Verification on Windows: UI-state self-test 24 cases,
 voice-session self-test 39 cases, playback-epoch self-test 8 cases, production
 build 159.39 kB initial total, frontend audit 0 vulnerabilities, and repository
 check 0 errors. R-01.4 remains open until the human microphone run is recorded.
+
+## Capability ladder proposal (2026-11-12)
+
+`jeevesh2515` proposed replacing the flat ban on assistant capabilities with a
+tiered ladder ([DEC-18](descisions.md#dec-18)). It is a proposal until
+`abhishek3059` approves ([record](docs/approvals/capability-ladder-decision.md)).
+It enables no tier and moves no gate. Roadmap track A holds the items.
