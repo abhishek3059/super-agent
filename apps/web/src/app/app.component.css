@@ -375,6 +375,14 @@ button:disabled {
   transition: height 90ms linear, background 450ms ease;
 }
 
+.spectrum-label {
+  margin: -0.45rem 0 0;
+  color: #64748b;
+  font-size: 0.62rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
 [data-state='speaking'] .spectrum-bar {
   animation: bar-breathe 850ms ease-in-out infinite alternate;
 }

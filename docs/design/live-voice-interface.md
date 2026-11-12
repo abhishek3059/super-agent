@@ -38,13 +38,14 @@ research tools, or personal-microphone provider mode.
 - The settings button and disconnected center control open the local connection
   dialog.
 - The dialog accepts only the fixed loopback endpoint and a memory-only token.
-  Closing or connecting clears the component's token field.
+  Closing or starting the connection clears the component's token field.
 - The center control toggles mute only after the session is ready.
 - The dock exposes mute, stop local playback, and start or end session.
 - The local voice-path inspector describes connection, authentication,
   microphone capture, and fake-adapter echo without claiming future work.
-- The spectrum uses the existing microphone RMS signal. It is decorative while
-  connecting or playing echo and does not claim speech detection.
+- The spectrum uses the existing microphone RMS signal. A visible caption states
+  that it is a microphone level, not speech detection. It is decorative while
+  connecting or playing echo.
 
 ## Security and accessibility
 

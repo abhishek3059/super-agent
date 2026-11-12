@@ -24,6 +24,14 @@ export function pipelineSummary(status: string): string {
   return PIPELINE_SUMMARIES[status] ?? 'Local voice path';
 }
 
+export function isSessionActive(status: string): boolean {
+  return !['stopped', 'error'].includes(status);
+}
+
+export function isSessionReady(status: string): boolean {
+  return ['listening', 'speaking', 'muted'].includes(status);
+}
+
 export function formatElapsed(elapsed: number): string {
   const totalSeconds = Math.floor(elapsed / 1000);
   const minutes = Math.floor(totalSeconds / 60).toString().padStart(2, '0');

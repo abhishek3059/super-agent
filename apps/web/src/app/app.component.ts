@@ -1,6 +1,22 @@
-import { ChangeDetectionStrategy, Component, OnDestroy, computed, inject, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  ElementRef,
+  OnDestroy,
+  ViewChild,
+  computed,
+  inject,
+  signal,
+} from '@angular/core';
 import { VoiceSessionService } from './voice-session.service';
-import { formatElapsed, pipelineSummary, spectrumBarHeight, statusLabel } from './voice-ui-state';
+import {
+  formatElapsed,
+  isSessionActive,
+  isSessionReady,
+  pipelineSummary,
+  spectrumBarHeight,
+  statusLabel,
+} from './voice-ui-state';
 
 @Component({
   selector: 'app-root',
@@ -10,6 +26,10 @@ import { formatElapsed, pipelineSummary, spectrumBarHeight, statusLabel } from '
   styleUrl: './app.component.css',
 })
 export class AppComponent implements OnDestroy {
+  @ViewChild('settingsButton') private settingsButton?: ElementRef<HTMLButtonElement>;
+  @ViewChild('settingsPanel') private settingsPanel?: ElementRef<HTMLElement>;
+  @ViewChild('tokenInput') private tokenInput?: ElementRef<HTMLInputElement>;
+
   readonly session = inject(VoiceSessionService);
   readonly settingsOpen = signal(false);
   readonly elapsedMs = signal(0);
@@ -21,8 +41,8 @@ export class AppComponent implements OnDestroy {
     ? 'disconnected'
     : this.session.status());
   readonly statusLabel = computed(() => statusLabel(this.session.status()));
-  readonly isSessionActive = computed(() => !['stopped', 'error'].includes(this.session.status()));
-  readonly isSessionReady = computed(() => ['listening', 'speaking', 'muted'].includes(this.session.status()));
+  readonly isSessionActive = computed(() => isSessionActive(this.session.status()));
+  readonly isSessionReady = computed(() => isSessionReady(this.session.status()));
   readonly canControlSession = computed(() => this.isSessionReady());
   readonly pipelineSummary = computed(() => pipelineSummary(this.session.status()));
 
@@ -44,15 +64,35 @@ export class AppComponent implements OnDestroy {
 
   openSettings(): void {
     this.settingsOpen.set(true);
+    window.setTimeout(() => this.tokenInput?.nativeElement.focus());
   }
 
   closeSettings(): void {
+    const wasOpen = this.settingsOpen();
     this.token = '';
     this.settingsOpen.set(false);
+    if (wasOpen) window.setTimeout(() => this.settingsButton?.nativeElement.focus());
   }
 
   closeSettingsFromBackdrop(event: MouseEvent): void {
     if (event.target === event.currentTarget) this.closeSettings();
+  }
+
+  onSettingsKeydown(event: KeyboardEvent): void {
+    if (event.key !== 'Tab') return;
+    const panel = this.settingsPanel?.nativeElement;
+    if (!panel) return;
+    const focusable = Array.from(panel.querySelectorAll<HTMLElement>('button:not([disabled]), input:not([disabled])'));
+    if (!focusable.length) return;
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
   }
 
   start(): void {

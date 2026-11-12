@@ -6,8 +6,8 @@
   </div>
 
   <header class="topbar">
-    <div class="brand" aria-label="Super-agent">
-      <span class="brand-mark"></span>
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true"></span>
       <span>Super-Agent</span>
     </div>
 
@@ -16,7 +16,7 @@
       <span>{{ statusLabel() }}</span>
     </div>
 
-    <button class="icon-button settings-button" type="button" (click)="openSettings()"
+    <button #settingsButton class="icon-button settings-button" type="button" (click)="openSettings()"
       aria-label="Open local connection settings" title="Local connection settings">
       <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
         <path stroke-linecap="round" stroke-linejoin="round" d="M10.3 4.3c.4-1.7 2.9-1.7 3.4 0a1.7 1.7 0 0 0 2.5 1.1c1.6-.9 3.3.8 2.4 2.4a1.7 1.7 0 0 0 1.1 2.5c1.7.4 1.7 2.9 0 3.4a1.7 1.7 0 0 0-1.1 2.5c.9 1.6-.8 3.3-2.4 2.4a1.7 1.7 0 0 0-2.5 1.1c-.5 1.7-3 1.7-3.4 0a1.7 1.7 0 0 0-2.5-1.1c-1.6.9-3.3-.8-2.4-2.4a1.7 1.7 0 0 0-1.1-2.5c-1.7-.5-1.7-3 0-3.4a1.7 1.7 0 0 0 1.1-2.5c-.9-1.6.8-3.3 2.4-2.4a1.7 1.7 0 0 0 2.5-1.1Z" />
@@ -66,6 +66,7 @@
         <span class="spectrum-bar" [style.height.%]="barHeight(strength)" [style.animation-delay.ms]="$index * -34"></span>
       }
     </div>
+    <p class="spectrum-label">Microphone level, not speech detection</p>
 
     <details class="pipeline">
       <summary>
@@ -107,7 +108,7 @@
   </main>
 
   <footer class="control-area">
-    <div class="control-dock" aria-label="Voice session controls">
+    <div class="control-dock" role="group" aria-label="Voice session controls">
       <button class="dock-button" type="button" (click)="toggleMute()" [disabled]="!canControlSession()"
         [class.active]="session.muted()" [attr.aria-label]="session.muted() ? 'Unmute microphone' : 'Mute microphone'"
         [title]="session.muted() ? 'Unmute microphone' : 'Mute microphone'">
@@ -148,7 +149,8 @@
 
   @if (settingsOpen()) {
     <div class="modal-backdrop" (click)="closeSettingsFromBackdrop($event)">
-      <section class="settings-panel" role="dialog" aria-modal="true" aria-labelledby="settings-title">
+      <section #settingsPanel class="settings-panel" role="dialog" aria-modal="true"
+        aria-labelledby="settings-title" aria-describedby="settings-intro" (keydown)="onSettingsKeydown($event)">
         <div class="settings-heading">
           <div>
             <span class="eyebrow">Loopback only</span>
@@ -161,12 +163,12 @@
           </button>
         </div>
 
-        <p class="settings-intro">Paste the current token created by the launcher. It remains in memory only and is cleared after connection.</p>
+        <p class="settings-intro" id="settings-intro">Paste the current token created by the launcher. It remains in memory only and is cleared when you start the connection.</p>
 
         <label for="token">Local session token</label>
-        <input id="token" type="password" autocomplete="off" spellcheck="false" autofocus
+        <input #tokenInput id="token" type="password" autocomplete="off" spellcheck="false"
           placeholder="Paste the current loopback token"
-          [value]="token" (input)="token = tokenInput.value" #tokenInput>
+          [value]="token" (input)="token = tokenInput.value">
 
         <label for="endpoint">Local WebSocket endpoint</label>
         <input id="endpoint" type="text" value="ws://127.0.0.1:8000/ws/voice" readonly>
