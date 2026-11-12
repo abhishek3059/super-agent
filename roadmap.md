@@ -74,8 +74,8 @@ Maps to [RT-002](tasks/002-local-scaffold-and-boundary.md), [RT-003](tasks/003-n
 - [x] R-01.F1 Fix the misleading console state found in the [R-01.4 observations](docs/implementation/r01-4-microphone-observations.md): input level shown separately from model speech, silent frames never set `speaking`, and conversational barge-in (not the Interrupt button) is the tested path, with offline tests for silence, playback, interruption, stale output, mute, and stop. Evidence: [streaming slice record](docs/implementation/voice-streaming-slice.md), [frontend test output](docs/implementation/voice-streaming-frontend-output.md)
 - [ ] R-01.4 [human] Local microphone test (start, mute, conversational barge-in, stop) recorded on the revised scaffold after R-01.F1; no audio leaves the machine. Evidence: none yet
 - [ ] R-01.6 Independent security review accepted for the implemented boundary: deployed authentication, Host, Origin, CORS, WebSocket, and CSRF controls, and backend-only secrets. Evidence: none yet
-- [ ] R-01.8 Opt-in synthetic-audio live command built (key from process environment only, excluded from default tests and CI, logs timing and state only). Evidence: none yet
-- [ ] R-01.9 Synthetic live test run and recorded; unsupported transport fails closed. Evidence: none yet
+- [x] R-01.8 Opt-in synthetic-audio live command built (key from process environment only, excluded from default tests and CI, logs timing and state only). Evidence: [R-01.8 and R-01.9 record](docs/implementation/r01-8-live-check.md)
+- [x] R-01.9 Synthetic live test run and recorded; unsupported transport fails closed. Evidence: [saved live output](docs/implementation/evidence/r01-9-live-check-output-20261112T000230Z.txt), [R-01.8 and R-01.9 record](docs/implementation/r01-8-live-check.md)
 - [ ] R-01.10 RT-002 and RT-003 records complete and RT-G01 evidenced. Evidence: none yet
 
 ## PH-02: ledger, policy, and two fixed workers

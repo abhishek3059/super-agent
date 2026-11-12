@@ -39,7 +39,7 @@
 
 | Design section 6 says | Implementation | Reason |
 | --- | --- | --- |
-| `server_content.go_away` | Checks `go_away` on the message and on `server_content`; either fails closed | The location in the SDK is unverified until the SDK is installed (R-01.8) |
+| `server_content.go_away` | Checks `go_away` on the message only | Checked on 2026-11-12 against the installed google-genai 2.33.0 types: the field is on the message. The first version also checked `server_content`; that dead check was removed in R-01.8. |
 | `session_resumption_update`: store the handle only | Ignored | Storing a handle nothing reads is dead code |
 | Send `audio_stream_end` on mute or stop | Sent on mute; stop closes the provider session | Sending it on stop would change the reviewed teardown path |
 | Missing key: `provider-unavailable` | Same | PR 29 used `provider-unsupported`; the design wins |
@@ -58,8 +58,7 @@ re-read the page. The ID is a config default, not a hard-coded value.
   design says. Muting or pressing Interrupt during a long model answer may
   therefore end the session. This is unmeasured; check it in the synthetic live
   run (R-01.9).
-- `classify` maps HTTP 401, 403, and 5xx to `session-failed`. The design table
-  has no row for a rejected key. Decide the category before the live run.
+- `classify` maps a rejected API key to `session-failed`: the live check saw close code 1007 for a malformed key, which has no mapping. The design table has no row for a rejected key. Close code 1008 for an unknown model is mapped to `provider-unsupported` ([R-01.8 and R-01.9 record](r01-8-live-check.md)).
 - The end-of-stream marker shares the bounded drop-oldest input queue, so under
   sustained overload it can be evicted.
 - The adapter's outgoing event queue is unbounded.

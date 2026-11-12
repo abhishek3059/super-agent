@@ -3,15 +3,28 @@
 This is an offline scaffold. It uses a deterministic local adapter that echoes
 PCM audio. It does not use Gemini, persist audio, or provide tools or actions.
 
-## Current state (2026-11-11)
+## Current state (2026-11-12)
 
 The fake adapter is the only adapter the application uses. A Gemini Live
 adapter exists behind the same seam with offline tests
-([record](../docs/implementation/r01-7-gemini-adapter.md)), but nothing
-constructs it and its SDK is not installed. The opt-in synthetic live command
-is not implemented (R-01.8, R-01.9). You
-can run the local scaffold and test start, mute, barge-in, and stop, but it
-cannot connect to Gemini. Personal microphone audio stays local.
+([record](../docs/implementation/r01-7-gemini-adapter.md)), but the application
+never constructs it. An opt-in command, `live_check`, ran it once against the
+real service with synthetic speech ([record](../docs/implementation/r01-8-live-check.md)).
+You can run the local scaffold and test start, mute, barge-in, and stop, but the
+console cannot connect to Gemini. Personal microphone audio stays local.
+
+## Synthetic live check (opt-in)
+
+Sends synthetic speech to Google's free tier, which may use inputs for
+training. Never run it with personal audio. It is not part of any test run.
+
+```bash
+# --wav takes a 16 kHz mono 16-bit file of synthetic speech; without it, macOS `say` is used
+GEMINI_API_KEY="$(cat ~/.super-agent/gemini-key)" PYTHONPATH=apps/api/src \
+  python -m super_agent_voice.live_check --send-synthetic-audio
+```
+
+The output is timing and state only. The key stays in the process environment.
 
 ## Backend
 

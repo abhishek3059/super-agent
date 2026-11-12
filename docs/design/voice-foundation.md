@@ -363,7 +363,7 @@ Mapping:
 | `server_content.model_turn.parts[].inline_data.data` | `AudioChunk(data, rate_hz=24000)` |
 | `server_content.turn_complete` | `TurnComplete()` |
 | `server_content.interrupted` | `Interrupted()` |
-| `server_content.go_away` | Fail closed with `provider-session-ended` |
+| `go_away` (a field of the message, not of `server_content`; checked against google-genai 2.33.0 on 2026-11-12) | Fail closed with `provider-session-ended` |
 | `session_resumption_update` | Store the handle only. No reconnect in this slice. |
 
 The [R-01.7 implementation record](../implementation/r01-7-gemini-adapter.md)
