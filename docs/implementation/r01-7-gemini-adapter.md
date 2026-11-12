@@ -26,9 +26,9 @@
 
 ## What does not exist
 
-- The `google-genai` SDK is not a dependency. It is imported only inside the
-  function that opens a real session, so that path has never run. It is first
-  exercised by the opt-in live command (R-01.8).
+- The adapter initially used a lazy optional import. R-01.8 later added and
+  locked `google-genai` 2.33.0, then exercised the adapter through the opt-in
+  synthetic live command.
 - The application never builds a `GeminiLiveAdapter`. `create_app` still
   defaults to the fake adapter, and no setting switches the browser console
   to Gemini. Personal microphone audio stays local.

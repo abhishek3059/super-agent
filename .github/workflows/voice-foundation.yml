@@ -47,9 +47,10 @@ jobs:
         env:
           HUSKY: 0
 
-      - name: Offline frontend self-tests (playback epochs and voice session)
+      - name: Offline frontend self-tests (playback epochs, UI, and voice session)
         run: |
           npm run test:epoch
+          npm run test:ui
           npm run test:voice
         working-directory: apps/web
         env:

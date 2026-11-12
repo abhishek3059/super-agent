@@ -370,3 +370,44 @@ On branch `feat/ph-01-gemini-live` (PR #32):
   acceptance comes with the PR review.
 - R-01.4 (human microphone test, [steps](docs/implementation/r01-4-microphone-handover.md))
   and R-01.10 remain. RT-G01 is open.
+
+## PR #32 merged and scaffold-readiness follow-up (2026-11-12)
+
+PR #32 merged into `develop` as `651e33c`. The merge exercised the
+second-maintainer acceptance route stated in the F2 risk record. PR #31 also
+merged its historical completion-plan snapshot as `1929f17`; it closed no
+gate. R-01.4 and R-01.10 remain open, and RT-G01 remains open.
+
+A fresh locked Windows backend run then found one platform-fixture failure:
+193 tests passed, while the POSIX token-symlink test could not create a symlink
+without Windows privilege (`WinError 1314`). R-01.F2 records the portability
+fix. It changes no runtime token behavior and does not resolve the separate
+Windows ACL review item N2.
+
+Post-fix verification on Windows/Python 3.14.4: 193 backend tests passed and
+the one POSIX-only test skipped; frontend voice and epoch self-tests passed 39
+and 8 cases; the production build remained 116.00 kB; the frontend audit found
+0 vulnerabilities; and the repository/roadmap check reported 0 errors.
+
+The subsequent Windows microphone attempt exposed an operator-diagnostic gap:
+the page can load through `localhost`, but that different Origin is correctly
+rejected before authentication and microphone access. R-01.F3 keeps the strict
+allowlist and makes the exact `127.0.0.1` URL and backend-port check explicit.
+R-01.4 remains open pending a complete human microphone run.
+
+The same attempt showed that copied relative commands were easy to run from the
+Windows profile instead of the repository and that one service could remain
+visible after the other exited. R-01.F4 adds one location-independent Windows
+launcher that owns both local service processes. It changes no provider or
+microphone data boundary.
+
+The operator then supplied a standalone HTML visual reference for the PH-01
+voice console. The Angular UI now adapts its ambient microphone orb, spectrum,
+state pill, voice-path inspector, connection dialog, and control dock while
+keeping the real local session service authoritative. The reference is saved
+under `docs/design/references/`; its external assets, token persistence,
+configurable endpoint, simulated research states, and future job claims are not
+used by the application. Verification on Windows: UI-state self-test 18 cases,
+voice-session self-test 39 cases, playback-epoch self-test 8 cases, production
+build 148.52 kB initial total, frontend audit 0 vulnerabilities, and repository
+check 0 errors. R-01.4 remains open until the human microphone run is recorded.

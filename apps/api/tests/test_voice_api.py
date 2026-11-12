@@ -1391,6 +1391,7 @@ def test_debug_logging_raised_after_startup_refuses_connections(caplog) -> None:
     assert refused.value.code == 1011
 
 
+@pytest.mark.skipif(os.name != "posix", reason="token symlink hardening is POSIX-only")
 def test_token_file_symlink_is_refused(monkeypatch, tmp_path) -> None:
     real = tmp_path / "real"
     real.write_text("abcdefghijklmnopqrstuvwxyz0123456789ABCDEF")
@@ -1399,6 +1400,5 @@ def test_token_file_symlink_is_refused(monkeypatch, tmp_path) -> None:
     link.symlink_to(real)
     monkeypatch.delenv("SUPER_AGENT_LOCAL_TOKEN", raising=False)
     monkeypatch.setattr(config_module, "TOKEN_FILE", link)
-    if os.name == "posix":
-        with pytest.raises(RuntimeError, match="regular|mode 0600"):
-            VoiceConfig.from_environment()
+    with pytest.raises(RuntimeError, match="regular|mode 0600"):
+        VoiceConfig.from_environment()

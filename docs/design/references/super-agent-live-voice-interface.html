@@ -1,0 +1,930 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Super-Agent — Live Voice Interface</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <style>
+    :root {
+      --bg-base: #05070e;
+      --aura-1: rgba(59, 130, 246, 0.22);
+      --aura-2: rgba(139, 92, 246, 0.16);
+    }
+
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      width: 100%;
+      background-color: var(--bg-base);
+      color: #f8fafc;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      overflow: hidden;
+      user-select: none;
+    }
+
+    .mono-num {
+      font-family: 'JetBrains Mono', monospace;
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* Vivid Ambient Background Aura */
+    .ambient-bg {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      pointer-events: none;
+      overflow: hidden;
+    }
+
+    .aura-orb {
+      position: absolute;
+      border-radius: 9999px;
+      filter: blur(120px);
+      transition: background 0.9s cubic-bezier(0.22, 1, 0.36, 1),
+                  transform 1.2s cubic-bezier(0.22, 1, 0.36, 1),
+                  opacity 0.7s ease;
+    }
+
+    .aura-primary {
+      width: 68vw;
+      height: 68vw;
+      max-width: 760px;
+      max-height: 760px;
+      top: 44%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: radial-gradient(circle, var(--aura-1) 0%, transparent 70%);
+    }
+
+    .aura-secondary {
+      width: 54vw;
+      height: 54vw;
+      max-width: 600px;
+      max-height: 600px;
+      top: 48%;
+      left: 50%;
+      transform: translate(-50%, -48%);
+      background: radial-gradient(circle, var(--aura-2) 0%, transparent 72%);
+    }
+
+    /* Extra-Large Static Centerpiece Mic Orb (No radial spikes) */
+    .mic-core {
+      position: relative;
+      z-index: 20;
+      width: 224px;
+      height: 224px;
+      border-radius: 9999px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      cursor: pointer;
+      border: 1.5px solid rgba(255, 255, 255, 0.16);
+      background: radial-gradient(circle at 32% 26%, rgba(255, 255, 255, 0.16), rgba(15, 23, 42, 0.86));
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      box-shadow: 0 0 65px rgba(56, 189, 248, 0.28), inset 0 1px 2px rgba(255, 255, 255, 0.25);
+      transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1),
+                  box-shadow 0.55s ease,
+                  border-color 0.55s ease,
+                  background 0.55s ease;
+    }
+
+    @media (min-width: 640px) {
+      .mic-core {
+        width: 256px;
+        height: 256px;
+        gap: 14px;
+      }
+    }
+
+    .mic-core:hover {
+      transform: scale(1.03);
+    }
+
+    .mic-core:active {
+      transform: scale(0.97);
+    }
+
+    /* State-specific ambient core glow (Mic icon remains static) */
+    body[data-state="idle"] .mic-core {
+      box-shadow: 0 0 48px rgba(59, 130, 246, 0.30), inset 0 1px 2px rgba(255, 255, 255, 0.22);
+      border-color: rgba(96, 165, 250, 0.4);
+    }
+
+    body[data-state="listening"] .mic-core {
+      box-shadow: 0 0 90px rgba(0, 229, 255, 0.52), 0 0 160px rgba(59, 130, 246, 0.30), inset 0 1px 3px rgba(255, 255, 255, 0.38);
+      border-color: rgba(34, 211, 238, 0.8);
+      background: radial-gradient(circle at 32% 26%, rgba(34, 211, 238, 0.28), rgba(15, 23, 42, 0.86));
+    }
+
+    body[data-state="thinking"] .mic-core {
+      box-shadow: 0 0 95px rgba(168, 85, 247, 0.56), 0 0 170px rgba(236, 72, 153, 0.32), inset 0 1px 3px rgba(255, 255, 255, 0.38);
+      border-color: rgba(192, 132, 252, 0.85);
+      background: radial-gradient(circle at 32% 26%, rgba(168, 85, 247, 0.32), rgba(15, 23, 42, 0.86));
+    }
+
+    body[data-state="speaking"] .mic-core {
+      box-shadow: 0 0 95px rgba(16, 185, 129, 0.52), 0 0 170px rgba(6, 182, 212, 0.32), inset 0 1px 3px rgba(255, 255, 255, 0.38);
+      border-color: rgba(52, 211, 153, 0.85);
+      background: radial-gradient(circle at 32% 26%, rgba(16, 185, 129, 0.28), rgba(15, 23, 42, 0.86));
+    }
+
+    body[data-state="muted"] .mic-core {
+      box-shadow: 0 0 40px rgba(245, 158, 11, 0.24), inset 0 1px 1px rgba(255, 255, 255, 0.15);
+      border-color: rgba(251, 191, 36, 0.5);
+      background: radial-gradient(circle at 32% 26%, rgba(245, 158, 11, 0.16), rgba(15, 23, 42, 0.9));
+    }
+
+    body[data-state="disconnected"] .mic-core {
+      box-shadow: 0 0 28px rgba(100, 116, 139, 0.18);
+      border-color: rgba(148, 163, 184, 0.25);
+      background: radial-gradient(circle at 32% 26%, rgba(148, 163, 184, 0.1), rgba(15, 23, 42, 0.92));
+    }
+
+    /* Smooth orbital border ring during thinking */
+    .thinking-ring {
+      position: absolute;
+      inset: -4px;
+      border-radius: 9999px;
+      padding: 2.5px;
+      background: conic-gradient(from 0deg, transparent 0%, #c084fc 28%, #f472b6 55%, #38bdf8 82%, transparent 100%);
+      -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+      -webkit-mask-composite: xor;
+      mask-composite: exclude;
+      opacity: 0;
+      transition: opacity 0.35s ease;
+      pointer-events: none;
+    }
+
+    body[data-state="thinking"] .thinking-ring {
+      opacity: 1;
+      animation: spinSlow 1.35s linear infinite;
+    }
+
+    @keyframes spinSlow {
+      to { transform: rotate(360deg); }
+    }
+
+    @keyframes pulseDot {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.45; transform: scale(0.8); }
+    }
+
+    .status-dot-pulse {
+      animation: pulseDot 1.6s ease-in-out infinite;
+    }
+
+    /* Glass dock & pills */
+    .glass-pill {
+      background: rgba(15, 23, 42, 0.58);
+      border: 1px solid rgba(255, 255, 255, 0.11);
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+    }
+
+    .dock-btn {
+      width: 52px;
+      height: 52px;
+      border-radius: 9999px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+      cursor: pointer;
+    }
+
+    .dock-btn:hover {
+      transform: translateY(-2px);
+    }
+
+    .dock-btn:active {
+      transform: scale(0.94);
+    }
+  </style>
+</head>
+<body data-state="listening" class="flex flex-col justify-between h-screen relative">
+
+  <!-- Vivid Ambient Aura -->
+  <div class="ambient-bg">
+    <div id="auraPrimary" class="aura-orb aura-primary"></div>
+    <div id="auraSecondary" class="aura-orb aura-secondary"></div>
+  </div>
+
+  <!-- Top Minimalist Bar -->
+  <header class="relative z-30 flex items-center justify-between px-5 sm:px-8 pt-4 sm:pt-6">
+    <!-- Brand -->
+    <div class="flex items-center gap-2.5">
+      <div class="w-2.5 h-2.5 rounded-full bg-gradient-to-tr from-cyan-400 to-violet-500 shadow-[0_0_12px_rgba(34,211,238,0.8)]"></div>
+      <span class="text-xs sm:text-sm font-semibold tracking-[0.18em] text-slate-300 uppercase">Super-Agent</span>
+    </div>
+
+    <!-- Truthful Live State Pill -->
+    <div id="statusPill" class="glass-pill px-4 py-1.5 rounded-full flex items-center gap-2 text-xs sm:text-sm font-medium transition-all duration-300">
+      <span id="statusDot" class="w-2 h-2 rounded-full bg-cyan-400 status-dot-pulse"></span>
+      <span id="statusText" class="text-cyan-100">Listening</span>
+    </div>
+
+    <!-- Settings / Token Drawer Toggle -->
+    <button id="settingsBtn" type="button" title="Session & Token Settings"
+      class="glass-pill w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center text-slate-300 hover:text-white hover:border-white/25 transition-all">
+      <svg class="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+        <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+      </svg>
+    </button>
+  </header>
+
+  <!-- Main Centerpiece: Extra-Large Static Mic + Pure Unboxed Frequency Bars + Abstracted Horizontal Pipeline Pill -->
+  <main class="relative z-10 flex-1 flex flex-col items-center justify-center px-4 w-full max-w-3xl mx-auto gap-6 sm:gap-8">
+
+    <!-- 1. Extra-Large Static Microphone Orb (No radial frequency spikes, static mic icon, live timer inside) -->
+    <div class="flex flex-col items-center">
+      <button id="centerMicBtn" type="button" aria-label="Primary Voice Control" class="mic-core group">
+        <div class="thinking-ring"></div>
+
+        <!-- Static Microphone Icon (Never swaps to sparkles/bars) -->
+        <svg id="iconMic" class="w-16 h-16 sm:w-20 sm:h-20 text-white transition-transform duration-300 group-hover:scale-105" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 18.75a6 6 0 006-6v-1.5m-6 7.5a6 6 0 01-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 01-3-3V4.5a3 3 0 116 0v8.25a3 3 0 01-3 3z" />
+        </svg>
+
+        <!-- Clean Live Timer Inside the Mic Orb -->
+        <span id="micInnerTimer" class="mono-num text-base sm:text-lg font-medium text-slate-200/90 tracking-widest">
+          00:00.0
+        </span>
+      </button>
+    </div>
+
+    <!-- 2. Pure Unboxed Voice Frequency Bars (No card box, no borders, no text labels or Hz numbers) -->
+    <div id="spectrumBarWrap" class="w-full max-w-xl h-20 sm:h-24 cursor-pointer flex items-center justify-center"
+      title="Interactive Voice Frequency — move across or click to transition conversation state">
+      <canvas id="spectrumBarCanvas" class="w-full h-full block"></canvas>
+    </div>
+
+    <!-- 3. Abstracted Horizontal Agent Pipeline Pill with Inspect Icon -->
+    <div class="flex items-center justify-center w-full">
+      <button id="openPipelineModalBtn" type="button"
+        class="glass-pill pl-4 pr-3 py-2 rounded-full flex items-center gap-3 hover:border-white/25 hover:bg-slate-900/75 transition-all group shadow-lg">
+        <span id="pipelinePulseDot" class="w-2 h-2 rounded-full bg-cyan-400 status-dot-pulse"></span>
+        <span id="pipelinePillSummary" class="text-xs sm:text-sm font-medium text-slate-200">
+          Voice Capture &amp; Slot Check
+        </span>
+        <span id="pipelineStepCounter" class="mono-num text-[11px] text-slate-400 px-2 py-0.5 rounded-full bg-white/5">
+          Step 1/4
+        </span>
+        <!-- Little Inspect Icon -->
+        <span class="w-7 h-7 rounded-full bg-white/10 group-hover:bg-white/20 flex items-center justify-center text-slate-200 transition-colors"
+          title="Inspect active task & steps">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25H12" />
+          </svg>
+        </span>
+      </button>
+    </div>
+
+  </main>
+
+  <!-- Bottom Minimalist Control Dock (Demo switcher bar completely removed) -->
+  <footer class="relative z-30 flex flex-col items-center pb-7 sm:pb-9 px-4">
+    <div class="glass-pill rounded-full px-5 py-2.5 flex items-center gap-5 shadow-2xl">
+      <!-- Mute / Unmute -->
+      <button id="muteBtn" type="button" title="Mute / Unmute Microphone"
+        class="dock-btn bg-white/10 hover:bg-white/15 text-slate-200 border border-white/10">
+        <svg id="dockMuteIcon" class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.9" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 18.75a6 6 0 006-6v-1.5m-6 7.5a6 6 0 01-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 01-3-3V4.5a3 3 0 116 0v8.25a3 3 0 01-3 3z" />
+        </svg>
+        <svg id="dockMutedIcon" class="hidden w-5 h-5 text-amber-300" fill="none" stroke="currentColor" stroke-width="1.9" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M3 3l18 18M12 18.75a6 6 0 006-6v-1.5m-6 7.5a6 6 0 01-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5" />
+        </svg>
+      </button>
+
+      <!-- Barge-In / Stop Playback -->
+      <button id="stopPlaybackBtn" type="button" title="Stop Agent Speech (Barge-In)"
+        class="dock-btn bg-white/10 hover:bg-white/15 text-slate-200 border border-white/10">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.9" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M5.25 7.5A2.25 2.25 0 017.5 5.25h9a2.25 2.25 0 012.25 2.25v9a2.25 2.25 0 01-2.25 2.25h-9a2.25 2.25 0 01-2.25-2.25v-9z" />
+        </svg>
+      </button>
+
+      <!-- End / Start Session -->
+      <button id="endSessionBtn" type="button" title="End Voice Session"
+        class="dock-btn bg-rose-500/85 hover:bg-rose-500 text-white shadow-[0_0_24px_rgba(244,63,94,0.4)]">
+        <svg id="endIcon" class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+        </svg>
+        <svg id="startIcon" class="hidden w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.348a1.125 1.125 0 010 1.971l-11.54 6.347a1.125 1.125 0 01-1.667-.985V5.653z" />
+        </svg>
+      </button>
+    </div>
+  </footer>
+
+  <!-- Popup Modal: Inspect Active Task & Minimal Vertical Steps -->
+  <div id="pipelineModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-md">
+    <div class="w-full max-w-md rounded-2xl bg-slate-900/95 border border-white/10 p-5 sm:p-6 shadow-2xl">
+      <div class="flex items-start justify-between gap-3 mb-4">
+        <div>
+          <div class="flex items-center gap-2">
+            <span id="modalTaskBadge" class="mono-num text-[11px] font-semibold px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-400/30">
+              JOB #SA-104
+            </span>
+            <button id="simScenarioBtn" type="button" class="text-[11px] font-medium text-slate-400 hover:text-white underline underline-offset-2">
+              Switch task
+            </button>
+          </div>
+          <h2 id="modalTaskTitle" class="text-sm sm:text-base font-semibold text-white mt-1.5">
+            Weekend Itinerary &amp; Background Research
+          </h2>
+        </div>
+        <button id="closePipelineModalBtn" type="button" class="text-slate-400 hover:text-white p-1">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+
+      <!-- Minimal Vertical Task Step List -->
+      <div id="modalStepsList" class="space-y-2.5">
+        <!-- Populated dynamically by JS -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Tucked-Away Session Token & Connection Modal -->
+  <div id="settingsModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-md">
+    <div class="w-full max-w-md rounded-2xl bg-slate-900/95 border border-white/10 p-6 shadow-2xl">
+      <div class="flex items-center justify-between mb-4">
+        <div>
+          <h2 class="text-base font-semibold text-white">Local Voice Connection</h2>
+          <p class="text-xs text-slate-400 mt-0.5">Loopback adapter &amp; microphone settings</p>
+        </div>
+        <button id="closeSettingsBtn" type="button" class="text-slate-400 hover:text-white p-1">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+
+      <div class="space-y-4">
+        <div>
+          <label for="tokenInput" class="block text-xs font-medium text-slate-300 mb-1.5">Local session token</label>
+          <input id="tokenInput" type="password" placeholder="Paste loopback session token..."
+            class="w-full rounded-xl bg-slate-950 border border-slate-700/80 px-3.5 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400" />
+        </div>
+        <div>
+          <label for="wsUrlInput" class="block text-xs font-medium text-slate-300 mb-1.5">Local WebSocket endpoint</label>
+          <input id="wsUrlInput" type="text" value="ws://127.0.0.1:8765/ws/voice"
+            class="w-full rounded-xl bg-slate-950 border border-slate-700/80 px-3.5 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-cyan-400" />
+        </div>
+        <div class="flex items-center justify-between rounded-xl bg-slate-950/80 border border-white/10 px-3.5 py-2.5">
+          <div>
+            <div class="text-xs font-medium text-slate-200">Hardware Microphone Input</div>
+            <div class="text-[11px] text-slate-400">Drive frequency bars with your real voice</div>
+          </div>
+          <button id="liveMicBtn" type="button" class="px-3 py-1.5 rounded-lg text-xs font-medium bg-white/10 hover:bg-white/15 text-slate-200 transition-colors">
+            Enable Mic
+          </button>
+        </div>
+        <div class="flex justify-end gap-2.5 pt-1">
+          <button id="cancelSettingsBtn" type="button" class="px-4 py-2 rounded-xl text-xs font-medium text-slate-300 hover:bg-white/5">
+            Cancel
+          </button>
+          <button id="saveSettingsBtn" type="button" class="px-4 py-2 rounded-xl text-xs font-semibold bg-cyan-500 hover:bg-cyan-400 text-slate-950 transition-colors">
+            Save &amp; Connect
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Banner -->
+  <div id="toastBanner" class="pointer-events-none fixed bottom-24 left-1/2 -translate-x-1/2 z-50 opacity-0 translate-y-2 transition-all duration-300">
+    <div id="toastInner" class="glass-pill px-4 py-2 rounded-full text-xs font-medium text-slate-100 shadow-xl"></div>
+  </div>
+
+  <script>
+    (function () {
+      const barCanvas = document.getElementById('spectrumBarCanvas');
+      const barCtx = barCanvas.getContext('2d');
+      const spectrumBarWrap = document.getElementById('spectrumBarWrap');
+
+      const auraPrimary = document.getElementById('auraPrimary');
+      const auraSecondary = document.getElementById('auraSecondary');
+      const statusDot = document.getElementById('statusDot');
+      const statusText = document.getElementById('statusText');
+      const micInnerTimer = document.getElementById('micInnerTimer');
+
+      const openPipelineModalBtn = document.getElementById('openPipelineModalBtn');
+      const pipelineModal = document.getElementById('pipelineModal');
+      const closePipelineModalBtn = document.getElementById('closePipelineModalBtn');
+      const pipelinePulseDot = document.getElementById('pipelinePulseDot');
+      const pipelinePillSummary = document.getElementById('pipelinePillSummary');
+      const pipelineStepCounter = document.getElementById('pipelineStepCounter');
+      const modalTaskBadge = document.getElementById('modalTaskBadge');
+      const modalTaskTitle = document.getElementById('modalTaskTitle');
+      const modalStepsList = document.getElementById('modalStepsList');
+      const simScenarioBtn = document.getElementById('simScenarioBtn');
+
+      const muteBtn = document.getElementById('muteBtn');
+      const dockMuteIcon = document.getElementById('dockMuteIcon');
+      const dockMutedIcon = document.getElementById('dockMutedIcon');
+      const stopPlaybackBtn = document.getElementById('stopPlaybackBtn');
+      const endSessionBtn = document.getElementById('endSessionBtn');
+      const endIcon = document.getElementById('endIcon');
+      const startIcon = document.getElementById('startIcon');
+      const centerMicBtn = document.getElementById('centerMicBtn');
+
+      const settingsBtn = document.getElementById('settingsBtn');
+      const settingsModal = document.getElementById('settingsModal');
+      const closeSettingsBtn = document.getElementById('closeSettingsBtn');
+      const cancelSettingsBtn = document.getElementById('cancelSettingsBtn');
+      const saveSettingsBtn = document.getElementById('saveSettingsBtn');
+      const tokenInput = document.getElementById('tokenInput');
+      const wsUrlInput = document.getElementById('wsUrlInput');
+      const liveMicBtn = document.getElementById('liveMicBtn');
+
+      const toastBanner = document.getElementById('toastBanner');
+      const toastInner = document.getElementById('toastInner');
+
+      // Application State
+      let currentState = 'listening'; // 'listening' | 'thinking' | 'speaking' | 'muted' | 'disconnected'
+      let isMuted = false;
+      let autoCycleTimer = null;
+      let toastTimer = null;
+      let stateStartedAt = performance.now();
+      let researchSubStep = 0;
+
+      // Interactive pointer modulation on the Frequency Bars
+      let pointerXNorm = 0.5;
+      let pointerBoost = 0;
+
+      // Optional Hardware Mic (Web Audio API)
+      let audioCtx = null;
+      let analyser = null;
+      let micStream = null;
+      let freqData = null;
+      let usingLiveMic = false;
+
+      // Frequency Bars Buffer
+      const BAR_COUNT = 56;
+      const smoothBars = new Float32Array(BAR_COUNT);
+      let phase = 0;
+
+      // Minimal Task Scenarios for the Popup Modal
+      const TASK_SCENARIOS = [
+        {
+          id: 'JOB #SA-104',
+          title: 'Weekend Itinerary & Background Research',
+          steps: [
+            { name: 'Voice Capture & Slot Check', desc: 'Extracts destination, dates, and budget preferences from speech.' },
+            { name: 'Policy Broker Verification', desc: 'Validates Ring 0 research permissions and reserves a ledger job ID.' },
+            { name: 'Background Web Research', desc: 'Gathers stays, travel routes, and weather off the main audio thread.' },
+            { name: 'Receipt Check & Voice Reply', desc: 'Verifies findings and queues a natural turn-boundary response.' }
+          ]
+        },
+        {
+          id: 'JOB #SA-209',
+          title: 'Local Workstation CI & Test Suite Check',
+          steps: [
+            { name: 'Intent & Target Resolution', desc: 'Matches voice command to the active workstation MCP daemon.' },
+            { name: 'Sandbox Scope Validation', desc: 'Verifies Ring 1 read/test grant in the local admission broker.' },
+            { name: 'Test Runner Execution', desc: 'Runs npm run check and voice foundation tests in background.' },
+            { name: 'Ledger Receipt Summary', desc: 'Records zero-error receipt and announces completion.' }
+          ]
+        },
+        {
+          id: 'JOB #SA-315',
+          title: 'Phone Alert Triage & Payment Reminder',
+          steps: [
+            { name: 'Notification Sensor Ingest', desc: 'Captures high-priority bank debit or security alert from phone.' },
+            { name: 'Noise & Privacy Filtering', desc: 'Strips promotional clutter and normalizes structured event JSON.' },
+            { name: 'Schedule Ledger Update', desc: 'Writes due-date reminder entry into the SQLite schedules table.' },
+            { name: 'Presence-Aware Delivery', desc: 'Routes spoken heads-up to the currently active listening device.' }
+          ]
+        }
+      ];
+      let currentScenarioIdx = 0;
+
+      const STATE_CONFIG = {
+        listening: {
+          label: 'Listening',
+          dotClass: 'bg-cyan-400 status-dot-pulse',
+          textClass: 'text-cyan-100',
+          aura1: 'rgba(0, 229, 255, 0.28)',
+          aura2: 'rgba(59, 130, 246, 0.22)'
+        },
+        thinking: {
+          label: 'Thinking & Researching',
+          dotClass: 'bg-fuchsia-400 status-dot-pulse',
+          textClass: 'text-fuchsia-100',
+          aura1: 'rgba(168, 85, 247, 0.32)',
+          aura2: 'rgba(236, 72, 153, 0.24)'
+        },
+        speaking: {
+          label: 'Speaking',
+          dotClass: 'bg-emerald-400 status-dot-pulse',
+          textClass: 'text-emerald-100',
+          aura1: 'rgba(16, 185, 129, 0.30)',
+          aura2: 'rgba(6, 182, 212, 0.24)'
+        },
+        muted: {
+          label: 'Muted',
+          dotClass: 'bg-amber-400',
+          textClass: 'text-amber-100',
+          aura1: 'rgba(245, 158, 11, 0.16)',
+          aura2: 'rgba(100, 116, 139, 0.12)'
+        },
+        disconnected: {
+          label: 'Disconnected',
+          dotClass: 'bg-slate-400',
+          textClass: 'text-slate-300',
+          aura1: 'rgba(100, 116, 139, 0.12)',
+          aura2: 'rgba(30, 41, 59, 0.10)'
+        }
+      };
+
+      function showToast(msg) {
+        if (toastTimer) clearTimeout(toastTimer);
+        toastInner.textContent = msg;
+        toastBanner.classList.remove('opacity-0', 'translate-y-2');
+        toastBanner.classList.add('opacity-100', 'translate-y-0');
+        toastTimer = setTimeout(() => {
+          toastBanner.classList.remove('opacity-100', 'translate-y-0');
+          toastBanner.classList.add('opacity-0', 'translate-y-2');
+        }, 2200);
+      }
+
+      function updatePipelineUI() {
+        const scenario = TASK_SCENARIOS[currentScenarioIdx];
+        modalTaskBadge.textContent = scenario.id;
+        modalTaskTitle.textContent = scenario.title;
+
+        let activeIdx = 0;
+        if (currentState === 'listening') activeIdx = 0;
+        else if (currentState === 'thinking') activeIdx = researchSubStep === 0 ? 1 : 2;
+        else if (currentState === 'speaking') activeIdx = 3;
+        else activeIdx = 0;
+
+        const currentStepObj = scenario.steps[activeIdx] || scenario.steps[0];
+        pipelinePillSummary.textContent = currentStepObj.name;
+        pipelineStepCounter.textContent = `Step ${activeIdx + 1}/${scenario.steps.length}`;
+
+        if (currentState === 'listening') {
+          pipelinePulseDot.className = 'w-2 h-2 rounded-full bg-cyan-400 status-dot-pulse';
+        } else if (currentState === 'thinking') {
+          pipelinePulseDot.className = 'w-2 h-2 rounded-full bg-fuchsia-400 status-dot-pulse';
+        } else if (currentState === 'speaking') {
+          pipelinePulseDot.className = 'w-2 h-2 rounded-full bg-emerald-400 status-dot-pulse';
+        } else {
+          pipelinePulseDot.className = 'w-2 h-2 rounded-full bg-slate-500';
+        }
+
+        modalStepsList.innerHTML = scenario.steps.map((step, idx) => {
+          const isDone = activeIdx > idx;
+          const isCurrent = activeIdx === idx;
+
+          let rowClass = 'rounded-xl p-3 border transition-all ';
+          let badgeText = 'Pending';
+          let badgeClass = 'text-[10px] font-semibold mono-num px-2 py-0.5 rounded-full ';
+
+          if (isCurrent) {
+            rowClass += 'bg-white/[0.07] border-white/25';
+            badgeText = currentState === 'thinking' ? 'Running' : 'Active';
+            badgeClass += currentState === 'thinking'
+              ? 'bg-fuchsia-500/25 text-fuchsia-200'
+              : currentState === 'speaking'
+              ? 'bg-emerald-500/25 text-emerald-200'
+              : 'bg-cyan-500/25 text-cyan-200';
+          } else if (isDone) {
+            rowClass += 'bg-emerald-950/20 border-emerald-500/25 opacity-85';
+            badgeText = 'Done ✓';
+            badgeClass += 'bg-emerald-500/20 text-emerald-300';
+          } else {
+            rowClass += 'bg-slate-950/40 border-white/5 opacity-55';
+            badgeClass += 'bg-white/5 text-slate-400';
+          }
+
+          return `
+            <div class="${rowClass}">
+              <div class="flex items-center justify-between gap-2">
+                <span class="text-xs sm:text-sm font-semibold text-slate-100">${idx + 1}. ${step.name}</span>
+                <span class="${badgeClass}">${badgeText}</span>
+              </div>
+              <p class="text-xs text-slate-400 mt-1 leading-relaxed">${step.desc}</p>
+            </div>
+          `;
+        }).join('');
+      }
+
+      function setState(nextState) {
+        currentState = nextState;
+        stateStartedAt = performance.now();
+        researchSubStep = 0;
+        document.body.setAttribute('data-state', nextState);
+        const cfg = STATE_CONFIG[nextState] || STATE_CONFIG.listening;
+
+        statusDot.className = 'w-2 h-2 rounded-full ' + cfg.dotClass;
+        statusText.className = cfg.textClass;
+        statusText.textContent = cfg.label;
+
+        auraPrimary.style.background = `radial-gradient(circle, ${cfg.aura1} 0%, transparent 70%)`;
+        auraSecondary.style.background = `radial-gradient(circle, ${cfg.aura2} 0%, transparent 72%)`;
+
+        const isDisconnected = nextState === 'disconnected';
+        endIcon.classList.toggle('hidden', isDisconnected);
+        startIcon.classList.toggle('hidden', !isDisconnected);
+        endSessionBtn.className = isDisconnected
+          ? 'dock-btn bg-cyan-500 hover:bg-cyan-400 text-slate-950 shadow-[0_0_24px_rgba(34,211,238,0.4)]'
+          : 'dock-btn bg-rose-500/85 hover:bg-rose-500 text-white shadow-[0_0_24px_rgba(244,63,94,0.4)]';
+        endSessionBtn.title = isDisconnected ? 'Start Voice Session' : 'End Voice Session';
+
+        isMuted = nextState === 'muted';
+        dockMuteIcon.classList.toggle('hidden', isMuted);
+        dockMutedIcon.classList.toggle('hidden', !isMuted);
+        muteBtn.className = isMuted
+          ? 'dock-btn bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-400/40'
+          : 'dock-btn bg-white/10 hover:bg-white/15 text-slate-200 border border-white/10';
+
+        updatePipelineUI();
+      }
+
+      function startAutonomousFlow() {
+        if (autoCycleTimer) clearInterval(autoCycleTimer);
+        const sequence = ['listening', 'thinking', 'speaking'];
+        let idx = sequence.indexOf(currentState);
+        if (idx === -1) idx = 0;
+
+        autoCycleTimer = setInterval(() => {
+          if (currentState === 'muted' || currentState === 'disconnected') return;
+          if (currentState === 'thinking' && researchSubStep === 0) {
+            researchSubStep = 1;
+            updatePipelineUI();
+            return;
+          }
+          idx = (idx + 1) % sequence.length;
+          setState(sequence[idx]);
+        }, 3200);
+      }
+
+      async function toggleLiveMic() {
+        if (usingLiveMic) {
+          usingLiveMic = false;
+          if (micStream) {
+            micStream.getTracks().forEach((t) => t.stop());
+            micStream = null;
+          }
+          if (audioCtx) {
+            audioCtx.close().catch(() => {});
+            audioCtx = null;
+          }
+          analyser = null;
+          liveMicBtn.textContent = 'Enable Mic';
+          showToast('Switched to autonomous frequency simulation');
+          return;
+        }
+        try {
+          micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+          audioCtx = new AudioContextClass();
+          const source = audioCtx.createMediaStreamSource(micStream);
+          analyser = audioCtx.createAnalyser();
+          analyser.fftSize = 256;
+          analyser.smoothingTimeConstant = 0.78;
+          source.connect(analyser);
+          freqData = new Uint8Array(analyser.frequencyBinCount);
+          usingLiveMic = true;
+          liveMicBtn.textContent = 'Disable Mic';
+          setState('listening');
+          showToast('Hardware microphone active');
+        } catch (err) {
+          showToast('Microphone permission unavailable');
+        }
+      }
+
+      function resizeBarCanvas() {
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        const barRect = spectrumBarWrap.getBoundingClientRect();
+        barCanvas.width = barRect.width * dpr;
+        barCanvas.height = barRect.height * dpr;
+        barCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      }
+
+      window.addEventListener('resize', resizeBarCanvas);
+      resizeBarCanvas();
+
+      function formatTimer(ms) {
+        const totalSec = Math.floor(ms / 1000);
+        const mins = String(Math.floor(totalSec / 60)).padStart(2, '0');
+        const secs = String(totalSec % 60).padStart(2, '0');
+        const tenths = Math.floor((ms % 1000) / 100);
+        return `${mins}:${secs}.${tenths}`;
+      }
+
+      function renderFrequencyBars(now) {
+        const elapsedMs = Math.max(0, (now || performance.now()) - stateStartedAt);
+        micInnerTimer.textContent = formatTimer(elapsedMs);
+
+        if (usingLiveMic && analyser && currentState === 'listening') {
+          analyser.getByteFrequencyData(freqData);
+        }
+
+        phase += currentState === 'thinking' ? 0.055 : 0.036;
+        pointerBoost *= 0.93;
+
+        for (let i = 0; i < BAR_COUNT; i++) {
+          let target = 0.05;
+          const norm = i / BAR_COUNT;
+          const centerWeight = Math.sin(norm * Math.PI);
+          const distFromPointer = Math.max(0, 1 - Math.abs(norm - pointerXNorm) * 3.8);
+
+          if (currentState === 'listening') {
+            if (usingLiveMic && freqData) {
+              const bin = Math.floor(norm * (freqData.length * 0.65));
+              target = Math.max(0.06, (freqData[bin] / 255) * centerWeight);
+            } else {
+              const cadence = Math.max(0, Math.sin(phase * 2.0) * 0.55 + Math.sin(phase * 4.5) * 0.35 + 0.35);
+              const wave = Math.abs(Math.sin(norm * 10 + phase * 3.2) * 0.55 + Math.cos(norm * 16 - phase * 2.4) * 0.45);
+              target = 0.07 + cadence * wave * centerWeight * 0.85 + distFromPointer * pointerBoost * 0.4;
+            }
+          } else if (currentState === 'thinking') {
+            const orbit = (Math.sin(norm * Math.PI * 3 - phase * 4.2) + 1) * 0.5;
+            const shimmer = (Math.cos(norm * Math.PI * 7 + phase * 2.8) + 1) * 0.25;
+            target = 0.12 + (orbit * 0.48 + shimmer * 0.28) * centerWeight + distFromPointer * pointerBoost * 0.35;
+          } else if (currentState === 'speaking') {
+            const formant = Math.abs(Math.sin(phase * 3.4) * 0.6 + Math.cos(phase * 6.1) * 0.4);
+            const harmonic = Math.abs(Math.sin(norm * 12 + phase * 2.8) * 0.6 + Math.sin(norm * 20 - phase * 3.5) * 0.4);
+            target = 0.10 + formant * harmonic * centerWeight * 0.9 + distFromPointer * pointerBoost * 0.35;
+          } else {
+            target = 0.04;
+          }
+
+          smoothBars[i] += (target - smoothBars[i]) * 0.24;
+        }
+
+        const bw = barCanvas.clientWidth;
+        const bh = barCanvas.clientHeight;
+        barCtx.clearRect(0, 0, bw, bh);
+
+        const padX = 8;
+        const usableW = bw - padX * 2;
+        const stepW = usableW / BAR_COUNT;
+
+        // Draw Pure Floating Symmetrical Frequency Bars (No box, no grid, no text)
+        for (let i = 0; i < BAR_COUNT; i++) {
+          const amp = smoothBars[i];
+          const x = padX + i * stepW + stepW * 0.5;
+          const halfH = Math.max(3, amp * (bh * 0.46));
+
+          barCtx.beginPath();
+          barCtx.moveTo(x, bh / 2 - halfH);
+          barCtx.lineTo(x, bh / 2 + halfH);
+          barCtx.lineCap = 'round';
+          barCtx.lineWidth = Math.max(3, stepW * 0.52);
+
+          if (currentState === 'listening') {
+            barCtx.strokeStyle = `hsla(${188 + (i / BAR_COUNT) * 36}, 95%, 62%, ${0.45 + amp * 0.55})`;
+          } else if (currentState === 'thinking') {
+            barCtx.strokeStyle = `hsla(${270 + Math.sin((i / BAR_COUNT) * 6 + phase) * 38}, 92%, 68%, ${0.45 + amp * 0.55})`;
+          } else if (currentState === 'speaking') {
+            barCtx.strokeStyle = `hsla(${154 + (i / BAR_COUNT) * 42}, 90%, 58%, ${0.45 + amp * 0.55})`;
+          } else if (currentState === 'muted') {
+            barCtx.strokeStyle = 'rgba(245, 158, 11, 0.30)';
+          } else {
+            barCtx.strokeStyle = 'rgba(100, 116, 139, 0.24)';
+          }
+          barCtx.stroke();
+        }
+
+        requestAnimationFrame(renderFrequencyBars);
+      }
+
+      // Interactive Frequency Bar Modulation & State Cycling on Click
+      function handleBarPointer(e) {
+        const rect = spectrumBarWrap.getBoundingClientRect();
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        pointerXNorm = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width));
+        pointerBoost = 1.0;
+      }
+
+      spectrumBarWrap.addEventListener('mousemove', handleBarPointer);
+      spectrumBarWrap.addEventListener('touchmove', handleBarPointer, { passive: true });
+      spectrumBarWrap.addEventListener('click', (e) => {
+        handleBarPointer(e);
+        const order = ['listening', 'thinking', 'speaking'];
+        const next = order[(order.indexOf(currentState) + 1) % order.length];
+        setState(next);
+        startAutonomousFlow();
+      });
+
+      // Pipeline Inspect Popup Modal
+      openPipelineModalBtn.addEventListener('click', () => {
+        pipelineModal.classList.remove('hidden');
+      });
+      closePipelineModalBtn.addEventListener('click', () => {
+        pipelineModal.classList.add('hidden');
+      });
+      pipelineModal.addEventListener('click', (e) => {
+        if (e.target === pipelineModal) pipelineModal.classList.add('hidden');
+      });
+
+      simScenarioBtn.addEventListener('click', () => {
+        currentScenarioIdx = (currentScenarioIdx + 1) % TASK_SCENARIOS.length;
+        updatePipelineUI();
+      });
+
+      // Center Mic & Dock Controls
+      centerMicBtn.addEventListener('click', () => {
+        if (currentState === 'disconnected') {
+          setState('listening');
+          startAutonomousFlow();
+          showToast('Voice session started');
+        } else if (currentState === 'speaking') {
+          setState('listening');
+          startAutonomousFlow();
+          showToast('Barge-in: listening to you');
+        } else if (currentState === 'muted') {
+          setState('listening');
+          startAutonomousFlow();
+          showToast('Microphone unmuted');
+        } else {
+          setState('muted');
+          showToast('Microphone muted');
+        }
+      });
+
+      muteBtn.addEventListener('click', () => {
+        if (currentState === 'disconnected') return;
+        if (currentState === 'muted') {
+          setState('listening');
+          startAutonomousFlow();
+          showToast('Microphone unmuted');
+        } else {
+          setState('muted');
+          showToast('Microphone muted');
+        }
+      });
+
+      stopPlaybackBtn.addEventListener('click', () => {
+        if (currentState === 'disconnected') return;
+        setState('listening');
+        startAutonomousFlow();
+        showToast('Playback stopped (barge-in)');
+      });
+
+      endSessionBtn.addEventListener('click', () => {
+        if (currentState === 'disconnected') {
+          setState('listening');
+          startAutonomousFlow();
+          showToast('Voice session connected');
+        } else {
+          setState('disconnected');
+          showToast('Voice session ended');
+        }
+      });
+
+      // Settings Modal
+      try {
+        const savedToken = localStorage.getItem('super_agent_token');
+        const savedWs = localStorage.getItem('super_agent_ws');
+        if (savedToken) tokenInput.value = savedToken;
+        if (savedWs) wsUrlInput.value = savedWs;
+      } catch (e) {}
+
+      settingsBtn.addEventListener('click', () => settingsModal.classList.remove('hidden'));
+      closeSettingsBtn.addEventListener('click', () => settingsModal.classList.add('hidden'));
+      cancelSettingsBtn.addEventListener('click', () => settingsModal.classList.add('hidden'));
+      settingsModal.addEventListener('click', (e) => {
+        if (e.target === settingsModal) settingsModal.classList.add('hidden');
+      });
+
+      liveMicBtn.addEventListener('click', toggleLiveMic);
+
+      saveSettingsBtn.addEventListener('click', () => {
+        try {
+          localStorage.setItem('super_agent_token', tokenInput.value.trim());
+          localStorage.setItem('super_agent_ws', wsUrlInput.value.trim());
+        } catch (e) {}
+        settingsModal.classList.add('hidden');
+        setState('listening');
+        startAutonomousFlow();
+        showToast('Session settings saved');
+      });
+
+      updatePipelineUI();
+      startAutonomousFlow();
+      requestAnimationFrame(renderFrequencyBars);
+    })();
+  </script>
+</body>
+</html>

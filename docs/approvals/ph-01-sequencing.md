@@ -21,7 +21,7 @@ the same test until the defect is fixed.
 
 PH-01 work proceeds in this order (see [roadmap.md](../../roadmap.md)):
 
-1. R-01.3 Mac offline checks (run 2026-11-10, awaiting tick).
+1. R-01.3 Mac offline checks (run 2026-11-10; later ticked in PR #32).
 2. R-01.5 credential design and its independent review.
 3. R-01.7 streaming seam and Gemini Live adapter, with offline tests using the fake and scripted events.
 4. **R-01.F1 (new fix item)**: input level shown separately from model speech, silent frames never set `speaking`, conversational barge-in is the tested path, with offline tests for silence, playback, interruption, stale output, mute, and stop.
