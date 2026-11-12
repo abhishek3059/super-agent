@@ -21,11 +21,12 @@ this file is a status pointer, not evidence and not a gate.
 | Field | Value |
 | --- | --- |
 | Phase | PH-01: local boundary and native voice connection |
-| PR | None open at this snapshot; [#32](https://github.com/abhishek3059/super-agent/pull/32) is the latest merged phase PR |
-| Branch | `develop` at `651e33c` before the R-01.F2 follow-up |
-| Status | #32 merged into `develop` on 2026-11-12; PH-01 remains in progress |
-| Application state | The application uses only the offline fake adapter. A Gemini Live adapter exists behind the seam; the application never constructs it, but the opt-in `live_check` command ran it once against the real service with synthetic speech ([R-01.7](r01-7-gemini-adapter.md), [R-01.8 and R-01.9](r01-8-live-check.md)). Authentication, throttling, expiry, and a CSP are in place and independently reviewed ([R-01.6](../reviews/r01-6-security-review.md)). |
-| Merged scope | Ticks for R-01.3, R-01.5, and R-01.F1; credential findings CR-09 and CR-02; R-01.6 auth boundary; R-01.7 adapter port; locked `google-genai`; R-01.8 and R-01.9 live check |
+| PR | [#34](https://github.com/abhishek3059/super-agent/pull/34) is open for review; [#32](https://github.com/abhishek3059/super-agent/pull/32) is the latest merged phase PR |
+| Branch | `fix/ph-01-scaffold-readiness` at `03e4608`, based on `develop` at `651e33c` |
+| Status | #34 opened on 2026-11-12; PH-01 remains in progress |
+| Application state | The browser console is the reference-led live voice interface and uses only the offline fake adapter. The token stays in memory, the endpoint is fixed to the reviewed loopback address, and the spectrum is labeled as microphone level, not speech detection. A Gemini Live adapter exists behind the seam; the application never constructs it, but the opt-in `live_check` command ran it once against the real service with synthetic speech ([R-01.7](r01-7-gemini-adapter.md), [R-01.8 and R-01.9](r01-8-live-check.md)). Authentication, throttling, expiry, and a CSP are in place and independently reviewed ([R-01.6](../reviews/r01-6-security-review.md)). |
+| Merged scope (#32) | Ticks for R-01.3, R-01.5, and R-01.F1; credential findings CR-09 and CR-02; R-01.6 auth boundary; R-01.7 adapter port; locked `google-genai`; R-01.8 and R-01.9 live check |
+| Open scope (#34) | Reference-led live voice UI and UI self-test; Windows launcher; R-01.F2 Windows-portable symlink test; R-01.F3 Origin diagnostic; reconciled PH-01 status and microphone handoff |
 | Not in scope | Personal microphone audio to Gemini, tools, workers, external actions, paid services, or public deployment |
 | After merge | PH-01 remains in progress until R-01.4 and R-01.10 have evidence. |
 

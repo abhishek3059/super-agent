@@ -4,7 +4,7 @@
 | --- | --- |
 | Date | 2026-11-12 |
 | Current phase | PH-01 |
-| Current phase PR | No open phase PR at this snapshot. [PR #32](https://github.com/abhishek3059/super-agent/pull/32) is merged; PH-01 remains open with R-01.4 and R-01.10 pending. Details: [phase PR log](docs/implementation/phase-prs.md). |
+| Current phase PR | [PR #34](https://github.com/abhishek3059/super-agent/pull/34) is open with the live console, Windows launcher, and R-01.F2/F3/F4 evidence; PH-01 remains open with R-01.4 and R-01.10 pending. Details: [phase PR log](docs/implementation/phase-prs.md). |
 | Gate definitions | [phases.md](phases.md) (entry prerequisites and exit gates stay defined there) |
 | Task records | [tasks/](tasks/README.md) |
 | Enforced by | `npm run check` ([scripts/check-roadmap.mjs](scripts/check-roadmap.mjs), form only), code-owner review ([.github/CODEOWNERS](.github/CODEOWNERS)), and [AGENTS.md](AGENTS.md) section 11 |
