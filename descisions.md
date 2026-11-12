@@ -238,9 +238,20 @@ Replace the blanket ban on assistant capabilities with a capability ladder: auth
 - **Source evidence:** `jeevesh2515` in chat with Claude Code, 2026-11-12, asking for max-capability use as the project's CTO; [AGENTS.md](AGENTS.md) sections 5 and 10.
 - **Reopen:** Any tier's design review fails or an incident occurs at that tier (drop back one tier); or the maintainers decide to add, merge, or remove a tier.
 
+### DEC-19
+
+Replace the required human review on `develop` with one shared AI reviewer that both maintainers run: [.claude/agents/reviewer.md](.claude/agents/reviewer.md).
+
+- **Status:** Decided 2026-11-12 by `abhishek3059`, who removed the required approving review from the `develop` ruleset. `jeevesh2515` is informed through the PR that carries this entry.
+- **Rationale:** The maintainers work in different time zones, so waiting for a human review stalls every PR. The quality gate in [AGENTS.md](AGENTS.md) section 9 already existed, but each agent scored itself or picked its own reviewer, so scores were not comparable across machines and tools. One committed reviewer, run in a fresh context with a fixed rubric and model, makes the gate the same for every PR.
+- **Alternatives and trade-offs:** (a) Keep the required human code-owner review: strongest check, but blocks for a day per PR across time zones. (b) No review: fastest, but nothing independent checks evidence before a roadmap tick. (c) A shared AI reviewer, run locally: free under the $0 cap and uniform, but a model can miss what a person would catch. (d) A hosted reviewer in CI or GitHub Agent HQ: automatic, but costs money against the $0 cap.
+- **Implications:** AGENTS.md sections 3, 9, and 11 rule 7, [CONTRIBUTING.md](CONTRIBUTING.md), the PR template, and roadmap item R-R.4 point to the shared reviewer. The **Repository checks** status check stays required. [.github/CODEOWNERS](.github/CODEOWNERS) still requests reviews, but they no longer block merging. Maintainers can still review any PR by choice.
+- **Source evidence:** `abhishek3059` in chat with Claude Code, 2026-11-12.
+- **Reopen:** A defect reaches `develop` that the reviewer passed; a dishonest roadmap tick is found; or either maintainer asks to bring human review back.
+
 ## Register fields
 
-Every DEC entry from [DEC-01](#dec-01) to [DEC-18](#dec-18) above carries the seven contracted fields inline: status, rationale, alternatives and trade-offs, implications, source evidence, and reopen conditions. This summary restates the register; it does not replace the individual records.
+Every DEC entry from [DEC-01](#dec-01) to [DEC-19](#dec-19) above carries the seven contracted fields inline: status, rationale, alternatives and trade-offs, implications, source evidence, and reopen conditions. This summary restates the register; it does not replace the individual records.
 
 ## Provisional and post-review status
 

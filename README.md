@@ -21,7 +21,7 @@ background task delegation.
 | [Phases](phases.md) | Milestone plan PH-DOC–PH-07 with entry and exit gates |
 | [Progress](progress.md) | Dated documentation milestone and dispositions |
 | [Build](build.md) | Current app-specific commands and the historical repository-root command proposal |
-| [Decisions](descisions.md) | Decision register DEC-01–DEC-17 |
+| [Decisions](descisions.md) | Decision register DEC-01–DEC-19 |
 | [Flows](flow.md) | Ten numbered workflows WF-01–WF-10 |
 | [Tasks](tasks/README.md) | Twelve task records; RT-001 is complete, RT-002 and RT-003 are in progress, and RT-004 and later tasks are `not started` |
 | [Council meetings](council%20meetings/README.md) | Three archived deliberation records |

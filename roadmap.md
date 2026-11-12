@@ -155,7 +155,7 @@ These do not gate any phase, but they are on the path and must be ticked.
 - [x] R-R.1 PRs #14 (voice CI fix), #15 (status docs), and #16 (Gemini verification and learnings) merged. Evidence: [PR 14](https://github.com/abhishek3059/super-agent/pull/14), [PR 15](https://github.com/abhishek3059/super-agent/pull/15), [PR 16](https://github.com/abhishek3059/super-agent/pull/16)
 - [ ] R-R.2 Release PR from `develop` to `main` merged with a merge commit, so both maintainers appear on the Contributors graph. Evidence: none yet
 - [ ] R-R.3 [human] Private vulnerability reporting enabled on GitHub. Evidence: none yet
-- [ ] R-R.4 [human] Branch protection on `main` and `develop` agreed and set, including required code-owner review for `roadmap.md` and `phases.md`. Evidence: none yet
+- [ ] R-R.4 [human] Branch protection on `main` and `develop` agreed and set: required **Repository checks**, no force pushes or deletions, and the shared AI reviewer as the review gate instead of a required human review ([DEC-19](descisions.md#dec-19)). Evidence: none yet
 - [ ] R-R.5 [human] Dependabot alerts, CodeQL, and secret scanning enabled. Evidence: none yet
 - [x] R-R.6 README links to the learnings folder (the roadmap link is already there). Evidence: [PR 21](https://github.com/abhishek3059/super-agent/pull/21)
 

@@ -61,7 +61,10 @@ Evidence (logs, screenshots, output excerpts):
 
 | Correctness | Security | Honesty | Scope | Clarity | Average | Scored by |
 | --- | --- | --- | --- | --- | --- | --- |
-| <!-- 0-10 --> | | | | | | <!-- self / reviewer agent + model / human --> |
+| <!-- 0-10 --> | | | | | | <!-- shared reviewer (.claude/agents/reviewer.md), tool and model --> |
+
+<!-- Paste the shared reviewer's full report here: verdict, checks, findings, unverified claims. -->
+
 
 ## AI-agent safety checklist
 

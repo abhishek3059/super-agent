@@ -33,7 +33,7 @@ git commit -m "feat(scope): describe the change"
 git push -u origin feat/my-change
 gh pr create --base develop --fill
 
-# 6. After CI passes and a human approves, merge the PR
+# 6. After CI and the shared reviewer pass (AGENTS.md section 9), merge the PR
 gh pr merge --squash --delete-branch
 ```
 
@@ -50,7 +50,7 @@ git switch develop
 git pull origin develop
 gh pr create --base main --head develop --title "release: describe the release"
 
-# Wait for the "Repository checks" CI job and human approval, then:
+# Wait for the "Repository checks" CI job and a shared-reviewer PASS, then:
 gh pr merge --merge
 ```
 

@@ -418,3 +418,12 @@ check 0 errors. R-01.4 remains open until the human microphone run is recorded.
 tiered ladder ([DEC-18](descisions.md#dec-18)). It is a proposal until
 `abhishek3059` approves ([record](docs/approvals/capability-ladder-decision.md)).
 It enables no tier and moves no gate. Roadmap track A holds the items.
+
+## Shared AI reviewer replaces required human review (2026-11-12)
+
+`abhishek3059` removed the required approving review from the `develop`
+ruleset because the maintainers work in different time zones
+([DEC-19](descisions.md#dec-19)). One committed reviewer,
+[.claude/agents/reviewer.md](.claude/agents/reviewer.md), is now the review
+gate in AGENTS.md section 9 for every PR, run the same way on both machines.
+The **Repository checks** status check stays required. No runtime gate moves.
