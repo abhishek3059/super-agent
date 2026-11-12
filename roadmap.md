@@ -7,7 +7,7 @@
 | Current phase PR | [PR #34](https://github.com/abhishek3059/super-agent/pull/34) is open with the live console, Windows launcher, and R-01.F2/F3/F4 evidence; PH-01 remains open with R-01.4 and R-01.10 pending. Details: [phase PR log](docs/implementation/phase-prs.md). |
 | Gate definitions | [phases.md](phases.md) (entry prerequisites and exit gates stay defined there) |
 | Task records | [tasks/](tasks/README.md) |
-| Enforced by | `npm run check` ([scripts/check-roadmap.mjs](scripts/check-roadmap.mjs), form only), code-owner review ([.github/CODEOWNERS](.github/CODEOWNERS)), and [AGENTS.md](AGENTS.md) section 11 |
+| Enforced by | `npm run check` ([scripts/check-roadmap.mjs](scripts/check-roadmap.mjs), form only), the shared reviewer ([.claude/agents/reviewer.md](.claude/agents/reviewer.md), [DEC-19](descisions.md#dec-19)), and [AGENTS.md](AGENTS.md) section 11 |
 
 This is the path. Every agent and every human follows it in order. The phase
 IDs are the same as in [phases.md](phases.md); this file adds the checkboxes.
@@ -24,7 +24,7 @@ It authorizes nothing at runtime and closes no gate by itself.
 7. **Phase status** is `not started`, `in progress`, or `done`. A phase is `done` only when every item in it is ticked and its exit gate in [phases.md](phases.md) is evidenced. Then update `Current phase` above.
 8. If the roadmap itself needs to change, change it in its own PR with the reason, and update [phases.md](phases.md) too if a gate moves.
 
-9. **The check tests form, not truth.** It rejects missing or malformed evidence, out-of-order ticks, a `[human]` tick without a record under `docs/approvals/`, and any item added, deleted, or re-flagged without the same change in [scripts/roadmap-ids.txt](scripts/roadmap-ids.txt). It cannot tell whether evidence is honest, so changes to this file need review from a code owner ([.github/CODEOWNERS](.github/CODEOWNERS)), and reviewers must open the evidence. Adding or removing an item means editing both files in one roadmap PR.
+9. **The check tests form, not truth.** It rejects missing or malformed evidence, out-of-order ticks, a `[human]` tick without a record under `docs/approvals/`, and any item added, deleted, or re-flagged without the same change in [scripts/roadmap-ids.txt](scripts/roadmap-ids.txt). It cannot tell whether evidence is honest, so the shared reviewer ([AGENTS.md](AGENTS.md) section 9) opens the evidence for every change to this file. Adding or removing an item means editing both files in one roadmap PR.
 
 Item format (one line, starting at column 0): `- [ ] R-<phase>.<n> [tags] Description. Evidence: none yet`
 

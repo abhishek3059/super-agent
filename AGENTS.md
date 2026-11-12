@@ -53,6 +53,11 @@ npm run check
 - Merge when the shared reviewer passes (section 9), the required checks pass,
   and a maintainer says to merge. Agents never approve their own PRs or merge
   on their own initiative.
+- These changes need both maintainers: a paid service (section 6), moving a
+  gate or phase (section 11 rule 5), a roadmap `[exception: ...]` (roadmap
+  rule 5), a change to a rule in this file, and a new or changed DEC entry
+  ([DEC-19](descisions.md#dec-19) adds the last two). A PR author's own PR
+  counts as that author's approval.
 
 ## 4. Honesty rules
 

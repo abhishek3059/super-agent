@@ -12,7 +12,8 @@
 
 - The shared reviewer becomes the review gate in AGENTS.md section 9 for every PR.
 - `abhishek3059` removes the required approving review and code-owner review from the `develop` ruleset. **Repository checks** stays required, and force pushes and deletions stay blocked.
-- Both-maintainer approval is still required, and checked by the reviewer, for the changes AGENTS.md reserves to both maintainers: moving a gate or phase, adding or removing roadmap items, changing AGENTS.md rules or a DEC entry, adding a paid service, and ticking a `[human]` item.
+- Both-maintainer approval is still required, and checked by the reviewer, for the changes listed in [AGENTS.md](../../AGENTS.md) section 3: a paid service, moving a gate or phase, a roadmap exception, and (added by DEC-19) a change to an AGENTS.md rule or a DEC entry.
+- The reviewer's Bash access is limited to read-only commands by instruction in its file, not by tool permissions.
 
 ## Open questions for the maintainers
 

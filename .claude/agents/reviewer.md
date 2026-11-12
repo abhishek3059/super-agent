@@ -40,13 +40,12 @@ GitHub; the build writes only gitignored output.
    says what the claim says. Check claims about GitHub settings with
    `gh api` GET requests. Done when every claim is marked verified or
    unverified.
-6. **Check both-maintainer approval.** When the diff moves a gate or phase,
-   adds or removes a roadmap item, changes an AGENTS.md rule or a DEC entry,
-   adds a paid service, or ticks a `[human]` item, confirm that both
+6. **Check both-maintainer approval.** When the diff makes a change that
+   AGENTS.md section 3 lists as needing both maintainers, confirm that both
    `abhishek3059` and `jeevesh2515` approved: in
    `gh pr view <n> --json reviews`, or in a record under `docs/approvals/`.
-   An author's own PR counts as that author's approval. Done when each such
-   change is marked approved by both or missing an approval.
+   Done when each such change is marked approved by both or missing an
+   approval.
 7. **Score and decide.** Score each criterion below, then apply the verdict
    rule. Done when the report is written in the format below.
 
