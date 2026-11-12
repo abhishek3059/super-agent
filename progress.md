@@ -421,9 +421,11 @@ It enables no tier and moves no gate. Roadmap track A holds the items.
 
 ## Shared AI reviewer replaces required human review (2026-11-12)
 
-`abhishek3059` removed the required approving review from the `develop`
-ruleset because the maintainers work in different time zones
-([DEC-19](descisions.md#dec-19)). One committed reviewer,
-[.claude/agents/reviewer.md](.claude/agents/reviewer.md), is now the review
-gate in AGENTS.md section 9 for every PR, run the same way on both machines.
-The **Repository checks** status check stays required. No runtime gate moves.
+`abhishek3059` proposed replacing the required human review on `develop` with
+one shared AI reviewer, because the maintainers work in different time zones
+([DEC-19](descisions.md#dec-19)). It is a proposal until `jeevesh2515`
+approves ([record](docs/approvals/shared-ai-reviewer-decision.md)). The
+reviewer, [.claude/agents/reviewer.md](.claude/agents/reviewer.md), becomes the
+review gate in AGENTS.md section 9, run the same way on both machines. The
+**Repository checks** status check stays required, and changes reserved to
+both maintainers still need both approvals. No runtime gate moves.

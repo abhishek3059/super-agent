@@ -63,8 +63,7 @@ Evidence (logs, screenshots, output excerpts):
 | --- | --- | --- | --- | --- | --- | --- |
 | <!-- 0-10 --> | | | | | | <!-- shared reviewer (.claude/agents/reviewer.md), tool and model --> |
 
-<!-- Paste the shared reviewer's full report here: verdict, checks, findings, unverified claims. -->
-
+<!-- Paste the shared reviewer's full report here: verdict, checks, findings, unverified claims, approvals. -->
 
 ## AI-agent safety checklist
 
