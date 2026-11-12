@@ -26,6 +26,10 @@ GEMINI_API_KEY="$(cat ~/.super-agent/gemini-key)" PYTHONPATH=apps/api/src \
 ```
 
 The output is timing and state only. The key stays in the process environment.
+On macOS, the default command also generates two fixed speech clips to check
+conversational interruption. The command reports whether it received a
+provider `Interrupted` event after queuing the second clip. With `--wav`
+the command skips that part.
 
 ## Backend
 
@@ -129,7 +133,6 @@ call, or key is involved.
 mapping used by the live voice interface. `npm run test:epoch` keeps the 8
 focused playback-epoch cases separate.
 
-The R-01.3 Mac offline check is complete, although it covered the earlier
-scaffold at `4f51e00`. The revised-scaffold human microphone test, R-01.4, is
-still pending. No personal microphone audio may be forwarded to a cloud
-provider in this cycle.
+The R-01.3 Mac offline check covered the earlier scaffold at `4f51e00`.
+The [R-01.4 operator test](../docs/approvals/r01-4-microphone-test.md) covered
+the revised local scaffold at `a790530`. Personal microphone audio stays local.

@@ -167,14 +167,35 @@ def test_cancelled_close_is_not_confirmed_until_the_session_is_released() -> Non
     assert run(scenario()) == (True, True)
 
 
+def test_failed_sdk_exit_is_not_confirmed_on_close_or_retry() -> None:
+    from contextlib import asynccontextmanager
+
+    @asynccontextmanager
+    async def broken_exit():
+        yield FakeSession()
+        raise RuntimeError("SENTINEL provider detail")
+
+    async def scenario():
+        adapter = GeminiLiveAdapter(MODEL, connect=broken_exit, blob=bytes)
+        await adapter.start()
+        for _ in range(2):
+            with pytest.raises(AdapterError, match="^session-failed$"):
+                await adapter.close()
+
+    run(scenario())
+
+
 def test_ack_for_an_earlier_turn_does_not_satisfy_a_new_interrupt() -> None:
     async def scenario():
-        session = FakeSession([[audio(b"\x01\x00"), flag(turn_complete=True)], [audio(b"\x02\x00")]])
+        session = FakeSession([[audio(b"\x01\x00")]])
         adapter = make(session, interrupt_timeout=0.05)
         await adapter.start()
         await take(adapter, 1)
-        await adapter.interrupt()  # acknowledged by the first turn completing
-        await take(adapter, 2)  # TurnComplete, then the second turn's audio
+        await adapter.interrupt()
+        adapter._map(flag(turn_complete=True).server_content)
+        assert await take(adapter, 1) == [TurnComplete()]
+        adapter._map(audio(b"\x02\x00").server_content)
+        assert await take(adapter, 1) == [AudioChunk(b"\x02\x00", 24000)]
         await adapter.interrupt()  # never acknowledged
         with pytest.raises(AdapterError) as error:
             await take(adapter, 1)
@@ -277,8 +298,9 @@ def test_same_tick_ack_then_interrupt_still_arms_a_timer() -> None:
         adapter._map(flag(turn_complete=True).server_content)
         adapter._map(audio(b"\x02\x00").server_content)
         await adapter.interrupt()
+        assert await take(adapter, 1) == [TurnComplete()]
         with pytest.raises(AdapterError) as error:
-            await take(adapter, 3)  # TurnComplete and audio, then the timeout
+            await take(adapter, 1)  # the queued audio was invalidated
         await adapter.close()
         return error.value.category
 
