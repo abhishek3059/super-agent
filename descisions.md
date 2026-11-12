@@ -244,6 +244,6 @@ Every DEC entry from [DEC-01](#dec-01) to [DEC-18](#dec-18) above carries the se
 
 ## Provisional and post-review status
 
-[DEC-04](#dec-04) is conditional; [DEC-06](#dec-06) records a provisional post-review Researcher follow-up candidate, not a re-voted council consensus and not a tested or approved runtime selection; [DEC-13](#dec-13), [DEC-14](#dec-14), and [DEC-15](#dec-15) are deferred; [DEC-17](#dec-17) is repository tooling only; [DEC-18](#dec-18) is proposed and not yet approved by both maintainers. None of these statuses is a runtime approval, and no decision in this register claims tested access or an approved provider.
+[DEC-04](#dec-04) is conditional; [DEC-06](#dec-06) records a provisional post-review Researcher follow-up candidate, not a re-voted council consensus and not a tested or approved runtime selection; [DEC-13](#dec-13), [DEC-14](#dec-14), and [DEC-15](#dec-15) are deferred; [DEC-17](#dec-17) is repository tooling only; [DEC-18](#dec-18) is approved by both maintainers but enables no tier by itself. None of these statuses is a runtime approval, and no decision in this register claims tested access or an approved provider.
 
 See [Native transport research](docs/design/super-agent.md) in the signed design and the council meeting records.
