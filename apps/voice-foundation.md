@@ -5,13 +5,33 @@ PCM audio. It does not use Gemini, persist audio, or provide tools or actions.
 
 ## Current state (2026-11-12)
 
-The fake adapter is the only adapter the application uses. A Gemini Live
+The fake adapter is the default. A local private adapter is opt-in (see below). A Gemini Live
 adapter exists behind the same seam with offline tests
 ([record](../docs/implementation/r01-7-gemini-adapter.md)), but the application
 never constructs it. An opt-in command, `live_check`, ran it once against the
 real service with synthetic speech ([record](../docs/implementation/r01-8-live-check.md)).
 You can run the local scaffold and test start, mute, barge-in, and stop, but the
 console cannot connect to Gemini. Personal microphone audio stays local.
+
+## Local private mode (opt-in, macOS)
+
+`SUPER_AGENT_ADAPTER=local` swaps the fake adapter for a fully local pipeline:
+whisper.cpp for speech-to-text, a local model through Ollama, and macOS `say`
+for speech. The only network peer is Ollama on `127.0.0.1:11434`. It is
+conversation only: the model has no tools. It needs `whisper-cli` and `ollama`
+on the PATH and the model files described in
+[spike A4](../spikes/a4-local-voice/README.md). It is not approved by both
+maintainers yet ([record](../docs/approvals/local-voice-exception.md)).
+
+```bash
+OLLAMA_HOST=127.0.0.1:11434 ollama serve    # separate terminal
+SUPER_AGENT_ADAPTER=local PYTHONPATH=apps/api/src python -m uvicorn super_agent_voice.app:create_app --factory --host 127.0.0.1 --port 8000 --ws-max-size 65600 --ws-max-queue 4
+```
+
+Optional settings: `SUPER_AGENT_LOCAL_MODEL` (default `qwen3.5:9b`),
+`SUPER_AGENT_WHISPER_MODEL` (a file name in `~/.super-agent/models`),
+`SUPER_AGENT_SAY_VOICE`, and `SUPER_AGENT_TTS=kokoro` (needs `kokoro-onnx`,
+which is not in the lock file).
 
 ## Synthetic live check (opt-in)
 

@@ -18,6 +18,7 @@ goes in [descisions.md](../../descisions.md).
 | 2026-11-10 | [R-01.3 macOS checks](2026-11-10-r01-3-macos-checks.md) | Running the offline voice checks on a Mac; interpreter and evidence lessons |
 | 2026-11-10 | [R-01.5 credential review](2026-11-10-r01-5-credential-review.md) | Loopback credentials: lockout as an attack, per-OS storage, localhost CSRF |
 | 2026-11-11 | [Bounded teardown and focused review](2026-11-11-bounded-teardown-and-focused-review.md) | Cleanup ownership, deterministic overflow, and logging uncertainty without review loops |
+| 2026-11-12 | [Local voice stack](2026-11-12-local-voice-stack.md) | A private pipeline works at about two seconds; proxies and small-model honesty need guarding |
 
 ## How to add a note
 

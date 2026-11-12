@@ -137,11 +137,13 @@ class FakeAudioContext {
     current.processors.push(node);
     return node;
   }
+  currentTime = 0;
   createBuffer(channels, length, rate) {
     const buffer = {
       numberOfChannels: channels,
       length,
       sampleRate: rate,
+      duration: length / rate,
       getChannelData: () => new Float32Array(length),
     };
     this.buffers.push(buffer);
@@ -154,7 +156,7 @@ class FakeAudioContext {
       started: false,
       stopped: false,
       connect() { /* fake graph */ },
-      start() { this.started = true; },
+      start(at) { this.started = true; this.startedAt = at; },
       stop() { this.stopped = true; this.onended?.(); },
     };
     this.sources.push(source);
@@ -398,6 +400,30 @@ await (async function createBufferUsesMetadataRate() {
   await flushed();
   assert.equal(service.status(), 'speaking');
   assert.equal(lastContext().buffers.at(-1).sampleRate, 24000);
+})();
+
+await (async function chunksQueueEndToEnd() {
+  beginTest('chunks that arrive early are scheduled end to end, and an interrupt resets the queue');
+  const service = new VoiceSessionService();
+  micResolved();
+  const socket = await startLive(service);
+  for (let index = 0; index < 3; index += 1) {
+    socket.fireMessage(chunk(24000, 0));
+    socket.fireMessage(audibleFrame());
+  }
+  await flushed();
+  const context = lastContext();
+  const length = context.buffers[0].duration;
+  assert.ok(length > 0);
+  assert.deepEqual(context.sources.map((source) => source.startedAt), [0, length, 2 * length]);
+  service.interrupt();
+  socket.fireMessage(JSON.stringify({ type: 'playback.interrupted', playbackEpoch: 1 }));
+  // Earlier than the old queue end, so only a reset queue can start here.
+  context.currentTime = length;
+  socket.fireMessage(chunk(24000, 1));
+  socket.fireMessage(audibleFrame());
+  await flushed();
+  assert.equal(context.sources.at(-1).startedAt, length);
 })();
 
 await (async function untaggedAndConsumedTags() {

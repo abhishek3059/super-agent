@@ -5,6 +5,7 @@ import hmac
 import json
 import logging
 import math
+import os
 import threading
 import time
 from collections import deque
@@ -163,9 +164,10 @@ class _OutboundQueue:
 
 def create_app(
     config: VoiceConfig | None = None,
-    adapter_factory: AdapterFactory = FakeVoiceAdapter,
+    adapter_factory: AdapterFactory | None = None,
 ) -> FastAPI:
     settings = config or VoiceConfig.from_environment()
+    adapter_factory = adapter_factory or _adapter_from_environment()
     # Fails closed before any session can run (teardown addendum 4.1).
     for name in (
         "teardown_seconds", "token_max_age_seconds", "auth_failure_window_seconds",
@@ -187,13 +189,24 @@ def create_app(
     async def health(request: Request) -> dict[str, str]:
         if request.headers.get("host") != settings.allowed_host:
             raise HTTPException(status_code=403)
-        return {"status": "ok", "provider": "fake"}
+        return {"status": "ok", "provider": getattr(adapter_factory, "name", "unknown")}
 
     @app.websocket("/ws/voice")
     async def voice_socket(websocket: WebSocket) -> None:
         await _voice_socket(websocket, settings, adapter_factory, gate, supervisors, auth)
 
     return app
+
+
+def _adapter_from_environment() -> AdapterFactory:
+    choice = os.environ.get("SUPER_AGENT_ADAPTER", "fake")
+    if choice == "fake":
+        return FakeVoiceAdapter
+    if choice == "local":
+        from .local_adapter import LocalVoiceAdapter
+        return LocalVoiceAdapter
+    # Fail closed: an unknown name never falls back to some other provider.
+    raise RuntimeError("SUPER_AGENT_ADAPTER must be 'fake' or 'local'")
 
 
 def _frame_logging_enabled() -> bool:

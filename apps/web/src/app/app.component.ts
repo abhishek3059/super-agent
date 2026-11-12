@@ -9,7 +9,8 @@ import { VoiceSessionService } from './voice-session.service';
     <main>
       <p class="eyebrow">Super-agent voice foundation</p>
       <h1>Local voice session</h1>
-      <p>This scaffold uses a local fake provider. Audio is not stored or sent to Gemini.</p>
+      <p>Audio stays on this computer and is not sent to Gemini. Nothing is kept after a turn.
+        @if (session.provider()) { Provider: {{ session.provider() }}. }</p>
       <label for="token">Local session token</label>
       <input id="token" type="password" autocomplete="off"
         [value]="token" (input)="token = tokenInput.value" #tokenInput>

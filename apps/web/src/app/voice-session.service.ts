@@ -23,6 +23,7 @@ export class VoiceSessionService {
   readonly muted = signal(false);
   readonly error = signal('');
   readonly inputLevel = signal(0);
+  readonly provider = signal('');
 
   private socket?: WebSocket;
   private stream?: MediaStream;
@@ -32,6 +33,8 @@ export class VoiceSessionService {
   private epochs = new PlaybackEpochTracker();
   private pendingRateHz?: number;
   private interruptPending = false;
+  /** When the last scheduled chunk ends; chunks that arrive early queue behind it. */
+  private nextPlayAt = 0;
   /**
    * Monotonic identity of the current session. Every async continuation
    * (permission result, socket event, deferred audio-context close)
@@ -153,6 +156,7 @@ export class VoiceSessionService {
       rateHz?: number;
       channels?: number;
       format?: string;
+      provider?: string;
     };
     if (message.type === 'session.ready') {
       if (this.capturing) {
@@ -162,6 +166,7 @@ export class VoiceSessionService {
         return;
       }
       this.capturing = true;
+      this.provider.set(message.provider === 'local' || message.provider === 'fake' ? message.provider : 'unknown');
       this.epochs.onReady(message.playbackEpoch);
       try {
         await this.startCapture(socket, generation);
@@ -329,7 +334,11 @@ export class VoiceSessionService {
     };
     this.playing.add(source);
     this.status.set('speaking');
-    source.start();
+    // A local model synthesizes faster than real time, so chunks are queued
+    // end to end and never start on top of each other.
+    const at = Math.max(context.currentTime, this.nextPlayAt);
+    this.nextPlayAt = at + buffer.duration;
+    source.start(at);
   }
 
   private stopPlayback(): void {
@@ -337,6 +346,7 @@ export class VoiceSessionService {
       try { source.stop(); } catch { /* already stopped */ }
     }
     this.playing.clear();
+    this.nextPlayAt = 0;
     if (this.status() === 'speaking') this.status.set(this.muted() ? 'muted' : 'listening');
   }
 
@@ -356,6 +366,7 @@ export class VoiceSessionService {
     this.stream = undefined;
     for (const track of stream?.getTracks() ?? []) track.stop();
     this.inputLevel.set(0);
+    this.provider.set('');
     this.pendingRateHz = undefined;
     this.interruptPending = false;
     this.capturing = false;
