@@ -17,22 +17,27 @@ console cannot connect to Gemini. Personal microphone audio stays local.
 ## Local private mode (opt-in, macOS)
 
 `SUPER_AGENT_ADAPTER=local` swaps the fake adapter for a fully local pipeline:
-whisper.cpp for speech-to-text, a local model through Ollama, and macOS `say`
-for speech. The only network peer is Ollama on `127.0.0.1:11434`. It is
-conversation only: the model has no tools. It needs `whisper-cli` and `ollama`
-on the PATH and the model files described in
-[spike A4](../spikes/a4-local-voice/README.md). It is not approved by both
-maintainers yet ([record](../docs/approvals/local-voice-exception.md)).
+Silero for speech detection, whisper.cpp for speech-to-text, a local model
+through Ollama, and Kokoro for speech. The only network peer is Ollama on
+`127.0.0.1:11434`. The model is told the date and time and has one tool, a
+calculator; it cannot read your data or act. The console shows what it heard
+and said for the session only. It needs `whisper-cli` and `ollama` on the
+PATH and the four model files (Whisper, Kokoro and its voices, Silero) whose
+download commands are in
+[spike A4](../spikes/a4-local-voice/README.md). Status and approvals:
+[record](../docs/approvals/local-voice-exception.md).
 
 ```bash
+python -m pip install --only-binary=:all: -r apps/api/requirements.lock -r apps/api/requirements-local.lock
 OLLAMA_HOST=127.0.0.1:11434 ollama serve    # separate terminal
 SUPER_AGENT_ADAPTER=local PYTHONPATH=apps/api/src python -m uvicorn super_agent_voice.app:create_app --factory --host 127.0.0.1 --port 8000 --ws-max-size 65600 --ws-max-queue 4
 ```
 
 Optional settings: `SUPER_AGENT_LOCAL_MODEL` (default `qwen3.5:9b`),
 `SUPER_AGENT_WHISPER_MODEL` (a file name in `~/.super-agent/models`),
-`SUPER_AGENT_SAY_VOICE`, and `SUPER_AGENT_TTS=kokoro` (needs `kokoro-onnx`,
-which is not in the lock file).
+`SUPER_AGENT_TTS=say` with `SUPER_AGENT_SAY_VOICE` (the built-in macOS voice,
+no extra packages), `SUPER_AGENT_KOKORO_VOICE`, and `SUPER_AGENT_VAD=rms`
+(volume threshold, no extra packages).
 
 ## Synthetic live check (opt-in)
 

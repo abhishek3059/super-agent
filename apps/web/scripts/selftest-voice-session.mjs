@@ -496,7 +496,7 @@ await (async function muteEndToEnd() {
 })();
 
 await (async function automaticBargeIn() {
-  beginTest('a loud input frame barges in while audible playback runs, and only once');
+  beginTest('two consecutive loud input frames barge in while audible playback runs, and only once');
   const service = new VoiceSessionService();
   micResolved();
   const socket = await startLive(service);
@@ -504,13 +504,20 @@ await (async function automaticBargeIn() {
   socket.fireMessage(audibleFrame());
   await flushed();
   assert.equal(service.status(), 'speaking');
+  // One loud frame (a click or cough) must not cut the assistant off.
+  micFrame(loudSamples());
+  await flushed();
+  assert.equal(socket.countText('playback.interrupt'), 0);
+  assert.equal(service.status(), 'speaking');
   micFrame(loudSamples());
   await flushed();
   assert.equal(socket.countText('playback.interrupt'), 1);
   assert.equal(service.status(), 'listening');
   assert.ok(lastContext().sources.at(0).stopped);
-  // A second loud frame while the interrupt is still pending must not send
+  // Further loud frames while the interrupt is still pending must not send
   // another interrupt.
+  micFrame(loudSamples());
+  micFrame(loudSamples());
   micFrame(loudSamples());
   await flushed();
   assert.equal(socket.countText('playback.interrupt'), 1);
@@ -1282,6 +1289,256 @@ await (async function speakingStateKeptThroughDeferredResume() {
   source.stop();
   await flushed();
   assert.equal(service.status(), 'listening');
+})();
+
+// ---------- thinking state, conversation text, barge-in debounce ----------
+
+const THINKING = { type: 'turn.state', state: 'thinking' };
+const say = (socket, role, text) => socket.fireMessage({ type: 'conversation.text', role, text });
+const quietSamples = () => new Float32Array(2048).fill(0.005);
+
+await (async function thinkingClearedByAudio() {
+  beginTest('thinking is set by turn.state and replaced by speaking, then listening');
+  const service = new VoiceSessionService();
+  micResolved();
+  const socket = await startLive(service);
+  socket.fireMessage(THINKING);
+  await flushed();
+  assert.equal(service.status(), 'thinking');
+  socket.fireMessage(chunk(16000, 0));
+  socket.fireMessage(audibleFrame());
+  await flushed();
+  assert.equal(service.status(), 'speaking');
+  lastContext().sources.at(-1).stop();
+  await flushed();
+  assert.equal(service.status(), 'listening');
+})();
+
+await (async function thinkingClearedByTurnComplete() {
+  beginTest('turn.complete with nothing playing leaves thinking; with audio playing it does not');
+  const service = new VoiceSessionService();
+  micResolved();
+  const socket = await startLive(service);
+  socket.fireMessage(THINKING);
+  await flushed();
+  assert.equal(service.status(), 'thinking');
+  socket.fireMessage({ type: 'turn.complete', playbackEpoch: 0 });
+  await flushed();
+  assert.equal(service.status(), 'listening');
+  socket.fireMessage(chunk(16000, 0));
+  socket.fireMessage(audibleFrame());
+  socket.fireMessage({ type: 'turn.complete', playbackEpoch: 0 });
+  await flushed();
+  assert.equal(service.status(), 'speaking', 'audible playback outlives turn.complete');
+})();
+
+await (async function thinkingClearedByInterrupt() {
+  beginTest('a local interrupt and a server playback.interrupted both leave thinking');
+  const service = new VoiceSessionService();
+  micResolved();
+  const socket = await startLive(service);
+  socket.fireMessage(THINKING);
+  await flushed();
+  service.interrupt();
+  assert.equal(service.status(), 'listening', 'the stop button must not leave thinking');
+  socket.fireMessage({ type: 'playback.interrupted', playbackEpoch: 1, source: 'local' });
+  socket.fireMessage(THINKING);
+  await flushed();
+  assert.equal(service.status(), 'thinking');
+  socket.fireMessage({ type: 'playback.interrupted', playbackEpoch: 2, source: 'provider' });
+  await flushed();
+  assert.equal(service.status(), 'listening');
+})();
+
+await (async function thinkingMuteStopAndError() {
+  beginTest('mute, stop, and error leave thinking; thinking never overrides other states');
+  const service = new VoiceSessionService();
+  micResolved();
+  let socket = await startLive(service);
+  socket.fireMessage(THINKING);
+  await flushed();
+  service.setMuted(true);
+  assert.equal(service.status(), 'muted');
+  socket.fireMessage(THINKING);
+  await flushed();
+  assert.equal(service.status(), 'muted', 'a muted session never shows thinking');
+  service.setMuted(false);
+  assert.equal(service.status(), 'listening');
+  socket.fireMessage(chunk(16000, 0));
+  socket.fireMessage(audibleFrame());
+  socket.fireMessage(THINKING);
+  await flushed();
+  assert.equal(service.status(), 'speaking', 'thinking never downgrades speaking');
+  service.stop();
+  await flushed();
+  assert.equal(service.status(), 'stopped');
+
+  micResolved();
+  socket = await startLive(service);
+  socket.fireMessage(THINKING);
+  await flushed();
+  service.stop();
+  await flushed();
+  assert.equal(service.status(), 'stopped');
+
+  micResolved();
+  socket = await startLive(service);
+  socket.fireMessage(THINKING);
+  await flushed();
+  socket.fireMessage({ type: 'session.error', category: 'session-failed' });
+  await flushed();
+  assert.equal(service.status(), 'error');
+})();
+
+await (async function thinkingIgnoredBeforeReady() {
+  beginTest('thinking before the session is ready does not publish a ready state');
+  const service = new VoiceSessionService();
+  await service.start(TOKEN);
+  const socket = lastSocket();
+  socket.open();
+  await flushed();
+  socket.fireMessage(THINKING);
+  await flushed();
+  assert.equal(service.status(), 'connecting');
+})();
+
+await (async function conversationEntries() {
+  beginTest('conversation entries are validated, merged per reply, capped, and cleared');
+  const service = new VoiceSessionService();
+  micResolved();
+  const socket = await startLive(service);
+  say(socket, 'user', 'What time is it?');
+  say(socket, 'assistant', 'It is noon.');
+  say(socket, 'assistant', 'Anything else?');
+  say(socket, 'user', 'No.');
+  say(socket, 'user', 'Thanks.');
+  assert.deepEqual(service.conversation(), [
+    { role: 'user', text: 'What time is it?' },
+    { role: 'assistant', text: 'It is noon. Anything else?' },
+    { role: 'user', text: 'No.' },
+    { role: 'user', text: 'Thanks.' },
+  ]);
+  // Markup is kept as inert text; the template only interpolates it.
+  say(socket, 'assistant', '<b>hi</b>');
+  assert.equal(service.conversation().at(-1).text, '<b>hi</b>');
+  // Whitespace is trimmed, long text is cut to 500 characters.
+  say(socket, 'user', '  padded  ');
+  assert.equal(service.conversation().at(-1).text, 'padded');
+  say(socket, 'user', 'x'.repeat(600));
+  assert.equal(service.conversation().at(-1).text.length, 500);
+  // One reply cannot grow without bound.
+  for (let index = 0; index < 10; index += 1) say(socket, 'assistant', 'y'.repeat(500));
+  assert.equal(service.conversation().at(-1).text.length, 4000);
+  assert.equal(service.conversation().filter((entry) => entry.role === 'assistant').length, 3);
+
+  // Invalid role or text is ignored and changes nothing.
+  const before = service.conversation();
+  for (const bad of [
+    { role: 'system', text: 'hello' },
+    { role: 'User', text: 'hello' },
+    { role: undefined, text: 'hello' },
+    { role: 'user', text: '' },
+    { role: 'user', text: '   ' },
+    { role: 'user', text: 42 },
+    { role: 'user', text: { toString: () => 'x' } },
+    { role: 'assistant', text: ['a'] },
+    { role: 'assistant' },
+    { role: ['user'], text: 'hello' },
+  ]) {
+    socket.fireMessage({ type: 'conversation.text', ...bad });
+    assert.equal(service.conversation(), before, `ignored: ${JSON.stringify(bad)}`);
+  }
+  await flushed();
+  assert.equal(service.status(), 'listening', 'invalid text does not fail the session');
+
+  service.stop();
+  await flushed();
+  assert.deepEqual(service.conversation(), []);
+})();
+
+await (async function conversationCap() {
+  beginTest('conversation keeps only the last 50 entries');
+  const service = new VoiceSessionService();
+  micResolved();
+  const socket = await startLive(service);
+  for (let index = 0; index < 60; index += 1) {
+    say(socket, 'user', `u${index}`);
+    say(socket, 'assistant', `a${index}`);
+  }
+  const entries = service.conversation();
+  assert.equal(entries.length, 50);
+  assert.equal(entries[0].text, 'u35');
+  assert.equal(entries.at(-1).text, 'a59');
+})();
+
+await (async function conversationClearedOnErrorAndClose() {
+  beginTest('conversation is cleared when a session errors or the socket closes');
+  const service = new VoiceSessionService();
+  micResolved();
+  let socket = await startLive(service);
+  say(socket, 'user', 'secret words');
+  socket.fireMessage({ type: 'session.error', category: 'session-failed' });
+  await flushed();
+  assert.deepEqual(service.conversation(), []);
+
+  micResolved();
+  socket = await startLive(service);
+  say(socket, 'assistant', 'more words');
+  assert.equal(service.conversation().length, 1);
+  socket.fireClose();
+  await flushed();
+  assert.deepEqual(service.conversation(), []);
+})();
+
+await (async function bargeInNeedsConsecutiveFrames() {
+  beginTest('a lone loud frame never interrupts; a quiet frame resets the count');
+  const service = new VoiceSessionService();
+  micResolved();
+  const socket = await startLive(service);
+  socket.fireMessage(chunk(16000, 0));
+  socket.fireMessage(audibleFrame());
+  await flushed();
+  micFrame(loudSamples());
+  micFrame(quietSamples());
+  micFrame(loudSamples());
+  micFrame(quietSamples());
+  micFrame(loudSamples());
+  assert.equal(socket.countText('playback.interrupt'), 0);
+  assert.equal(service.status(), 'speaking');
+  micFrame(loudSamples());
+  assert.equal(socket.countText('playback.interrupt'), 1);
+  assert.equal(service.status(), 'listening');
+})();
+
+await (async function bargeInCountResetsWhenPlaybackStops() {
+  beginTest('the loud-frame count resets on mute and when playback ends');
+  const service = new VoiceSessionService();
+  micResolved();
+  const socket = await startLive(service);
+  const playOne = async (epoch) => {
+    socket.fireMessage(chunk(16000, epoch));
+    socket.fireMessage(audibleFrame());
+    await flushed();
+  };
+  await playOne(0);
+  micFrame(loudSamples());
+  // Playback ends by itself, then new audio starts: the old frame must not count.
+  lastContext().sources.at(-1).stop();
+  await flushed();
+  await playOne(0);
+  micFrame(loudSamples());
+  assert.equal(socket.countText('playback.interrupt'), 0, 'count reset when playback ended');
+  // Mute stops playback; after unmute a single loud frame still does not interrupt.
+  // Real browsers fire onended asynchronously after stop(), so the reset must
+  // not depend on it.
+  for (const source of lastContext().sources) source.stop = function stop() { this.stopped = true; };
+  service.setMuted(true);
+  service.setMuted(false);
+  await playOne(0);
+  micFrame(loudSamples());
+  assert.equal(socket.countText('playback.interrupt'), 0, 'count reset on mute');
+  micFrame(loudSamples());
+  assert.equal(socket.countText('playback.interrupt'), 1);
 })();
 
 // Any failed assert above throws and exits with a non-zero code.

@@ -2,6 +2,7 @@ const STATUS_LABELS: Record<string, string> = {
   stopped: 'Disconnected',
   connecting: 'Connecting',
   listening: 'Listening',
+  thinking: 'Thinking',
   speaking: 'Local echo',
   muted: 'Muted',
   error: 'Needs attention',
@@ -11,16 +12,20 @@ const PIPELINE_SUMMARIES: Record<string, string> = {
   stopped: 'Ready for a local session',
   connecting: 'Authenticating on loopback',
   listening: 'Microphone streaming locally',
+  thinking: 'Working on a reply locally',
   speaking: 'Playing the local echo',
   muted: 'Microphone transmission paused',
   error: 'Open connection settings',
 };
 
-export function statusLabel(status: string): string {
+// The echo wording is only true for the fake adapter; the local model speaks its own reply.
+export function statusLabel(status: string, provider = ''): string {
+  if (status === 'speaking' && provider === 'local') return 'Speaking';
   return STATUS_LABELS[status] ?? 'Unavailable';
 }
 
-export function pipelineSummary(status: string): string {
+export function pipelineSummary(status: string, provider = ''): string {
+  if (status === 'speaking' && provider === 'local') return 'Playing the local reply';
   return PIPELINE_SUMMARIES[status] ?? 'Local voice path';
 }
 
@@ -29,7 +34,7 @@ export function isSessionActive(status: string): boolean {
 }
 
 export function isSessionReady(status: string): boolean {
-  return ['listening', 'speaking', 'muted'].includes(status);
+  return ['listening', 'thinking', 'speaking', 'muted'].includes(status);
 }
 
 export function formatElapsed(elapsed: number): string {
@@ -43,6 +48,7 @@ export function formatElapsed(elapsed: number): string {
 export function spectrumBarHeight(status: string, inputLevel: number, strength: number): number {
   if (status === 'muted' || status === 'stopped' || status === 'error') return 7 + strength * 5;
   if (status === 'connecting') return 10 + strength * 16;
+  if (status === 'thinking') return 12 + strength * 20;
   if (status === 'speaking') return 28 + strength * 58;
   return 8 + Math.min(1, inputLevel * 12) * strength * 84;
 }

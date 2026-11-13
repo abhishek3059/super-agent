@@ -68,6 +68,21 @@
     </div>
     <p class="spectrum-label">Microphone level, not speech detection</p>
 
+    @if (session.provider() === 'local') {
+      <section class="conversation" role="log" aria-live="polite" aria-label="Conversation transcript">
+        <ol #transcript>
+          @for (entry of session.conversation(); track $index) {
+            <li [class.user]="entry.role === 'user'">
+              <span class="who">{{ entry.role === 'user' ? 'You' : 'Assistant' }}</span>
+              <p>{{ entry.text }}</p>
+            </li>
+          } @empty {
+            <li class="empty">Say something to begin.</li>
+          }
+        </ol>
+      </section>
+    }
+
     <details class="pipeline">
       <summary>
         <span class="pipeline-dot"></span>
@@ -94,11 +109,11 @@
             <span class="step-number">2</span>
             <div><strong>Local authentication</strong><small>Memory-only token, never saved by this page</small></div>
           </li>
-          <li [class.current]="session.status() === 'listening' || session.status() === 'muted'" [class.complete]="session.status() === 'speaking'">
+          <li [class.current]="session.status() === 'listening' || session.status() === 'muted'" [class.complete]="session.status() === 'thinking' || session.status() === 'speaking'">
             <span class="step-number">3</span>
             <div><strong>Microphone capture</strong><small>Personal audio stays on this device</small></div>
           </li>
-          <li [class.current]="session.status() === 'speaking'">
+          <li [class.current]="session.status() === 'thinking' || session.status() === 'speaking'">
             <span class="step-number">4</span>
             <div><strong>{{ session.provider() === 'local' ? 'Local model reply' : 'Local echo playback' }}</strong><small>No Gemini session or cloud microphone upload</small></div>
           </li>
@@ -178,7 +193,7 @@
             <path stroke-linecap="round" stroke-linejoin="round" d="M12 3.5 5.5 6v5.3c0 4.1 2.7 7.8 6.5 9.2 3.8-1.4 6.5-5.1 6.5-9.2V6L12 3.5Z" />
             <path stroke-linecap="round" stroke-linejoin="round" d="m9.3 12 1.8 1.8 3.8-4" />
           </svg>
-          <div><strong>Local fake adapter</strong><span>No Gemini connection and no cloud microphone upload.</span></div>
+          <div><strong>{{ session.provider() === 'local' ? 'Local private model' : 'Local fake adapter' }}</strong><span>No Gemini connection and no cloud microphone upload.</span></div>
         </div>
 
         @if (session.error()) { <p class="settings-error" role="alert">{{ session.error() }}</p> }

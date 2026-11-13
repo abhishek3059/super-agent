@@ -17,6 +17,19 @@ const ERROR_CATEGORIES = new Set([
   'invalid-control',
 ]);
 
+const MAX_CONVERSATION_ENTRIES = 50;
+const MAX_MESSAGE_CHARS = 500;
+// Bounds one merged assistant bubble; the per-message cap alone would let a
+// long reply grow without limit.
+const MAX_ENTRY_CHARS = 4000;
+/** Consecutive loud frames (about 128 ms each) required before barge-in. */
+const BARGE_IN_FRAMES = 2;
+
+export interface ConversationEntry {
+  role: 'user' | 'assistant';
+  text: string;
+}
+
 @Injectable({ providedIn: 'root' })
 export class VoiceSessionService {
   readonly status = signal('stopped');
@@ -24,6 +37,8 @@ export class VoiceSessionService {
   readonly error = signal('');
   readonly inputLevel = signal(0);
   readonly provider = signal('');
+  /** Transcript of the current session only; cleared in cleanup, never persisted or logged. */
+  readonly conversation = signal<readonly ConversationEntry[]>([]);
 
   private socket?: WebSocket;
   private stream?: MediaStream;
@@ -33,6 +48,7 @@ export class VoiceSessionService {
   private epochs = new PlaybackEpochTracker();
   private pendingRateHz?: number;
   private interruptPending = false;
+  private loudFrames = 0;
   /** When the last scheduled chunk ends; chunks that arrive early queue behind it. */
   private nextPlayAt = 0;
   /**
@@ -157,6 +173,9 @@ export class VoiceSessionService {
       channels?: number;
       format?: string;
       provider?: string;
+      state?: string;
+      role?: unknown;
+      text?: unknown;
     };
     if (message.type === 'session.ready') {
       if (this.capturing) {
@@ -194,6 +213,15 @@ export class VoiceSessionService {
       this.pendingRateHz = message.rateHz;
     } else if (message.type === 'turn.complete') {
       this.epochs.onTurnComplete(message.playbackEpoch);
+      // Nothing is playing, so a reply that produced no audible chunk must
+      // not leave the console showing "thinking".
+      if (this.status() === 'thinking' && !this.playing.size) this.status.set('listening');
+    } else if (message.type === 'turn.state') {
+      // Only from listening: muted, stopped, errored, connecting and speaking
+      // sessions keep their own state.
+      if (message.state === 'thinking' && this.status() === 'listening') this.status.set('thinking');
+    } else if (message.type === 'conversation.text') {
+      this.addConversationText(message.role, message.text);
     } else if (message.type === 'playback.interrupted') {
       // The backend epoch is authoritative and clears the pending interrupt.
       this.epochs.onServerInterrupt(message.playbackEpoch);
@@ -209,6 +237,19 @@ export class VoiceSessionService {
       // Only acknowledgements arrive here (mute, unmute, stopping); local
       // state is already authoritative and the final event precedes close.
     }
+  }
+
+  /** Backend text is untrusted input: strict role and type checks, text only, bounded. */
+  private addConversationText(role: unknown, text: unknown): void {
+    if ((role !== 'user' && role !== 'assistant') || typeof text !== 'string') return;
+    const clean = text.trim().slice(0, MAX_MESSAGE_CHARS);
+    if (!clean) return;
+    const entries = this.conversation();
+    const last = entries.at(-1);
+    const next: ConversationEntry[] = role === 'assistant' && last?.role === 'assistant'
+      ? [...entries.slice(0, -1), { role, text: `${last.text} ${clean}`.slice(0, MAX_ENTRY_CHARS) }]
+      : [...entries, { role, text: clean }];
+    this.conversation.set(next.slice(-MAX_CONVERSATION_ENTRIES));
   }
 
   private async startCapture(socket: WebSocket, generation: number): Promise<void> {
@@ -296,8 +337,13 @@ export class VoiceSessionService {
     // Automatic barge-in fires only while audible model playback runs and no
     // interrupt is pending; repeated loud frames during a pending interrupt
     // are ignored until the backend acknowledges a new epoch.
+    // A click or cough is a single frame, so a lone loud frame never cuts the
+    // assistant off.
     if (this.playing.size && !this.interruptPending && level > 0.02) {
-      this.interrupt();
+      this.loudFrames += 1;
+      if (this.loudFrames >= BARGE_IN_FRAMES) this.interrupt();
+    } else {
+      this.loudFrames = 0;
     }
     const pcm = new Int16Array(samples.length);
     for (let index = 0; index < samples.length; index += 1) {
@@ -330,7 +376,9 @@ export class VoiceSessionService {
     source.connect(context.destination);
     source.onended = () => {
       this.playing.delete(source);
-      if (!this.playing.size && this.status() === 'speaking') this.status.set('listening');
+      if (this.playing.size) return;
+      this.loudFrames = 0;
+      if (this.status() === 'speaking') this.status.set('listening');
     };
     this.playing.add(source);
     this.status.set('speaking');
@@ -347,7 +395,8 @@ export class VoiceSessionService {
     }
     this.playing.clear();
     this.nextPlayAt = 0;
-    if (this.status() === 'speaking') this.status.set(this.muted() ? 'muted' : 'listening');
+    this.loudFrames = 0;
+    if (this.status() === 'speaking' || this.status() === 'thinking') this.status.set(this.muted() ? 'muted' : 'listening');
   }
 
   private fail(message: string): void {
@@ -367,6 +416,7 @@ export class VoiceSessionService {
     for (const track of stream?.getTracks() ?? []) track.stop();
     this.inputLevel.set(0);
     this.provider.set('');
+    this.conversation.set([]);
     this.pendingRateHz = undefined;
     this.interruptPending = false;
     this.capturing = false;

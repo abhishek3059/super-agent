@@ -22,7 +22,19 @@ class Interrupted:
     pass
 
 
-AdapterEvent = AudioChunk | TurnComplete | Interrupted
+@dataclass(frozen=True)
+class Thinking:
+    """The adapter heard a complete utterance and is preparing a reply."""
+
+
+@dataclass(frozen=True)
+class Transcript:
+    """Words heard or spoken, for display in the console only; never logged."""
+    role: str  # "user" or "assistant"
+    text: str
+
+
+AdapterEvent = AudioChunk | TurnComplete | Interrupted | Thinking | Transcript
 
 # Fixed browser-facing categories (design section 5); provider detail never
 # leaves the adapter.

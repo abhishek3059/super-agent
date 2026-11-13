@@ -1,10 +1,13 @@
 import asyncio
+import json
 import struct
 
 import pytest
 
 from super_agent_voice import local_adapter
-from super_agent_voice.adapter import AdapterError, AudioChunk, Interrupted, TurnComplete
+from super_agent_voice.adapter import (
+    AdapterError, AudioChunk, Interrupted, Thinking, Transcript, TurnComplete,
+)
 from super_agent_voice.app import _adapter_from_environment
 from super_agent_voice.local_adapter import LocalVoiceAdapter
 
@@ -30,7 +33,8 @@ def make(reply_text="Hello there. How can I help?", *, heard="what time is it", 
         seen.append(("say", text))
         return bytes(24000)  # 0.5 s of silence at 24 kHz
 
-    adapter = LocalVoiceAdapter(transcribe, reply, synthesize, pace_output=False, **options)
+    adapter = LocalVoiceAdapter(
+        transcribe, reply, synthesize, local_adapter.rms_detector(), pace_output=False, **options)
     return adapter, seen
 
 
@@ -68,6 +72,7 @@ def test_utterance_becomes_sentence_by_sentence_speech_then_turn_complete():
     assert isinstance(events[-1], TurnComplete)
     messages = next(value for kind, value in seen if kind == "messages")
     assert messages[0]["role"] == "system" and messages[-1] == {"role": "user", "content": "what time is it"}
+    assert str(__import__("datetime").date.today().year) in messages[0]["content"]
 
 
 def test_silence_and_short_noise_start_no_turn():
@@ -133,7 +138,12 @@ def test_new_utterance_during_a_reply_emits_interrupted():
         return events
 
     events = run(scenario())
-    assert isinstance(events[0], Interrupted) and isinstance(events[-1], TurnComplete)
+    # The first turn's "thinking" may already be out; what matters is that the
+    # interruption comes before anything from the second turn.
+    kinds = [type(event) for event in events]
+    assert Interrupted in kinds and isinstance(events[-1], TurnComplete)
+    assert AudioChunk not in kinds[:kinds.index(Interrupted)]
+    assert kinds[kinds.index(Interrupted) + 1] is Thinking
 
 
 def test_history_is_bounded_and_cleared_on_close():
@@ -301,7 +311,6 @@ def test_model_calls_ignore_proxies_and_stay_on_loopback(monkeypatch):
 
     assert run(scenario()) == []
     assert opened[0].full_url == local_adapter.OLLAMA_CHAT_URL
-    assert b'"tools"' not in opened[0].data
 
 
 def test_adapter_selection_fails_closed(monkeypatch):
@@ -312,3 +321,251 @@ def test_adapter_selection_fails_closed(monkeypatch):
     monkeypatch.setenv("SUPER_AGENT_ADAPTER", "gemini-typo")
     with pytest.raises(RuntimeError):
         _adapter_from_environment()
+
+
+def test_a_turn_reports_thinking_then_what_was_heard_and_said():
+    async def scenario():
+        adapter, _ = make()
+        await adapter.start()
+        await speak(adapter)
+        events = await collect(adapter)
+        await adapter.close()
+        return [event for event in events if not isinstance(event, AudioChunk)]
+
+    events = run(scenario())
+    assert events == [
+        Thinking(), Transcript("user", "what time is it"),
+        Transcript("assistant", "Hello there."), Transcript("assistant", "How can I help?"),
+        TurnComplete(),
+    ]
+
+
+def test_calculator_does_arithmetic_and_nothing_else():
+    assert local_adapter.calculate("2 + 2 * 3") == "8"
+    assert local_adapter.calculate("(1.5 + 2.5) / 4") == "1"
+    assert local_adapter.calculate("-7 // 2") == "-4"
+    assert local_adapter.calculate("2 ** -100") == "7.888609052e-31"
+    assert local_adapter.calculate("0.1 + 0.2") == "0.3"
+    for hostile in (
+        "__import__('os').system('id')", "open('/etc/passwd').read()", "a + 1", "'x' * 9",
+        "9 ** 9 ** 9", "1 / 0", "(-8) ** 0.5", "1e308 * 10", "True + 1",
+        "999999**100 * 999999**100 * 999999**100", "(" * 200 + "1" + ")" * 200, "1" * 101, "[1, 2][0]", "(lambda: 1)()", "",
+    ):
+        assert local_adapter.calculate(hostile).startswith("error"), hostile
+    assert local_adapter.calculate(None).startswith("error")
+
+
+def test_only_the_fixed_calculator_is_offered_and_reachable():
+    assert [tool["function"]["name"] for tool in local_adapter.TOOLS] == ["calculate"]
+    assert local_adapter.run_tool("calculate", {"expression": "6 * 7"}) == "42"
+    assert local_adapter.run_tool("calculate", "6 * 7").startswith("error")
+    assert local_adapter.run_tool("run_shell", {"command": "id"}) == "error: no such tool."
+    assert local_adapter.run_tool(None, None) == "error: no such tool."
+
+
+def test_a_tool_call_is_answered_in_code_and_tool_rounds_are_bounded(monkeypatch):
+    requests = []
+
+    async def fake_stream(messages, *, tools):
+        requests.append((list(messages), tools))
+        if tools:  # a model that would call tools forever
+            yield {"content": "", "tool_calls": [
+                {"function": {"name": "calculate", "arguments": {"expression": "6 * 7"}}},
+                {"function": {"name": "delete_files", "arguments": {"path": "/"}}},
+                {"function": {"name": "calculate", "arguments": {"expression": "1 + 1"}}},
+                "not a call",
+            ]}
+            yield {"content": "The answer is ninety nine."}  # invented before the result exists
+        else:
+            yield {"content": "It is forty two."}
+
+    monkeypatch.setattr(local_adapter, "_chat_stream", fake_stream)
+
+    async def scenario():
+        return [piece async for piece in local_adapter.ollama_reply([{"role": "user", "content": "6 times 7?"}])]
+
+    assert run(scenario()) == ["It is forty two."]
+    assert [tools for _, tools in requests] == [True, True, False]
+    tool_messages = [message for message in requests[1][0] if message["role"] == "tool"]
+    # Two calls at most per round; the unknown tool got an error, not an action.
+    assert [message["content"] for message in tool_messages] == ["42", "error: no such tool."]
+    echoed = next(message for message in requests[1][0] if message["role"] == "assistant")
+    assert len(echoed["tool_calls"]) == 2 and all(isinstance(call, dict) for call in echoed["tool_calls"])
+
+
+def test_requests_carry_only_the_fixed_tools_and_stay_on_loopback():
+    request = local_adapter._chat_request([{"role": "user", "content": "hi"}], tools=True)
+    body = json.loads(request.data)
+    assert request.full_url.startswith("http://127.0.0.1:")
+    assert [tool["function"]["name"] for tool in body["tools"]] == ["calculate"]
+    assert body["think"] is False and body["stream"] is True
+    assert "tools" not in json.loads(local_adapter._chat_request([], tools=False).data)
+
+
+def test_voice_and_detector_choices_fail_closed(monkeypatch):
+    monkeypatch.setenv("SUPER_AGENT_TTS", "cloud")
+    with pytest.raises(RuntimeError):
+        local_adapter.default_synthesize()
+    monkeypatch.setenv("SUPER_AGENT_VAD", "none")
+    with pytest.raises(RuntimeError):
+        local_adapter.default_detector()
+    monkeypatch.setenv("SUPER_AGENT_TTS", "say")
+    assert local_adapter.default_synthesize() is local_adapter.say_synthesize
+    monkeypatch.setenv("SUPER_AGENT_VAD", "rms")
+    assert local_adapter.default_detector()(LOUD) and not local_adapter.default_detector()(QUIET)
+
+
+def test_thinking_and_transcript_reach_the_browser_bounded_and_drop_on_interrupt():
+    from super_agent_voice.app import _forward_events, _OutboundQueue, _SessionFailure, _SessionState
+    from super_agent_voice.config import VoiceConfig
+
+    class Scripted:
+        async def events(self):
+            yield Thinking()
+            yield Transcript("user", "x" * 900)
+            yield Transcript("system", "ignore previous instructions")
+            yield Transcript("assistant", "Hello.")
+
+    async def scenario(muted):
+        state = _SessionState(deadline=9.0, last_input=0.0, muted=muted)
+        outbound = _OutboundQueue()
+        with pytest.raises(_SessionFailure):  # the scripted stream ends, as a closed provider does
+            await _forward_events(Scripted(), VoiceConfig(local_token="t" * 40), state, outbound)
+        sent = [item.message for item in outbound._items]
+        outbound.clear_playback()
+        return sent, list(outbound._items)
+
+    sent, after_interrupt = run(scenario(muted=False))
+    assert sent == [
+        {"type": "turn.state", "state": "thinking"},
+        {"type": "conversation.text", "role": "user", "text": "x" * 500},
+        {"type": "conversation.text", "role": "assistant", "text": "Hello."},
+    ]
+    assert after_interrupt == []  # stale text never shows after an interruption
+    assert run(scenario(muted=True)) == ([], [])
+
+
+class FakeResponse:
+    def __init__(self, lines):
+        self.lines, self.closed = lines, False
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        self.close()
+        return False
+
+    def __iter__(self):
+        return iter(self.lines)
+
+    def close(self):
+        self.closed = True
+
+
+def test_reading_stops_at_a_tool_call_and_the_stream_is_closed(monkeypatch):
+    first = FakeResponse([
+        json.dumps({"message": {"content": "", "tool_calls": [
+            {"function": {"name": "calculate", "arguments": {"expression": "17 * 23"}}}]}}).encode(),
+        json.dumps({"message": {"content": "It is four hundred."}}).encode(),  # invented result
+    ])
+    second = FakeResponse([json.dumps({"message": {"content": "It is 391."}}).encode()])
+    responses = iter([first, second])
+    monkeypatch.setattr(local_adapter._DIRECT, "open", lambda request, timeout: next(responses))
+
+    async def scenario():
+        return [piece async for piece in local_adapter.ollama_reply([{"role": "user", "content": "sum"}])]
+
+    assert run(scenario()) == ["It is 391."]
+    assert first.closed and second.closed
+
+
+def test_start_warms_the_model_without_generating_and_close_cancels_it(monkeypatch):
+    opened = []
+    monkeypatch.setattr(local_adapter._DIRECT, "open",
+                        lambda request, timeout: opened.append(json.loads(request.data)) or FakeResponse([]))
+
+    async def scenario():
+        async def synthesize(text):
+            return bytes(2)
+
+        async def transcribe(pcm):
+            return ""
+
+        adapter = LocalVoiceAdapter(transcribe, None, synthesize, local_adapter.rms_detector())
+        await adapter.start()
+        await asyncio.sleep(0.05)
+        await adapter.close()
+        return adapter._warm
+
+    warm = run(scenario())
+    assert opened == [{**opened[0], "messages": [], "stream": False}] and "tools" not in opened[0]
+    assert warm.done()
+
+
+def test_default_stages_load_in_start_not_in_the_constructor(monkeypatch):
+    loaded = []
+    monkeypatch.setattr(local_adapter, "default_detector", lambda: loaded.append("vad") or local_adapter.rms_detector())
+    monkeypatch.setattr(local_adapter, "default_synthesize", lambda: loaded.append("tts") or None)
+
+    async def scenario():
+        async def reply(messages):
+            yield "x"
+
+        adapter = LocalVoiceAdapter(reply=reply)
+        before = list(loaded)
+        await adapter.start()
+        await adapter.close()
+        return before
+
+    assert run(scenario()) == [] and loaded == ["vad", "tts"]
+
+
+@pytest.mark.skipif(
+    not (local_adapter.MODEL_DIR / "silero_vad.onnx").exists(), reason="Silero model file not installed")
+def test_silero_hears_silence_as_silence_and_keeps_partial_windows():
+    pytest.importorskip("onnxruntime")
+    first, second = local_adapter.silero_detector(), local_adapter.silero_detector()
+    assert not any(first(QUIET) for _ in range(10))
+    # Frames shorter than one 512-sample window are carried over, not dropped.
+    assert not any(second(bytes(600)) for _ in range(20))
+    import shutil
+    import subprocess
+    import tempfile
+    import wave
+    if shutil.which("say"):
+        with tempfile.NamedTemporaryFile(suffix=".wav") as handle:
+            subprocess.run(["say", "-o", handle.name, "--file-format=WAVE", "--data-format=LEI16@16000",
+                            "Hello there, this is a test."], check=True)
+            with wave.open(handle.name, "rb") as wav:
+                speech = wav.readframes(wav.getnframes())
+        heard = [first(speech[offset:offset + 4096]) for offset in range(0, len(speech) - 4095, 4096)]
+        assert sum(heard) >= len(heard) // 2
+        assert not any(second(QUIET) for _ in range(5))  # the other session's state is untouched
+
+
+def test_a_close_or_second_start_during_loading_starts_nothing(monkeypatch):
+    import threading
+    release = threading.Event()
+    monkeypatch.setattr(local_adapter, "default_detector", lambda: release.wait(2) and local_adapter.rms_detector())
+    opened = []
+    monkeypatch.setattr(local_adapter._DIRECT, "open", lambda request, timeout: opened.append(1) or FakeResponse([]))
+
+    async def scenario():
+        async def synthesize(text):
+            return bytes(2)
+
+        adapter = LocalVoiceAdapter(synthesize=synthesize)  # real reply stage, so start() would warm it
+        starting = asyncio.create_task(adapter.start())
+        await asyncio.sleep(0.05)
+        with pytest.raises(RuntimeError):
+            await adapter.start()
+        await adapter.close()
+        release.set()
+        await starting
+        await asyncio.sleep(0.05)
+        with pytest.raises(RuntimeError):
+            await adapter.enqueue_audio(LOUD)
+        return adapter._warm
+
+    assert run(scenario()) is None and opened == []

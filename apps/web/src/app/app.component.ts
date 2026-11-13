@@ -4,6 +4,7 @@ import {
   ElementRef,
   OnDestroy,
   ViewChild,
+  afterRenderEffect,
   computed,
   inject,
   signal,
@@ -29,6 +30,7 @@ export class AppComponent implements OnDestroy {
   @ViewChild('settingsButton') private settingsButton?: ElementRef<HTMLButtonElement>;
   @ViewChild('settingsPanel') private settingsPanel?: ElementRef<HTMLElement>;
   @ViewChild('tokenInput') private tokenInput?: ElementRef<HTMLInputElement>;
+  @ViewChild('transcript') private transcript?: ElementRef<HTMLElement>;
 
   readonly session = inject(VoiceSessionService);
   readonly settingsOpen = signal(false);
@@ -40,11 +42,18 @@ export class AppComponent implements OnDestroy {
   readonly visualState = computed(() => this.session.status() === 'stopped'
     ? 'disconnected'
     : this.session.status());
-  readonly statusLabel = computed(() => statusLabel(this.session.status()));
+  readonly statusLabel = computed(() => statusLabel(this.session.status(), this.session.provider()));
   readonly isSessionActive = computed(() => isSessionActive(this.session.status()));
   readonly isSessionReady = computed(() => isSessionReady(this.session.status()));
   readonly canControlSession = computed(() => this.isSessionReady());
-  readonly pipelineSummary = computed(() => pipelineSummary(this.session.status()));
+  readonly pipelineSummary = computed(() => pipelineSummary(this.session.status(), this.session.provider()));
+
+  // Keeps the newest line in view; reads the signal so it reruns per entry.
+  private readonly followTranscript = afterRenderEffect(() => {
+    this.session.conversation();
+    const el = this.transcript?.nativeElement;
+    if (el) el.scrollTop = el.scrollHeight;
+  });
 
   token = '';
   private sessionStartedAt = 0;

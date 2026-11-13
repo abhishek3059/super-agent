@@ -1,14 +1,21 @@
 """Fully local voice adapter: speech-to-text, a local LLM, and text-to-speech.
 
 Everything stays on this machine. The only network peer is the Ollama server
-on loopback. Conversation only: the model gets no tools (DEC-18 tier T0).
+on loopback. The model is told the current date and time and can call one
+fixed pure function, a calculator. That reads no personal data, touches no
+network, and changes nothing, so the assistant still cannot act (DEC-18 tier T0).
 Audio and text are kept in memory for the session and are never logged.
 """
 from __future__ import annotations
 
+import ast
 import asyncio
+import contextlib
+import datetime
 import functools
 import json
+import math
+import operator
 import os
 import re
 import tempfile
@@ -17,7 +24,9 @@ import wave
 from collections.abc import AsyncIterator, Awaitable, Callable
 from pathlib import Path
 
-from .adapter import AdapterError, AdapterEvent, AudioChunk, Interrupted, TurnComplete
+from .adapter import (
+    AdapterError, AdapterEvent, AudioChunk, Interrupted, Thinking, Transcript, TurnComplete,
+)
 
 # Loopback only (REQ-11). Not configurable, so no setting can point it at a remote host.
 OLLAMA_CHAT_URL = "http://127.0.0.1:11434/api/chat"
@@ -32,13 +41,67 @@ SYSTEM_PROMPT = (
     "Reply in one to three spoken sentences, in plain words without lists, markdown, or emoji. "
     # Speech starts when the first sentence is done, so a short opener cuts the wait.
     "Open with a sentence of at most six words, and keep every sentence under fifteen words. "
-    "You have no tools: you cannot take actions, set reminders, or look anything up. "
-    "Never say you did something. If asked to act, say you can only talk for now."
+    "Talk, explain, and give advice freely. For arithmetic, call the calculate tool and "
+    "never work sums out yourself. You cannot take any other action, set reminders, or "
+    "look anything up, and you must never say you did. If asked to act, say you can only "
+    "talk and do sums for now."
 )
+TOOLS = [
+    {"type": "function", "function": {
+        "name": "calculate",
+        "description": "Evaluate arithmetic with numbers and + - * / // % ** and parentheses.",
+        "parameters": {"type": "object", "properties": {"expression": {"type": "string"}},
+                       "required": ["expression"]}}},
+]
+MAX_TOOL_ROUNDS = 2
+_OPERATORS = {
+    ast.Add: operator.add, ast.Sub: operator.sub, ast.Mult: operator.mul, ast.Div: operator.truediv,
+    ast.FloorDiv: operator.floordiv, ast.Mod: operator.mod, ast.Pow: operator.pow,
+    ast.USub: operator.neg, ast.UAdd: operator.pos,
+}
+
+
+def calculate(expression: str) -> str:
+    """Arithmetic only. The expression comes from the model, so it is parsed, never evaluated as code."""
+    def value(node: ast.AST) -> int | float:
+        if isinstance(node, ast.Constant) and type(node.value) in (int, float):
+            return node.value
+        if isinstance(node, ast.UnaryOp) and type(node.op) in _OPERATORS:
+            return _OPERATORS[type(node.op)](value(node.operand))
+        if isinstance(node, ast.BinOp) and type(node.op) in _OPERATORS:
+            left, right = value(node.left), value(node.right)
+            # Bounds keep a huge power from freezing the voice loop.
+            if isinstance(node.op, ast.Pow) and (abs(right) > 100 or abs(left) > 1e6):
+                raise ValueError("power too large")
+            return _OPERATORS[type(node.op)](left, right)
+        raise ValueError("not arithmetic")
+
+    try:
+        if not isinstance(expression, str) or len(expression) > 100:
+            raise ValueError("expression too long")
+        result = value(ast.parse(expression.strip(), mode="eval").body)
+        # A negative number to a fractional power is complex; that is not an answer to speak.
+        if type(result) not in (int, float) or not math.isfinite(result):
+            raise ValueError("not a real number")
+        text = f"{result:.10g}" if isinstance(result, float) else str(result)
+        if len(text) > 60:
+            raise ValueError("result too long to say")
+        return text
+    except (ValueError, SyntaxError, ZeroDivisionError, OverflowError, RecursionError):
+        return "error: I can only do arithmetic with numbers."
+
+
+def run_tool(name: object, arguments: object) -> str:
+    """The only code a model call can reach. Unknown names and bad arguments do nothing."""
+    if name == "calculate" and isinstance(arguments, dict):
+        return calculate(arguments.get("expression"))
+    return "error: no such tool."
+
 
 Transcribe = Callable[[bytes], Awaitable[str]]
 Reply = Callable[[list[dict[str, str]]], AsyncIterator[str]]
 Synthesize = Callable[[str], Awaitable[bytes]]
+Detect = Callable[[bytes], bool]  # one microphone frame in, speech or not out
 
 _SENTENCE_END = re.compile(r"(?<=[.!?])\s+")
 
@@ -57,11 +120,11 @@ class LocalVoiceAdapter:
         transcribe: Transcribe | None = None,
         reply: Reply | None = None,
         synthesize: Synthesize | None = None,
+        detect: Detect | None = None,
         *,
-        # shortcut: energy endpointing, fooled by steady noise; upgrade to Silero VAD
-        # plus a turn model if turns get cut off or never end.
-        speech_rms: float = 0.02,  # same level as the browser's barge-in check
-        end_silence_seconds: float = 0.7,
+        # shortcut: a fixed silence ends the turn, so a long thinking pause still
+        # cuts the speaker off; add an end-of-turn model (Smart Turn) to fix that.
+        end_silence_seconds: float = 0.5,
         min_speech_seconds: float = 0.25,
         max_utterance_seconds: float = 30.0,
         max_history_messages: int = 12,
@@ -69,8 +132,9 @@ class LocalVoiceAdapter:
     ) -> None:
         self._transcribe = transcribe or whisper_transcribe
         self._reply = reply or ollama_reply
-        self._synthesize = synthesize or default_synthesize()
-        self._speech_rms = speech_rms
+        self._synthesize = synthesize
+        self._detect = detect
+        self._warm: asyncio.Task[None] | None = None
         self._end_silence = end_silence_seconds
         self._min_speech = min_speech_seconds
         self._max_utterance_bytes = int(max_utterance_seconds * INPUT_RATE_HZ) * 2
@@ -85,20 +149,32 @@ class LocalVoiceAdapter:
         self._replying: set[asyncio.Task[None]] = set()
         self._utterances = 0
         self._started = False
+        self._ready = False
         self.closed = False
 
     async def start(self) -> None:
         if self._started or self.closed:
             raise RuntimeError("adapter cannot start")
-        self._started = True
+        # Model files load off the event loop so other sockets and the session
+        # deadline are not stalled while they do.
+        self._started = True  # set first, so a second start() during the load is refused
+        self._detect = self._detect or await asyncio.to_thread(default_detector)
+        self._synthesize = self._synthesize or await asyncio.to_thread(default_synthesize)
+        if self.closed:  # closed while loading; nothing may start after that
+            return
+        self._ready = True
+        if self._reply is ollama_reply:
+            # Loading the model takes seconds; do it while the user is still
+            # getting ready to speak, not during the first reply.
+            self._warm = asyncio.create_task(_warm_model())
 
     async def enqueue_audio(self, audio: bytes) -> None:
-        if not self._started or self.closed:
+        if not self._ready or self.closed:
             raise RuntimeError("adapter is not ready")
         if not isinstance(audio, bytes) or not audio or len(audio) % 2 or len(audio) > 32 * 1024:
             raise ValueError("invalid PCM frame")
         seconds = len(audio) / 2 / INPUT_RATE_HZ
-        if frame_rms(audio) >= self._speech_rms:
+        if self._detect(audio):
             self._speech_seconds += seconds
             self._silence_seconds = 0.0
             self._utterance += audio
@@ -119,6 +195,9 @@ class LocalVoiceAdapter:
         self._reset_utterance()
 
     async def interrupt(self) -> None:
+        # shortcut: the browser calls this on two loud frames, before any words are
+        # known, so a cough or speaker echo still stops a reply; add a resume after
+        # a false interruption if that happens often.
         await self._cancel_turn()
 
     async def events(self) -> AsyncIterator[AdapterEvent]:
@@ -134,6 +213,8 @@ class LocalVoiceAdapter:
         if self.closed:
             return
         self.closed = True
+        if self._warm:
+            self._warm.cancel()
         await self._cancel_turn()
         self._history.clear()
         self._reset_utterance()
@@ -182,8 +263,13 @@ class LocalVoiceAdapter:
             if await self._cancel_turn(before=number):
                 self._events.put_nowait(Interrupted())
             self._replying.add(asyncio.current_task())
-            messages = [{"role": "system", "content": SYSTEM_PROMPT}, *self._history,
-                        {"role": "user", "content": text}]
+            await self._events.put(Thinking())
+            await self._events.put(Transcript("user", text))
+            # The model asked for the time would call a tool and then invent the
+            # answer anyway, so the clock is stated as a fact in every turn.
+            now = datetime.datetime.now().astimezone().strftime("%A %d %B %Y, %H:%M")
+            messages = [{"role": "system", "content": f"{SYSTEM_PROMPT} It is now {now}."},
+                        *self._history, {"role": "user", "content": text}]
             spoken, pending = "", ""
             loop = asyncio.get_running_loop()
             playhead = loop.time()
@@ -213,6 +299,7 @@ class LocalVoiceAdapter:
         if not sentence.strip():
             return playhead
         pcm = await self._synthesize(sentence.strip())
+        await self._events.put(Transcript("assistant", sentence.strip()))
         loop = asyncio.get_running_loop()
         step = OUTPUT_RATE_HZ * 2 // 5  # 200 ms of PCM16, well under the 32 KiB frame cap
         for offset in range(0, len(pcm) - len(pcm) % 2, step):
@@ -258,19 +345,37 @@ async def whisper_transcribe(pcm: bytes) -> str:
     return "" if re.fullmatch(r"[\[(].*[\])]", text, re.DOTALL) else text
 
 
-async def ollama_reply(messages: list[dict[str, str]]) -> AsyncIterator[str]:
-    body = json.dumps({
+def _chat_request(messages: list[dict], *, tools: bool, stream: bool = True) -> urllib.request.Request:
+    body = {
         "model": os.environ.get("SUPER_AGENT_LOCAL_MODEL", "qwen3.5:9b"),
-        "messages": messages, "stream": True, "think": False,
+        "messages": messages, "stream": stream, "think": False, "keep_alive": "30m",
         "options": {"num_ctx": 8192, "num_predict": 200},
-    }).encode()
-    request = urllib.request.Request(OLLAMA_CHAT_URL, body, {"Content-Type": "application/json"})
-    queue: asyncio.Queue[str | BaseException | None] = asyncio.Queue()
+    }
+    if tools:
+        body["tools"] = TOOLS
+    return urllib.request.Request(OLLAMA_CHAT_URL, json.dumps(body).encode(),
+                                  {"Content-Type": "application/json"})
+
+
+async def _warm_model() -> None:
+    try:
+        # An empty message list makes Ollama load the model and generate nothing,
+        # so the first real question never queues behind a throwaway reply.
+        request = _chat_request([], tools=False, stream=False)
+        await asyncio.to_thread(lambda: _DIRECT.open(request, timeout=120).close())
+    except Exception:
+        pass  # a real turn reports the failure; warming is only an optimisation
+
+
+async def _chat_stream(messages: list[dict], *, tools: bool) -> AsyncIterator[dict]:
+    """Yields the message object of each streamed line from the local model."""
+    request = _chat_request(messages, tools=tools)
+    queue: asyncio.Queue[dict | BaseException | None] = asyncio.Queue()
     loop = asyncio.get_running_loop()
     responses = []
     stopped = False
 
-    def deliver(item: str | BaseException | None) -> None:
+    def deliver(item: dict | BaseException | None) -> None:
         try:
             loop.call_soon_threadsafe(queue.put_nowait, item)
         except RuntimeError:
@@ -283,9 +388,9 @@ async def ollama_reply(messages: list[dict[str, str]]) -> AsyncIterator[str]:
                 if stopped:  # the consumer left before the response existed
                     return
                 for line in response:
-                    piece = json.loads(line).get("message", {}).get("content", "")
-                    if piece:
-                        deliver(piece)
+                    message = json.loads(line).get("message")
+                    if isinstance(message, dict):
+                        deliver(message)
             deliver(None)
         except BaseException as error:
             if not stopped:
@@ -306,6 +411,86 @@ async def ollama_reply(messages: list[dict[str, str]]) -> AsyncIterator[str]:
         worker.cancel()
 
 
+async def ollama_reply(messages: list[dict[str, str]]) -> AsyncIterator[str]:
+    conversation: list[dict] = list(messages)
+    for round_number in range(MAX_TOOL_ROUNDS + 1):
+        calls: list[dict] = []
+        # The last round offers no tools, so the model must answer in words.
+        stream = _chat_stream(conversation, tools=round_number < MAX_TOOL_ROUNDS)
+        async with contextlib.aclosing(stream):  # closes the HTTP stream on the break below
+            async for message in stream:
+                if isinstance(piece := message.get("content"), str) and piece:
+                    yield piece
+                if isinstance(found := message.get("tool_calls"), list):
+                    calls += found
+                    # The model keeps writing after a tool call and makes the result
+                    # up. Stop reading here; closing the stream ends that generation.
+                    break
+        if not calls:
+            return
+        # A spoken turn never needs more than two lookups, and only well-formed
+        # calls are echoed back, so a malformed one cannot break the next request.
+        calls = [call for call in calls if isinstance(call, dict)
+                 and isinstance(call.get("function"), dict)][:2]
+        conversation.append({"role": "assistant", "content": "", "tool_calls": calls})
+        for call in calls:
+            function = call["function"]
+            conversation.append({"role": "tool", "tool_name": str(function.get("name")),
+                                 "content": run_tool(function.get("name"), function.get("arguments"))})
+
+
+def rms_detector(threshold: float = 0.02) -> Detect:
+    return lambda audio: frame_rms(audio) >= threshold
+
+
+@functools.lru_cache(maxsize=1)  # one model load per process; state stays per session
+def _silero_session():
+    import onnxruntime
+
+    options = onnxruntime.SessionOptions()
+    options.intra_op_num_threads = options.inter_op_num_threads = 1
+    return onnxruntime.InferenceSession(
+        str(MODEL_DIR / "silero_vad.onnx"), options, providers=["CPUExecutionProvider"])
+
+
+def silero_detector() -> Detect:
+    """Neural speech detection, so a keyboard click or a fan is not taken for a voice."""
+    import numpy
+
+    session = _silero_session()
+    state = numpy.zeros((2, 1, 128), numpy.float32)
+    context = numpy.zeros((1, 64), numpy.float32)
+    pending = numpy.zeros(0, numpy.float32)
+    rate = numpy.array(INPUT_RATE_HZ, numpy.int64)
+
+    def detect(audio: bytes) -> bool:
+        nonlocal state, context, pending
+        # The model takes 512-sample windows, each prefixed with the last 64
+        # samples. Samples that do not fill a window wait for the next frame.
+        samples = numpy.concatenate([pending, numpy.frombuffer(audio, "<i2").astype(numpy.float32) / 32768])
+        speech = False
+        whole = len(samples) - len(samples) % 512
+        for offset in range(0, whole, 512):
+            window = samples[None, offset:offset + 512]
+            output, state = session.run(
+                None, {"input": numpy.concatenate([context, window], 1), "state": state, "sr": rate})
+            context = window[:, -64:]
+            speech = speech or float(output[0][0]) > 0.5
+        pending = samples[whole:]
+        return speech
+
+    return detect
+
+
+def default_detector() -> Detect:
+    choice = os.environ.get("SUPER_AGENT_VAD", "silero")
+    if choice == "rms":
+        return rms_detector()
+    if choice != "silero":
+        raise RuntimeError("SUPER_AGENT_VAD must be 'silero' or 'rms'")
+    return silero_detector()
+
+
 async def say_synthesize(text: str) -> bytes:
     with tempfile.NamedTemporaryFile(suffix=".wav") as handle:
         command = ["say", "-o", handle.name, "--file-format=WAVE",
@@ -320,7 +505,9 @@ async def say_synthesize(text: str) -> bytes:
 
 @functools.lru_cache(maxsize=1)  # one model load per process, not per session
 def kokoro_synthesize() -> Synthesize:
-    # Optional and not in the lock file: kokoro-onnx pulls in GPL-3.0 phonemizer code.
+    # kokoro-onnx depends on GPL-3.0 phonemizer code. One maintainer accepted that
+    # and reported the other's agreement, which the PR review confirms
+    # (docs/approvals/local-voice-exception.md).
     import numpy
     from kokoro_onnx import Kokoro
 
@@ -337,4 +524,9 @@ def kokoro_synthesize() -> Synthesize:
 
 
 def default_synthesize() -> Synthesize:
-    return kokoro_synthesize() if os.environ.get("SUPER_AGENT_TTS") == "kokoro" else say_synthesize
+    choice = os.environ.get("SUPER_AGENT_TTS", "kokoro")
+    if choice == "say":
+        return say_synthesize
+    if choice != "kokoro":
+        raise RuntimeError("SUPER_AGENT_TTS must be 'kokoro' or 'say'")
+    return kokoro_synthesize()

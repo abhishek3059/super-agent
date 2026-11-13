@@ -37,6 +37,14 @@
   --aura-secondary: rgba(59, 130, 246, 0.2);
 }
 
+.voice-shell[data-state='thinking'] {
+  --accent: #a78bfa;
+  --accent-soft: rgba(167, 139, 250, 0.2);
+  --accent-glow: rgba(139, 92, 246, 0.44);
+  --aura-primary: rgba(139, 92, 246, 0.24);
+  --aura-secondary: rgba(59, 130, 246, 0.18);
+}
+
 .voice-shell[data-state='speaking'] {
   --accent: #34d399;
   --accent-soft: rgba(52, 211, 153, 0.2);
@@ -306,6 +314,12 @@ button:disabled {
   opacity: 0.45;
 }
 
+[data-state='thinking'] .orb-ring {
+  border-top-color: transparent;
+  border-right-color: var(--accent);
+  animation: spin 2.6s linear infinite;
+}
+
 [data-state='connecting'] .orb-ring {
   border-top-color: transparent;
   border-right-color: var(--accent);
@@ -385,6 +399,61 @@ button:disabled {
 
 [data-state='speaking'] .spectrum-bar {
   animation: bar-breathe 850ms ease-in-out infinite alternate;
+}
+
+.conversation {
+  width: min(100%, 30rem);
+  min-width: 0;
+}
+
+.conversation ol {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  max-height: 12rem;
+  margin: 0;
+  padding: 0.75rem;
+  overflow-y: auto;
+  list-style: none;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  border-radius: 1rem;
+  background: rgba(15, 23, 42, 0.5);
+}
+
+.conversation li {
+  max-width: 85%;
+  align-self: flex-start;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.9rem;
+  background: rgba(148, 163, 184, 0.12);
+  overflow-wrap: anywhere;
+}
+
+.conversation li.user {
+  align-self: flex-end;
+  background: var(--accent-soft);
+}
+
+.conversation li.empty {
+  max-width: 100%;
+  align-self: center;
+  background: none;
+  color: #64748b;
+  font-size: 0.8rem;
+}
+
+.conversation .who {
+  color: var(--accent);
+  font-size: 0.6rem;
+  font-weight: 750;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.conversation p {
+  margin: 0.1rem 0 0;
+  font-size: 0.88rem;
+  line-height: 1.4;
 }
 
 .pipeline {

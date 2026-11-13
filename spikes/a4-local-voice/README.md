@@ -22,7 +22,21 @@ Model files live in `~/.super-agent/models`, outside the repository:
 `ggml-base.en.bin` and `ggml-large-v3-turbo-q5_0.bin` from the
 `ggerganov/whisper.cpp` Hugging Face repository, and `kokoro-v1.0.int8.onnx`
 plus `voices-v1.0.bin` from the `thewh1teagle/kokoro-onnx` GitHub release
-`model-files-v1.0`.
+`model-files-v1.0`, and `silero_vad.onnx` (MIT) from the `snakers4/silero-vad`
+repository at tag `v5.1.2`, path `src/silero_vad/data/silero_vad.onnx`.
+
+```bash
+mkdir -p ~/.super-agent/models && cd ~/.super-agent/models
+curl -L --fail -O https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.en.bin
+curl -L --fail -O https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.0/kokoro-v1.0.int8.onnx
+curl -L --fail -O https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.0/voices-v1.0.bin
+curl -L --fail -O https://raw.githubusercontent.com/snakers4/silero-vad/v5.1.2/src/silero_vad/data/silero_vad.onnx
+# For a manual check only; the adapter does not verify it.
+shasum -a 256 silero_vad.onnx   # 2623a2953f6ff3d2c1e61740c6cdb7168133479b267dfef114a4a3cc5bdd788f on 2026-11-12
+```
+
+The Silero licence is MIT per the research notes; it was not re-read on the
+repository's LICENSE file (unverified).
 
 ## Results (2026-11-12, MacBook Air M5, 16 GB, macOS 27.2)
 
@@ -42,7 +56,34 @@ swap in use), so these numbers are a floor, not a best case.
 Only one clean synthetic clip was used for speech-to-text. Accuracy on a real
 voice, an accent, or a noisy room was not measured.
 
+## Second pass (2026-11-12, evening)
+
+After the operator rated the first cut 66 out of 100, the adapter gained
+Silero speech detection (0.11 ms per 32 ms window on this Mac), Kokoro as the
+default voice, a model warm-up at session start, a calculator tool, and the
+date and time in the prompt. Four spoken test questions through the real
+pipeline (synthetic clips):
+
+| Question | Result | End of audio to first reply audio |
+| --- | --- | --- |
+| A tip to stay focused | Sensible advice | 3.0 s |
+| Seventeen times twenty three | 391, by the calculator | 3.3 s |
+| What day and time is it | Correct day, date, and time | 2.9 s |
+| Send an email to my manager | Declined, said what it can do | 2.3 s |
+
+Transcription finished 0.4 s after the last frame in each case. The rest is
+the model writing its first sentence and Kokoro rendering it. This is slower
+than the first cut with `say` (2.0 to 2.2 s): the natural voice costs about
+half a second to a second per first sentence. End-of-speech silence is now
+0.5 s, down from 0.7 s.
+
 ## What we learned
+
+- Asked the time with a clock tool available, the model called the tool and
+  then kept writing an invented time in the same response. Asked the day, it
+  skipped the tool and invented one. Stating the date and time in the prompt
+  fixed both, and the adapter now stops reading a response at its first tool
+  call.
 
 - With a plain system prompt the model answered "I've set a reminder" and
   called no tool. An assistant that claims actions it did not take is the
@@ -63,3 +104,4 @@ voice, an accent, or a noisy room was not measured.
 - No microphone test by a person.
 - No Windows path: `say` and the Metal build of whisper.cpp are macOS only.
 - No comparison with the 4B model, Granite, Moonshine, or Parakeet.
+- No end-of-turn model (Smart Turn) and no speculative generation yet.

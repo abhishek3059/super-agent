@@ -15,7 +15,10 @@ from dataclasses import dataclass, field
 from fastapi import FastAPI, HTTPException, Request, WebSocket
 from starlette.websockets import WebSocketDisconnect
 
-from .adapter import AdapterError, AudioChunk, FakeVoiceAdapter, Interrupted, TurnComplete, VoiceAdapter
+from .adapter import (
+    AdapterError, AudioChunk, FakeVoiceAdapter, Interrupted, Thinking, Transcript, TurnComplete,
+    VoiceAdapter,
+)
 from .config import VoiceConfig
 
 AdapterFactory = Callable[[], VoiceAdapter]
@@ -836,6 +839,16 @@ async def _forward_events(
                     "type": "audio.chunk", "playbackEpoch": state.epoch,
                     "rateHz": event.rate_hz, "channels": 1, "format": "pcm16",
                 }, audio=event.data, epoch=state.epoch))
+        elif isinstance(event, Thinking):
+            if not state.muted:
+                outbound.put(_Outbound({"type": "turn.state", "state": "thinking"}, epoch=state.epoch))
+        elif isinstance(event, Transcript):
+            # Shown in the console for this session only; sizes are bounded here,
+            # not trusted from the adapter.
+            if not state.muted and event.role in ("user", "assistant") and isinstance(event.text, str):
+                outbound.put(_Outbound({
+                    "type": "conversation.text", "role": event.role, "text": event.text[:500],
+                }, epoch=state.epoch))
         elif isinstance(event, TurnComplete):
             if not state.muted:
                 outbound.put(_Outbound({
