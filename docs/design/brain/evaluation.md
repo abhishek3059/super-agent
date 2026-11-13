@@ -176,7 +176,66 @@ One more row for this section:
 | EV-T5 | A task needs four required slots and none is known. | No job. | Unchanged. | Three questions are asked across three turns, then the screen form is offered. |
 | EV-T6 | A finished job's notification arrives while playback is active. | Notification `held`. | Unchanged. | It is published only after the playback epoch is idle, and "published" is recorded separately from "heard". |
 
-## 12. Coverage
+## 12. Acceptance scenario: the interrupted trip
+
+**Proposed. Not built, not run.** This is the operator's own example from
+2026-11-13, written as a test the finished system must pass. It spans
+several phases, so it is an acceptance scenario and not a tier A unit test.
+It uses synthetic data only.
+
+**Story.** On day 1 the user asks the companion to plan a trip on a $1,000
+budget. The planner shortlists places within the country. The user stops it
+to leave for the office. On day 3 he asks: "Remember I told you to plan the
+trip, can you do it now?"
+
+### 12.1 Expected behaviour
+
+1. The brain calls `query_ledger` and searches episodes and decisions
+   (embedding search, see [memory, section 9.6](memory.md#96-retrieval)) and
+   finds the day-1 job.
+2. Code supplies facts only: the task, the budget, the job state, **who
+   stopped it**, the last completed step, the verified partial result, and
+   the next step. The model composes no part of this story.
+3. The reply has this shape: "Yes. Two days ago you asked me to plan a trip
+   on a $1,000 budget. I had shortlisted three places within the country
+   before you stopped me. Shall I continue from there?"
+4. If the job had instead succeeded, the companion shows the result on
+   screen and says so.
+5. The reply states the stop actor truthfully: `user`, `failure`,
+   `host_sleep`, or `emergency_stop`. If the user stopped it, the reply does
+   not say "it failed".
+6. On "yes", a new job starts from the last verified checkpoint (IR-9).
+   Completed steps and their effects are not replayed
+   ([RT-A04](../../../prd.md#rt-a04)).
+
+### 12.2 Pass criteria
+
+| ID | Pass rule |
+| --- | --- |
+| EV-A1 | The budget in the reply is exactly the ledger's value ($1,000). Any other figure fails. |
+| EV-A2 | The stop reason and actor in the reply match the ledger's recorded reason and actor. |
+| EV-A3 | No step marked complete in the first job is executed again; the action log shows each completed step once. |
+| EV-A4 | The new job's first step is the first unfinished step. The partial result is reused, not recomputed. |
+| EV-A5 | The new job has a `resumes` link to the stopped job (IR-9) and was admitted by the broker like any task. |
+| EV-A6 | The scenario passes after a backend restart between day 1 and day 3 (on the injected clock, 48 hours apart). |
+| EV-A7 | A variant where the job had `succeeded`: the reply points to the result on screen and offers no new job. |
+| EV-A8 | A variant where the stop actor was `failure` or `host_sleep`: the reply says so, and does not blame the user. |
+| EV-A9 | A variant with the job older than the retention window (OD-18): the reply says it has no record, and does not guess. |
+| EV-A10 **(B)** | Twenty phrasings of the day-3 request: at least 18 of 20 find the right job without asking which. Provisional target. |
+
+### 12.3 Dependencies and what blocks it today
+
+| Needed | Where it comes from | State today |
+| --- | --- | --- |
+| Ledger task specs with budget and constraints | PH-02 (R-02.1) | Not built |
+| Stop reason and actor, verified step checkpoints (IR-10) | PH-02, PH-03 | Not requested from the ledger owners yet |
+| `resume_task` (IR-9) | PH-03 | Not requested yet |
+| Job spec and checkpoint retention beyond 24 hours (OD-18) | Amendment to the [PH-00 setup decisions](../../approvals/ph-00-setup-decisions.md) | **Blocks the scenario today.** PH-00 deletes job metadata after 24 hours, and day 3 is 48 hours later. |
+| Episode and decision stores with local embedding search | [Memory, section 9](memory.md#9-proposed-revision-2026-11-13-learning-from-conversation) | Proposal only |
+| A planner with checkpointed steps | PH-04 (R-04.3) | Not built |
+| Day-book or episode lookup | R-M.8 | Not built |
+
+## 13. Coverage
 
 | Area required by the brief | Scenarios |
 | --- | --- |
@@ -187,12 +246,13 @@ One more row for this section:
 | Context-budget limits | EV-B1 to EV-B5 |
 | Recommendation quality | EV-Q1 to EV-Q8 |
 | Also covered | Routing EV-M1 to EV-M6, speakability and sessions EV-S1 to EV-S7, tools EV-T1 to EV-T6 |
+| Operator's acceptance scenario (proposed) | EV-A1 to EV-A10, section 12 |
 
 Each threat in the [threat model](threat-model.md) names its scenarios.
 Reason codes used above (`origin-not-permitted`, `scope-not-in-grant`, and
 the rest) are proposed names; the ledger owners choose the final ones.
 
-## 13. What this plan does not do
+## 14. What this plan does not do
 
 - It does not measure latency. That stays in R-03.5.
 - It does not test the ledger's own behaviour (revisions, idempotency,

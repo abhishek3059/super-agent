@@ -360,7 +360,120 @@ machine under the recommended OD-1.
 | Day-book entry | 30 days | OD-3 |
 | Library index rows | Until the file or root goes | Set in R-A.4 |
 
-## 9. Constraint check
+## 9. Proposed revision (2026-11-13): learning from conversation
+
+**Proposal only. Nothing in this section is built or approved.** It changes
+principles 2 and 3 above and the "no `inferred` level" rule in section 3. It
+needs a DEC approved by both maintainers, recorded through OD-15 to OD-17 in
+the [overview](overview.md#10-open-maintainer-decisions). Until then,
+sections 1 to 8 stand as written.
+
+### 9.1 Motive
+
+On 2026-11-13 the operator said, in chat with Claude Code, that the
+companion must learn from his conversations locally (preferences,
+decisions, important points) and personalize itself over time, otherwise
+"this app is the same as others". The design above learns only when the user
+says "remember that...". Most useful facts are never said that way. A butler
+who has to be told everything twice is not a butler.
+
+### 9.2 Source text
+
+The source is the session transcript, held in L1 RAM only.
+
+- On the native Gemini route the adapter receives input and output
+  transcription (PR 41 enables it). Gemini's internal session state is not
+  accessible and is not needed.
+- On a local cascade or a local native model, the text is local.
+
+The transcript is never written to disk. It exists in L1 until the session
+ends, and the distiller reads it once.
+
+### 9.3 The distiller
+
+A `memory.distill` job, with a new origin `session_end` set by code when a
+session closes. It is not a user turn, so principle 3 changes: `session_end`
+may run `memory.distill` and nothing else.
+
+| Property | Rule |
+| --- | --- |
+| Model | The local model only. No cloud call, whatever the route of the session. |
+| Tools and network | None. |
+| Input | Only the user's own speech turns from this session epoch. Never tool output, documents, web content, job content, or the butler's own replies. |
+| Output | Schema-constrained candidates. Kinds: `preference`, `decision`, `fact`, `commitment`, `habit`. Each has a source session epoch, a time, and a confidence of `inferred`. |
+| Validation | Code checks each candidate against the key registry (profile kinds) or the episode and decision schemas (section 9.4). Anything else is dropped. |
+| Timing | Background, after the session. Speed does not matter, so a small model on the 4 GB laptop is enough. |
+| Receipt | A job receipt with counts per store. The butler says "I noted a few things" only when the job is `succeeded`. |
+
+The emergency-stop latch (IR-7) stops the distiller. A session that ends in
+an emergency stop is not distilled.
+
+### 9.4 Three stores
+
+| Store | Holds | Relation to the five layers |
+| --- | --- | --- |
+| Profile | Typed slots for preferences and habits, from the key registry | Extends L2. Adds status `inferred` beside `confirmed`. |
+| Episodes | One distilled summary per session: what was discussed, in at most 400 characters, with the session time | Extends L3. The day book records jobs; episodes record conversation. Same sweeper and same purge path. |
+| Decisions and commitments | What the user decided or promised ("use Postgres", "call the bank Friday"), with a state `open`, `done`, or `dropped` | Extends L3, as a second table in `memory.db`. |
+
+No new layer is added. Free-text notes stay out (section 2): an episode
+summary and a decision are short, schema-bound, and typed, not open notes.
+The proposed tables are in the [data layer](data-layer.md#31-proposed-revision-learning-from-conversation).
+
+### 9.5 Safety rules
+
+1. **Only the user's own speech is read.** Injected content cannot plant a
+   memory, because content never reaches the distiller.
+2. **Inferred means weak.** An `inferred` record may shape tone, defaults,
+   and suggestions. It never authorizes a task, names a recipient, changes a
+   limit, widens a scope, or fills a `sensitive` slot without a confirmation.
+3. **Sensitive categories always need the screen.** Health, money,
+   credentials, and personal data about third parties are held as a
+   candidate until the user confirms on screen. Unconfirmed, they expire
+   with the session's candidate list and are never stored. Credentials are
+   never stored at all ([REQ-12](../../../prd.md#req-12)); the distiller's
+   schema has no field for them.
+4. **A "What I learned" screen** lists every inferred and confirmed record
+   with its source session, its time, and a delete button. It is the
+   screen-only counterpart to the voice command "what do you know about me".
+5. **Decay.** An `inferred` record that is not reinforced by a later
+   session expires (OD-17). Reinforcement means a later session yields the
+   same record. A reinforced record can be promoted by the user to
+   `confirmed`.
+6. **The transcript is discarded after distilling.** [REQ-14](../../../prd.md#req-14)
+   holds. Keeping it encrypted for a few days is a different decision (OD-16).
+7. **Distilled memory never leaves the device.** On the cloud route the
+   egress gate treats every distilled record as `personal` data
+   ([REQ-13](../../../prd.md#req-13), OD-1). Only the context assembler
+   reads it, and only for a local model or as a `screen` reference.
+8. **Forget works the same way.** A forgotten record follows section 7,
+   including the tombstone, so the distiller does not relearn it the next
+   day. Forgetting a record also blocks its re-inference for 30 days.
+
+### 9.6 Retrieval
+
+- **Profile** stays keyword and exact key. Keys are few and typed.
+- **Episodes and decisions** use a local embedding model, because paraphrase
+  recall is the point: "the trip thing" must find "plan a holiday". This
+  relates to OD-4. The recommendation there ("full-text first") stays right
+  for the day book and the profile. For episodes it is reversed, and the
+  maintainers should record that as part of OD-15.
+- The context assembler loads the top standing preferences and the most
+  recent open decisions at session start. During a session it searches
+  episodes per turn through the memory service, with a stated purpose and a
+  bounded result count, like any other read.
+- Embeddings are derived data. They are deleted with their source row, and
+  the forget job's verification counts them (section 7).
+
+### 9.7 What stays true
+
+Nothing here lets a model write profile content directly. The distiller
+proposes; code validates; the memory service writes through a job with a
+receipt. The user remains the only author of a `confirmed` record. The
+acceptance scenarios that depend on this revision are in
+[evaluation, section 12](evaluation.md#12-acceptance-scenario-the-interrupted-trip).
+
+## 10. Constraint check
 
 | Constraint | How this design meets it |
 | --- | --- |
@@ -370,3 +483,4 @@ machine under the recommended OD-1.
 | Voice is not identity | Speakability classes; screen confirmation for sensitive keys; standing orders cannot widen a grant. |
 | Ledger owns truth | Every write is a job with a receipt; the day book is written only from a ledger event. |
 | Tiers | L4 is T1 and not enabled. L2 needs its own approval. |
+| Learning from conversation | Section 9 is a proposal. Local model only, user speech only, `inferred` records never authorize, transcript discarded. |

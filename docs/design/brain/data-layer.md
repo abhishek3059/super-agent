@@ -224,6 +224,57 @@ Notes on the schema:
 - The optional embedding table is in section 5 and is created only if the
   maintainers choose that option.
 
+### 3.1 Proposed revision: learning from conversation
+
+**Proposed. Not built.** Needs the DEC described in
+[memory, section 9](memory.md#9-proposed-revision-2026-11-13-learning-from-conversation).
+Nothing in section 3 above changes unless it is approved.
+
+```sql
+-- Profile: allow inferred records and decay.
+ALTER TABLE memory_item ADD COLUMN status TEXT NOT NULL DEFAULT 'confirmed'
+  CHECK (status IN ('inferred', 'confirmed'));
+ALTER TABLE memory_item ADD COLUMN decay_after INTEGER;       -- inferred only; NULL when confirmed
+ALTER TABLE memory_item ADD COLUMN reinforced_count INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE memory_item ADD COLUMN session_epoch TEXT;        -- the session it was distilled from
+-- The source and confidence CHECKs would also gain 'distilled' and 'inferred'.
+
+-- One distilled summary per session.
+CREATE TABLE episode (
+  id             TEXT PRIMARY KEY,
+  subject_id     TEXT NOT NULL,
+  session_epoch  TEXT NOT NULL,
+  occurred_at    INTEGER NOT NULL,
+  summary        TEXT NOT NULL,           -- at most 400 characters
+  status         TEXT NOT NULL CHECK (status IN ('inferred', 'confirmed')),
+  distill_job_id TEXT NOT NULL,
+  expires_at     INTEGER NOT NULL
+);
+
+-- Decisions and commitments.
+CREATE TABLE decision (
+  id             TEXT PRIMARY KEY,
+  subject_id     TEXT NOT NULL,
+  session_epoch  TEXT NOT NULL,
+  kind           TEXT NOT NULL CHECK (kind IN ('decision', 'commitment')),
+  text           TEXT NOT NULL,           -- at most 200 characters
+  state          TEXT NOT NULL CHECK (state IN ('open', 'done', 'dropped')),
+  status         TEXT NOT NULL CHECK (status IN ('inferred', 'confirmed')),
+  decided_at     INTEGER NOT NULL,
+  expires_at     INTEGER,                 -- NULL while open (OD-17)
+  distill_job_id TEXT NOT NULL
+);
+```
+
+- Episodes and decisions get a full-text table like `daybook_fts` and, if
+  embeddings are approved, a row in the embedding table of section 5. The
+  embedding is deleted with its source row, and the forget job counts it.
+- A tombstone for an inferred record blocks re-inference for 30 days.
+- The sweeper treats `episode` and `decision` like `daybook_entry`, with
+  the same row-count receipt.
+- The distiller's schema has no column for credentials, so none can be
+  stored here.
+
 ## 4. Indexing and access paths
 
 | Read | Query shape | Index used |
