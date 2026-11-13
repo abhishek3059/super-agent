@@ -42,6 +42,10 @@ WebSocket connections and no traceback.
 - Per the [PH-01 sequencing record](ph-01-sequencing.md), the button is a
   secondary control and conversational barge-in is the acceptance path, so
   the operator's result covers R-01.4. Manual stop feedback remains unverified.
+- The roadmap item's "stop" is read here as ending the session (step 7), which
+  passed. The Stop playback button (step 6) is not counted as passed by this
+  record; R-01.F7's later browser run on the rebuilt console covers playback
+  stop ([acceptance record](../implementation/r01-10-acceptance.md#browser-verification)).
 
 ## Owner statement
 

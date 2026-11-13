@@ -63,6 +63,10 @@ session end. A local adapter reporting `gemini-live` exercised the
 negative path. These checks covered generated local audio. Physical input
 and a real provider were outside the run.
 
+The two browser lines below are a hand summary of a local headless Chrome
+run. Its raw output and harness were not saved to the repository; the
+self-test line is reproducible with `npm run test:voice` in `apps/web`.
+
 ```text
 Chrome/157.0.8103.52 local fake: generated audio echo, playback stop, mute, unmute, stop and track release PASS
 Simulated provider mismatch: fixed error and no additional capture request PASS
@@ -81,6 +85,14 @@ network connection. See the [Gemini Live WebSocket API reference](https://ai.goo
 The full offline backend suite passed 201 tests. The frontend passed 73
 self-tests and its production build. The repository check reported zero
 errors.
+
+## Known limit
+
+If Stop playback is pressed before any provider audio arrives, no
+acknowledgement timer is armed, so a reply to audio already sent can still
+play at the new epoch. This is local-only by design in
+`gemini_adapter.py` and predates these fixes; PH-03 stop semantics (R-03.1,
+R-03.2) must settle it.
 
 ## Remaining gate work
 
