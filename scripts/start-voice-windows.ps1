@@ -1,5 +1,5 @@
 [CmdletBinding()]
-param()
+param([switch]$Gemini)
 
 $ErrorActionPreference = "Stop"
 Set-StrictMode -Version Latest
@@ -13,6 +13,7 @@ $backend = $null
 $previousPythonPath = [Environment]::GetEnvironmentVariable("PYTHONPATH", "Process")
 $previousLocalToken = [Environment]::GetEnvironmentVariable("SUPER_AGENT_LOCAL_TOKEN", "Process")
 $previousGeminiKey = [Environment]::GetEnvironmentVariable("GEMINI_API_KEY", "Process")
+$previousAdapter = [Environment]::GetEnvironmentVariable("SUPER_AGENT_ADAPTER", "Process")
 
 if (-not (Test-Path $requirements) -or -not (Test-Path $webPackage)) {
     throw "Run the launcher from a complete super-agent checkout."
@@ -48,6 +49,22 @@ try {
 
     Remove-Item Env:SUPER_AGENT_LOCAL_TOKEN -ErrorAction SilentlyContinue
     Remove-Item Env:GEMINI_API_KEY -ErrorAction SilentlyContinue
+    # The launcher only serves the fake or Gemini path, so an inherited adapter (such as local) is dropped.
+    Remove-Item Env:SUPER_AGENT_ADAPTER -ErrorAction SilentlyContinue
+    if ($Gemini) {
+        Write-Host "WARNING: real microphone audio goes to Google's free tier, which may use inputs for training. Speak nothing personal (see docs/approvals/gemini-live-testing-exception.md)."
+        $secureKey = Read-Host "Gemini API key" -AsSecureString
+        $bstr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secureKey)
+        try {
+            $plainKey = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($bstr)
+        } finally {
+            [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($bstr)
+        }
+        if ([string]::IsNullOrWhiteSpace($plainKey)) { throw "A Gemini API key is required with -Gemini." }
+        $env:GEMINI_API_KEY = $plainKey
+        $plainKey = $null
+        $env:SUPER_AGENT_ADAPTER = "gemini"
+    }
     $env:PYTHONPATH = Join-Path $repoRoot "apps\api\src"
 
     & $voicePython -m super_agent_voice.generate_token
@@ -79,6 +96,7 @@ try {
 
     Write-Host ""
     Write-Host "Voice scaffold ready: http://127.0.0.1:4200"
+    Write-Host "Adapter: $($health.provider)"
     Write-Host "Token file: $HOME\.super-agent\voice-token"
     Write-Host "Use Ctrl+C to stop both services."
     Write-Host ""
@@ -92,5 +110,6 @@ try {
     [Environment]::SetEnvironmentVariable("PYTHONPATH", $previousPythonPath, "Process")
     [Environment]::SetEnvironmentVariable("SUPER_AGENT_LOCAL_TOKEN", $previousLocalToken, "Process")
     [Environment]::SetEnvironmentVariable("GEMINI_API_KEY", $previousGeminiKey, "Process")
+    [Environment]::SetEnvironmentVariable("SUPER_AGENT_ADAPTER", $previousAdapter, "Process")
     Pop-Location
 }

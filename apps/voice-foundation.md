@@ -49,6 +49,15 @@ transcripts for the session only. Fake stays the default. Approval status:
 [record](../docs/approvals/gemini-live-testing-exception.md). The key comes from
 the process environment only; never put it in a file in the repository.
 
+Windows launcher (prompts for the key with masked input, sets the adapter, and
+restores your environment on exit):
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\start-voice-windows.ps1 -Gemini
+```
+
+Alternative, manual steps:
+
 ```powershell
 $env:GEMINI_API_KEY = Read-Host "Gemini API key" -MaskInput   # PowerShell 7; this shell only
 $env:SUPER_AGENT_ADAPTER = "gemini"
