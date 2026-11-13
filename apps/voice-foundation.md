@@ -50,7 +50,7 @@ transcripts for the session only. Fake stays the default. Approval status:
 the process environment only; never put it in a file in the repository.
 
 ```powershell
-$env:GEMINI_API_KEY = Read-Host "Gemini API key"   # this shell only
+$env:GEMINI_API_KEY = Read-Host "Gemini API key" -MaskInput   # PowerShell 7; this shell only
 $env:SUPER_AGENT_ADAPTER = "gemini"
 # optional: $env:SUPER_AGENT_GEMINI_MODEL = "gemini-3.8-live"
 $env:PYTHONPATH = "apps\api\src"
