@@ -6,7 +6,7 @@
 | Design | [Voice-foundation design](../design/voice-foundation.md) |
 | Review | [Initial review and correction disposition](../reviews/voice-foundation-scaffold.md) |
 | Delivery | Design PR #12 merged; implementation PR #13 merged into `develop` and also carries the later maintainer-confirmation record |
-| Status | Offline scaffold merged in PR #13. Later PH-01 work added the local streaming boundary and a separate Gemini adapter/live check; the browser still constructs only the fake. R-01.4 and RT-G01 remain open. |
+| Status | Offline scaffold merged in PR #13. Later PH-01 work added the local streaming boundary and a separate Gemini adapter and live check. The browser constructs the fake adapter. The [R-01.4 test](../approvals/r01-4-microphone-test.md) is recorded. RT-G01 remains open. |
 
 ## Implemented scope
 
