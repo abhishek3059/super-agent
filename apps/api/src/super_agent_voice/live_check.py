@@ -67,7 +67,9 @@ def speak_windows(text: str) -> bytes:
         out = Path(folder) / "synthetic.wav"
         subprocess.run(
             ["powershell", "-NoProfile", "-NonInteractive", "-Command", SAPI_SCRIPT],
-            check=True, timeout=60, env={**os.environ, "SA_WAV": str(out), "SA_TEXT": text},
+            check=True, timeout=60,
+            # The child needs no provider key.
+            env={**{k: v for k, v in os.environ.items() if k != "GEMINI_API_KEY"}, "SA_WAV": str(out), "SA_TEXT": text},
         )
         return load_pcm(out)
 
