@@ -18,11 +18,11 @@ console cannot connect to Gemini. Personal microphone audio stays local.
 
 `SUPER_AGENT_ADAPTER=local` swaps the fake adapter for a fully local pipeline:
 Silero for speech detection, whisper.cpp for speech-to-text, a local model
-through Ollama, and Kokoro for speech. The only network peer is Ollama on
+through Ollama, and the built-in macOS voice for speech. The only network peer is Ollama on
 `127.0.0.1:11434`. The model is told the date and time and has one tool, a
 calculator; it cannot read your data or act. The console shows what it heard
 and said for the session only. It needs `whisper-cli` and `ollama` on the
-PATH and the four model files (Whisper, Kokoro and its voices, Silero) whose
+PATH and the model files (Whisper and Silero; Kokoro only if you opt in) whose
 download commands are in
 [spike A4](../spikes/a4-local-voice/README.md). Status and approvals:
 [record](../docs/approvals/local-voice-exception.md).
@@ -35,9 +35,13 @@ SUPER_AGENT_ADAPTER=local PYTHONPATH=apps/api/src python -m uvicorn super_agent_
 
 Optional settings: `SUPER_AGENT_LOCAL_MODEL` (default `qwen3.5:9b`),
 `SUPER_AGENT_WHISPER_MODEL` (a file name in `~/.super-agent/models`),
-`SUPER_AGENT_TTS=say` with `SUPER_AGENT_SAY_VOICE` (the built-in macOS voice,
-no extra packages), `SUPER_AGENT_KOKORO_VOICE`, and `SUPER_AGENT_VAD=rms`
+`SUPER_AGENT_SAY_VOICE` (a macOS voice name), and `SUPER_AGENT_VAD=rms`
 (volume threshold, no extra packages).
+
+The Kokoro voice sounds more natural but is opt-in, because its packages
+include GPL-3.0 code and this repository is MIT (OD-8). To use it, install
+`apps/api/requirements-kokoro.lock` as well and set `SUPER_AGENT_TTS=kokoro`
+(optionally `SUPER_AGENT_KOKORO_VOICE`).
 
 ## Synthetic live check (opt-in)
 

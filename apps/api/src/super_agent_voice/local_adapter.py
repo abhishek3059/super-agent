@@ -505,9 +505,8 @@ async def say_synthesize(text: str) -> bytes:
 
 @functools.lru_cache(maxsize=1)  # one model load per process, not per session
 def kokoro_synthesize() -> Synthesize:
-    # kokoro-onnx depends on GPL-3.0 phonemizer code. One maintainer accepted that
-    # and reported the other's agreement, which the PR review confirms
-    # (docs/approvals/local-voice-exception.md).
+    # Opt-in only: kokoro-onnx depends on GPL-3.0 phonemizer code and the
+    # repository is MIT, so it is never the default (OD-8; requirements-kokoro.lock).
     import numpy
     from kokoro_onnx import Kokoro
 
@@ -524,7 +523,7 @@ def kokoro_synthesize() -> Synthesize:
 
 
 def default_synthesize() -> Synthesize:
-    choice = os.environ.get("SUPER_AGENT_TTS", "kokoro")
+    choice = os.environ.get("SUPER_AGENT_TTS", "say")
     if choice == "say":
         return say_synthesize
     if choice != "kokoro":

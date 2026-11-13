@@ -409,8 +409,8 @@ def test_voice_and_detector_choices_fail_closed(monkeypatch):
     monkeypatch.setenv("SUPER_AGENT_VAD", "none")
     with pytest.raises(RuntimeError):
         local_adapter.default_detector()
-    monkeypatch.setenv("SUPER_AGENT_TTS", "say")
-    assert local_adapter.default_synthesize() is local_adapter.say_synthesize
+    monkeypatch.delenv("SUPER_AGENT_TTS")
+    assert local_adapter.default_synthesize() is local_adapter.say_synthesize  # GPL voice is opt-in
     monkeypatch.setenv("SUPER_AGENT_VAD", "rms")
     assert local_adapter.default_detector()(LOUD) and not local_adapter.default_detector()(QUIET)
 

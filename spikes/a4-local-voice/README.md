@@ -60,7 +60,8 @@ voice, an accent, or a noisy room was not measured.
 
 After the operator rated the first cut 66 out of 100, the adapter gained
 Silero speech detection (0.11 ms per 32 ms window on this Mac), Kokoro as the
-default voice, a model warm-up at session start, a calculator tool, and the
+default voice (made opt-in again on 2026-11-13, OD-8, because of its GPL-3.0
+dependencies), a model warm-up at session start, a calculator tool, and the
 date and time in the prompt. Four spoken test questions through the real
 pipeline (synthetic clips):
 
