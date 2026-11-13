@@ -80,7 +80,24 @@ GEMINI_API_KEY="$(cat ~/.super-agent/gemini-key)" PYTHONPATH=apps/api/src \
   python -m super_agent_voice.live_check --send-synthetic-audio
 ```
 
-The output is timing and state only. The key stays in the process environment.
+On Windows (PowerShell), speech comes from Windows SAPI and the command asks
+for the key if `GEMINI_API_KEY` is not set:
+
+```powershell
+$env:PYTHONPATH = "appspi\src"; & "$env:LOCALAPPDATA\Temp\super-agent-voice-venv\Scripts\python.exe" -m super_agent_voice.live_check --send-synthetic-audio
+```
+
+The output is timing, state, tool names, and character counts only. The key
+stays in the process environment. A good result: the last line shows
+`"reached_gemini": true` and `"tools_ok": true`, and `unsupported-model` fails
+closed. The `tool-calculate` step lists `calculate` and `tool-clock` lists
+`current_time` under `tools`.
+
+The backend also prints state-only status lines (adapter name, connect time,
+per-turn audio size, time to first audio since the previous turn boundary,
+allowlisted tool names, interruptions, session close). They never include
+audio, transcripts, tool arguments, or keys. `adapter=gemini-live` there shows
+the session reached Gemini.
 
 ## Backend
 

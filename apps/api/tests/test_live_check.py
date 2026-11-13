@@ -48,6 +48,7 @@ def test_command_needs_the_flag_and_a_key(monkeypatch) -> None:
         live_check.main([])
     assert no_flag.value.code == 2
     monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+    monkeypatch.setattr(live_check.getpass, "getpass", lambda prompt: "")
     with pytest.raises(SystemExit, match="GEMINI_API_KEY is not set"):
         live_check.main(["--send-synthetic-audio"])
 
@@ -59,3 +60,28 @@ def test_wav_must_be_16k_mono(tmp_path) -> None:
     assert len(live_check.load_pcm(good)) == 3200
     with pytest.raises(SystemExit, match="16 kHz"):
         live_check.load_pcm(bad)
+
+
+def test_summary_reports_tools_and_prints_no_transcript_text(capsys) -> None:
+    from super_agent_voice.adapter import AudioChunk, Transcript, TurnComplete
+
+    class Scripted(FakeVoiceAdapter):
+        def __init__(self, tools) -> None:
+            super().__init__()
+            self.tools = tools
+
+        async def events(self):
+            yield Transcript("user", "SENTINEL words")
+            yield AudioChunk(b"\x00\x00", 24000)
+            yield TurnComplete(self.tools)
+
+    per_step = iter([(), (), (), ("calculate",), ("current_time",)])
+    clip = b"\x00\x00" * 8
+    asyncio.run(live_check.run_all(
+        "k", "m", {"hello": clip, "calculate": clip, "clock": clip},
+        adapter_for=lambda model, key: Scripted(next(per_step)),
+    ))
+    out = capsys.readouterr().out
+    assert "SENTINEL" not in out
+    assert '"transcript_user_chars": 14' in out
+    assert '"reached_gemini": true, "tools_ok": true' in out

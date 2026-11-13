@@ -21,6 +21,15 @@ from .adapter import (
 )
 from .config import VoiceConfig
 
+# States only, never content (REQ-12). uvicorn configures only its own loggers, so
+# without this handler these INFO lines would be dropped.
+log = logging.getLogger("super_agent_voice")
+log.setLevel(logging.INFO)
+if not logging.getLogger().handlers:
+    _handler = logging.StreamHandler()
+    _handler.setFormatter(logging.Formatter("INFO:     %(message)s"))
+    log.addHandler(_handler)
+
 AdapterFactory = Callable[[], VoiceAdapter]
 
 # Fixed grace interval before the supervisor's one additional worker
@@ -561,14 +570,19 @@ async def _voice_socket(
         remaining = deadline - loop.time()
         if remaining <= 0:
             raise _SessionFailure("max-duration")
+        started = time.monotonic()
         try:
             await asyncio.wait_for(adapter.start(), timeout=remaining)
         except TimeoutError:
+            log.info("voice: adapter=%s start failed category=max-duration", adapter.name)
             raise _SessionFailure("max-duration") from None
         except AdapterError as error:
+            log.info("voice: adapter=%s start failed category=%s", adapter.name, error.category)
             raise _SessionFailure(error.category) from None
         except Exception:
+            log.info("voice: adapter=%s start failed category=provider-unavailable", adapter.name)
             raise _SessionFailure("provider-unavailable") from None
+        log.info("voice: adapter=%s connected in %d ms", adapter.name, (time.monotonic() - started) * 1000)
 
         state = _SessionState(deadline=deadline, last_input=loop.time())
         outbound = _OutboundQueue()
@@ -595,6 +609,8 @@ async def _voice_socket(
     except Exception:
         failure = _SessionFailure("session-failed")
     finally:
+        if adapter is not None:
+            log.info("voice: session closed adapter=%s", adapter.name)
         record = _SessionTeardown(
             websocket=websocket,
             gate=gate,
@@ -834,8 +850,15 @@ async def _forward_events(
     state: _SessionState,
     outbound: _OutboundQueue,
 ) -> None:
+    # first_audio_ms counts from the previous turn boundary (session start,
+    # turn complete, or interrupt), so it includes the user's speaking time.
+    boundary = time.monotonic()
+    first_audio_ms: int | None = None
+    audio_bytes = 0
     async for event in adapter.events():
         if isinstance(event, Interrupted):
+            log.info("voice: interrupted adapter=%s", adapter.name)
+            boundary, first_audio_ms, audio_bytes = time.monotonic(), None, 0
             state.epoch += 1
             outbound.clear_playback()
             outbound.put(_Outbound({
@@ -848,6 +871,9 @@ async def _forward_events(
                 or type(event.rate_hz) is not int or event.rate_hz not in {8000, 16000, 24000, 48000}
             ):
                 raise _SessionFailure("invalid-audio")
+            if first_audio_ms is None:
+                first_audio_ms = round((time.monotonic() - boundary) * 1000)
+            audio_bytes += len(event.data)
             if not state.muted:
                 outbound.put(_Outbound({
                     "type": "audio.chunk", "playbackEpoch": state.epoch,
@@ -864,6 +890,12 @@ async def _forward_events(
                     "type": "conversation.text", "role": event.role, "text": event.text[:500],
                 }, epoch=state.epoch))
         elif isinstance(event, TurnComplete):
+            tools = [t if t in ("calculate", "current_time") else "unknown" for t in getattr(event, "tools", ())]
+            log.info(
+                "voice: turn complete adapter=%s audio_kb=%d first_audio_ms=%s tools=[%s]",
+                adapter.name, audio_bytes // 1024, first_audio_ms, ",".join(tools),
+            )
+            boundary, first_audio_ms, audio_bytes = time.monotonic(), None, 0
             if not state.muted:
                 outbound.put(_Outbound({
                     "type": "turn.complete", "playbackEpoch": state.epoch,

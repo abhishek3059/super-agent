@@ -92,7 +92,7 @@ def test_unknown_tools_get_an_error_and_cancellations_are_ignored():
 
     sent_, events = run(scenario())
     assert sent_ == [[("c1", "run_shell", "error: no such tool.")]]
-    assert events == [TurnComplete()]
+    assert events == [TurnComplete(("unknown",))]  # never the model-chosen name
 
 
 def test_a_tool_response_survives_a_full_audio_queue():

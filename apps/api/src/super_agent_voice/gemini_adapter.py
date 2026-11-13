@@ -27,6 +27,8 @@ SYSTEM_INSTRUCTION = (
     "say you did."
 )
 
+TOOL_NAME_ALLOWLIST = frozenset(declaration["name"] for declaration in GEMINI_FUNCTIONS)
+
 Connect = Callable[[], Any]  # returns an async context manager yielding a session
 Blob = Callable[[bytes], Any]
 ToolResponse = Callable[[Any, str, str], Any]  # (call id, tool name, output) -> response object
@@ -109,6 +111,7 @@ class GeminiLiveAdapter:
         # (bounded by the per-turn cap) and the send loop serves them first.
         self._tool_out: asyncio.Queue[list[Any]] = asyncio.Queue()
         self._tool_calls = 0
+        self._turn_tools: list[str] = []  # allowlisted names only, never arguments or outputs
         self._said = ""  # transcript fragments of one speaker, joined into a line
         self._said_role = ""
         self._events: asyncio.Queue[AdapterEvent | AdapterError | None] = asyncio.Queue()
@@ -252,6 +255,7 @@ class GeminiLiveAdapter:
         for call in calls:
             name = getattr(call, "name", None)
             self._tool_calls += 1
+            self._turn_tools.append(name if name in TOOL_NAME_ALLOWLIST else "unknown")
             if self._tool_calls > MAX_TOOL_CALLS_PER_TURN:
                 output = "error: too many tool calls."
             else:
@@ -291,6 +295,7 @@ class GeminiLiveAdapter:
         if getattr(content, "interrupted", False):
             self._flush_said()
             self._tool_calls = 0
+            self._turn_tools = []
             self._turn_active = False
             self._ack.set()
             self._events.put_nowait(Interrupted())
@@ -299,4 +304,5 @@ class GeminiLiveAdapter:
             self._tool_calls = 0
             self._turn_active = False
             self._ack.set()
-            self._events.put_nowait(TurnComplete())
+            self._events.put_nowait(TurnComplete(tuple(self._turn_tools)))
+            self._turn_tools = []
