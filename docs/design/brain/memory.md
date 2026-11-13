@@ -359,6 +359,11 @@ machine under the recommended OD-1.
 | Tombstone | 30 days | Provisional |
 | Day-book entry | 30 days | OD-3 |
 | Library index rows | Until the file or root goes | Set in R-A.4 |
+| Session transcript (distiller input) | Discarded after distilling, in RAM only | OD-16 (proposed, section 9) |
+| `inferred` profile record | Expires unless reinforced | OD-17 (proposed, section 9) |
+| Episode | 90 days, adjustable | OD-17 (proposed, section 9) |
+| Decision or commitment | Until done or forgotten | OD-17 (proposed, section 9) |
+| Job spec, verified checkpoints, stop reason | 30 days | OD-18 (proposed); PH-00 says 24 hours today |
 
 ## 9. Proposed revision (2026-11-13): learning from conversation
 
