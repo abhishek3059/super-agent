@@ -15,12 +15,18 @@
             "browser": "src/main.ts",
             "tsConfig": "tsconfig.app.json",
             "index": "src/index.html",
-            "styles": ["src/styles.css"],
+            "styles": [
+              "src/styles.css"
+            ],
             "outputPath": "dist/web"
           },
           "configurations": {
             "production": {
-              "optimization": { "styles": { "inlineCritical": false } }
+              "optimization": {
+                "styles": {
+                  "inlineCritical": false
+                }
+              }
             },
             "development": {
               "optimization": false,
@@ -41,5 +47,8 @@
         }
       }
     }
+  },
+  "cli": {
+    "analytics": false
   }
 }
