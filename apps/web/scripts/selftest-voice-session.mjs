@@ -1541,5 +1541,22 @@ await (async function bargeInCountResetsWhenPlaybackStops() {
   assert.equal(socket.countText('playback.interrupt'), 1);
 })();
 
+for (const [sent, kept] of [['gemini-live', 'gemini-live'], ['local', 'local'], ['fake', 'fake'], ['other', 'unknown']]) {
+  await (async function providerAllowlist() {
+    beginTest(`provider ${sent} is shown as ${kept}`);
+    const service = new VoiceSessionService();
+    assert.equal(service.provider(), '');
+    micResolved();
+    await service.start(TOKEN);
+    const socket = lastSocket();
+    await flushed();
+    socket.open();
+    await flushed();
+    socket.fireMessage({ ...READY, provider: sent });
+    await flushed();
+    assert.equal(service.provider(), kept);
+  })();
+}
+
 // Any failed assert above throws and exits with a non-zero code.
 console.log(`voice-session self-test: PASS (${casesRun} cases)`);

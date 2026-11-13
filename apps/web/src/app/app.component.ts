@@ -14,6 +14,7 @@ import {
   formatElapsed,
   isSessionActive,
   isSessionReady,
+  providerCopy,
   pipelineSummary,
   spectrumBarHeight,
   statusLabel,
@@ -42,6 +43,7 @@ export class AppComponent implements OnDestroy {
   readonly visualState = computed(() => this.session.status() === 'stopped'
     ? 'disconnected'
     : this.session.status());
+  readonly copy = computed(() => providerCopy(this.session.provider()));
   readonly statusLabel = computed(() => statusLabel(this.session.status(), this.session.provider()));
   readonly isSessionActive = computed(() => isSessionActive(this.session.status()));
   readonly isSessionReady = computed(() => isSessionReady(this.session.status()));

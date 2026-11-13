@@ -185,7 +185,7 @@ export class VoiceSessionService {
         return;
       }
       this.capturing = true;
-      this.provider.set(message.provider === 'local' || message.provider === 'fake' ? message.provider : 'unknown');
+      this.provider.set(['local', 'fake', 'gemini-live'].includes(message.provider ?? '') ? message.provider! : 'unknown');
       this.epochs.onReady(message.playbackEpoch);
       try {
         await this.startCapture(socket, generation);

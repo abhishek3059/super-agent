@@ -18,14 +18,63 @@ const PIPELINE_SUMMARIES: Record<string, string> = {
   error: 'Open connection settings',
 };
 
+export interface ProviderCopy {
+  badge: string;
+  tag: string;
+  micStep: string;
+  replyStep: string;
+  replyNote: string;
+  privacy: string;
+  settingsTitle: string;
+  settingsNote: string;
+}
+
+const PROVIDER_COPY: Record<string, ProviderCopy> = {
+  fake: {
+    badge: 'Fake echo adapter', tag: 'Local only',
+    micStep: 'Personal audio stays on this device',
+    replyStep: 'Local echo playback', replyNote: 'No Gemini session or cloud microphone upload',
+    privacy: 'Fake adapter active. Microphone audio stays local.',
+    settingsTitle: 'Local fake adapter', settingsNote: 'No Gemini connection and no cloud microphone upload.',
+  },
+  local: {
+    badge: 'Local private model', tag: 'Local only',
+    micStep: 'Personal audio stays on this device',
+    replyStep: 'Local model reply', replyNote: 'No Gemini session or cloud microphone upload',
+    privacy: 'Local model active. Microphone audio stays local.',
+    settingsTitle: 'Local private model', settingsNote: 'No Gemini connection and no cloud microphone upload.',
+  },
+  'gemini-live': {
+    badge: 'Gemini Live (cloud)', tag: 'Cloud',
+    micStep: 'Microphone audio is sent to Google Gemini',
+    replyStep: 'Gemini Live reply', replyNote: "Testing only. Google's free tier may use inputs for training.",
+    privacy: 'Gemini Live active. Microphone audio goes to Google. Speak nothing personal.',
+    settingsTitle: 'Gemini Live (cloud)', settingsNote: 'Microphone audio goes to Google. Speak nothing personal.',
+  },
+};
+
+// Never default to a local or fake claim: before connecting, or for an unknown provider, say nothing about where audio goes.
+const NEUTRAL_COPY = (badge: string): ProviderCopy => ({
+  badge, tag: 'Unverified',
+  micStep: 'Where audio goes is shown after connecting',
+  replyStep: 'Reply', replyNote: 'Adapter shown after connecting',
+  privacy: 'Adapter shown after connecting.',
+  settingsTitle: badge, settingsNote: 'Adapter shown after connecting.',
+});
+
+export function providerCopy(provider: string): ProviderCopy {
+  return PROVIDER_COPY[provider] ?? NEUTRAL_COPY(provider === '' ? 'Not connected' : 'Unknown provider');
+}
+
 // The echo wording is only true for the fake adapter; the local model speaks its own reply.
 export function statusLabel(status: string, provider = ''): string {
-  if (status === 'speaking' && provider === 'local') return 'Speaking';
+  if (status === 'speaking' && (provider === 'local' || provider === 'gemini-live')) return 'Speaking';
   return STATUS_LABELS[status] ?? 'Unavailable';
 }
 
 export function pipelineSummary(status: string, provider = ''): string {
   if (status === 'speaking' && provider === 'local') return 'Playing the local reply';
+  if (status === 'speaking' && provider === 'gemini-live') return 'Playing the Gemini reply';
   return PIPELINE_SUMMARIES[status] ?? 'Local voice path';
 }
 
