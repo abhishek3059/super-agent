@@ -113,9 +113,10 @@ npm audit --prefix apps/web
 npm run check
 ```
 
-`npm run test:voice` runs 39 offline service-level cases against the real
+`npm run test:voice` runs 41 offline service-level cases against the real
 transpiled service with hand-written fake WebSocket, AudioContext, and
-getUserMedia objects: it covers silence until ready, audible-gated speaking
+getUserMedia objects: it covers refusal to capture with an unexpected or missing
+provider, silence until ready, audible-gated speaking
 and the 24 kHz metadata rate, untagged and stale-epoch dropping, mute and
 unmute, automatic barge-in (once per pending interrupt), stop with a silent
 event source, late permission grants and rejections against stopped and newer

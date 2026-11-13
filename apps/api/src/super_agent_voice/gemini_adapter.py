@@ -46,7 +46,11 @@ def _sdk_connect(api_key: str, model: str) -> Connect:
         from google import genai  # load only for an actual provider session
         from google.genai import types
 
-        client = genai.Client(api_key=api_key)
+        client = genai.Client(
+            api_key=api_key,
+            enterprise=False,
+            http_options=types.HttpOptions(base_url="https://generativelanguage.googleapis.com"),
+        )
         config = types.LiveConnectConfig(
             response_modalities=["AUDIO"],
             system_instruction=SYSTEM_INSTRUCTION,
