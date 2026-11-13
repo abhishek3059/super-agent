@@ -261,7 +261,7 @@ Keep the Gemini Live adapter as a testing option, make the local path the main d
   - PH-07 work (RT-012) happens before its phase, under an exception record that needs both maintainers.
   - Open questions OD-1 and R-A.2 (may real voice go to a cloud provider) remain open.
   - The brain design (PR 40) and the council verdict feed PH-02 and the memory gate. Neither is approved.
-- **Source evidence:** `abhishek3059` in chat with Claude Code, 2026-11-13 ("keep the gemini adapter as of now we switch to local setup and creating a robust backend layer ... try some inferencing"); [session log](tasks/logs/2026-11-13-session-log.md).
+- **Source evidence:** `abhishek3059` in chat with Claude Code, 2026-11-13 ("keep the gemini adapter as of now we switch to local setup and creating a robust backend layer ... try some inferencing"); [session log](tasks/logs/2026-11-13-session-log.md); [target architecture proposal](docs/future/architecture-target.md).
 - **Reopen:**
   - Spike A5 passes or fails its thresholds.
   - Both maintainers decide OD-1 or approve a paid tier.

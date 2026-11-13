@@ -8,3 +8,4 @@ and a roadmap PR (see [AGENTS.md](../../AGENTS.md) section 11).
 | Entry | Status |
 | --- | --- |
 | [Provider credentials for everyday users](provider-credentials-for-users.md) | Proposal. Not approved. Not on the roadmap. |
+| [Target architecture](architecture-target.md) | Proposal. Not approved. Not on the roadmap. |

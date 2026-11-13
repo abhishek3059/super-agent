@@ -107,7 +107,7 @@ The operator reported that the live Gemini test passed. Its output is not saved 
 
 **Its main finding:** on a cloud voice route, the user's own speech is the personal data.
 
-The draft and verdict were kept outside the repository. They are not approved.
+The revised diagrams are in [target architecture](../../docs/future/architecture-target.md). The full draft and verdict text stay outside the repository. None of it is approved.
 
 ## Open items
 
