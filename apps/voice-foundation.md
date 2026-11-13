@@ -11,8 +11,9 @@ adapter exists behind the same seam with offline tests
 ([record](../docs/implementation/r01-7-gemini-adapter.md)), but the application
 never constructs it. An opt-in command, `live_check`, ran it once against the
 real service with synthetic speech ([record](../docs/implementation/r01-8-live-check.md)).
-You can run the local scaffold and test start, mute, barge-in, and stop, but the
-console cannot connect to Gemini. Personal microphone audio stays local.
+You can run the local scaffold and test start, mute, barge-in, and stop. By
+default the console cannot connect to Gemini and personal microphone audio stays
+local. The opt-in Gemini mode below is a testing exception.
 
 ## Local private mode (opt-in, macOS)
 
@@ -38,6 +39,26 @@ Optional settings: `SUPER_AGENT_LOCAL_MODEL` (default `qwen3.5:9b`),
 `SUPER_AGENT_TTS=say` with `SUPER_AGENT_SAY_VOICE` (the built-in macOS voice,
 no extra packages), `SUPER_AGENT_KOKORO_VOICE`, and `SUPER_AGENT_VAD=rms`
 (volume threshold, no extra packages).
+
+## Gemini Live mode (opt-in, testing only)
+
+`SUPER_AGENT_ADAPTER=gemini` sends your real microphone audio to Google's free
+tier, which may use inputs for training. Speak nothing personal or sensitive.
+The model has two tools, a calculator and the local clock, and the console shows
+transcripts for the session only. Fake stays the default. Approval status:
+[record](../docs/approvals/gemini-live-testing-exception.md). The key comes from
+the process environment only; never put it in a file in the repository.
+
+```powershell
+$env:GEMINI_API_KEY = Read-Host "Gemini API key"   # this shell only
+$env:SUPER_AGENT_ADAPTER = "gemini"
+# optional: $env:SUPER_AGENT_GEMINI_MODEL = "gemini-3.8-live"
+$env:PYTHONPATH = "apps\api\src"
+& "$voiceVenv\Scripts\python" -m uvicorn super_agent_voice.app:create_app --factory --host 127.0.0.1 --port 8000 --ws-max-size 65600 --ws-max-queue 4
+```
+
+Startup fails if `GEMINI_API_KEY` is missing. Tool calls and transcripts need a
+live run to confirm; the offline tests use fakes only.
 
 ## Synthetic live check (opt-in)
 

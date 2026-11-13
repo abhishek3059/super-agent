@@ -170,7 +170,7 @@ def create_app(
     adapter_factory: AdapterFactory | None = None,
 ) -> FastAPI:
     settings = config or VoiceConfig.from_environment()
-    adapter_factory = adapter_factory or _adapter_from_environment()
+    adapter_factory = adapter_factory or _adapter_from_environment(settings.gemini_model)
     # Fails closed before any session can run (teardown addendum 4.1).
     for name in (
         "teardown_seconds", "token_max_age_seconds", "auth_failure_window_seconds",
@@ -201,15 +201,29 @@ def create_app(
     return app
 
 
-def _adapter_from_environment() -> AdapterFactory:
+def _adapter_from_environment(gemini_model: str = VoiceConfig.gemini_model) -> AdapterFactory:
     choice = os.environ.get("SUPER_AGENT_ADAPTER", "fake")
     if choice == "fake":
         return FakeVoiceAdapter
     if choice == "local":
         from .local_adapter import LocalVoiceAdapter
         return LocalVoiceAdapter
+    if choice == "gemini":
+        # Real microphone audio goes to Gemini: opt-in, testing only (see
+        # docs/approvals/gemini-live-testing-exception.md). The key is read from
+        # the process environment only and never appears in a message.
+        api_key = os.environ.get("GEMINI_API_KEY", "")
+        if not api_key:
+            raise RuntimeError("SUPER_AGENT_ADAPTER=gemini needs GEMINI_API_KEY in the process environment")
+        from .gemini_adapter import GeminiLiveAdapter
+
+        def gemini_factory() -> GeminiLiveAdapter:
+            return GeminiLiveAdapter(gemini_model, api_key)
+
+        gemini_factory.name = GeminiLiveAdapter.name  # type: ignore[attr-defined]
+        return gemini_factory
     # Fail closed: an unknown name never falls back to some other provider.
-    raise RuntimeError("SUPER_AGENT_ADAPTER must be 'fake' or 'local'")
+    raise RuntimeError("SUPER_AGENT_ADAPTER must be 'fake', 'local' or 'gemini'")
 
 
 def _frame_logging_enabled() -> bool:
