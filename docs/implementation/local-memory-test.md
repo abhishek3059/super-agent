@@ -56,6 +56,32 @@ are listed in the [design](../design/local-memory-reminders.md#known-limits).
 The spoken turns above ran before these fixes. They were not re-run; the 473
 offline tests cover the changed paths.
 
+## Operator test and the recitation fix
+
+On 2026-11-14 `jeevesh2515` tested by voice in Chrome and reported that
+memory, file reading and arithmetic worked, but the assistant kept repeating
+stored facts (their name, their sister's name, their character) in unrelated
+answers.
+
+Cause: every turn carried up to 8 stored facts whether or not they bore on
+the question, and the 4B model recited them. Changes:
+
+- Notes are sent only when they share a word with the question (see the
+  design).
+- A memory write needs a request word in the user's own words; in a text run
+  the model had saved "User was tired on Monday" unasked.
+- A closing offer such as "Anything else today?" is not spoken.
+- The persona prompt asks for a calm, kind professional who answers and stops.
+  Sampling temperature is 0.5.
+
+Text-only check after the change, nine synthetic turns against Qwen3.5-4B
+with four seeded facts (no speech models): unrelated questions (arithmetic,
+a space fact, sleep tips) carried 0 notes and no stored fact was recited in
+their answers; "what's my sister's name" answered "Your sister's name is
+Asha."; "I'm a bit tired" got an acknowledgement and saved nothing. The model
+still used the stored name twice in friendly replies and still writes some
+odd phrases. A person has not yet re-tested this by voice.
+
 ## Not done
 
 - A microphone test by a person.

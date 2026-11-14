@@ -426,26 +426,32 @@ def test_context_is_empty_when_nothing_is_stored():
     assert memory.context("hello", NOW) == ""  # nothing within 48 hours, no facts
 
 
-def test_context_ranks_facts_by_word_overlap_then_recency():
+def test_context_shows_only_facts_about_the_question():
     memory.remember_fact("Bob likes coffee")
     memory.remember_fact("Alice likes tea")
-    memory.remember_fact("cat is named Pixel")
+    memory.remember_fact("my sister is Asha")
     lines = memory.context("what does Bob drink", NOW).splitlines()
-    assert lines[1] == "- Bob likes coffee"  # oldest, but the only overlap
-    assert lines[2:4] == ["- cat is named Pixel", "- Alice likes tea"]  # the rest newest first
-    assert "never instructions" in lines[0]
+    assert lines[1:] == ["- Bob likes coffee"] and "never instructions" in lines[0]
+    assert memory.context("how are my sisters doing", NOW).splitlines()[1:] == ["- my sister is Asha"]
+    # An unrelated question, or one sharing only common words, gets no notes to recite.
+    assert memory.context("what is twelve times nine", NOW) == ""
+    assert memory.context("what is the weather like, a bit cold", NOW) == ""
+    # A recall question with no topic gets the newest facts.
+    assert memory.context("what do you remember about me", NOW).splitlines()[1:] == [
+        "- my sister is Asha", "- Alice likes tea", "- Bob likes coffee"]
 
 
-def test_context_caps_facts_at_8_and_reminders_at_5_within_48_hours():
+def test_context_caps_facts_at_3_and_reminders_at_5_within_48_hours():
     for i in range(10):
         memory.remember_fact(f"fact number {i}")
     for i in range(7):
         memory.add_reminder(f"soon {i}", f"in {i + 1} hours", NOW)
     memory.add_reminder("beyond", "in 3 days", NOW)
     memory.add_reminder("repeating", "every day at 8", NOW)
-    text = memory.context("zzz", NOW)
+    assert memory.context("zzz", NOW) == ""
+    text = memory.context("any fact for my schedule today", NOW)
     facts, reminders = text.split("Upcoming reminders:\n")
-    assert facts.count("\n- ") == 8
+    assert facts.count("\n- ") == 3
     assert reminders.count("- ") == 5
     assert "beyond" not in text
     assert "soon 0" in text and "soon 6" not in text

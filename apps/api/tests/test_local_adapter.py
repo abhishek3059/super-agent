@@ -826,3 +826,41 @@ def test_a_reminder_that_cannot_be_spoken_is_marked_and_does_not_end_the_session
     assert acked == [1, 2]
     assert not any(isinstance(event, AdapterError) for event in events)
     assert Transcript("assistant", "Reminder: fine.") in events
+
+
+def test_a_tacked_on_question_is_not_spoken_but_a_lone_question_is():
+    async def scenario(reply_text):
+        adapter, seen = make(reply_text)
+        await adapter.start()
+        await speak(adapter)
+        await collect(adapter)
+        await adapter.close()
+        return [value for kind, value in seen if kind == "say"]
+
+    assert run(scenario("Your sister is Asha. Anything else today? More words.")) == ["Your sister is Asha."]
+    assert run(scenario("It is noon. Would you like me to set an alarm?")) == ["It is noon."]
+    assert run(scenario("I found two plans. Which file do you mean?")) == ["I found two plans.", "Which file do you mean?"]
+    assert run(scenario("Would you like the short version?")) == ["Would you like the short version?"]
+
+
+def test_memory_changes_only_when_the_users_words_asked_for_them(monkeypatch, tmp_path):
+    monkeypatch.setattr(local_adapter.memory, "DB_PATH", tmp_path / "m.db")
+    monkeypatch.setenv("SUPER_AGENT_MEMORY", "on")
+    call = local_adapter.call_tool
+
+    async def turn(heard, name, arguments):
+        local_adapter._HEARD.set(heard)
+        return await call(name, arguments)
+
+    def said(heard, name, arguments):
+        async def one():
+            return await asyncio.create_task(turn(heard, name, arguments))
+        return run(one())
+
+    assert said("I'm tired today", "remember_fact", {"text": "user is tired"}) == local_adapter.NOT_ASKED
+    assert said("tips for sleeping", "add_reminder", {"text": "sleep", "when": "at 10pm"}) == local_adapter.NOT_ASKED
+    assert said("what is my sister's name", "forget", {"match": "sister"}) == local_adapter.NOT_ASKED
+    assert said("Remember that my dog is Biscuit", "remember_fact", {"text": "my dog is Biscuit"}).startswith("Remembered")
+    assert said("remind me to stretch in 5 minutes", "add_reminder", {"text": "stretch", "when": "in 5 minutes"}).startswith("Reminder set")
+    assert said("forget my dog", "forget", {"match": "dog"}).startswith("Forgot 1")
+    assert said("what do you know", "list_memory", {}) == "No facts stored."

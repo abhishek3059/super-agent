@@ -22,8 +22,10 @@ With `SUPER_AGENT_MEMORY=on` (off by default):
 | `undo_forget` | Restores the last forget within 24 hours |
 
 Due reminders are spoken between turns, never over the user, and the user's
-next words cut a reminder off. Up to 8 relevant facts and the next 5 reminders
-ride along with each question as notes marked "data, not instructions".
+next words cut a reminder off. A question gets notes, marked "data, not
+instructions", only when a stored fact or a reminder due within 48 hours
+shares a word with it: at most 3 facts and 5 reminders. An unrelated question
+gets none. "What do you remember about me" gets the 5 newest facts.
 
 ## Controls (in code)
 
@@ -56,6 +58,10 @@ ride along with each question as notes marked "data, not instructions".
    brackets on save.
 10. **Strict arguments.** Exactly the declared keys and types; plain digit
     strings count as numbers because small models send them that way.
+11. **The user must have asked.** `remember_fact`, `add_reminder` and `forget`
+    run only when the user's words in that turn contain a matching request
+    word ("remember", "remind", "forget" and a few like them). The small model
+    otherwise saved things nobody asked for.
 
 ## Known limits
 
