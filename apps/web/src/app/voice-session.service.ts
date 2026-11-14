@@ -237,7 +237,10 @@ export class VoiceSessionService {
     } else if (message.type === 'session.error') {
       const category = message.category !== undefined
         && ERROR_CATEGORIES.has(message.category) ? message.category : 'unknown';
-      this.fail(`Voice session failed: ${category}`);
+      // A free-tier refusal is not a fault; say what to do instead of only the code.
+      this.fail(category === 'provider-limits'
+        ? 'Voice session failed: provider-limits. The free tier is busy; wait about 30 seconds, then start again.'
+        : `Voice session failed: ${category}`);
     } else if (message.type === 'session.state') {
       // Only acknowledgements arrive here (mute, unmute, stopping); local
       // state is already authoritative and the final event precedes close.

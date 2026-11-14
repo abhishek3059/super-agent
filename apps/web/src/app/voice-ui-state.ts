@@ -72,7 +72,14 @@ export function statusLabel(status: string, provider = ''): string {
   return STATUS_LABELS[status] ?? 'Unavailable';
 }
 
+// Gemini is a cloud provider: the local-only wording would be false for it.
+const GEMINI_SUMMARIES: Record<string, string> = {
+  listening: 'Microphone streaming to Gemini (cloud)',
+  thinking: 'Waiting for the Gemini (cloud) reply',
+};
+
 export function pipelineSummary(status: string, provider = ''): string {
+  if (provider === 'gemini-live' && status in GEMINI_SUMMARIES) return GEMINI_SUMMARIES[status];
   if (status === 'speaking' && provider === 'local') return 'Playing the local reply';
   if (status === 'speaking' && provider === 'gemini-live') return 'Playing the Gemini reply';
   return PIPELINE_SUMMARIES[status] ?? 'Local voice path';

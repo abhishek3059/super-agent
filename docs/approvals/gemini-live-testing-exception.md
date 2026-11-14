@@ -20,3 +20,23 @@
 ## Still open
 
 Whether the data-boundary decision (R-A.2, OD-1) allows real voice to a cloud provider for anyone beyond the maintainers. This record does not answer it.
+
+## Widening, 2026-11-14
+
+`jeevesh2515` approved in chat with Claude Code on 2026-11-14 that, for
+testing only, the Gemini console may also get these tools, each off unless
+switched on:
+
+- **Weather:** the free Open-Meteo service. Only a place name leaves the Mac.
+- **Memory and reminders:** stored facts and reminders reach Gemini when they
+  bear on a turn, and Gemini may save new ones the user asks for.
+- **Approved actions:** open a page, search the web, or open an allowed app,
+  each only after a click on the console card.
+- **Continuity:** a short summary of the last session is kept on the Mac
+  (mode 0600, can be forgotten) and starts the next session.
+
+Reading files, notes, mail, or calendar stays off with Gemini. Under
+[DEC-21](../../descisions.md#dec-21) this approval is enough. Condition 1
+above changes: facts the user chooses to store are personal data sent to
+Google's free tier, which may train on it. The user accepts that for testing.
+Conditions 2, 3, and 5 still hold. Condition 4 is replaced by this list.

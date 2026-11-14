@@ -15,7 +15,8 @@
   width: 100%;
   min-width: 0;
   grid-template-rows: auto minmax(0, 1fr) auto;
-  min-height: 100svh;
+  /* A fixed height keeps the control dock on screen; the stage scrolls instead. */
+  height: 100svh;
   overflow: hidden;
   background: #05070e;
   color: #f8fafc;
@@ -233,10 +234,16 @@ button:disabled {
   min-height: 0;
   margin: 0 auto;
   padding: 1.5rem 1.25rem 1rem;
+  overflow-y: auto;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
+  /* "safe" keeps the top reachable when the content is taller than the stage. */
+  justify-content: safe center;
   gap: clamp(1rem, 2.5vh, 1.8rem);
+}
+
+.voice-stage > * {
+  flex-shrink: 0;
 }
 
 .error-banner {
@@ -410,7 +417,7 @@ button:disabled {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-  max-height: 12rem;
+  max-height: min(12rem, 28svh);
   margin: 0;
   padding: 0.75rem;
   overflow-y: auto;

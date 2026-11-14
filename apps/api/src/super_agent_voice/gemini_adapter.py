@@ -2,7 +2,9 @@
 
 The `google-genai` SDK is imported only when a real session starts, so offline
 tests and CI need no provider dependency. Tests inject `connect` and `blob`.
-No reconnect, session resumption, or context compression in this slice.
+Long sessions: the server sends go_away and closes a connection after a limited
+lifetime, so the adapter keeps the latest session resumption handle and reconnects
+with it (bounded). The handle is a credential: it is never logged or emitted.
 """
 from __future__ import annotations
 
@@ -19,6 +21,13 @@ OUTPUT_RATE_HZ = 24000
 MAX_INPUT_FRAMES = 64
 MAX_TOOL_CALLS_PER_TURN = 4
 MAX_TRANSCRIPT_CHARS = 2000
+# Half the app's 32 KiB frame limit (a security boundary there): Gemini sometimes sends
+# larger inline chunks, so the adapter splits them. Even, so pieces stay whole PCM16 samples.
+MAX_OUTPUT_CHUNK_BYTES = 16 * 1024
+MAX_RECONNECTS = 20  # per session; each go_away or unexpected close gets one attempt
+RESUME_WAIT_S = 10.0  # how long a failed send waits for the reconnect before giving up
+# Reconnecting cannot fix these, so they fail with their own category right away.
+NO_RESUME = frozenset({"provider-limits", "provider-unsupported"})
 INPUT_MIME = f"audio/pcm;rate={INPUT_RATE_HZ}"
 SYSTEM_INSTRUCTION = (
     "You are a concise voice assistant. Keep answers short. You have two tools: calculate, "
@@ -29,7 +38,7 @@ SYSTEM_INSTRUCTION = (
 
 TOOL_NAME_ALLOWLIST = frozenset(declaration["name"] for declaration in GEMINI_FUNCTIONS)
 
-Connect = Callable[[], Any]  # returns an async context manager yielding a session
+Connect = Callable[..., Any]  # () or (resumption handle) -> async context manager yielding a session
 Blob = Callable[[bytes], Any]
 ToolResponse = Callable[[Any, str, str], Any]  # (call id, tool name, output) -> response object
 _WAKE = object()  # tells the send loop that a tool response is waiting
@@ -43,6 +52,10 @@ def classify(error: BaseException) -> str:
     status = str(getattr(error, "status", "") or "").upper()
     if code == 429 or status == "RESOURCE_EXHAUSTED":
         return "provider-limits"
+    # The free tier refuses sessions opened in quick succession with close code 1011 and
+    # "Resource has been exhausted" (observed 2026-11-14). The text is read, never forwarded.
+    if code == 1011 and "exhausted" in str(error).lower():
+        return "provider-limits"
     # 1008 is the close code the Live API sent for an unknown model (observed 2026-11-12).
     if code in (400, 404, 1008) or status in ("INVALID_ARGUMENT", "NOT_FOUND", "UNIMPLEMENTED"):
         return "provider-unsupported"
@@ -54,7 +67,7 @@ def classify(error: BaseException) -> str:
 
 
 def _sdk_connect(api_key: str, model: str) -> Connect:
-    def connect() -> Any:
+    def connect(handle: str | None = None) -> Any:
         from google import genai  # load only for an actual provider session
         from google.genai import types
 
@@ -71,6 +84,11 @@ def _sdk_connect(api_key: str, model: str) -> Connect:
             ])],
             input_audio_transcription=types.AudioTranscriptionConfig(),
             output_audio_transcription=types.AudioTranscriptionConfig(),
+            session_resumption=types.SessionResumptionConfig(handle=handle),
+            # Without compression, audio sessions end after a short fixed duration.
+            context_window_compression=types.ContextWindowCompressionConfig(
+                sliding_window=types.SlidingWindow()
+            ),
         )
         return client.aio.live.connect(model=model, config=config)
 
@@ -126,6 +144,9 @@ class GeminiLiveAdapter:
         self._stack = contextlib.AsyncExitStack()
         self._session: Any = None
         self._tasks: list[asyncio.Task[None]] = []
+        self._handle: str | None = None  # latest resumable session handle; a credential
+        self._reconnects = 0
+        self._odd = b""  # a stray trailing PCM byte, joined to the next chunk of the turn
         self._stream_open = False
         self._turn_active = False
         self._ack = asyncio.Event()
@@ -239,35 +260,106 @@ class GeminiLiveAdapter:
                 if frame is None:
                     if self._stream_open:
                         self._stream_open = False
-                        await self._session.send_realtime_input(audio_stream_end=True)
+                        await self._send_input(audio_stream_end=True)
                     continue
                 self._stream_open = True
-                await self._session.send_realtime_input(audio=self._blob(frame))
+                await self._send_input(audio=self._blob(frame))
         except asyncio.CancelledError:
             raise
         except Exception as error:
             self._fail(classify(error))
 
+    async def _send_input(self, **kwargs: Any) -> None:
+        """Send realtime input; if the connection just died, retry once on the resumed one."""
+        session = self._session
+        try:
+            await session.send_realtime_input(**kwargs)
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            if not await self._resumed_from(session):
+                raise
+            await self._session.send_realtime_input(**kwargs)
+
+    async def _resumed_from(self, dead: Any) -> bool:
+        if not self._handle or self.closed:
+            return False
+        for _ in range(int(RESUME_WAIT_S / 0.05)):
+            if self._session is not dead:
+                return True
+            if self._tasks[1].done():  # the receive loop gave up: no reconnect is coming
+                return False
+            await asyncio.sleep(0.05)
+        return False
+
     async def _receive_loop(self) -> None:
         try:
             while True:
                 received = False
-                # The SDK's receive() ends after each model turn; loop to keep listening.
-                async for response in self._session.receive():
-                    received = True
-                    if getattr(response, "go_away", None) is not None:
-                        self._fail("provider-session-ended")
+                failure = "provider-session-ended"
+                try:
+                    # The SDK's receive() ends after each model turn; loop to keep listening.
+                    async for response in self._session.receive():
+                        received = True
+                        self._note_handle(getattr(response, "session_resumption_update", None))
+                        if getattr(response, "go_away", None) is not None and not self._handle:
+                            self._fail("provider-session-ended")
+                            return
+                        # With a handle, keep reading: the server closes soon after go_away
+                        # and the reconnect happens then, so a spoken reply can finish.
+                        # tool_call_cancellation is ignored: tools run instantly, nothing is pending.
+                        self._answer(getattr(response, "tool_call", None))
+                        self._map(getattr(response, "server_content", None))
+                except asyncio.CancelledError:
+                    raise
+                except Exception as error:
+                    failure = classify(error)
+                    if failure in NO_RESUME:
+                        self._fail(failure)
                         return
-                    # tool_call_cancellation is ignored: tools run instantly, nothing is pending.
-                    self._answer(getattr(response, "tool_call", None))
-                    self._map(getattr(response, "server_content", None))
-                if not received:
-                    self._fail("provider-session-ended")
+                    received = False
+                if received:
+                    continue
+                if not await self._resume():
+                    self._fail(failure)
                     return
         except asyncio.CancelledError:
             raise
         except Exception as error:
             self._fail(classify(error))
+
+    def _note_handle(self, update: Any) -> None:
+        handle = getattr(update, "new_handle", None)
+        if getattr(update, "resumable", None) and isinstance(handle, str) and handle:
+            self._handle = handle
+
+    async def _resume(self) -> bool:
+        """Reconnect once with the stored handle; queued input stays in place for the send loop."""
+        if self.closed or not self._handle or self._reconnects >= MAX_RECONNECTS:
+            return False
+        self._reconnects += 1
+        stack = contextlib.AsyncExitStack()
+        try:
+            session = await stack.enter_async_context(self._connect(self._handle))
+        except Exception:
+            return False
+        if self.closed:  # close() ran while connecting and released only the old stack
+            with contextlib.suppress(Exception):
+                await stack.aclose()
+            return False
+        old, self._stack, self._session = self._stack, stack, session
+        # The provider's turn state did not survive: end any half-spoken reply for the browser.
+        self._odd = b""
+        if self._turn_active:
+            self._interrupted()
+        else:
+            self._flush_said()
+        self._tool_calls = 0
+        self._turn_tools = []
+        self._ack.set()
+        with contextlib.suppress(Exception):
+            await old.aclose()
+        return True
 
     def _answer(self, tool_call: Any) -> None:
         calls = getattr(tool_call, "function_calls", None) or ()
@@ -301,6 +393,24 @@ class GeminiLiveAdapter:
         self._said = ""
         self._said_role = ""
 
+    def _pcm_pieces(self, data: bytes) -> list[bytes]:
+        """Split provider audio into even-length pieces the app accepts, in order."""
+        data = self._odd + data
+        keep = len(data) % 2
+        self._odd = data[len(data) - keep:]
+        data = data[:len(data) - keep]
+        return [data[i:i + MAX_OUTPUT_CHUNK_BYTES] for i in range(0, len(data), MAX_OUTPUT_CHUNK_BYTES)]
+
+    def _interrupted(self) -> None:
+        self._flush_said()
+        self._odd = b""
+        self._tool_calls = 0
+        self._turn_tools = []
+        self._turn_spoke = False
+        self._turn_active = False
+        self._ack.set()
+        self._events.put_nowait(Interrupted())
+
     def _map(self, content: Any) -> None:
         if content is None:
             return
@@ -312,19 +422,16 @@ class GeminiLiveAdapter:
             if data:
                 self._turn_active = True
                 self._turn_spoke = True
+                pieces = self._pcm_pieces(bytes(data))
                 # The bridge already advanced its playback epoch at local stop.
                 # Until the provider settles that turn, its PCM is still stale.
                 if self._ack_task is None or self._ack.is_set():
-                    self._events.put_nowait((self._audio_epoch, AudioChunk(bytes(data), OUTPUT_RATE_HZ)))
+                    for piece in pieces:
+                        self._events.put_nowait((self._audio_epoch, AudioChunk(piece, OUTPUT_RATE_HZ)))
         if getattr(content, "interrupted", False):
-            self._flush_said()
-            self._tool_calls = 0
-            self._turn_tools = []
-            self._turn_spoke = False
-            self._turn_active = False
-            self._ack.set()
-            self._events.put_nowait(Interrupted())
+            self._interrupted()
         if getattr(content, "turn_complete", False):
+            self._odd = b""  # a dangling byte cannot start the next turn
             self._flush_said()
             self._tool_calls = 0
             self._turn_active = False

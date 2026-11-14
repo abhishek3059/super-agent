@@ -102,6 +102,32 @@ $env:PYTHONPATH = "apps\api\src"
 Startup fails if `GEMINI_API_KEY` is missing. Tool calls and transcripts need a
 live run to confirm; the offline tests use fakes only.
 
+### Long sessions and reconnects
+
+Gemini Live closes a connection after a limited lifetime and sends `go_away`
+first. The adapter asks for session resumption and sliding-window context
+compression, and keeps the latest resumable handle in memory only. The handle
+is never logged, sent to the browser, or put in an error.
+
+- After `go_away` the adapter keeps reading so a reply can finish. When the
+  server closes the connection (or the stream ends), it reconnects once with
+  the stored handle. Queued microphone audio is kept, and a frame that failed
+  on the dead connection is retried once on the new one (it waits up to 10 s).
+- A reply that was mid-speech when the connection closed ends with a provider
+  interruption, because the server state of that turn is gone.
+- At most 20 reconnects per session. With no resumable handle, a failed
+  reconnect, an exhausted cap, or a quota or unsupported-model close, the
+  session fails closed as before (`provider-session-ended` or the specific
+  category).
+- Limits: a tool response in flight during a close is not retried, and the
+  server may not be resumable mid-generation, so a few words around the
+  switch can be lost. The reconnect is covered by offline fakes only; it was
+  not run against the live service.
+
+Provider audio chunks are split into even-length pieces of at most 16 KiB
+before they reach the app, which still rejects frames over 32 KiB or of odd
+length as `invalid-audio`.
+
 ## Synthetic live check (opt-in)
 
 Sends synthetic speech to Google's free tier, which may use inputs for
