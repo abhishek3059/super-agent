@@ -23,6 +23,7 @@ goes in [descisions.md](../../descisions.md).
 | 2026-11-12 | [Launch scripts should locate their own checkout](2026-11-12-location-independent-windows-launcher.md) | Start both local services without depending on the caller's working directory |
 | 2026-11-12 | [Stop playback across the provider boundary](2026-11-12-provider-audio-after-stop.md) | Keep late provider audio out of the new playback epoch |
 | 2026-11-12 | [Local voice stack](2026-11-12-local-voice-stack.md) | A private pipeline works at about two seconds; proxies and small-model honesty need guarding |
+| 2026-11-14 | [Memory needs a guard against what it reads](2026-11-14-local-memory-reminders.md) | Block memory writes after reading outside text; mark reminders only after they are spoken |
 
 ## How to add a note
 
