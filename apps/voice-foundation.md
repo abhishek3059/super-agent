@@ -63,6 +63,8 @@ Memory: the launcher keeps one Ollama model loaded at a time. LFM3-Audio and
 the 4B brain together use about 5 GB; the 9B brain next to LFM3-Audio was
 killed on a 16 GB Mac. Close heavy apps first. To let the assistant read
 Calendar, Notes, or Mail, allow the macOS Automation prompt the first time.
+Tier 1 tools are macOS-only: on any other system, setting `SUPER_AGENT_T1`
+stops the session before it starts.
 
 ## Synthetic live check (opt-in)
 
