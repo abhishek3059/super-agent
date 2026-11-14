@@ -168,3 +168,51 @@ def test_the_turn_that_only_calls_a_tool_does_not_end_the_reply():
         return events
 
     assert run(scenario()) == [AudioChunk(b"\x01\x00", 24000), TurnComplete(("calculate",))]
+
+
+
+def test_only_the_tool_turn_is_held_open_and_a_silent_answer_still_ends_the_reply():
+    async def scenario():
+        session = ToolSession([[calls(("c1", "calculate", {"expression": "1 + 1"})), flag(turn_complete=True),
+                                flag(turn_complete=True)]])
+        adapter = make(session)
+        await adapter.start()
+        await tool_sent(session, 1)
+        events = await take(adapter, 1)
+        await adapter.close()
+        return events
+
+    assert run(scenario()) == [TurnComplete(("calculate",))]
+
+
+def test_a_model_that_keeps_calling_tools_cannot_hold_the_reply_open():
+    async def scenario():
+        turns = []
+        for i in range(MAX_TOOL_CALLS_PER_TURN + 3):
+            turns += [calls((f"c{i}", "calculate", {"expression": "1 + 1"})), flag(turn_complete=True)]
+        session = ToolSession([turns])
+        adapter = make(session)
+        await adapter.start()
+        events = await take(adapter, 1)
+        await adapter.close()
+        return session.tool_sent, events
+
+    sent_, events = run(scenario())
+    assert [batch[0][2] for batch in sent_[MAX_TOOL_CALLS_PER_TURN:]][:1] == ["error: too many tool calls."]
+    [done] = events
+    assert isinstance(done, TurnComplete) and len(done.tools) <= MAX_TOOL_CALLS_PER_TURN
+
+
+def test_an_interrupt_between_the_tool_turn_and_the_answer_stops_the_answer():
+    async def scenario():
+        session = ToolSession([[calls(("c1", "calculate", {"expression": "1 + 1"})), flag(turn_complete=True)]])
+        adapter = make(session)
+        await adapter.start()
+        await tool_sent(session, 1)
+        await asyncio.sleep(0)
+        await adapter.interrupt()
+        held = adapter._ack_task is not None and not adapter._ack.is_set()
+        await adapter.close()
+        return held
+
+    assert run(scenario()) is True  # the answer's audio waits for the provider to confirm the stop
