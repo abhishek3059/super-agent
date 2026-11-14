@@ -62,7 +62,6 @@ interrupt control, sent no PCM while muted, and released the track at
 session end. A local adapter reporting `gemini-live` exercised the
 negative path. These checks covered generated local audio. Physical input
 and a real provider were outside the run.
-
 The two browser lines below are a hand summary of a local headless Chrome
 run. Its raw output and harness were not saved to the repository; the
 self-test line is reproducible with `npm run test:voice` in `apps/web`.
