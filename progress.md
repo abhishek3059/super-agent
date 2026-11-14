@@ -410,7 +410,8 @@ configurable endpoint, simulated research states, and future job claims are not
 used by the application. Verification on Windows: UI-state self-test 24 cases,
 voice-session self-test 39 cases, playback-epoch self-test 8 cases, production
 build 159.39 kB initial total, frontend audit 0 vulnerabilities, and repository
-check 0 errors. R-01.4 remains open until the human microphone run is recorded.
+check 0 errors. This work merged in
+[PR #34](https://github.com/abhishek3059/super-agent/pull/34) as `3025155`.
 
 ## Capability ladder proposal (2026-11-12)
 
@@ -418,3 +419,42 @@ check 0 errors. R-01.4 remains open until the human microphone run is recorded.
 tiered ladder ([DEC-18](descisions.md#dec-18)). It is a proposal until
 `abhishek3059` approves ([record](docs/approvals/capability-ladder-decision.md)).
 It enables no tier and moves no gate. Roadmap track A holds the items.
+
+## DEC-18 approved (2026-11-12)
+
+`abhishek3059` approved DEC-18 in a [PR #35 review](https://github.com/abhishek3059/super-agent/pull/35#pullrequestreview-5878510644), and PR #35
+merged into `develop` as `4dbb5b0`. R-A.1 is ticked with the updated
+[approval record](docs/approvals/capability-ladder-decision.md). No tier is
+enabled and no gate moves. R-A.2, the cloud data and cost decision, stays open.
+
+## Shared AI reviewer replaces required human review (2026-11-12)
+
+`abhishek3059` proposed replacing the required human review on `develop` with
+one shared AI reviewer, because the maintainers work in different time zones
+([DEC-19](descisions.md#dec-19)). `jeevesh2515` approved it on
+2026-11-13 ([record](docs/approvals/shared-ai-reviewer-decision.md)). The
+reviewer, [.claude/agents/reviewer.md](.claude/agents/reviewer.md), becomes the
+review gate in AGENTS.md section 9, run the same way on both machines. The
+**Repository checks** status check stays required, and changes reserved to
+both maintainers still need both approvals. No runtime gate moves.
+
+## PH-01 local microphone evidence recovered (2026-11-12)
+
+The [R-01.4 operator report](docs/approvals/r01-4-microphone-test.md) was
+committed to the PR #32 branch after it merged. It records Jeevesh's two
+macOS Chrome runs against the revised offline scaffold at `a790530`.
+Jeevesh reported that the required steps worked. The secondary manual Stop
+playback control gave no visible or audible response. The result covers
+R-01.4 and predates the PR #34 console.
+
+R-01.10 and RT-G01 remain open. The recorded native run used a standalone
+synthetic probe. It did not cover native behavior through the application
+boundary or demonstrate interruption of a long provider reply.
+
+## One maintainer's approval is enough (2026-11-14)
+
+`abhishek3059` decided in chat that one maintainer's approval is enough for
+every change, with no exception, and that an agent may approve and merge a PR
+on a maintainer's behalf after he confirms that one PR in chat
+([DEC-21](descisions.md#dec-21)). AGENTS.md, roadmap rule 5, and the shared
+reviewer's step 6 now say so. No runtime gate moves.

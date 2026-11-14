@@ -21,6 +21,7 @@ goes in [descisions.md](../../descisions.md).
 | 2026-11-12 | [Platform-specific security fixtures](2026-11-12-platform-specific-security-fixtures.md) | Preserve POSIX security coverage without requiring privileged Windows test setup |
 | 2026-11-12 | [Loopback names are different Origins](2026-11-12-loopback-origin-aliases.md) | Diagnose strict local Origin rejection without widening the allowlist |
 | 2026-11-12 | [Launch scripts should locate their own checkout](2026-11-12-location-independent-windows-launcher.md) | Start both local services without depending on the caller's working directory |
+| 2026-11-12 | [Stop playback across the provider boundary](2026-11-12-provider-audio-after-stop.md) | Keep late provider audio out of the new playback epoch |
 | 2026-11-12 | [Local voice stack](2026-11-12-local-voice-stack.md) | A private pipeline works at about two seconds; proxies and small-model honesty need guarding |
 
 ## How to add a note
