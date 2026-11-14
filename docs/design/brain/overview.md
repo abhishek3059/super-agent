@@ -427,7 +427,7 @@ decided by this document.
 | OD-15 | Automatic learning from conversation (proposal in [memory, section 9](memory.md#9-proposed-revision-2026-11-13-learning-from-conversation)). The operator asked for it on 2026-11-13. | (a) Explicit only, as in memory sections 1 to 8. (b) End-of-session proposals the user confirms on screen. (c) Automatic `inferred` records, with sensitive ones confirmed on screen. | (c), as the operator asked, with every safety rule in memory section 9.5: local model only, user speech only, `inferred` never authorizes, sensitive on screen, transcript discarded. It changes memory principles 2 and 3 and needs a DEC approved by both maintainers. **`abhishek3059` approved the recommendation on 2026-11-13; `jeevesh2515` pending ([record](../../approvals/memory-learning-decisions.md)).** |
 | OD-16 | What happens to the raw transcript after distilling. | (a) Discard it. (b) Keep it encrypted locally for N days. | (a). It keeps [REQ-14](../../../prd.md#req-14) intact and removes the largest store of personal text. (b) would need encryption at rest (OD-5) and its own retention approval. **`abhishek3059` approved the recommendation on 2026-11-13; `jeevesh2515` pending ([record](../../approvals/memory-learning-decisions.md)).** |
 | OD-17 | Retention of episodes, decisions, and `inferred` records. | (a) 30 days. (b) 90 days. (c) Until forgotten. | 90 days, adjustable, for episodes and `inferred` records unless reinforced. Decisions stay until marked done or forgotten, then follow the 90-day rule. Habits need about 30 days of data to show, so 30 days would discard a habit as it forms. Still local, still deletable on the "What I learned" screen. **`abhishek3059` approved the recommendation on 2026-11-13; `jeevesh2515` pending ([record](../../approvals/memory-learning-decisions.md)).** |
-| OD-18 | Job spec and checkpoint retention beyond the 24-hour job-metadata purge in the [PH-00 setup decisions](../../approvals/ph-00-setup-decisions.md). The trip scenario ([evaluation, section 12](evaluation.md#12-acceptance-scenario-the-interrupted-trip)) cannot pass with 24 hours. | (a) Keep 24 hours. (b) 30 days for task specs, verified checkpoints, and the stop reason. (c) Until the user forgets them. | (b). It covers "continue the thing from two days ago" without holding job data indefinitely. It needs an amendment to the PH-00 record, approved by both maintainers. **`abhishek3059` approved the recommendation on 2026-11-13; `jeevesh2515` pending ([record](../../approvals/memory-learning-decisions.md)).** |
+| OD-18 | Job spec and checkpoint retention beyond the 24-hour job-metadata purge in the [PH-00 setup decisions](../../approvals/ph-00-setup-decisions.md). The trip scenario ([evaluation, section 12](evaluation.md#12-acceptance-scenario-the-interrupted-trip)) cannot pass with 24 hours. | (a) Keep 24 hours. (b) 30 days for task specs, verified checkpoints, and the stop reason. (c) Until the user forgets them. | (b). It covers "continue the thing from two days ago" without holding job data indefinitely. It needs an amendment to the PH-00 record, approved by a maintainer. **`abhishek3059` approved the recommendation on 2026-11-13; `jeevesh2515` pending ([record](../../approvals/memory-learning-decisions.md)).** |
 
 ## 11. Interface requests for the ledger
 
@@ -452,7 +452,7 @@ what the brain needs and what it will do if the answer is no.
 
 This is a proposal for a new parallel track. It is not a roadmap edit. Adding
 it needs a roadmap PR that changes `roadmap.md` and
-`scripts/roadmap-ids.txt` together and that both maintainers approve.
+`scripts/roadmap-ids.txt` together and that a maintainer approves.
 
 **Parallel track M: brain and memory.** This track gates no phase and moves
 no gate. R-M.1 can happen any time. No item is built before its dependency is
@@ -460,7 +460,7 @@ ticked.
 
 | Proposed item | Text | Depends on |
 | --- | --- | --- |
-| R-M.1 `[human]` | Both maintainers approve the brain and memory design and record every open decision in section 10, including the persistent-memory approval under RT-G05. | Nothing |
+| R-M.1 `[human]` | A maintainer approves the brain and memory design and record every open decision in section 10, including the persistent-memory approval under RT-G05. | Nothing |
 | R-M.2 | Local model measurement spike on the tool and step schemas; model and licence recorded. | R-M.1 |
 | R-M.3 | Context assembler and model router with data-class enforcement and session memory only, with tests. | R-02.3, R-M.2, R-A.2 |
 | R-M.4 | System 1 tools `propose_task`, `query_ledger`, and `cancel_task` wired to the ledger, tested with a scripted model. | R-02.1, R-02.2, R-M.3 |
