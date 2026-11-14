@@ -7,7 +7,7 @@
 | Operator | `jeevesh2515` |
 | Built and run by | Claude Code (`claude-sonnet-5-5`) on the operator's Mac |
 | Output | [r01-9-live-check-output-20261112T000230Z.txt](evidence/r01-9-live-check-output-20261112T000230Z.txt) |
-| Gate effect | None. RT-G01 stays open (R-01.4, R-01.6, R-01.10 remain). |
+| Gate effect | Evidence for R-01.8 and R-01.9. R-01.10 and RT-G01 remain open. |
 
 ## The command
 
@@ -38,6 +38,12 @@ GEMINI_API_KEY=... python -m super_agent_voice.live_check --send-synthetic-audio
   lock: no known vulnerabilities.
 
 ## Results (free tier, home network, model `gemini-3.8-live`)
+
+The results below are from the original command. The revised command sends a
+second generated clip during a longer reply and distinguishes a provider
+`Interrupted` event from ordinary turn completion. It skips the second
+check with `--wav`. The revised command was tested offline; a new live run
+has not been recorded. See the [R-01.10 record](r01-10-acceptance.md).
 
 | Step | Observed |
 | --- | --- |

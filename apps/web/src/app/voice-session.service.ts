@@ -149,12 +149,17 @@ export class VoiceSessionService {
     const message = JSON.parse(event.data) as {
       type?: string;
       category?: string;
+      provider?: string;
       playbackEpoch?: number;
       rateHz?: number;
       channels?: number;
       format?: string;
     };
     if (message.type === 'session.ready') {
+      if (message.provider !== 'fake') {
+        this.fail('Unexpected voice provider. Local capture stays off.');
+        return;
+      }
       if (this.capturing) {
         // Fail closed: a repeated ready would otherwise allocate a second
         // microphone stream while the first capture is still in flight.
