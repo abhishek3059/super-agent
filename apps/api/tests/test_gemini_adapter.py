@@ -533,7 +533,7 @@ def test_failed_reconnect_fails_closed_without_the_handle() -> None:
         return error.value
 
     error = run(scenario(OSError(f"SENTINEL {HANDLE}")))
-    assert error.category == "provider-session-ended"
+    assert error.category == "provider-unavailable"  # the reconnect's own failure, not a generic end
     assert HANDLE not in str(error) and "SENTINEL" not in str(error)
 
 
@@ -601,3 +601,20 @@ def test_a_free_tier_session_refusal_is_reported_as_a_limit() -> None:
 
     assert classify(APIError("1011 None. Resource has been exhausted (e.g. check quota).")) == "provider-limits"
     assert classify(APIError("1011 internal error")) == "session-failed"
+
+
+
+def test_a_quota_refusal_on_reconnect_is_reported_as_a_limit() -> None:
+    class APIError(Exception):
+        code = 1011
+
+    async def scenario():
+        first = FakeSession([[update(HANDLE), go_away()], []])
+        adapter = resumable(ResumeConnect(first, APIError("1011 None. Resource has been exhausted")))
+        await adapter.start()
+        with pytest.raises(AdapterError) as error:
+            await take(adapter, 1)
+        await adapter.close()
+        return error.value
+
+    assert run(scenario()).category == "provider-limits"

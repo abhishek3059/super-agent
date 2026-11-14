@@ -135,6 +135,9 @@ class GeminiLiveAdapter:
         self._tool_calls = 0
         self._turn_tools: list[str] = []  # allowlisted names only, never arguments or outputs
         self._turn_spoke = False  # whether this reply has sent any audio yet
+        self._tool_gap = False  # a tool was answered and the spoken answer has not ended yet
+        self._hold = False  # hold back the provider's next turn_complete: it ends only the tool turn
+        self._resume_failure = "provider-session-ended"  # what a failed reconnect reports
         self._said = ""  # transcript fragments of one speaker, joined into a line
         self._said_role = ""
         self._events: asyncio.Queue[
@@ -187,7 +190,7 @@ class GeminiLiveAdapter:
             return
         # Even a completed turn may have PCM waiting for the event consumer.
         self._audio_epoch += 1
-        if not self._turn_active:
+        if not (self._turn_active or self._tool_gap):
             return
         # Otherwise the provider must confirm with `interrupted` or a turn
         # completion, or the session fails closed instead of pretending.
@@ -254,32 +257,34 @@ class GeminiLiveAdapter:
             while True:
                 frame = await self._input.get()
                 while not self._tool_out.empty():
-                    await self._session.send_tool_response(function_responses=self._tool_out.get_nowait())
+                    await self._send("send_tool_response", function_responses=self._tool_out.get_nowait())
                 if frame is _WAKE:
                     continue
                 if frame is None:
                     if self._stream_open:
                         self._stream_open = False
-                        await self._send_input(audio_stream_end=True)
+                        await self._send("send_realtime_input", audio_stream_end=True)
                     continue
                 self._stream_open = True
-                await self._send_input(audio=self._blob(frame))
+                await self._send("send_realtime_input", audio=self._blob(frame))
         except asyncio.CancelledError:
             raise
         except Exception as error:
             self._fail(classify(error))
 
-    async def _send_input(self, **kwargs: Any) -> None:
-        """Send realtime input; if the connection just died, retry once on the resumed one."""
+    async def _send(self, method: str, **kwargs: Any) -> None:
+        """Send audio or a tool answer; if the connection just died, retry once on the resumed one.
+        A tool answer is dropped after a resume: the new session never made that call."""
         session = self._session
         try:
-            await session.send_realtime_input(**kwargs)
+            await getattr(session, method)(**kwargs)
         except asyncio.CancelledError:
             raise
         except Exception:
             if not await self._resumed_from(session):
                 raise
-            await self._session.send_realtime_input(**kwargs)
+            if method == "send_realtime_input":
+                await self._session.send_realtime_input(**kwargs)
 
     async def _resumed_from(self, dead: Any) -> bool:
         if not self._handle or self.closed:
@@ -320,8 +325,9 @@ class GeminiLiveAdapter:
                     received = False
                 if received:
                     continue
+                self._resume_failure = failure
                 if not await self._resume():
-                    self._fail(failure)
+                    self._fail(self._resume_failure)
                     return
         except asyncio.CancelledError:
             raise
@@ -341,7 +347,10 @@ class GeminiLiveAdapter:
         stack = contextlib.AsyncExitStack()
         try:
             session = await stack.enter_async_context(self._connect(self._handle))
-        except Exception:
+        except asyncio.CancelledError:
+            raise
+        except Exception as error:
+            self._resume_failure = classify(error)  # a quota refusal is reported as one
             return False
         if self.closed:  # close() ran while connecting and released only the old stack
             with contextlib.suppress(Exception):
@@ -350,12 +359,16 @@ class GeminiLiveAdapter:
         old, self._stack, self._session = self._stack, stack, session
         # The provider's turn state did not survive: end any half-spoken reply for the browser.
         self._odd = b""
-        if self._turn_active:
+        while not self._tool_out.empty():  # answers to calls the new session never made
+            self._tool_out.get_nowait()
+        if self._turn_active or self._tool_gap:
             self._interrupted()
         else:
             self._flush_said()
         self._tool_calls = 0
         self._turn_tools = []
+        self._turn_spoke = False
+        self._tool_gap = self._hold = False
         self._ack.set()
         with contextlib.suppress(Exception):
             await old.aclose()
@@ -367,13 +380,18 @@ class GeminiLiveAdapter:
         for call in calls:
             name = getattr(call, "name", None)
             self._tool_calls += 1
-            self._turn_tools.append(name if name in TOOL_NAME_ALLOWLIST else "unknown")
+            if len(self._turn_tools) < MAX_TOOL_CALLS_PER_TURN:
+                self._turn_tools.append(name if name in TOOL_NAME_ALLOWLIST else "unknown")
             if self._tool_calls > MAX_TOOL_CALLS_PER_TURN:
                 output = "error: too many tool calls."
             else:
                 output = run_tool(name, getattr(call, "args", None) or {})
             responses.append(self._tool_response(getattr(call, "id", None), name if isinstance(name, str) else "", output))
         if responses:
+            # Past the cap the reply is not held open any longer, so a model that keeps
+            # calling tools cannot keep the turn from ending.
+            self._tool_gap = True
+            self._hold = self._tool_calls <= MAX_TOOL_CALLS_PER_TURN
             self._tool_out.put_nowait(responses)
             self._put(_WAKE)
 
@@ -407,6 +425,7 @@ class GeminiLiveAdapter:
         self._tool_calls = 0
         self._turn_tools = []
         self._turn_spoke = False
+        self._tool_gap = self._hold = False
         self._turn_active = False
         self._ack.set()
         self._events.put_nowait(Interrupted())
@@ -433,14 +452,17 @@ class GeminiLiveAdapter:
         if getattr(content, "turn_complete", False):
             self._odd = b""  # a dangling byte cannot start the next turn
             self._flush_said()
-            self._tool_calls = 0
             self._turn_active = False
             self._ack.set()
             # Gemini ends the turn in which it calls a tool, then speaks the answer in a
             # second turn. Reporting the first as complete told the console and the live
-            # check the reply was over before a word was said. The tool names carry over.
-            if self._turn_tools and not self._turn_spoke:
+            # check the reply was over before a word was said. Only that one turn_complete
+            # is held back; the tool names and the per-reply tool count carry over.
+            if self._hold and not self._turn_spoke:
+                self._hold = False
                 return
+            self._tool_gap = self._hold = False
+            self._tool_calls = 0
             self._events.put_nowait(TurnComplete(tuple(self._turn_tools)))
             self._turn_tools = []
             self._turn_spoke = False
