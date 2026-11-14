@@ -167,7 +167,7 @@ These do not gate any phase, but they are on the path and must be ticked.
 
 Tiers are defined in [DEC-18](descisions.md#dec-18). R-A.1 and R-A.2 can happen any time. R-A.3 starts after PH-01 is done and R-A.1 and R-A.2 are ticked. R-A.4 and R-A.5 start after RT-G02 (PH-02 exit). R-A.6 to R-A.9 start after RT-G03 (PH-03 exit). Each tier is built only after its design item is ticked. This track gates no phase and moves no gate.
 
-- [ ] R-A.1 [human] Both maintainers approve DEC-18 and the matching REQ-08 and AGENTS.md section 5 edits. Evidence: none yet
+- [x] R-A.1 [human] Both maintainers approve DEC-18 and the matching REQ-08 and AGENTS.md section 5 edits. Evidence: [approval record](docs/approvals/capability-ladder-decision.md), [PR 35](https://github.com/abhishek3059/super-agent/pull/35)
 - [ ] R-A.2 [human] Data-boundary and cost decision for real voice and personal data sent to a cloud provider (REQ-13, free-tier training, the $0 cap). Evidence: none yet
 - [ ] R-A.3 T0 advice-only conversation persona shipped with tests; no tools, no personal data access, no new authority. Evidence: none yet
 - [ ] R-A.4 [human] T1 read-only connector design (scopes, allowlists, injection handling) approved after independent security review. Evidence: none yet
