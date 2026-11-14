@@ -37,6 +37,18 @@
       </div>
     }
 
+    @if (session.pendingAction(); as action) {
+      <section class="action-card" role="alertdialog" aria-live="assertive"
+        aria-labelledby="action-title" aria-describedby="action-summary">
+        <span class="eyebrow" id="action-title">Approve this action?</span>
+        <p id="action-summary">{{ action.summary }}</p>
+        <div class="action-buttons">
+          <button #denyButton class="secondary-button" type="button" (click)="decide(false, $event)">Deny</button>
+          <button class="connect-button" type="button" (click)="decide(true, $event)">Approve</button>
+        </div>
+      </section>
+    }
+
     <section class="orb-section" aria-labelledby="voice-state-title">
       <button class="mic-core" type="button" (click)="centerAction()"
         [disabled]="session.status() === 'connecting'"

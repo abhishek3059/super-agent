@@ -19,11 +19,18 @@ const ERROR_CATEGORIES = new Set([
 
 const MAX_CONVERSATION_ENTRIES = 50;
 const MAX_MESSAGE_CHARS = 500;
+const MAX_SUMMARY_CHARS = 200;
 // Bounds one merged assistant bubble; the per-message cap alone would let a
 // long reply grow without limit.
 const MAX_ENTRY_CHARS = 4000;
 /** Consecutive loud frames (about 128 ms each) required before barge-in. */
 const BARGE_IN_FRAMES = 2;
+
+/** An action the assistant wants to run; it waits for the user's click. */
+export interface PendingAction {
+  id: string;
+  summary: string;
+}
 
 export interface ConversationEntry {
   role: 'user' | 'assistant';
@@ -39,6 +46,10 @@ export class VoiceSessionService {
   readonly provider = signal('');
   /** Transcript of the current session only; cleared in cleanup, never persisted or logged. */
   readonly conversation = signal<readonly ConversationEntry[]>([]);
+  /** The one action waiting for a click. Only the backend sets it, only a click answers it. */
+  readonly pendingAction = signal<PendingAction | null>(null);
+  /** When the current card appeared, so a click that lands on it by accident is ignored. */
+  readonly pendingActionShownAt = signal(0);
 
   private socket?: WebSocket;
   private stream?: MediaStream;
@@ -148,6 +159,15 @@ export class VoiceSessionService {
     socket.send(JSON.stringify({ type: 'playback.interrupt' }));
   }
 
+  /** Sends the user's click for the pending action, then hides the card. Called only from a button. */
+  decideAction(allow: boolean): void {
+    const socket = this.socket;
+    const action = this.pendingAction();
+    if (!action || !socket || socket.readyState !== WebSocket.OPEN) return;
+    socket.send(JSON.stringify({ type: 'action.decision', id: action.id, allow }));
+    this.pendingAction.set(null);
+  }
+
   stop(): void {
     const socket = this.socket;
     if (socket?.readyState === WebSocket.OPEN) {
@@ -176,6 +196,8 @@ export class VoiceSessionService {
       state?: string;
       role?: unknown;
       text?: unknown;
+      id?: unknown;
+      summary?: unknown;
     };
     if (message.type === 'session.ready') {
       // Both run on this machine; any other provider must not get the microphone.
@@ -227,6 +249,15 @@ export class VoiceSessionService {
       if (message.state === 'thinking' && this.status() === 'listening') this.status.set('thinking');
     } else if (message.type === 'conversation.text') {
       this.addConversationText(message.role, message.text);
+    } else if (message.type === 'action.request') {
+      // Shown as text only. The backend built the summary from validated arguments.
+      if (typeof message.id === 'string' && message.id && message.id.length <= 32
+        && typeof message.summary === 'string' && message.summary) {
+        this.pendingActionShownAt.set(performance.now());
+        this.pendingAction.set({ id: message.id, summary: message.summary.slice(0, MAX_SUMMARY_CHARS) });
+      }
+    } else if (message.type === 'action.closed') {
+      if (message.id === this.pendingAction()?.id) this.pendingAction.set(null);
     } else if (message.type === 'playback.interrupted') {
       // The backend epoch is authoritative and clears the pending interrupt.
       this.epochs.onServerInterrupt(message.playbackEpoch);
@@ -422,6 +453,7 @@ export class VoiceSessionService {
     this.inputLevel.set(0);
     this.provider.set('');
     this.conversation.set([]);
+    this.pendingAction.set(null);
     this.pendingRateHz = undefined;
     this.interruptPending = false;
     this.capturing = false;

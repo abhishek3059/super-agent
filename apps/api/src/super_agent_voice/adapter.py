@@ -34,7 +34,22 @@ class Transcript:
     text: str
 
 
-AdapterEvent = AudioChunk | TurnComplete | Interrupted | Thinking | Transcript
+@dataclass(frozen=True)
+class ApprovalRequest:
+    """An action waits for the user's click. The summary is built by code, never by the model."""
+    id: str
+    summary: str
+
+
+@dataclass(frozen=True)
+class ApprovalClosed:
+    """The request ended for any reason (approved, denied, timed out, cancelled)."""
+    id: str
+
+
+AdapterEvent = (
+    AudioChunk | TurnComplete | Interrupted | Thinking | Transcript | ApprovalRequest | ApprovalClosed
+)
 
 # Fixed browser-facing categories (design section 5); provider detail never
 # leaves the adapter.

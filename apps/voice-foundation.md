@@ -39,6 +39,13 @@ local file, `~/.super-agent/memory.db`, and can forget them (tier T2,
 [design](../docs/design/local-memory-reminders.md)). Due reminders are spoken
 between turns while a session is open.
 
+With `SUPER_AGENT_ACTIONS=on` (macOS only) it can also open a web page, search
+the web, or open one allowed app (tier T3,
+[design](../docs/design/t3-approved-actions.md)). Each action waits for you to
+click Approve on the console card; saying yes never approves. Apps default to
+Calendar, Notes, Reminders, Music, Maps, Calculator, and Safari; set
+`SUPER_AGENT_ACTION_APPS` to a comma list to change them.
+
 ### Start it on a Mac
 
 One-time setup (Python 3.12, about 9 GB of models outside the repository):
@@ -57,7 +64,7 @@ spike A5 record).
 Then, from the repository:
 
 ```bash
-SUPER_AGENT_MEMORY=on SUPER_AGENT_T1=files SUPER_AGENT_T1_FOLDERS="$HOME/super-agent-t1-demo" \
+SUPER_AGENT_MEMORY=on SUPER_AGENT_ACTIONS=on SUPER_AGENT_T1=files SUPER_AGENT_T1_FOLDERS="$HOME/super-agent-t1-demo" \
   scripts/start-voice-mac.sh lfm3
 ```
 

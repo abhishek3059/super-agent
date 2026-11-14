@@ -1,12 +1,14 @@
 import pytest
 
-from super_agent_voice import tier1
+from super_agent_voice import actions, memory, tier1
 
 
 @pytest.fixture(autouse=True)
 def _audit_log_in_tmp(tmp_path, monkeypatch):
     # Tests must never append to the operator's real audit log.
-    monkeypatch.setattr(tier1, "AUDIT_LOG", tmp_path / "audit" / "tool-audit.log")
+    log = tmp_path / "audit" / "tool-audit.log"
+    for module in (tier1, memory, actions):
+        monkeypatch.setattr(module, "AUDIT_LOG", log)
 
 
 @pytest.fixture(autouse=True)

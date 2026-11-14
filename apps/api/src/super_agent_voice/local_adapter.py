@@ -14,11 +14,14 @@ import contextlib
 import contextvars
 import datetime
 import functools
+import hmac
 import json
 import math
 import operator
 import os
 import re
+import secrets
+import sys
 import tempfile
 import urllib.error
 import urllib.request
@@ -26,9 +29,10 @@ import wave
 from collections.abc import AsyncIterator, Awaitable, Callable
 from pathlib import Path
 
-from . import lfm3_voice, memory, tier1
+from . import actions, lfm3_voice, memory, tier1
 from .adapter import (
-    AdapterError, AdapterEvent, AudioChunk, Interrupted, Thinking, Transcript, TurnComplete,
+    AdapterError, AdapterEvent, ApprovalClosed, ApprovalRequest, AudioChunk, Interrupted, Thinking,
+    Transcript, TurnComplete,
 )
 
 # Loopback only (REQ-11). Not configurable, so no setting can point it at a remote host.
@@ -51,10 +55,6 @@ SYSTEM_PROMPT = (
     "Talk, explain, and give advice freely. For arithmetic, call the calculate tool and "
     "never work sums out yourself."
 )
-_NO_ACTIONS = (
-    " You cannot change anything, send anything, set reminders, or browse the web, and you "
-    "must never say you did. If asked to, say what you can do instead."
-)
 _MEMORY_PROMPT = (
     " You have your own private memory on this computer. Save a fact only when the user asks "
     "you to remember it, and set a reminder only when they ask for one, with the time in "
@@ -63,11 +63,14 @@ _MEMORY_PROMPT = (
     "only when it answers what was just asked, and never recite notes or bring up remembered "
     "facts on your own. If asked what you remember and no note covers it, call list_memory."
 )
-_NO_ACTIONS_WITH_MEMORY = (
-    " Apart from your memory and reminders, you cannot change anything, send anything, or "
-    "browse the web, and you must never say you did. If asked to, say what you can do instead."
-)
 REMINDER_CHECK_SECONDS = 10.0
+APPROVAL_SECONDS = 30.0
+APPROVAL_SENTENCE = "Please approve that on your screen."
+_ACTIONS_PROMPT = (
+    " You can open a web page, search the web, or open one of a few allowed apps, but only when "
+    "the user asks. Each one needs the user's click on their screen, so say that they need to "
+    "approve it. Never say something was opened unless the tool said it was done."
+)
 
 
 def memory_enabled() -> bool:
@@ -83,17 +86,28 @@ _T1_PROMPT = (
 _T1_SOURCES = {"files": "allowlisted files", "calendar": "calendar", "notes": "notes", "mail": "email"}
 
 
+def actions_enabled() -> bool:
+    choice = os.environ.get("SUPER_AGENT_ACTIONS", "off")
+    if choice not in ("on", "off"):
+        raise RuntimeError("SUPER_AGENT_ACTIONS must be 'on' or 'off'")
+    return choice == "on" and sys.platform == "darwin"  # the commands are macOS programs
+
+
 def system_prompt() -> str:
     sources = [_T1_SOURCES[name] for name in tier1.enabled_sources()]
     reading = _T1_PROMPT.format(sources=", ".join(sources)) if sources else " You cannot look anything up."
-    if memory_enabled():
-        return SYSTEM_PROMPT + reading + _MEMORY_PROMPT + _NO_ACTIONS_WITH_MEMORY
-    return SYSTEM_PROMPT + reading + _NO_ACTIONS
+    use_memory, use_actions = memory_enabled(), actions_enabled()
+    allowed = [text for text, on in (("your memory and reminders", use_memory), ("the approved actions above", use_actions)) if on]
+    lead = f" Apart from {' and '.join(allowed)}, you" if allowed else " You"
+    limits = (f"{lead} cannot change anything, send anything, {'' if use_memory else 'set reminders, '}"
+              "or browse the web, and you must never say you did. If asked to, say what you can do instead.")
+    return SYSTEM_PROMPT + reading + (_MEMORY_PROMPT if use_memory else "") + (_ACTIONS_PROMPT if use_actions else "") + limits
 
 
 def available_tools() -> list[dict]:
-    """The calculator, enabled read-only tier 1 tools, and memory if it is on."""
-    return TOOLS + tier1.enabled_tools() + (memory.TOOLS if memory_enabled() else [])
+    """The calculator, enabled read-only tier 1 tools, and memory and actions if they are on."""
+    return (TOOLS + tier1.enabled_tools() + (memory.TOOLS if memory_enabled() else [])
+            + (actions.TOOLS if actions_enabled() else []))
 
 
 # What the user said this turn. A small model sometimes saves things nobody asked it to,
@@ -104,9 +118,25 @@ _ASKED = {
     "add_reminder": re.compile(r"remind|alarm|wake me|remember|don'?t (?:let me )?forget"),
     "forget": re.compile(r"forget|delete|remove|erase|clear|scratch"),
 }
+_ACTION_REQUEST = re.compile(r"\b(?:open|launch|start|search|look up|google|go to|show me|pull up)")
 NOT_ASKED = "error: the user did not ask for that, so nothing was changed. Do not say it was."
 # Set by a tier 1 read inside a turn. Each turn is its own task, so this starts False every turn.
 _READ_UNTRUSTED: contextvars.ContextVar[bool] = contextvars.ContextVar("read_untrusted", default=False)
+# The adapter's way to ask the user for a click, set for each turn; and whether this turn already acted.
+_APPROVE: contextvars.ContextVar[Callable[[str], Awaitable[bool]] | None] = contextvars.ContextVar("approve", default=None)
+_ACTED: contextvars.ContextVar[bool] = contextvars.ContextVar("acted", default=False)
+
+
+def _action_refusal() -> str | None:
+    """Why this turn may not act, or None. Each reason is a fixed string, so no content is echoed."""
+    heard = _HEARD.get()
+    if _READ_UNTRUSTED.get():  # text from a file or email could ask for a page to be opened
+        return actions.AFTER_READ
+    if heard is None or not _ACTION_REQUEST.search(heard.casefold()):
+        return NOT_ASKED
+    if _ACTED.get():
+        return actions.ONE_PER_TURN
+    return None
 
 
 async def call_tool(name: object, arguments: object) -> str:
@@ -124,6 +154,14 @@ async def call_tool(name: object, arguments: object) -> str:
         if heard is not None and name in _ASKED and not _ASKED[name].search(heard.casefold()):
             return NOT_ASKED
         return await asyncio.to_thread(memory.run, name, arguments)
+    if name in actions.NAMES:
+        if not actions_enabled():
+            return "error: no such tool."
+        if refusal := _action_refusal():
+            actions.audit(name, "refused")
+            return refusal
+        _ACTED.set(True)  # a refused or failed try also uses the turn's one action
+        return await actions.run(name, arguments, _APPROVE.get())
     return run_tool(name, arguments)
 TOOLS = [
     {"type": "function", "function": {
@@ -241,6 +279,7 @@ class LocalVoiceAdapter:
         self._turns: dict[asyncio.Task[None], int] = {}  # task -> utterance number
         self._replying: set[asyncio.Task[None]] = set()
         self._utterances = 0
+        self._pending: tuple[str, asyncio.Future[bool]] | None = None  # the one action awaiting a click
         self._started = False
         self._ready = False
         self.closed = False
@@ -256,6 +295,8 @@ class LocalVoiceAdapter:
         self._transcribe = self._transcribe or default_transcribe()
         tier1.enabled_tools()  # a mistyped SUPER_AGENT_T1 stops the session here, not mid-turn
         use_memory = memory_enabled()
+        if actions_enabled():
+            actions.allowed_apps()  # a bad app list stops the session here too
         if self._reply is ollama_reply:
             await asyncio.to_thread(_refuse_remote_model, local_model())
         if {self._transcribe, self._synthesize} & {lfm3_voice.lfm3_transcribe, lfm3_voice.lfm3_synthesize}:
@@ -323,6 +364,33 @@ class LocalVoiceAdapter:
         self._reset_utterance()
         self._events.put_nowait(None)
 
+    async def decide_action(self, id: str, allow: bool) -> None:
+        """The user's click. Anything but the pending request's own id is ignored, so a late,
+        repeated or guessed decision does nothing."""
+        pending = self._pending
+        if (pending is not None and isinstance(id, str) and not pending[1].done()
+                and hmac.compare_digest(id.encode("utf-8", "surrogatepass"), pending[0].encode())):
+            pending[1].set_result(allow is True)
+
+    async def _approve(self, summary: str) -> bool:
+        """Shows the request and waits for a click. Returns True only for Approve; a timeout raises
+        TimeoutError. An interrupt or close cancels this task, and every exit tells the browser."""
+        if self._pending is not None or self.closed:
+            return False
+        id_ = secrets.token_urlsafe(8)
+        decision: asyncio.Future[bool] = asyncio.get_running_loop().create_future()
+        self._pending = (id_, decision)
+        try:
+            await self._events.put(ApprovalRequest(id_, summary))
+            async with asyncio.timeout(APPROVAL_SECONDS):
+                await self._speak(APPROVAL_SENTENCE, asyncio.get_running_loop().time())
+                return await decision
+        finally:
+            self._pending = None
+            decision.cancel()
+            with contextlib.suppress(asyncio.QueueFull):
+                self._events.put_nowait(ApprovalClosed(id_))
+
     def _reset_utterance(self) -> None:
         self._utterance = bytearray()
         self._speech_seconds = self._silence_seconds = 0.0
@@ -347,7 +415,8 @@ class LocalVoiceAdapter:
             # an earlier turn so a failure is never swallowed.
             kept = []
             while not self._events.empty():
-                if isinstance(event := self._events.get_nowait(), AdapterError):
+                # A close notice stays so the console never keeps a card for a dead request.
+                if isinstance(event := self._events.get_nowait(), (AdapterError, ApprovalClosed)):
                     kept.append(event)
             for event in kept:
                 self._events.put_nowait(event)
@@ -367,6 +436,7 @@ class LocalVoiceAdapter:
                 self._events.put_nowait(Interrupted())
             self._replying.add(asyncio.current_task())
             _HEARD.set(text)
+            _APPROVE.set(self._approve)
             await self._events.put(Thinking())
             await self._events.put(Transcript("user", text))
             # The model asked for the time would call a tool and then invent the

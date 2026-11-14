@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import os
 import threading
@@ -15,6 +16,8 @@ from starlette.websockets import WebSocketDisconnect
 
 from super_agent_voice.adapter import (
     AdapterError,
+    ApprovalClosed,
+    ApprovalRequest,
     AudioChunk,
     FakeVoiceAdapter,
     Interrupted,
@@ -1022,6 +1025,84 @@ def test_invalid_control_and_oversized_audio_fail_closed() -> None:
         with pytest.raises(WebSocketDisconnect) as oversized:
             websocket.receive_json()
         assert oversized.value.code == 1009
+
+
+class DecidingAdapter(ScriptedAdapter):
+    """Like the local adapter, it takes the user's click."""
+
+    def __init__(self, events: Sequence[object]) -> None:
+        super().__init__(events)
+        self.decisions: list[tuple[str, bool]] = []
+
+    async def decide_action(self, id: str, allow: bool) -> None:
+        self.decisions.append((id, allow))
+
+
+def test_an_approval_request_reaches_the_browser_bounded_and_a_decision_reaches_the_adapter() -> None:
+    adapter = DecidingAdapter([ApprovalRequest("req-1", "x" * 300), ApprovalClosed("req-1")])
+    with make_client(adapter) as client, connect(client) as websocket:
+        authenticate(websocket)
+        assert websocket.receive_json() == {"type": "action.request", "id": "req-1", "summary": "x" * 200}
+        assert websocket.receive_json() == {"type": "action.closed", "id": "req-1"}
+        websocket.send_json({"type": "action.decision", "id": "req-1", "allow": True})
+        websocket.send_json({"type": "action.decision", "id": "req-2", "allow": False})
+        websocket.send_json({"type": "capture.mute"})  # its reply shows both decisions were handled
+        assert websocket.receive_json() == {"type": "session.state", "muted": True}
+    assert adapter.decisions == [("req-1", True), ("req-2", False)]
+
+
+def test_a_decision_is_harmless_when_the_adapter_has_no_actions() -> None:
+    adapter = ScriptedAdapter([])
+    with make_client(adapter) as client, connect(client) as websocket:
+        authenticate(websocket)
+        websocket.send_json({"type": "action.decision", "id": "req-1", "allow": True})
+        websocket.send_json({"type": "capture.mute"})
+        assert websocket.receive_json() == {"type": "session.state", "muted": True}
+
+
+@pytest.mark.parametrize("decision", [
+    {"type": "action.decision"},
+    {"type": "action.decision", "id": "req-1"},
+    {"type": "action.decision", "allow": True},
+    {"type": "action.decision", "id": "req-1", "allow": "true"},
+    {"type": "action.decision", "id": "req-1", "allow": 1},
+    {"type": "action.decision", "id": "req-1", "allow": None},
+    {"type": "action.decision", "id": 7, "allow": True},
+    {"type": "action.decision", "id": "", "allow": True},
+    {"type": "action.decision", "id": "x" * 33, "allow": True},
+    {"type": "action.decision", "id": "caf\u00e9", "allow": True},
+    {"type": "action.decision", "id": "\ud800", "allow": True},
+    {"type": "action.decision", "id": "req-1", "allow": True, "extra": 1},
+])
+def test_a_malformed_decision_fails_closed_like_any_bad_control(decision) -> None:
+    adapter = DecidingAdapter([])
+    with make_client(adapter) as client, connect(client) as websocket:
+        authenticate(websocket)
+        websocket.send_text(json.dumps(decision))
+        assert websocket.receive_json() == {"type": "session.error", "category": "invalid-control"}
+    assert adapter.decisions == []
+
+
+def test_an_approval_request_is_not_hidden_by_mute_or_an_interrupt() -> None:
+    from super_agent_voice.app import _forward_events, _OutboundQueue, _SessionFailure, _SessionState
+
+    class Scripted:
+        async def events(self):
+            yield ApprovalRequest("req-1", "Open the app Notes?")
+            yield ApprovalClosed("req-1")
+
+    async def scenario():
+        state = _SessionState(deadline=9.0, last_input=0.0, muted=True)
+        outbound = _OutboundQueue()
+        with pytest.raises(_SessionFailure):
+            await _forward_events(Scripted(), VoiceConfig(local_token=TOKEN), state, outbound)
+        outbound.clear_playback()
+        return [item.message for item in outbound._items]
+
+    assert asyncio.run(scenario()) == [
+        {"type": "action.request", "id": "req-1", "summary": "Open the app Notes?"},
+        {"type": "action.closed", "id": "req-1"},
+    ]
 
 
 # --- R-01.6 authentication controls (CR-01, CR-05, CR-06, CR-08, N1) ---

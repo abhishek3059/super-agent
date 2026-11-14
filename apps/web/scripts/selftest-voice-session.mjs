@@ -1574,5 +1574,81 @@ await (async function bargeInCountResetsWhenPlaybackStops() {
   assert.equal(socket.countText('playback.interrupt'), 1);
 })();
 
+await (async function approvalCardFollowsTheBackendAndOnlyAClickAnswers() {
+  beginTest('an action request becomes a pending card; a click sends the decision for its id');
+  const service = new VoiceSessionService();
+  micResolved();
+  const socket = await startLive(service);
+  assert.equal(service.pendingAction(), null);
+  socket.fireMessage({ type: 'action.request', id: 'req-1', summary: 'Open https://example.com/ in your browser?' });
+  assert.deepEqual(service.pendingAction(), { id: 'req-1', summary: 'Open https://example.com/ in your browser?' });
+  assert.equal(socket.countText('action.decision'), 0, 'nothing is sent until the user clicks');
+  service.decideAction(true);
+  assert.deepEqual(socket.lastText(), { type: 'action.decision', id: 'req-1', allow: true });
+  assert.equal(service.pendingAction(), null, 'the card goes once answered');
+  service.decideAction(true);
+  assert.equal(socket.countText('action.decision'), 1, 'with no card there is nothing to answer');
+
+  socket.fireMessage({ type: 'action.request', id: 'req-2', summary: 'Open the app Notes?' });
+  service.decideAction(false);
+  assert.deepEqual(socket.lastText(), { type: 'action.decision', id: 'req-2', allow: false });
+  assert.equal(socket.countText('action.decision'), 2);
+})();
+
+await (async function approvalCardClearsWhenTheRequestEnds() {
+  beginTest('closed, stop, error and socket close clear the card; a stale closed does not');
+  const service = new VoiceSessionService();
+  micResolved();
+  let socket = await startLive(service);
+  const request = (id) => socket.fireMessage({ type: 'action.request', id, summary: 'Open the app Notes?' });
+  request('req-1');
+  socket.fireMessage({ type: 'action.closed', id: 'other' });
+  assert.equal(service.pendingAction()?.id, 'req-1', 'a close for another request is ignored');
+  socket.fireMessage({ type: 'action.closed', id: 'req-1' });
+  assert.equal(service.pendingAction(), null);
+
+  request('req-2');
+  service.stop();
+  await flushed();
+  assert.equal(service.pendingAction(), null, 'stop clears it');
+
+  micResolved();
+  socket = await startLive(service);
+  request('req-3');
+  socket.fireMessage({ type: 'session.error', category: 'session-failed' });
+  await flushed();
+  assert.equal(service.pendingAction(), null, 'an error clears it');
+
+  micResolved();
+  socket = await startLive(service);
+  request('req-4');
+  socket.fireClose();
+  await flushed();
+  assert.equal(service.pendingAction(), null, 'a closed socket clears it');
+})();
+
+await (async function approvalCardRejectsMalformedRequests() {
+  beginTest('malformed action requests show nothing and do not fail the session');
+  const service = new VoiceSessionService();
+  micResolved();
+  const socket = await startLive(service);
+  for (const bad of [
+    {}, { id: 'a' }, { summary: 'x' }, { id: '', summary: 'x' }, { id: 'a', summary: '' },
+    { id: 7, summary: 'x' }, { id: 'a', summary: { toString: () => 'x' } }, { id: 'x'.repeat(33), summary: 'x' },
+    { id: ['a'], summary: 'x' },
+  ]) {
+    socket.fireMessage({ type: 'action.request', ...bad });
+    assert.equal(service.pendingAction(), null, `ignored: ${JSON.stringify(bad)}`);
+  }
+  socket.fireMessage({ type: 'action.request', id: 'a', summary: '<b>x</b>'.repeat(60) });
+  assert.equal(service.pendingAction().summary.length, 200, 'the summary is bounded');
+  await flushed();
+  assert.equal(service.status(), 'listening');
+  // A decision needs an open socket.
+  socket.readyState = 3;
+  service.decideAction(true);
+  assert.equal(socket.countText('action.decision'), 0);
+})();
+
 // Any failed assert above throws and exits with a non-zero code.
 console.log(`voice-session self-test: PASS (${casesRun} cases)`);
