@@ -427,6 +427,17 @@ merged into `develop` as `4dbb5b0`. R-A.1 is ticked with the updated
 [approval record](docs/approvals/capability-ladder-decision.md). No tier is
 enabled and no gate moves. R-A.2, the cloud data and cost decision, stays open.
 
+## Shared AI reviewer replaces required human review (2026-11-12)
+
+`abhishek3059` proposed replacing the required human review on `develop` with
+one shared AI reviewer, because the maintainers work in different time zones
+([DEC-19](descisions.md#dec-19)). `jeevesh2515` approved it on
+2026-11-13 ([record](docs/approvals/shared-ai-reviewer-decision.md)). The
+reviewer, [.claude/agents/reviewer.md](.claude/agents/reviewer.md), becomes the
+review gate in AGENTS.md section 9, run the same way on both machines. The
+**Repository checks** status check stays required, and changes reserved to
+both maintainers still need both approvals. No runtime gate moves.
+
 ## PH-01 local microphone evidence recovered (2026-11-12)
 
 The [R-01.4 operator report](docs/approvals/r01-4-microphone-test.md) was

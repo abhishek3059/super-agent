@@ -238,9 +238,20 @@ Replace the blanket ban on assistant capabilities with a capability ladder: auth
 - **Source evidence:** `jeevesh2515` in chat with Claude Code, 2026-11-12, asking for max-capability use as the project's CTO; [AGENTS.md](AGENTS.md) sections 5 and 10.
 - **Reopen:** Any tier's design review fails or an incident occurs at that tier (drop back one tier); or the maintainers decide to add, merge, or remove a tier.
 
+### DEC-19
+
+Replace the required human review on `develop` with one shared AI reviewer that both maintainers run: [.claude/agents/reviewer.md](.claude/agents/reviewer.md).
+
+- **Status:** Approved by both maintainers: proposed by `abhishek3059` 2026-11-12, approved by `jeevesh2515` in a [PR #37 review](https://github.com/abhishek3059/super-agent/pull/37#pullrequestreview-5893054369) on 2026-11-13 ([approval record](docs/approvals/shared-ai-reviewer-decision.md)). In force when PR #37 merges. After it merges, `abhishek3059` removes the required approving review from the `develop` ruleset.
+- **Rationale:** The maintainers work in different time zones, so waiting for a human review stalls every PR. The quality gate in [AGENTS.md](AGENTS.md) section 9 already existed, but each agent scored itself or picked its own reviewer, so scores were not comparable across machines and tools. One committed reviewer, run in a fresh context with a fixed rubric (and a fixed model within Claude Code), makes the gate the same for every PR. Other tools use their own model and record it in the report.
+- **Alternatives and trade-offs:** (a) Keep the required human code-owner review: strongest check, but blocks for a day per PR across time zones. (b) No review: fastest, but nothing independent checks evidence before a roadmap tick. (c) A shared AI reviewer, run locally: free under the $0 cap and uniform, but a model can miss what a person would catch. (d) A hosted reviewer in CI or GitHub Agent HQ: automatic, but costs money against the $0 cap.
+- **Implications:** AGENTS.md sections 3, 9, and 11 rule 7, [CONTRIBUTING.md](CONTRIBUTING.md), the PR template, and roadmap item R-R.4 point to the shared reviewer. The **Repository checks** status check stays required. `main` keeps a required human review for release PRs. [.github/CODEOWNERS](.github/CODEOWNERS) still requests reviews, but they no longer block merging. The changes listed in AGENTS.md section 3 still need both maintainers (a paid service, moving a gate or phase, a roadmap exception, and, added by this decision, a change to an AGENTS.md rule or a DEC entry), and the reviewer returns REVISE without them. The reviewer's Bash access is read-only by instruction in its file, not by tool permissions. Maintainers can still review any PR by choice.
+- **Source evidence:** `abhishek3059` in chat with Claude Code, 2026-11-12 ([approval record](docs/approvals/shared-ai-reviewer-decision.md)).
+- **Reopen:** A defect reaches `develop` that the reviewer passed; a dishonest roadmap tick is found; or either maintainer asks to bring human review back.
+
 ## Register fields
 
-Every DEC entry from [DEC-01](#dec-01) to [DEC-18](#dec-18) above carries the seven contracted fields inline: status, rationale, alternatives and trade-offs, implications, source evidence, and reopen conditions. This summary restates the register; it does not replace the individual records.
+Every DEC entry from [DEC-01](#dec-01) to [DEC-19](#dec-19) above carries the seven contracted fields inline: status, rationale, alternatives and trade-offs, implications, source evidence, and reopen conditions. This summary restates the register; it does not replace the individual records.
 
 ## Provisional and post-review status
 
