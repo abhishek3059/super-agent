@@ -16,7 +16,8 @@ from fastapi import FastAPI, HTTPException, Request, WebSocket
 from starlette.websockets import WebSocketDisconnect
 
 from .adapter import (
-    AdapterError, AudioChunk, FakeVoiceAdapter, Interrupted, Thinking, Transcript, TurnComplete,
+    AdapterError, ApprovalClosed, ApprovalRequest, AudioChunk, FakeVoiceAdapter, Interrupted, Thinking,
+    Transcript, TurnComplete,
     VoiceAdapter,
 )
 from .config import VoiceConfig
@@ -779,7 +780,8 @@ async def _receive(
             if not state.muted:
                 await adapter.enqueue_audio(audio)
             continue
-        event = _control(incoming.get("text"), settings).get("type")
+        control = _control(incoming.get("text"), settings)
+        event = control.get("type")
         if event == "capture.mute":
             state.muted = True
             outbound.clear_playback()
@@ -796,6 +798,14 @@ async def _receive(
             outbound.put(_Outbound({
                 "type": "playback.interrupted", "playbackEpoch": state.epoch, "source": "local",
             }))
+        elif event == "action.decision":
+            id_, allow = control.get("id"), control.get("allow")
+            if (control.keys() != {"type", "id", "allow"} or not isinstance(id_, str)
+                    or not 0 < len(id_) <= 32 or not id_.isascii() or type(allow) is not bool):
+                raise _SessionFailure("invalid-control")
+            # Only the local adapter has actions; for the others a decision is a harmless no-op.
+            if (decide := getattr(adapter, "decide_action", None)) is not None:
+                await decide(id_, allow)
         elif event == "session.stop":
             raise _Stopped()
         else:
@@ -849,6 +859,14 @@ async def _forward_events(
                 outbound.put(_Outbound({
                     "type": "conversation.text", "role": event.role, "text": event.text[:500],
                 }, epoch=state.epoch))
+        elif isinstance(event, ApprovalRequest):
+            # Not tied to mute or the playback epoch: the card must reach the screen, and the
+            # summary is bounded here, not trusted from the adapter.
+            if isinstance(event.id, str) and isinstance(event.summary, str):
+                outbound.put(_Outbound({"type": "action.request", "id": event.id[:32], "summary": event.summary[:200]}))
+        elif isinstance(event, ApprovalClosed):
+            if isinstance(event.id, str):
+                outbound.put(_Outbound({"type": "action.closed", "id": event.id[:32]}))
         elif isinstance(event, TurnComplete):
             if not state.muted:
                 outbound.put(_Outbound({

@@ -31,6 +31,7 @@ export class AppComponent implements OnDestroy {
   @ViewChild('settingsPanel') private settingsPanel?: ElementRef<HTMLElement>;
   @ViewChild('tokenInput') private tokenInput?: ElementRef<HTMLInputElement>;
   @ViewChild('transcript') private transcript?: ElementRef<HTMLElement>;
+  @ViewChild('denyButton') private denyButton?: ElementRef<HTMLButtonElement>;
 
   readonly session = inject(VoiceSessionService);
   readonly settingsOpen = signal(false);
@@ -53,6 +54,11 @@ export class AppComponent implements OnDestroy {
     this.session.conversation();
     const el = this.transcript?.nativeElement;
     if (el) el.scrollTop = el.scrollHeight;
+  });
+
+  // Deny is focused first, so a stray Enter or Space never approves.
+  private readonly focusActionCard = afterRenderEffect(() => {
+    if (this.session.pendingAction()) this.denyButton?.nativeElement.focus();
   });
 
   token = '';
@@ -126,6 +132,17 @@ export class AppComponent implements OnDestroy {
 
   stop(): void {
     this.session.stop();
+  }
+
+  /**
+   * Approve needs a real click: a script-made click event is not trusted and is ignored. Approve
+   * is also ignored for half a second after the card appears, so a click meant for a button the
+   * card pushed down cannot approve.
+   */
+  decide(allow: boolean, event: Event): void {
+    if (!event.isTrusted) return;
+    if (allow && performance.now() - this.session.pendingActionShownAt() < 500) return;
+    this.session.decideAction(allow);
   }
 
   endOrStart(): void {
