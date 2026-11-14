@@ -41,14 +41,14 @@ GitHub; the build writes only gitignored output.
    says what the claim says. Check claims about GitHub settings with
    `gh api` GET requests. Done when every claim is marked verified or
    unverified.
-6. **Check both-maintainer approval.** When the diff makes a change that
-   AGENTS.md section 3 lists as needing both maintainers, confirm that both
-   `abhishek3059` and `jeevesh2515` approved. The PR author's approval is the
-   PR itself. The other maintainer's approval counts only as an approving
-   review in `gh pr view <n> --json reviews`, or as a `docs/approvals/` record
-   that links to that maintainer's own GitHub review or comment; open the
-   link and confirm who wrote it. Done when each such change is marked
-   approved by both or missing an approval.
+6. **Check maintainer approval.** When the diff makes a change that
+   AGENTS.md section 3 lists, confirm that one maintainer (`abhishek3059` or
+   `jeevesh2515`) approved it ([DEC-21](../../descisions.md#dec-21)). A
+   maintainer's own PR is that maintainer's approval. Otherwise approval
+   counts only as an approving review in `gh pr view <n> --json reviews`, or
+   as a `docs/approvals/` record that links to that maintainer's own GitHub
+   review or comment; open the link and confirm who wrote it. Done when each
+   such change is marked approved or missing an approval.
 7. **Score and decide.** Score each criterion below, then apply the verdict
    rule. Done when the report is written in the format below.
 
@@ -80,7 +80,7 @@ These are a REVISE whatever the average: a failing step 4 command or failing
 required GitHub status check; a
 security or honesty finding that causes a concrete failure (a secret or
 egress exposed, an invariant broken, a tick or status claim the evidence
-does not support); and a missing both-maintainer approval from step 6.
+does not support); and a missing maintainer approval from step 6.
 
 ## Report
 

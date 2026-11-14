@@ -450,3 +450,11 @@ R-01.4 and predates the PR #34 console.
 R-01.10 and RT-G01 remain open. The recorded native run used a standalone
 synthetic probe. It did not cover native behavior through the application
 boundary or demonstrate interruption of a long provider reply.
+
+## One maintainer's approval is enough (2026-11-14)
+
+`abhishek3059` decided in chat that one maintainer's approval is enough for
+every change, with no exception, and that an agent may approve and merge a PR
+on a maintainer's behalf after he confirms that one PR in chat
+([DEC-21](descisions.md#dec-21)). AGENTS.md, roadmap rule 5, and the shared
+reviewer's step 6 now say so. No runtime gate moves.

@@ -249,12 +249,24 @@ Replace the required human review on `develop` with one shared AI reviewer that 
 - **Source evidence:** `abhishek3059` in chat with Claude Code, 2026-11-12 ([approval record](docs/approvals/shared-ai-reviewer-decision.md)).
 - **Reopen:** A defect reaches `develop` that the reviewer passed; a dishonest roadmap tick is found; or either maintainer asks to bring human review back.
 
+### DEC-21
+
+An agent may approve and merge a PR on a maintainer's behalf, one PR at a time, after that maintainer confirms it in chat.
+
+- **Status:** Decided 2026-11-14 by `abhishek3059`, who said in chat that his single review is enough and no second maintainer review is needed. In force when the PR that carries it merges.
+- **Rationale:** Many open agent-written PRs wait on the other maintainer's click. The maintainer still decides each merge; the agent only does the review and the clicks.
+- **Rules:** the agent reviews the PR and shows its findings first; the maintainer confirms that one PR in chat (no blanket approval); the agent never approves or merges a PR it authored, never approves on behalf of the PR's own author, and never uses admin bypass; the review text names the maintainer, the agent, and the date. Branch protection still applies.
+- **Alternatives and trade-offs:** (a) Keep the old rule: safest, but merges stall across time zones. (b) Blanket merge permission: fastest, but no human looks at each PR. (c) Per-PR confirmation: a human decides each merge, but trusts the agent's review of the code. One maintainer's confirmation is enough.
+- **Implications:** [AGENTS.md](AGENTS.md) sections 1, 3, 6, and 11, roadmap rule 5, and the shared reviewer's step 6 are amended. Releases into `main` still need the main ruleset's review. Works with [DEC-19](#dec-19): the shared reviewer still runs first. It replaces every both-maintainer requirement, including those in [DEC-18](#dec-18) and [DEC-19](#dec-19): one maintainer's approval is enough for every change, with no exception. A PR the maintainer authored cannot get his own GitHub approval, so the agent may merge it with the maintainer's admin bypass only when he confirms that PR in chat; the review comment says so.
+- **Source evidence:** `abhishek3059` in chat with Claude Code, 2026-11-14.
+- **Reopen:** A merged PR is found to have skipped its review, or a maintainer asks to bring back two-maintainer approval.
+
 ## Register fields
 
-Every DEC entry from [DEC-01](#dec-01) to [DEC-19](#dec-19) above carries the seven contracted fields inline: status, rationale, alternatives and trade-offs, implications, source evidence, and reopen conditions. This summary restates the register; it does not replace the individual records.
+Every DEC entry from [DEC-01](#dec-01) to [DEC-19](#dec-19), and [DEC-21](#dec-21), above carries the seven contracted fields inline: status, rationale, alternatives and trade-offs, implications, source evidence, and reopen conditions. This summary restates the register; it does not replace the individual records.
 
 ## Provisional and post-review status
 
-[DEC-04](#dec-04) is conditional; [DEC-06](#dec-06) records a provisional post-review Researcher follow-up candidate, not a re-voted council consensus and not a tested or approved runtime selection; [DEC-13](#dec-13), [DEC-14](#dec-14), and [DEC-15](#dec-15) are deferred; [DEC-17](#dec-17) is repository tooling only; [DEC-18](#dec-18) is approved by both maintainers but enables no tier by itself. None of these statuses is a runtime approval, and no decision in this register claims tested access or an approved provider.
+[DEC-04](#dec-04) is conditional; [DEC-06](#dec-06) records a provisional post-review Researcher follow-up candidate, not a re-voted council consensus and not a tested or approved runtime selection; [DEC-13](#dec-13), [DEC-14](#dec-14), and [DEC-15](#dec-15) are deferred; [DEC-17](#dec-17) is repository tooling only; [DEC-18](#dec-18) is approved by both maintainers but enables no tier by itself; [DEC-21](#dec-21) is a repository process rule, not a runtime approval. None of these statuses is a runtime approval, and no decision in this register claims tested access or an approved provider.
 
 See [Native transport research](docs/design/super-agent.md) in the signed design and the council meeting records.
