@@ -431,8 +431,8 @@ enabled and no gate moves. R-A.2, the cloud data and cost decision, stays open.
 
 `abhishek3059` proposed replacing the required human review on `develop` with
 one shared AI reviewer, because the maintainers work in different time zones
-([DEC-19](descisions.md#dec-19)). It is a proposal until `jeevesh2515`
-approves ([record](docs/approvals/shared-ai-reviewer-decision.md)). The
+([DEC-19](descisions.md#dec-19)). `jeevesh2515` approved it on
+2026-11-13 ([record](docs/approvals/shared-ai-reviewer-decision.md)). The
 reviewer, [.claude/agents/reviewer.md](.claude/agents/reviewer.md), becomes the
 review gate in AGENTS.md section 9, run the same way on both machines. The
 **Repository checks** status check stays required, and changes reserved to

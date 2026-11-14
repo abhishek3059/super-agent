@@ -5,7 +5,7 @@
 | Date | 2026-11-12 |
 | Scope | Replace the required human review on `develop` with one shared AI reviewer, [.claude/agents/reviewer.md](../../.claude/agents/reviewer.md). Decision text: [DEC-19](../../descisions.md#dec-19). |
 | `abhishek3059` | **Proposed and approved, 2026-11-12**, in chat with Claude Code (`claude-opus-5-5`), which recorded it at his instruction. |
-| `jeevesh2515` | **Pending.** Approval is the review of the PR that carries this record. Until then DEC-19 is a proposal. |
+| `jeevesh2515` | **Approved, 2026-11-13**, in a [PR #37 review](https://github.com/abhishek3059/super-agent/pull/37#pullrequestreview-5893054369). GitHub later marked that review dismissed only because `develop` was merged into the branch on 2026-11-14 to resolve `progress.md` conflicts; the decision text did not change. |
 | Effect | None until both approve. On 2026-11-12 the `develop` ruleset still required one approving review and code-owner review. |
 
 ## What changes if both approve
