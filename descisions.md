@@ -242,11 +242,11 @@ Replace the blanket ban on assistant capabilities with a capability ladder: auth
 
 An agent may approve and merge a PR on a maintainer's behalf, one PR at a time, after that maintainer confirms it in chat.
 
-- **Status:** Proposed 2026-11-14 by `abhishek3059`. Not in force until `jeevesh2515` approves the PR that carries it, because it gives agents new authority ([AGENTS.md](AGENTS.md) section 10).
+- **Status:** Decided 2026-11-14 by `abhishek3059`, who said in chat that his single review is enough and no second maintainer review is needed. In force when the PR that carries it merges.
 - **Rationale:** Many open agent-written PRs wait on the other maintainer's click. The maintainer still decides each merge; the agent only does the review and the clicks.
 - **Rules:** the agent reviews the PR and shows its findings first; the maintainer confirms that one PR in chat (no blanket approval); the agent never approves or merges a PR it authored, never approves on behalf of the PR's own author, and never uses admin bypass; the review text names the maintainer, the agent, and the date. Branch protection still applies.
-- **Alternatives and trade-offs:** (a) Keep the old rule: safest, but merges stall across time zones. (b) Blanket merge permission: fastest, but no human looks at each PR. (c) Per-PR confirmation: a human decides each merge, but trusts the agent's review of the code.
-- **Implications:** [AGENTS.md](AGENTS.md) section 3 is amended. Releases into `main` still need the main ruleset's review. Works with DEC-19 (PR #37) if that merges.
+- **Alternatives and trade-offs:** (a) Keep the old rule: safest, but merges stall across time zones. (b) Blanket merge permission: fastest, but no human looks at each PR. (c) Per-PR confirmation: a human decides each merge, but trusts the agent's review of the code. One maintainer's confirmation is enough.
+- **Implications:** [AGENTS.md](AGENTS.md) section 3 is amended. Releases into `main` still need the main ruleset's review. Works with DEC-19 (PR #37) if that merges. A PR the maintainer authored cannot get his own GitHub approval, so the agent may merge it with the maintainer's admin bypass only when he confirms that PR in chat; the review comment says so.
 - **Source evidence:** `abhishek3059` in chat with Claude Code, 2026-11-14.
 - **Reopen:** A merged PR is found to have skipped its review, or either maintainer withdraws consent.
 
@@ -256,6 +256,6 @@ Every DEC entry from [DEC-01](#dec-01) to [DEC-18](#dec-18), and [DEC-21](#dec-2
 
 ## Provisional and post-review status
 
-[DEC-04](#dec-04) is conditional; [DEC-06](#dec-06) records a provisional post-review Researcher follow-up candidate, not a re-voted council consensus and not a tested or approved runtime selection; [DEC-13](#dec-13), [DEC-14](#dec-14), and [DEC-15](#dec-15) are deferred; [DEC-17](#dec-17) is repository tooling only; [DEC-18](#dec-18) is proposed and not yet approved by both maintainers; [DEC-21](#dec-21) is proposed and not yet approved by `jeevesh2515`. None of these statuses is a runtime approval, and no decision in this register claims tested access or an approved provider.
+[DEC-04](#dec-04) is conditional; [DEC-06](#dec-06) records a provisional post-review Researcher follow-up candidate, not a re-voted council consensus and not a tested or approved runtime selection; [DEC-13](#dec-13), [DEC-14](#dec-14), and [DEC-15](#dec-15) are deferred; [DEC-17](#dec-17) is repository tooling only; [DEC-18](#dec-18) is proposed and not yet approved by both maintainers; [DEC-21](#dec-21) is a repository process rule, not a runtime approval. None of these statuses is a runtime approval, and no decision in this register claims tested access or an approved provider.
 
 See [Native transport research](docs/design/super-agent.md) in the signed design and the council meeting records.

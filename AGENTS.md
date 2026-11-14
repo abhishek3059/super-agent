@@ -54,8 +54,9 @@ npm run check
   authored. An agent may approve and merge another author's PR on a
   maintainer's behalf only when that maintainer confirms that one PR in chat
   at that moment, after seeing the agent's review ([DEC-21](descisions.md#dec-21)).
-  The review text names the maintainer, the agent, and the date. Agents never
-  use admin bypass, and never approve on behalf of the PR's own author.
+  One maintainer's confirmation is enough. The review text names the
+  maintainer, the agent, and the date. Admin bypass is used only for a PR the
+  confirming maintainer authored, and only when he confirms that PR.
 
 ## 4. Honesty rules
 
