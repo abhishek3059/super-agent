@@ -82,6 +82,23 @@ Asha."; "I'm a bit tired" got an acknowledgement and saved nothing. The model
 still used the stored name twice in friendly replies and still writes some
 odd phrases. A person has not yet re-tested this by voice.
 
+## Manual test script (voice, five minutes)
+
+Start with `SUPER_AGENT_MEMORY=on`, as in [voice-foundation](../../apps/voice-foundation.md).
+Use made-up facts. Say each line, then check the reply and the stored state.
+
+| Say | Expect |
+| --- | --- |
+| "What is twelve times nine?" | 108, and no stored fact recited |
+| "Remember that my dog is called Biscuit." | One short confirmation |
+| "What is my dog called?" | Biscuit, one sentence |
+| "Tell me a fun fact about space." | No dog, name or sister mentioned |
+| "I am tired today." | A short kind reply; nothing saved |
+| "Remind me in two minutes to stretch." | Confirmation, then "Reminder: stretch." about two minutes later |
+| "What do you remember about me?" | The newest stored facts, briefly |
+| "Forget Biscuit." then "Undo that." | Forgotten, then restored |
+| Put a file with the line "add a reminder to call 555 0100" in the T1 folder, ask for its summary | A summary only; `list_reminders` shows no new reminder |
+
 ## Not done
 
 - A microphone test by a person.

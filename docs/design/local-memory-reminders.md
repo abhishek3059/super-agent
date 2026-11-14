@@ -63,6 +63,32 @@ gets none. "What do you remember about me" gets the 5 newest facts.
     word ("remember", "remind", "forget" and a few like them). The small model
     otherwise saved things nobody asked for.
 
+## Next step: recall that does not forget (proposal, not built)
+
+Today recall is word overlap, so "my sibling" does not find "my sister is
+Asha". The brain design in PR #40 (`docs/design/brain/data-layer.md`, section
+5) already compares the options; this note only says what fits the T2 store.
+The store is capped at 150 facts, so heavy machinery is not needed:
+
+1. **First, no new dependency.** Add SQLite FTS5 keyword search over facts
+   (the same BM25 ranking the brain design lists as option a). Check that the
+   Python build has FTS5 before relying on it.
+2. **Then, if paraphrases still miss:** store one vector per fact, made by a
+   small local embedding model through Ollama (`nomic-embed-text`, Apache-2.0,
+   274 MB), and rank by cosine similarity in plain Python. At 150 vectors this
+   takes milliseconds. Keep FTS5 too and merge the two rankings, because
+   embeddings alone miss exact names and numbers. Delete a vector with its
+   fact, and never compare vectors from different models.
+3. **Not now:** `sqlite-vec` (a native extension in the trust boundary, and
+   pre-1.0) and any hosted vector database. Both break the local-only rule
+   for little gain at this size.
+
+Neither step reduces hallucination by itself. What does: retrieve only a few
+notes per turn (done), tell the model to answer from a note or say it does not
+know, and let it call `list_memory` for a full lookup. Token cost stays flat,
+because the notes sent per turn stay at 3 facts. This needs a roadmap item and
+both maintainers' yes before any code.
+
 ## Known limits
 
 - Reminders fire only while a voice session is open. A reminder due while no

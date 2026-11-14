@@ -5,11 +5,14 @@ native voice-to-voice conversation, hands-free active-session use, and bounded
 background task delegation.
 
 > **Mostly documentation.** The runnable application code is a local voice
-> scaffold in [`apps/`](apps/voice-foundation.md). Its browser console constructs
-> only the fake streaming adapter. A Gemini Live adapter and locked SDK exist
-> behind the seam, and an opt-in command has run it with synthetic speech. The
-> browser is not wired to Gemini. There are no tools, workers, stored audio, or
-> complete runnable assistant. RT-G01 and later runtime gates remain open.
+> scaffold in [`apps/`](apps/voice-foundation.md). On `develop` its browser
+> console constructs only the fake streaming adapter; a Gemini Live adapter and
+> locked SDK exist behind the seam. The open PRs #36, #43, and #45 (a stack,
+> not yet merged) add an opt-in fully local assistant: speech in and out and a
+> 4B model on the Mac, read-only file, calendar, notes, and mail tools (T1), and
+> local memory and reminders (T2). Nothing leaves the machine in that stack. There are
+> no workers, stored audio, or complete assistant. RT-G01 and later runtime
+> gates remain open.
 
 ## Start here
 

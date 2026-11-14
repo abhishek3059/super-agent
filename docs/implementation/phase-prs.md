@@ -80,6 +80,11 @@ keep one PR per phase.
 | [#29](https://github.com/abhishek3059/super-agent/pull/29) | `feat(voice): streaming seam and offline-tested Gemini Live adapter (R-01.7)` | closed | Not merged directly; its adapter was later ported onto the current seam in #32. |
 | [#31](https://github.com/abhishek3059/super-agent/pull/31) | `docs(plan): completion plan, JARVIS architecture, and agent hand-off prompt` | merged | Historical planning snapshot; no gate effect. |
 | [#32](https://github.com/abhishek3059/super-agent/pull/32) | `PH-01: tick evidenced items, token hardening, and Gemini Live adapter (R-01.7)` | merged | Merged as `651e33c`; R-01.3, R-01.5, R-01.F1, and R-01.6 through R-01.9 are ticked. |
+| [#36](https://github.com/abhishek3059/super-agent/pull/36) | `feat(voice): add an opt-in fully local voice adapter and spike A4` | open | Needs review. Base of the stack #43 and #45. |
+| [#42](https://github.com/abhishek3059/super-agent/pull/42) | `fix(ph-01): recover R-01.4 evidence and close playback, close, capture and provider-destination defects (F5-F8)` | open | Needs review. Recovers the R-01.4 record and the F5 to F8 fixes. |
+| [#43](https://github.com/abhishek3059/super-agent/pull/43) | `feat(voice): tier 1 read-only tools and LFM3-Audio ears and mouth with a 4B brain` | open | Stacked on #36. Out-of-order T1 work under an [exception record](../approvals/tier1-local-exception.md) awaiting the second maintainer. |
+| [#44](https://github.com/abhishek3059/super-agent/pull/44) | `docs(design): add the Roamies design reference (ideas only, no code)` | open | Design reference for PH-02, PH-05, and PH-06. Nothing built. |
+| [#45](https://github.com/abhishek3059/super-agent/pull/45) | `feat(voice): local memory and reminders (T2) with forget and undo` | open | Stacked on #43. Out-of-order T2 work under an [exception record](../approvals/local-memory-exception.md) awaiting the second maintainer. |
 
 ## Next PH-01 work
 
