@@ -6,6 +6,8 @@ import os
 import threading
 import time
 from collections.abc import Callable, Sequence
+from contextlib import asynccontextmanager
+from types import SimpleNamespace as NS
 
 import pytest
 from fastapi.testclient import TestClient
@@ -22,6 +24,7 @@ from super_agent_voice import config as config_module
 from super_agent_voice import generate_token
 from super_agent_voice.app import create_app
 from super_agent_voice.config import VoiceConfig
+from super_agent_voice.gemini_adapter import GeminiLiveAdapter
 
 TOKEN = "t" * 32
 ORIGIN = "http://127.0.0.1:4200"
@@ -911,6 +914,57 @@ def test_provider_interrupt_advances_the_epoch() -> None:
             "format": "pcm16",
         }
         assert websocket.receive_bytes() == b"\x03\x00\x04\x00"
+        assert websocket.receive_json() == {"type": "turn.complete", "playbackEpoch": 1}
+
+
+def test_gemini_drops_old_turn_audio_between_local_interrupt_and_provider_ack() -> None:
+    first_pcm, stale_pcm, fresh_pcm = b"\x01\x00", b"\x02\x00", b"\x03\x00"
+
+    def provider_audio(pcm: bytes) -> NS:
+        return NS(server_content=NS(model_turn=NS(parts=[NS(inline_data=NS(data=pcm))])))
+
+    class FakeGeminiSession:
+        def __init__(self) -> None:
+            self.input: asyncio.Queue[bytes | None] = asyncio.Queue()
+
+        async def send_realtime_input(self, *, audio: bytes | None = None, audio_stream_end: bool = False) -> None:
+            self.input.put_nowait(None if audio_stream_end else audio)
+
+        async def receive(self):
+            pcm = await self.input.get()
+            assert pcm is not None
+            yield provider_audio(pcm)
+            if pcm == first_pcm:
+                assert await self.input.get() is None
+                # The old reply may still arrive after the local epoch changes.
+                yield provider_audio(stale_pcm)
+            yield NS(server_content=NS(turn_complete=True))
+
+    @asynccontextmanager
+    async def sdk_connect():
+        yield FakeGeminiSession()
+
+    def factory() -> GeminiLiveAdapter:
+        return GeminiLiveAdapter("test-model", connect=sdk_connect, blob=bytes)
+
+    with make_client(factory=factory) as client, connect(client) as websocket:
+        websocket.send_json({"type": "session.auth", "token": TOKEN})
+        assert websocket.receive_json() == {**READY, "provider": "gemini-live", "outputRateHz": 24000}
+        websocket.send_bytes(first_pcm)
+        assert websocket.receive_json()["playbackEpoch"] == 0
+        assert websocket.receive_bytes() == first_pcm
+
+        websocket.send_json({"type": "playback.interrupt"})
+        assert websocket.receive_json() == {
+            "type": "playback.interrupted", "playbackEpoch": 1, "source": "local",
+        }
+        assert websocket.receive_json() == {"type": "turn.complete", "playbackEpoch": 1}
+
+        websocket.send_bytes(fresh_pcm)
+        assert websocket.receive_json() == {
+            "type": "audio.chunk", "playbackEpoch": 1, "rateHz": 24000, "channels": 1, "format": "pcm16",
+        }
+        assert websocket.receive_bytes() == fresh_pcm
         assert websocket.receive_json() == {"type": "turn.complete", "playbackEpoch": 1}
 
 
