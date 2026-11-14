@@ -23,6 +23,7 @@ elif [[ "$listen" != "127.0.0.1:11434" ]]; then
   echo "Ollama is already listening on: $listen. Quit it, then run this again."; exit 1
 fi
 echo "Tier 1 read access: ${SUPER_AGENT_T1:-off}${SUPER_AGENT_T1_FOLDERS:+ (folders: $SUPER_AGENT_T1_FOLDERS)}"
+echo "Memory and reminders: ${SUPER_AGENT_MEMORY:-off}"
 
 export SUPER_AGENT_ADAPTER=local PYTHONPATH=apps/api/src
 if [[ "$mode" == "lfm3" ]]; then export SUPER_AGENT_STT=lfm3 SUPER_AGENT_TTS=lfm3; fi

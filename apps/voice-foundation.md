@@ -34,6 +34,11 @@ cannot change, send, or delete anything. T1 is off unless you set
 `SUPER_AGENT_T1` (any of `files,calendar,notes,mail`) and, for files,
 `SUPER_AGENT_T1_FOLDERS`.
 
+With `SUPER_AGENT_MEMORY=on` it also remembers facts and sets reminders in a
+local file, `~/.super-agent/memory.db`, and can forget them (tier T2,
+[design](../docs/design/local-memory-reminders.md)). Due reminders are spoken
+between turns while a session is open.
+
 ### Start it on a Mac
 
 One-time setup (Python 3.12, about 9 GB of models outside the repository):
@@ -52,7 +57,8 @@ spike A5 record).
 Then, from the repository:
 
 ```bash
-SUPER_AGENT_T1=files SUPER_AGENT_T1_FOLDERS="$HOME/super-agent-t1-demo" scripts/start-voice-mac.sh lfm3
+SUPER_AGENT_MEMORY=on SUPER_AGENT_T1=files SUPER_AGENT_T1_FOLDERS="$HOME/super-agent-t1-demo" \
+  scripts/start-voice-mac.sh lfm3
 ```
 
 Open <http://127.0.0.1:4200>, run `pbcopy < ~/.super-agent/voice-token`, paste
