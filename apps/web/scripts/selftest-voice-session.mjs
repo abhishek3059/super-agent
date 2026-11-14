@@ -366,6 +366,54 @@ await (async function connectingBeforeReady() {
   assert.equal(env.micCalls, 0);
 })();
 
+await (async function nonLocalReadyDoesNotCapture() {
+  for (const provider of ['unknown-cloud', undefined]) {
+    beginTest('an unexpected or missing provider cannot start local microphone capture');
+    micResolved();
+    const service = new VoiceSessionService();
+    await service.start(TOKEN);
+    const socket = lastSocket();
+    socket.open();
+    socket.fireMessage({ ...READY, provider });
+    await flushed();
+    assert.equal(service.status(), 'error');
+    assert.equal(service.error(), 'Unexpected voice provider. Local capture stays off.');
+    assert.equal(env.micCalls, 0);
+    assert.equal(socket.countBinary(), 0);
+    assert.equal(socket.readyState, FakeWebSocket.CLOSED);
+  }
+})();
+
+await (async function localProviderMayCapture() {
+  beginTest('the on-device local provider may start microphone capture');
+  micResolved();
+  const service = new VoiceSessionService();
+  await service.start(TOKEN);
+  const socket = lastSocket();
+  socket.open();
+  socket.fireMessage({ ...READY, provider: 'local' });
+  await flushed();
+  assert.equal(service.error(), '');
+  assert.equal(service.provider(), 'local');
+  assert.equal(env.micCalls, 1);
+  service.stop();
+})();
+
+await (async function geminiLiveProviderMayCapture() {
+  beginTest('the gemini-live provider is accepted and may start microphone capture');
+  micResolved();
+  const service = new VoiceSessionService();
+  await service.start(TOKEN);
+  const socket = lastSocket();
+  socket.open();
+  socket.fireMessage({ ...READY, provider: 'gemini-live' });
+  await flushed();
+  assert.equal(service.error(), '');
+  assert.equal(service.provider(), 'gemini-live');
+  assert.equal(env.micCalls, 1);
+  service.stop();
+})();
+
 await (async function silentPcmIsNotSpeaking() {
   beginTest('silent PCM does not make speaking');
   const service = new VoiceSessionService();
@@ -1541,7 +1589,7 @@ await (async function bargeInCountResetsWhenPlaybackStops() {
   assert.equal(socket.countText('playback.interrupt'), 1);
 })();
 
-for (const [sent, kept] of [['gemini-live', 'gemini-live'], ['local', 'local'], ['fake', 'fake'], ['other', 'unknown']]) {
+for (const [sent, kept] of [['gemini-live', 'gemini-live'], ['local', 'local'], ['fake', 'fake']]) {
   await (async function providerAllowlist() {
     beginTest(`provider ${sent} is shown as ${kept}`);
     const service = new VoiceSessionService();

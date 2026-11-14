@@ -55,10 +55,14 @@ def classify(error: BaseException) -> str:
 
 def _sdk_connect(api_key: str, model: str) -> Connect:
     def connect() -> Any:
-        from google import genai  # lazy on purpose: not a dependency yet
+        from google import genai  # load only for an actual provider session
         from google.genai import types
 
-        client = genai.Client(api_key=api_key)
+        client = genai.Client(
+            api_key=api_key,
+            enterprise=False,
+            http_options=types.HttpOptions(base_url="https://generativelanguage.googleapis.com"),
+        )
         config = types.LiveConnectConfig(
             response_modalities=["AUDIO"],
             system_instruction=SYSTEM_INSTRUCTION,
@@ -114,7 +118,10 @@ class GeminiLiveAdapter:
         self._turn_tools: list[str] = []  # allowlisted names only, never arguments or outputs
         self._said = ""  # transcript fragments of one speaker, joined into a line
         self._said_role = ""
-        self._events: asyncio.Queue[AdapterEvent | AdapterError | None] = asyncio.Queue()
+        self._events: asyncio.Queue[
+            tuple[int, AudioChunk] | Transcript | TurnComplete | Interrupted | AdapterError | None
+        ] = asyncio.Queue()
+        self._audio_epoch = 0
         self._stack = contextlib.AsyncExitStack()
         self._session: Any = None
         self._tasks: list[asyncio.Task[None]] = []
@@ -154,8 +161,11 @@ class GeminiLiveAdapter:
             self._put(None)
 
     async def interrupt(self) -> None:
-        # With no model turn in flight there is nothing to stop: local only.
-        if self.closed or not self._turn_active:
+        if self.closed:
+            return
+        # Even a completed turn may have PCM waiting for the event consumer.
+        self._audio_epoch += 1
+        if not self._turn_active:
             return
         # Otherwise the provider must confirm with `interrupted` or a turn
         # completion, or the session fails closed instead of pretending.
@@ -173,6 +183,11 @@ class GeminiLiveAdapter:
                 return
             if isinstance(item, AdapterError):
                 raise item
+            if isinstance(item, tuple):
+                epoch, chunk = item
+                if epoch == self._audio_epoch:
+                    yield chunk
+                continue
             yield item
 
     async def close(self) -> None:
@@ -188,9 +203,13 @@ class GeminiLiveAdapter:
         for task in tasks:
             task.cancel()
         await asyncio.gather(*tasks, return_exceptions=True)
-        with contextlib.suppress(Exception):
+        try:
             await self._stack.aclose()
-        self._events.put_nowait(None)
+        except Exception:
+            # The bridge may release its session slot only after a clean close.
+            raise AdapterError("session-failed") from None
+        finally:
+            self._events.put_nowait(None)
 
     def _put(self, item: Any) -> None:
         # Stale audio is worse than a gap, so a full queue drops the oldest.
@@ -291,7 +310,10 @@ class GeminiLiveAdapter:
             data = getattr(getattr(part, "inline_data", None), "data", None)
             if data:
                 self._turn_active = True
-                self._events.put_nowait(AudioChunk(bytes(data), OUTPUT_RATE_HZ))
+                # The bridge already advanced its playback epoch at local stop.
+                # Until the provider settles that turn, its PCM is still stale.
+                if self._ack_task is None or self._ack.is_set():
+                    self._events.put_nowait((self._audio_epoch, AudioChunk(bytes(data), OUTPUT_RATE_HZ)))
         if getattr(content, "interrupted", False):
             self._flush_said()
             self._tool_calls = 0

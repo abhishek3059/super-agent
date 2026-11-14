@@ -6,7 +6,7 @@
 | Scope | Spike A5 only: measure open-weight native speech-to-speech models on `jeevesh2515`'s MacBook Air M5 (16 GB). Measurement only, no product code. Plan: [spike A5](../../spikes/a5-local-s2s/README.md). |
 | Roadmap position | This is PH-07 work ([RT-012](../../tasks/012-private-native-audio-feasibility.md)), done while PH-01 is the current phase. |
 | `abhishek3059` | **Requested, 2026-11-13**, in chat with Claude Code. He said to keep the Gemini adapter "as of now we switch to local setup ... try some inferencing" and "yes create a document of this spike". Recorded as his approval to plan and run it. |
-| `jeevesh2515` | **Pending.** Approval is the review of [PR 41](https://github.com/abhishek3059/super-agent/pull/41). He also runs the spike on his machine, so his approval covers the hardware, the downloads below, and his own voice in the tests. |
+| `jeevesh2515` | **Approved, 2026-11-13**, in a [PR #41 review](https://github.com/abhishek3059/super-agent/pull/41#pullrequestreview-5893054740). He also runs the spike on his machine, so his approval covers the hardware, the downloads below, and his own voice in the tests. |
 | Effect | Nothing is ticked. PH-07 stays `not started` and no gate moves. |
 
 ## Why

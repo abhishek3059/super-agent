@@ -39,11 +39,20 @@ second session also installed Python packages with pip, listed in
   Calendar, email, files, reminders, and any action remain T1 to T3 and were
   not built: each needs its approved design and security review first.
 
+## Decision on 2026-11-13 (OD-8)
+
+`abhishek3059` asked in review of PR 36 for macOS `say` to be the default voice
+and Kokoro to be opt-in, because Kokoro's packages include GPL-3.0 code and the
+repository is MIT. He accepted the calculator as a small widening of T0.
+`jeevesh2515` passed that request to Claude Code (`claude-opus-5-5`) in chat and asked it to continue with it; he did not object to the change. The default
+install no longer pulls any GPL-3.0 package; Kokoro's packages moved to
+`apps/api/requirements-kokoro.lock`.
+
 ## What still needs a decision from both maintainers
 
 1. Whether this work may merge ahead of PH-02 and PH-03, and whether it counts
    toward R-07.1 and R-07.2 when PH-07 opens.
-2. Whether the calculator counts as inside T0, or DEC-18 should say so explicitly.
+2. Whether DEC-18 should state that a fixed calculator is allowed in T0 (both maintainers accepted it for this PR).
 3. Whether the local path replaces Gemini as the PH-01 provider for R-01.10,
    or stays a parallel option.
 

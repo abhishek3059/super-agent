@@ -6,7 +6,7 @@
 | Scope | Real microphone audio from the voice console goes to Gemini Live, for testing by the maintainers only. Opt-in through `SUPER_AGENT_ADAPTER=gemini`; the model has two tools, a calculator and the local clock. |
 | Departs from | The PH-00 data boundary (R-00.4, "personal microphone audio stays local"), [AGENTS.md](../../AGENTS.md) section 5, [REQ-13](../../prd.md#req-13), and the open decision R-A.2 (see [DEC-18](../../descisions.md#dec-18)). |
 | `abhishek3059` | **Approved, 2026-11-13**, in chat with Claude Code: "it's testing time as of now; we don't require a privacy feature because nobody is using it". |
-| `jeevesh2515` | **Pending.** Approval is the review of the PR that carries this record. |
+| `jeevesh2515` | **Approved, 2026-11-13**, in a [PR #41 review](https://github.com/abhishek3059/super-agent/pull/41#pullrequestreview-5893054740). |
 | Effect | Nothing is ticked and no gate moves. The default adapter is still the fake one. |
 
 ## Conditions

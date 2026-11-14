@@ -79,10 +79,10 @@ The operator reported that the live Gemini test passed. Its output is not saved 
 
 | Decision | By | Record |
 | --- | --- | --- |
-| Gemini Live with a real microphone, for testing only | `abhishek3059`; `jeevesh2515` pending | [Gemini testing exception](../../docs/approvals/gemini-live-testing-exception.md) |
+| Gemini Live with a real microphone, for testing only | `abhishek3059`; `jeevesh2515` approved in a [PR #41 review](https://github.com/abhishek3059/super-agent/pull/41#pullrequestreview-5893054740) | [Gemini testing exception](../../docs/approvals/gemini-live-testing-exception.md) |
 | Keys stay in the environment or the launcher prompt for now. A key screen is a future proposal. | `abhishek3059` | [credentials proposal](../../docs/future/provider-credentials-for-users.md) |
-| Keep the Gemini adapter, go local, build the backend next, run spike A5 | `abhishek3059`; `jeevesh2515` pending | [DEC-20](../../descisions.md#dec-20) |
-| Spike A5 on `jeevesh2515`'s Mac | `abhishek3059`; `jeevesh2515` pending | [spike exception](../../docs/approvals/local-s2s-spike-exception.md), [plan](../../spikes/a5-local-s2s/README.md) |
+| Keep the Gemini adapter, go local, build the backend next, run spike A5 | `abhishek3059`; `jeevesh2515` approved in a [PR #41 review](https://github.com/abhishek3059/super-agent/pull/41#pullrequestreview-5893054740) | [DEC-20](../../descisions.md#dec-20) |
+| Spike A5 on `jeevesh2515`'s Mac | `abhishek3059`; `jeevesh2515` approved in a [PR #41 review](https://github.com/abhishek3059/super-agent/pull/41#pullrequestreview-5893054740) | [spike exception](../../docs/approvals/local-s2s-spike-exception.md), [plan](../../spikes/a5-local-s2s/README.md) |
 | PR 39 not merged until reworked | `abhishek3059` | Findings sent to `jeevesh2515` by message |
 | Gemini work goes in a separate draft PR stacked on PR 36, not into PR 36 | `abhishek3059` | [PR 41](https://github.com/abhishek3059/super-agent/pull/41) |
 
@@ -111,10 +111,7 @@ The revised diagrams are in [target architecture](../../docs/future/architecture
 
 ## Open items
 
-- `jeevesh2515` approves or rejects in PR 41:
-  - the Gemini testing exception;
-  - the spike A5 exception;
-  - DEC-20.
+- `jeevesh2515` approved the Gemini testing exception, the spike A5 exception, and DEC-20 in a [PR #41 review](https://github.com/abhishek3059/super-agent/pull/41#pullrequestreview-5893054740) on 2026-11-13.
 - Spike A5 decisions:
   - the thresholds;
   - the LFM licence;

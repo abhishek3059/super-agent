@@ -7,7 +7,7 @@ PowerShell (prompts for the key if GEMINI_API_KEY is not set):
     $env:PYTHONPATH = "apps\api\src"
     & "$env:LOCALAPPDATA\Temp\super-agent-voice-venv\Scripts\python.exe" -m super_agent_voice.live_check --send-synthetic-audio
 
-Steps: conversation, interrupt, unsupported-model, tool-calculate, tool-clock,
+Steps: conversation, interrupt, barge-in (needs generated clips), unsupported-model, tool-calculate, tool-clock,
 then one summary line. Speech comes from macOS `say`, Windows SAPI, or --wav.
 
 Not collected by pytest and never run by CI. It prints timing, state, tool names
@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import contextlib
 import getpass
 import json
 import os
@@ -44,6 +45,8 @@ SAPI_SCRIPT = (
     "$f = New-Object System.Speech.AudioFormat.SpeechAudioFormatInfo(16000, 'Sixteen', 'Mono'); "
     "$s.SetOutputToWaveFile($env:SA_WAV, $f); $s.Speak($env:SA_TEXT); $s.Dispose()"
 )
+BARGE_IN_PROMPT = "Please count out loud from one to one hundred, one number at a time."
+BARGE_IN_PHRASE = "Stop counting. Say the word done instead."
 
 
 def load_pcm(path: Path) -> bytes:
@@ -75,7 +78,8 @@ def speak_windows(text: str) -> bytes:
 
 
 async def converse(
-    adapter: VoiceAdapter, pcm: bytes, result: dict, *, interrupt: bool = False, pace: float = 0.1
+    adapter: VoiceAdapter, pcm: bytes, result: dict, *, interrupt: bool = False,
+    barge_in_pcm: bytes = b"", pace: float = 0.1
 ) -> None:
     """Fills `result` as it goes, so a timeout still reports how far it got."""
     started = time.monotonic()
@@ -83,18 +87,20 @@ async def converse(
     def elapsed() -> int:
         return round((time.monotonic() - started) * 1000)
 
-    async def send() -> None:
-        for offset in range(0, len(pcm), FRAME_BYTES):
-            await adapter.enqueue_audio(pcm[offset : offset + FRAME_BYTES])
+    async def send(clip: bytes, done_key: str, first_key: str | None = None) -> None:
+        for offset in range(0, len(clip), FRAME_BYTES):
+            await adapter.enqueue_audio(clip[offset : offset + FRAME_BYTES])
+            if offset == 0 and first_key is not None:
+                result[first_key] = elapsed()
             await asyncio.sleep(pace)  # real-time pacing so the provider's VAD hears speech
         await adapter.end_audio_stream()
-        result["input_done_ms"] = elapsed()
+        result[done_key] = elapsed()
 
     sender: asyncio.Task[None] | None = None
     try:
         await adapter.start()
         result["connect_ms"] = elapsed()
-        sender = asyncio.create_task(send())
+        sender = asyncio.create_task(send(pcm, "input_done_ms"))
         result["events"] = []
         async for event in adapter.events():
             if isinstance(event, AudioChunk):
@@ -103,6 +109,11 @@ async def converse(
                     if interrupt:
                         await adapter.interrupt()
                         result["interrupt_sent_ms"] = elapsed()
+                    if barge_in_pcm and "input_done_ms" in result:
+                        await sender
+                        sender = asyncio.create_task(
+                            send(barge_in_pcm, "barge_in_input_done_ms", "barge_in_first_frame_ms")
+                        )
                 result["audio_bytes"] = result.get("audio_bytes", 0) + len(event.data)
             else:
                 result["events"].append(type(event).__name__)
@@ -120,15 +131,30 @@ async def converse(
     finally:
         if sender is not None:
             sender.cancel()
-        await adapter.close()
+        try:
+            if sender is not None:
+                with contextlib.suppress(asyncio.CancelledError):
+                    await sender
+        finally:
+            await adapter.close()
 
 
-async def run_step(name: str, adapter: VoiceAdapter, pcm: bytes, **options: bool) -> dict:
+async def run_step(
+    name: str, adapter: VoiceAdapter, pcm: bytes, *, interrupt: bool = False, barge_in_pcm: bytes = b""
+) -> dict:
     result: dict = {"step": name}
     try:
-        await asyncio.wait_for(converse(adapter, pcm, result, **options), STEP_TIMEOUT_SECONDS)
+        await asyncio.wait_for(converse(adapter, pcm, result, interrupt=interrupt, barge_in_pcm=barge_in_pcm), STEP_TIMEOUT_SECONDS)
+    except AdapterError as error:
+        result.setdefault("error", error.category)
     except TimeoutError:
         result["error"] = "step-timeout"
+    if barge_in_pcm:
+        result["provider_interrupted_after_enqueue"] = (
+            "barge_in_first_frame_ms" in result
+            and "Interrupted" in result.get("events", [])
+            and "error" not in result
+        )
     return result
 
 
@@ -138,6 +164,10 @@ async def run_all(
     steps = [
         ("conversation", model, "hello", {}),
         ("interrupt", model, "hello", {"interrupt": True}),
+    ]
+    if "barge_in_prompt" in clips and "barge_in" in clips:
+        steps.append(("barge-in", model, "barge_in_prompt", {"barge_in_pcm": clips["barge_in"]}))
+    steps += [
         ("unsupported-model", "not-a-real-model", "hello", {}),
         ("tool-calculate", model, "calculate", {}),
         ("tool-clock", model, "clock", {}),
@@ -148,8 +178,11 @@ async def run_all(
         result["model"] = step_model
         if name == "unsupported-model":
             result["fails_closed"] = "error" in result and "first_audio_ms" not in result
+            result["unsupported_confirmed"] = result["fails_closed"] and result.get("error") == "provider-unsupported"
         print(json.dumps(result), flush=True)
         results.append(result)
+    if "barge-in" not in {r["step"] for r in results}:
+        print(json.dumps({"step": "barge-in", "skipped": "requires generated clips"}), flush=True)
     by_name = {r["step"]: r for r in results}
     summary = {
         "reached_gemini": "first_audio_ms" in by_name["conversation"],
@@ -181,7 +214,10 @@ def main(argv: list[str] | None = None) -> None:
             say = speak_windows
         else:
             sys.exit("no `say` command on this system; pass --wav with synthetic speech")
-        clips = {"hello": say(PHRASE), "calculate": say(CALC_PHRASE), "clock": say(CLOCK_PHRASE)}
+        clips = {
+            "hello": say(PHRASE), "calculate": say(CALC_PHRASE), "clock": say(CLOCK_PHRASE),
+            "barge_in_prompt": say(BARGE_IN_PROMPT), "barge_in": say(BARGE_IN_PHRASE),
+        }
         pcm = clips["hello"]
     model = os.environ.get("SUPER_AGENT_GEMINI_MODEL") or VoiceConfig.gemini_model
     print(json.dumps({"model": model, "input_seconds": round(len(pcm) / 32000, 1)}), flush=True)
