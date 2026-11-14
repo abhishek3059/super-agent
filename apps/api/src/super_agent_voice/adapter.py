@@ -14,7 +14,7 @@ class AudioChunk:
 
 @dataclass(frozen=True)
 class TurnComplete:
-    pass
+    tools: tuple[str, ...] = ()  # allowlisted tool names used this turn, for status lines only
 
 
 @dataclass(frozen=True)

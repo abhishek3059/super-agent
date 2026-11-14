@@ -178,8 +178,8 @@ export class VoiceSessionService {
       text?: unknown;
     };
     if (message.type === 'session.ready') {
-      // Both run on this machine; any other provider must not get the microphone.
-      if (message.provider !== 'fake' && message.provider !== 'local') {
+      // Only these may get the microphone; the console labels gemini-live as a cloud provider.
+      if (message.provider !== 'fake' && message.provider !== 'local' && message.provider !== 'gemini-live') {
         this.fail('Unexpected voice provider. Local capture stays off.');
         return;
       }

@@ -8,15 +8,12 @@ Audio and text are kept in memory for the session and are never logged.
 """
 from __future__ import annotations
 
-import ast
 import asyncio
 import contextlib
 import contextvars
 import datetime
 import functools
 import json
-import math
-import operator
 import os
 import re
 import tempfile
@@ -30,6 +27,7 @@ from . import lfm3_voice, memory, tier1
 from .adapter import (
     AdapterError, AdapterEvent, AudioChunk, Interrupted, Thinking, Transcript, TurnComplete,
 )
+from .tools import TOOLS, calculate, run_tool  # noqa: F401  (calculate re-exported for tests)
 
 # Loopback only (REQ-11). Not configurable, so no setting can point it at a remote host.
 OLLAMA_CHAT_URL = "http://127.0.0.1:11434/api/chat"
@@ -125,58 +123,11 @@ async def call_tool(name: object, arguments: object) -> str:
             return NOT_ASKED
         return await asyncio.to_thread(memory.run, name, arguments)
     return run_tool(name, arguments)
-TOOLS = [
-    {"type": "function", "function": {
-        "name": "calculate",
-        "description": "Evaluate arithmetic with numbers and + - * / // % ** and parentheses.",
-        "parameters": {"type": "object", "properties": {"expression": {"type": "string"}},
-                       "required": ["expression"]}}},
-]
+
+
 MAX_TOOL_ROUNDS = 3  # search, then read, then answer
 MAX_REPLY_SENTENCES = 3
 MAX_SENTENCE_CHARS = 220
-_OPERATORS = {
-    ast.Add: operator.add, ast.Sub: operator.sub, ast.Mult: operator.mul, ast.Div: operator.truediv,
-    ast.FloorDiv: operator.floordiv, ast.Mod: operator.mod, ast.Pow: operator.pow,
-    ast.USub: operator.neg, ast.UAdd: operator.pos,
-}
-
-
-def calculate(expression: str) -> str:
-    """Arithmetic only. The expression comes from the model, so it is parsed, never evaluated as code."""
-    def value(node: ast.AST) -> int | float:
-        if isinstance(node, ast.Constant) and type(node.value) in (int, float):
-            return node.value
-        if isinstance(node, ast.UnaryOp) and type(node.op) in _OPERATORS:
-            return _OPERATORS[type(node.op)](value(node.operand))
-        if isinstance(node, ast.BinOp) and type(node.op) in _OPERATORS:
-            left, right = value(node.left), value(node.right)
-            # Bounds keep a huge power from freezing the voice loop.
-            if isinstance(node.op, ast.Pow) and (abs(right) > 100 or abs(left) > 1e6):
-                raise ValueError("power too large")
-            return _OPERATORS[type(node.op)](left, right)
-        raise ValueError("not arithmetic")
-
-    try:
-        if not isinstance(expression, str) or len(expression) > 100:
-            raise ValueError("expression too long")
-        result = value(ast.parse(expression.strip(), mode="eval").body)
-        # A negative number to a fractional power is complex; that is not an answer to speak.
-        if type(result) not in (int, float) or not math.isfinite(result):
-            raise ValueError("not a real number")
-        text = f"{result:.10g}" if isinstance(result, float) else str(result)
-        if len(text) > 60:
-            raise ValueError("result too long to say")
-        return text
-    except (ValueError, SyntaxError, ZeroDivisionError, OverflowError, RecursionError):
-        return "error: I can only do arithmetic with numbers."
-
-
-def run_tool(name: object, arguments: object) -> str:
-    """The only code a model call can reach. Unknown names and bad arguments do nothing."""
-    if name == "calculate" and isinstance(arguments, dict):
-        return calculate(arguments.get("expression"))
-    return "error: no such tool."
 
 
 Transcribe = Callable[[bytes], Awaitable[str]]

@@ -367,7 +367,7 @@ await (async function connectingBeforeReady() {
 })();
 
 await (async function nonLocalReadyDoesNotCapture() {
-  for (const provider of ['gemini-live', undefined]) {
+  for (const provider of ['unknown-cloud', undefined]) {
     beginTest('an unexpected or missing provider cannot start local microphone capture');
     micResolved();
     const service = new VoiceSessionService();
@@ -395,6 +395,21 @@ await (async function localProviderMayCapture() {
   await flushed();
   assert.equal(service.error(), '');
   assert.equal(service.provider(), 'local');
+  assert.equal(env.micCalls, 1);
+  service.stop();
+})();
+
+await (async function geminiLiveProviderMayCapture() {
+  beginTest('the gemini-live provider is accepted and may start microphone capture');
+  micResolved();
+  const service = new VoiceSessionService();
+  await service.start(TOKEN);
+  const socket = lastSocket();
+  socket.open();
+  socket.fireMessage({ ...READY, provider: 'gemini-live' });
+  await flushed();
+  assert.equal(service.error(), '');
+  assert.equal(service.provider(), 'gemini-live');
   assert.equal(env.micCalls, 1);
   service.stop();
 })();
@@ -1573,6 +1588,23 @@ await (async function bargeInCountResetsWhenPlaybackStops() {
   micFrame(loudSamples());
   assert.equal(socket.countText('playback.interrupt'), 1);
 })();
+
+for (const [sent, kept] of [['gemini-live', 'gemini-live'], ['local', 'local'], ['fake', 'fake']]) {
+  await (async function providerAllowlist() {
+    beginTest(`provider ${sent} is shown as ${kept}`);
+    const service = new VoiceSessionService();
+    assert.equal(service.provider(), '');
+    micResolved();
+    await service.start(TOKEN);
+    const socket = lastSocket();
+    await flushed();
+    socket.open();
+    await flushed();
+    socket.fireMessage({ ...READY, provider: sent });
+    await flushed();
+    assert.equal(service.provider(), kept);
+  })();
+}
 
 // Any failed assert above throws and exits with a non-zero code.
 console.log(`voice-session self-test: PASS (${casesRun} cases)`);

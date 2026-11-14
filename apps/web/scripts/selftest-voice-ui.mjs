@@ -59,4 +59,18 @@ equal(ui.spectrumBarHeight('speaking', 0, 0.5), 57);
 equal(ui.spectrumBarHeight('listening', 0, 0.5), 8);
 equal(ui.spectrumBarHeight('listening', 1, 0.5), 50);
 
+equal(ui.statusLabel('speaking', 'gemini-live'), 'Speaking');
+equal(ui.pipelineSummary('speaking', 'gemini-live'), 'Playing the Gemini reply');
+equal(ui.providerCopy('fake').badge, 'Fake echo adapter');
+equal(ui.providerCopy('local').privacy, 'Local model active. Microphone audio stays local.');
+equal(ui.providerCopy('gemini-live').tag, 'Cloud');
+equal(ui.providerCopy('gemini-live').badge, 'Gemini Live (cloud)');
+for (const p of ['gemini-live', '', 'unknown']) {
+  const text = JSON.stringify(ui.providerCopy(p)).toLowerCase();
+  equal(text.includes('stays local') || text.includes('stays on this device'), false);
+  equal(text.includes('local only'), false);
+}
+for (const p of ['', 'unknown']) equal(JSON.stringify(ui.providerCopy(p)).toLowerCase().includes('fake'), false);
+equal(ui.providerCopy('').badge, 'Not connected');
+
 console.log(`voice-ui state self-test: PASS (${cases} cases)`);
