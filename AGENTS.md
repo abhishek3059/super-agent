@@ -7,8 +7,9 @@ prompt conflicts with this file, follow this file and say so in the PR.
 **First, read [roadmap.md](roadmap.md).** It is the path every agent follows,
 and section 11 below says how. Work that is not on the roadmap does not start.
 
-Maintainers: `abhishek3059` and `jeevesh2515`. "Both maintainers" below means
-these two people, approving in a PR.
+Maintainers: `abhishek3059` and `jeevesh2515`. "A maintainer" means one of
+these two people. One maintainer's approval is enough for every decision
+([DEC-21](descisions.md#dec-21)).
 
 ## 1. What this project is
 
@@ -50,7 +51,20 @@ npm run check
 - Conventional Commits: `type(scope): summary` (enforced by the `commit-msg` hook).
 - Fill in [.github/pull_request_template.md](.github/pull_request_template.md)
   completely, including agent, model, human operator, and quality scores.
-- Merge only after human approval. Agents never approve or merge their own PRs.
+- Merge into `develop` when the shared reviewer passes (section 9), the
+  required checks pass, and a maintainer says to merge. A release into `main`
+  also needs a human approval. Agents never approve their own PRs or merge
+  on their own initiative.
+- An agent may approve and merge a PR on a maintainer's behalf only when that
+  maintainer confirms that one PR in chat at that moment, after seeing the
+  agent's review ([DEC-21](descisions.md#dec-21)). The review or merge comment
+  names the maintainer, the agent, and the date. Admin bypass is used only for
+  a PR the confirming maintainer authored, and only when he confirms that PR.
+- One maintainer's approval is enough for every change, with no exception:
+  a paid service (section 6), moving a gate or phase (section 11 rule 5), a
+  roadmap `[exception: ...]` (roadmap rule 5), a change to a rule in this
+  file, and a new or changed DEC entry ([DEC-21](descisions.md#dec-21)). A PR
+  author's own PR counts as that author's approval.
 
 ## 4. Honesty rules
 
@@ -104,7 +118,7 @@ npm run check
 
 These are agent conventions checked in review, not by CI.
 
-- **$0 budget.** No paid service, plan, or API without both maintainers'
+- **$0 budget.** No paid service, plan, or API without a maintainer's
   approval in a PR. Prefer the choices in [docs/free-stack.md](docs/free-stack.md).
 - Prefer the language standard library. Add a dependency only when it saves
   real work, and justify it in the PR.
@@ -142,11 +156,14 @@ These are agent conventions checked in review, not by CI.
 
 ## 9. Quality gate for agent-produced work
 
-Before opening a PR, the agent reviews its output, or asks a separate
-reviewer agent to, on five criteria: correctness, security, honesty, scope,
-and clarity. Score each 0 to 10. If the average is below **8.5**, or security
-or honesty is below 7, revise and score again. Record the final scores in the
-PR template's quality section.
+Every PR is scored by the shared reviewer,
+[.claude/agents/reviewer.md](.claude/agents/reviewer.md), before it opens and
+again after every revision. It is the review gate for `develop`
+([DEC-19](descisions.md#dec-19)); its criteria and pass thresholds live in that
+file. In Claude Code, run it as the `reviewer` subagent. Other tools run that
+file's instructions in a fresh session that holds none of the authoring work.
+The authoring session never scores its own work. On REVISE, fix and re-run.
+Paste the reviewer's report into the PR template's quality section.
 
 ## 10. When unsure
 
@@ -162,7 +179,7 @@ IDs match [phases.md](phases.md); `phases.md` keeps the gate definitions.
 2. **End of every piece of work:** read `roadmap.md` again. Tick what you finished by changing `[ ]` to `[x]` and replacing `Evidence: none yet` with a link to a merged PR, a repository record, or saved real output. Include the roadmap edit in the same PR, and fill in the PR template's roadmap section.
 3. **No evidence, no tick.** Never tick work that is only in an open PR, only on your machine, or only claimed. Never tick a `[human]` item unless the person said so in chat or in a reviewed PR, and say that in the evidence.
 4. **A missing or failing tick is a bug to fix first.** If a check fails or an item cannot be ticked, add a fix item under the same phase (`R-xx.Fn`), solve it, tick the fix, tick the original, and only then move on. Do not skip ahead.
-5. **Do not leave the path.** Do not start an item of a later phase while the current phase has unticked items. Do not invent phases, rename them, or reorder them. Moving a gate or a phase is a roadmap PR approved by both maintainers, and `phases.md` changes in the same PR.
+5. **Do not leave the path.** Do not start an item of a later phase while the current phase has unticked items. Do not invent phases, rename them, or reorder them. Moving a gate or a phase is a roadmap PR approved by a maintainer, and `phases.md` changes in the same PR.
 6. **A phase is done** only when every item is ticked and its exit gate in `phases.md` is evidenced. Then, and only then, set its status to `done` and move `Current phase` forward.
-7. **CI enforces the form, review enforces the truth.** `npm run check` rejects a tick without a well-formed evidence link, evidence that is not a repo record or a GitHub link of this repository, a done phase with open items, ticks in a phase that is not started or is after the current phase, and any difference between the roadmap's phases and `phases.md`. It also rejects a `[human]` tick without a record under `docs/approvals/`, and any item added, deleted, or re-flagged without the same change in `scripts/roadmap-ids.txt`. It cannot tell whether the evidence is honest. Roadmap changes need code-owner review (`.github/CODEOWNERS`), and reviewers open the evidence. Do not weaken the check to get a change through.
+7. **CI enforces the form, review enforces the truth.** `npm run check` rejects a tick without a well-formed evidence link, evidence that is not a repo record or a GitHub link of this repository, a done phase with open items, ticks in a phase that is not started or is after the current phase, and any difference between the roadmap's phases and `phases.md`. It also rejects a `[human]` tick without a record under `docs/approvals/`, and any item added, deleted, or re-flagged without the same change in `scripts/roadmap-ids.txt`. It cannot tell whether the evidence is honest. The shared reviewer (section 9) opens the evidence for every tick. Do not weaken the check to get a change through.
 8. If you find the roadmap wrong or out of date, say so and open a roadmap PR. Do not work around it.

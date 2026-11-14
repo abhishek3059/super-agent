@@ -220,7 +220,7 @@ Adopt repository-only automation (Husky hooks and an AI-agent pull-request templ
 
 Replace the blanket ban on assistant capabilities with a capability ladder: authority grows one tier at a time, each tier only after its own approved design.
 
-- **Status:** Proposed 2026-11-12 by `jeevesh2515`. Not in force until `abhishek3059` approves in the PR that carries it ([approval record](docs/approvals/capability-ladder-decision.md)). It authorizes no runtime work by itself.
+- **Status:** Approved by both maintainers 2026-11-12: proposed by `jeevesh2515`, approved by `abhishek3059` in a [PR #35 review](https://github.com/abhishek3059/super-agent/pull/35#pullrequestreview-5878510644) ([approval record](docs/approvals/capability-ladder-decision.md)). In force. It authorizes no runtime work by itself; each tier still needs its own approved design.
 - **Rationale:** The product goal is a personal assistant that talks like a person, advises on productivity, and does day-to-day work for its owner. A fixed-worker-only rule ([REQ-08](prd.md#req-08)) cannot reach that goal. A single switch that opens everything would remove the main defense against prompt injection, which is the main threat to a voice agent that reads email and web pages.
 - **The ladder:**
 
@@ -238,12 +238,35 @@ Replace the blanket ban on assistant capabilities with a capability ladder: auth
 - **Source evidence:** `jeevesh2515` in chat with Claude Code, 2026-11-12, asking for max-capability use as the project's CTO; [AGENTS.md](AGENTS.md) sections 5 and 10.
 - **Reopen:** Any tier's design review fails or an incident occurs at that tier (drop back one tier); or the maintainers decide to add, merge, or remove a tier.
 
+### DEC-19
+
+Replace the required human review on `develop` with one shared AI reviewer that both maintainers run: [.claude/agents/reviewer.md](.claude/agents/reviewer.md).
+
+- **Status:** Approved by both maintainers: proposed by `abhishek3059` 2026-11-12, approved by `jeevesh2515` in a [PR #37 review](https://github.com/abhishek3059/super-agent/pull/37#pullrequestreview-5893054369) on 2026-11-13 ([approval record](docs/approvals/shared-ai-reviewer-decision.md)). In force when PR #37 merges. After it merges, `abhishek3059` removes the required approving review from the `develop` ruleset.
+- **Rationale:** The maintainers work in different time zones, so waiting for a human review stalls every PR. The quality gate in [AGENTS.md](AGENTS.md) section 9 already existed, but each agent scored itself or picked its own reviewer, so scores were not comparable across machines and tools. One committed reviewer, run in a fresh context with a fixed rubric (and a fixed model within Claude Code), makes the gate the same for every PR. Other tools use their own model and record it in the report.
+- **Alternatives and trade-offs:** (a) Keep the required human code-owner review: strongest check, but blocks for a day per PR across time zones. (b) No review: fastest, but nothing independent checks evidence before a roadmap tick. (c) A shared AI reviewer, run locally: free under the $0 cap and uniform, but a model can miss what a person would catch. (d) A hosted reviewer in CI or GitHub Agent HQ: automatic, but costs money against the $0 cap.
+- **Implications:** AGENTS.md sections 3, 9, and 11 rule 7, [CONTRIBUTING.md](CONTRIBUTING.md), the PR template, and roadmap item R-R.4 point to the shared reviewer. The **Repository checks** status check stays required. `main` keeps a required human review for release PRs. [.github/CODEOWNERS](.github/CODEOWNERS) still requests reviews, but they no longer block merging. The changes listed in AGENTS.md section 3 still need both maintainers (a paid service, moving a gate or phase, a roadmap exception, and, added by this decision, a change to an AGENTS.md rule or a DEC entry), and the reviewer returns REVISE without them. The reviewer's Bash access is read-only by instruction in its file, not by tool permissions. Maintainers can still review any PR by choice.
+- **Source evidence:** `abhishek3059` in chat with Claude Code, 2026-11-12 ([approval record](docs/approvals/shared-ai-reviewer-decision.md)).
+- **Reopen:** A defect reaches `develop` that the reviewer passed; a dishonest roadmap tick is found; or either maintainer asks to bring human review back.
+
+### DEC-21
+
+An agent may approve and merge a PR on a maintainer's behalf, one PR at a time, after that maintainer confirms it in chat.
+
+- **Status:** Decided 2026-11-14 by `abhishek3059`, who said in chat that his single review is enough and no second maintainer review is needed. In force when the PR that carries it merges.
+- **Rationale:** Many open agent-written PRs wait on the other maintainer's click. The maintainer still decides each merge; the agent only does the review and the clicks.
+- **Rules:** the agent reviews the PR and shows its findings first; the maintainer confirms that one PR in chat (no blanket approval); the agent never approves or merges a PR it authored, never approves on behalf of the PR's own author, and never uses admin bypass; the review text names the maintainer, the agent, and the date. Branch protection still applies.
+- **Alternatives and trade-offs:** (a) Keep the old rule: safest, but merges stall across time zones. (b) Blanket merge permission: fastest, but no human looks at each PR. (c) Per-PR confirmation: a human decides each merge, but trusts the agent's review of the code. One maintainer's confirmation is enough.
+- **Implications:** [AGENTS.md](AGENTS.md) sections 1, 3, 6, and 11, roadmap rule 5, and the shared reviewer's step 6 are amended. Releases into `main` still need the main ruleset's review. Works with [DEC-19](#dec-19): the shared reviewer still runs first. It replaces every both-maintainer requirement, including those in [DEC-18](#dec-18) and [DEC-19](#dec-19): one maintainer's approval is enough for every change, with no exception. A PR the maintainer authored cannot get his own GitHub approval, so the agent may merge it with the maintainer's admin bypass only when he confirms that PR in chat; the review comment says so.
+- **Source evidence:** `abhishek3059` in chat with Claude Code, 2026-11-14.
+- **Reopen:** A merged PR is found to have skipped its review, or a maintainer asks to bring back two-maintainer approval.
+
 ## Register fields
 
-Every DEC entry from [DEC-01](#dec-01) to [DEC-18](#dec-18) above carries the seven contracted fields inline: status, rationale, alternatives and trade-offs, implications, source evidence, and reopen conditions. This summary restates the register; it does not replace the individual records.
+Every DEC entry from [DEC-01](#dec-01) to [DEC-19](#dec-19), and [DEC-21](#dec-21), above carries the seven contracted fields inline: status, rationale, alternatives and trade-offs, implications, source evidence, and reopen conditions. This summary restates the register; it does not replace the individual records.
 
 ## Provisional and post-review status
 
-[DEC-04](#dec-04) is conditional; [DEC-06](#dec-06) records a provisional post-review Researcher follow-up candidate, not a re-voted council consensus and not a tested or approved runtime selection; [DEC-13](#dec-13), [DEC-14](#dec-14), and [DEC-15](#dec-15) are deferred; [DEC-17](#dec-17) is repository tooling only; [DEC-18](#dec-18) is proposed and not yet approved by both maintainers. None of these statuses is a runtime approval, and no decision in this register claims tested access or an approved provider.
+[DEC-04](#dec-04) is conditional; [DEC-06](#dec-06) records a provisional post-review Researcher follow-up candidate, not a re-voted council consensus and not a tested or approved runtime selection; [DEC-13](#dec-13), [DEC-14](#dec-14), and [DEC-15](#dec-15) are deferred; [DEC-17](#dec-17) is repository tooling only; [DEC-18](#dec-18) is approved by both maintainers but enables no tier by itself; [DEC-21](#dec-21) is a repository process rule, not a runtime approval. None of these statuses is a runtime approval, and no decision in this register claims tested access or an approved provider.
 
 See [Native transport research](docs/design/super-agent.md) in the signed design and the council meeting records.

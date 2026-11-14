@@ -76,7 +76,7 @@ separate push and merge approvals. No phase acceptance or roadmap tick is claime
 | Whitespace check after final review record | Parent ran `git diff --check` on 2026-11-11: PASS, line-ending advisories only |
 | Completed-code review | Backend final PASS with 8.52 average; frontend PASS with 8.8 average; both code-review quality thresholds cleared |
 | Mac hardware acceptance | Old-scaffold evidence merged via PR #25 against `4f51e00`; R-01.3 is ticked, but that evidence is not evidence for the new streaming code |
-| Local microphone acceptance | Inconclusive operator report, R-01.4 remains open |
+| Local microphone acceptance | Inconclusive operator report at the time; superseded by the [R-01.4 record](../approvals/r01-4-microphone-test.md) of 2026-11-12 |
 | Native provider test | Not run; no Gemini adapter in this slice |
 
 ### Parent frontend verification (2026-11-10)
@@ -214,7 +214,7 @@ prove the amended behavior or every task and transport failure.
   unverified until the provider implementation and synthetic live evidence.
 - Credentials retain the existing development token flow. Expiry, revocation,
   throttling, and independent credential review are not delivered here.
-- R-01.3, R-01.4, R-01.5, R-01.6, R-01.8, R-01.9, and R-01.10 remain open.
+- R-01.3, R-01.4, R-01.5, R-01.6, R-01.8, R-01.9, and R-01.10 remained open when this slice was written; see [roadmap.md](../../roadmap.md) for current state.
 - No phase or runtime gate is closed by this record.
 - The existing local Angular CLI analytics change is user work. It is not part
   of this implementation and must not be committed with it.

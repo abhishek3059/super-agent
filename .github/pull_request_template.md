@@ -61,7 +61,9 @@ Evidence (logs, screenshots, output excerpts):
 
 | Correctness | Security | Honesty | Scope | Clarity | Average | Scored by |
 | --- | --- | --- | --- | --- | --- | --- |
-| <!-- 0-10 --> | | | | | | <!-- self / reviewer agent + model / human --> |
+| <!-- 0-10 --> | | | | | | <!-- shared reviewer (.claude/agents/reviewer.md), tool and model --> |
+
+<!-- Paste the shared reviewer's full report here: verdict, checks, findings, unverified claims, approvals. -->
 
 ## AI-agent safety checklist
 
@@ -90,7 +92,7 @@ documentation-only changes.
 
 <!-- How can this change be reverted safely? -->
 
-## Human approval
+## Merge decision
 
-- [ ] This change requires human review before merge.
-- Approver / date: <!-- GitHub handle and date -->
+- [ ] The shared reviewer verdict above is PASS. Human review is optional for PRs into `develop`; a release into `main` needs a human approval ([DEC-19](../descisions.md#dec-19)).
+- Maintainer who decides the merge / date: <!-- GitHub handle and date -->
