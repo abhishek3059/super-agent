@@ -1,0 +1,7 @@
+# Extra packages for SUPER_AGENT_ADAPTER=local: Silero speech detection.
+# Install after requirements.lock. Resolved on 2026-11-13 with only releases
+# uploaded before 2026-10-29. Licences: MIT, BSD, Apache-2.0 (from PyPI metadata).
+flatbuffers==25.12.19
+numpy==2.5.4
+onnxruntime==1.31.1
+protobuf==7.36.2

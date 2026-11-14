@@ -4,9 +4,14 @@ Design and planning documentation for a Jarvis-like personal assistant with
 native voice-to-voice conversation, hands-free active-session use, and bounded
 background task delegation.
 
-> **Documentation only.** There is no application scaffold, runnable assistant,
-> application dependency, provider account, or executed application build/test in
-> this repository. Husky is installed for repository checks only. All runtime
+> **Mostly documentation.** The runnable application code is a local voice
+> scaffold in [`apps/`](apps/voice-foundation.md). On `develop` its browser
+> console constructs only the fake streaming adapter; a Gemini Live adapter and
+> locked SDK exist behind the seam. An opt-in fully local voice adapter (speech in
+> and out and a small model on the Mac) is merged. The open PRs #43 and #45
+> add read-only file, calendar, notes, and mail tools (T1) and local memory and
+> reminders (T2). Nothing leaves the machine on that path. There are
+> no workers, stored audio, or complete assistant. RT-G01 and later runtime
 > gates remain open.
 
 ## Start here
@@ -15,17 +20,20 @@ background task delegation.
 | --- | --- |
 | [PRD](prd.md) | Requirements REQ-01–REQ-18, acceptance criteria, runtime gates |
 | [Architecture](architecture.md) | Proposed components, trust boundaries, job states, data paths |
+| [Roadmap](roadmap.md) | The path and checklist of record: phases with tickable items (agents tick with evidence) |
 | [Phases](phases.md) | Milestone plan PH-DOC–PH-07 with entry and exit gates |
 | [Progress](progress.md) | Dated documentation milestone and dispositions |
-| [Build](build.md) | Build position; future commands are proposed and not runnable |
-| [Decisions](descisions.md) | Decision register DEC-01–DEC-17 |
+| [Build](build.md) | Current app-specific commands and the historical repository-root command proposal |
+| [Decisions](descisions.md) | Decision register DEC-01–DEC-19 |
 | [Flows](flow.md) | Ten numbered workflows WF-01–WF-10 |
-| [Tasks](taks/README.md) | Twelve future task records, all `not started` |
+| [Tasks](tasks/README.md) | Twelve task records; RT-001 is complete, RT-002 and RT-003 are in progress, and RT-004 and later tasks are `not started` |
 | [Council meetings](council%20meetings/README.md) | Three archived deliberation records |
 
 ## Supporting records
 
 - [Signed design contract](docs/design/super-agent.md)
+- [Voice-foundation implementation design](docs/design/voice-foundation.md) (proposal)
+- [Offline voice scaffold](apps/voice-foundation.md)
 - [Discovery brief](docs/delivery/super-agent-brief.md)
 - [Council deliberation source](docs/delivery/council.md)
 - [Delivery status](docs/delivery/super-agent.md)
@@ -33,9 +41,15 @@ background task delegation.
 - [Initial review archive](docs/reviews/super-agent-initial.md) — preserved FAIL
 - [Design-stage security assessment](docs/security/super-agent.md) — PASS
 - [Implementation report](docs/implementation/super-agent.md)
+- [Learnings index](docs/learnings/README.md)
+- [Future features](docs/future/README.md) (proposals only)
+- [Zero-cost build stack](docs/free-stack.md) (research proposal)
+- [Personal-agent architecture](docs/product/personal-agent-architecture.md) (brainstorm proposal)
+- [Lucidchart architecture references](docs/References/README.md)
 
 ## Contributing (AI agents)
 
+- Agent rulebook: [AGENTS.md](AGENTS.md). Every agent reads it first.
 - Full workflow: [CONTRIBUTING.md](CONTRIBUTING.md).
 - `develop` is the integration branch; `main` is production. Feature work goes
   through a PR into `develop`, then `develop` is merged into `main` for release.
@@ -52,9 +66,11 @@ background task delegation.
   STT → text-chat → TTS pipeline.
 - Voice is not identity. High-risk actions remain disabled without stronger
   out-of-band or device authentication.
-- Cloud models are authorized for development only. Runtime microphone/context
-  egress, provider eligibility, account access, budgets, retention, and the first
-  real task pair are unresolved gates (RT-G00).
+- Cloud models are authorized for synthetic-only development. Personal
+  microphone and context egress remain unapproved. Provider access, budgets,
+  retention, and the first task pair are recorded. RT-G00 is resolved for the
+  bounded PH-01 scope. Personal microphone and context egress remain
+  unapproved.
 - Raw audio and persistent transcripts are off by default.
 - The observed 8 GB RAM / 4 GB VRAM laptop has no verified native-local or
   always-on/locked-screen capability.

@@ -2,12 +2,14 @@
 
 | Field | Value |
 | --- | --- |
-| Date | 2026-11-07 |
-| Revision | 1 |
-| Status | Proposed future architecture; no component exists |
+| Date | 2026-11-12 |
+| Revision | 2 |
+| Status | Proposed full architecture; a PH-01 local voice UI/boundary and Gemini adapter subset exists, while ledger, workers, planner, and later components remain proposed |
 | Signed design | [docs/design/super-agent.md](docs/design/super-agent.md), revision 1 |
 
-This document describes a proposed future logical architecture. It asserts no existing API, component, control, or test.
+This document describes the target logical architecture, not exact current code
+contracts. Current PH-01 status is recorded in [roadmap.md](roadmap.md) and the
+[voice scaffold guide](apps/voice-foundation.md).
 
 ## Navigation
 
@@ -22,13 +24,15 @@ This document describes a proposed future logical architecture. It asserts no ex
 - [Progress](progress.md)
 - [Build](build.md)
 - [Flow](flow.md)
-- [Tasks](taks/README.md)
+- [Tasks](tasks/README.md)
 - [Council meetings](council%20meetings/README.md)
 - [Implementation report](docs/implementation/super-agent.md)
 
 ## Scope and evidence classes
 
-All components below are provisional. Proposed field responsibilities are conceptual contracts, not existing APIs or code signatures.
+The table remains a conceptual target. Some PH-01 responsibilities have partial
+implementations; that does not imply the full listed component or its acceptance
+gate exists.
 
 ## Proposed logical components
 

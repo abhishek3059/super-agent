@@ -5,3 +5,9 @@ node_modules/
 .env.*
 .DS_Store
 Thumbs.db
+.venv/
+__pycache__/
+.pytest_cache/
+*.pyc
+dist/
+.angular/

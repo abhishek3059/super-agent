@@ -1,0 +1,10 @@
+date_utc=2026-11-12T00:02:30Z
+commit_base=b874462 (working tree has uncommitted live_check.py and config changes)
+python=Python 3.14.5 google-genai=2.33.0
+command=GEMINI_API_KEY=<from ~/.super-agent/gemini-key, not shown> python -m super_agent_voice.live_check --send-synthetic-audio
+input=macOS say speech, 3.6 s, generated in a temporary folder and deleted; no microphone, no personal data
+{"model": "gemini-3.8-live", "input_seconds": 3.6}
+{"step": "conversation", "connect_ms": 734, "events": ["TurnComplete"], "input_done_ms": 4473, "first_audio_ms": 5086, "audio_bytes": 81600, "ended_ms": 6790}
+{"step": "interrupt", "connect_ms": 561, "events": ["TurnComplete"], "input_done_ms": 4315, "first_audio_ms": 4830, "interrupt_sent_ms": 4830, "audio_bytes": 75840, "ended_ms": 6403}
+{"step": "unsupported-model", "error": "provider-unsupported", "error_ms": 342, "fails_closed": true}
+exit=0

@@ -21,7 +21,7 @@ Contracted means the design or documentation choice, not runtime authorization a
 - [Progress](progress.md)
 - [Build](build.md)
 - [Flow](flow.md)
-- [Tasks](taks/README.md)
+- [Tasks](tasks/README.md)
 - [Council meetings](council%20meetings/README.md)
 - [Implementation report](docs/implementation/super-agent.md)
 
@@ -35,8 +35,8 @@ Documentation-only delivery at the user's literal paths.
 
 - **Status:** Contracted scope.
 - **Rationale:** The brief records an initially empty project with no application, repository history, tests, or stack conventions (`docs/delivery/super-agent-brief.md:4`, `docs/delivery/super-agent-brief.md:41-42`). The current delivery is documentation only, so silently implementing a prototype or renaming requested artifacts would exceed the ask.
-- **Alternatives and trade-offs:** (a) Build a scaffold/prototype now — rejected: no implementation authorization exists and runtime work requires a separate request and the §6 gates. (b) Silently correct the requested spellings (`taks/`, `descisions.md`, `council meetings/`) to conventional `tasks/`/`decisions.md` — rejected: it would break the user's literal, explicitly preserved file names and create duplicate artifacts.
-- **Implications:** Exact spelled paths are preserved across the whole pack (`taks/`, `council meetings/`, `descisions.md`); spaces in `council meetings/` are literal filesystem characters, percent-encoded in links; no Git initialization, dependencies, scripts, or build (see [DEC-16](#dec-16)); documentation acceptance is separate from future runtime acceptance.
+- **Alternatives and trade-offs:** (a) Build a scaffold/prototype now — rejected: no implementation authorization exists and runtime work requires a separate request and the §6 gates. (b) Silently correct the requested spellings (`tasks/`, `descisions.md`, `council meetings/`) to conventional `tasks/`/`decisions.md` — rejected: it would break the user's literal, explicitly preserved file names and create duplicate artifacts.
+- **Implications:** Exact spelled paths are preserved across the whole pack (`tasks/`, `council meetings/`, `descisions.md`); spaces in `council meetings/` are literal filesystem characters, percent-encoded in links; no Git initialization, dependencies, scripts, or build (see [DEC-16](#dec-16)); documentation acceptance is separate from future runtime acceptance.
 - **Source evidence:** [Discovery brief](docs/delivery/super-agent-brief.md):4, :41-42; design §2.1 ([docs/design/super-agent.md](docs/design/super-agent.md):22, :26); related requirement [REQ-D01](prd.md#req-d01).
 - **Reopen:** Only a new explicit user/manager instruction that changes the requested taxonomy or grants implementation authorization.
 
@@ -70,7 +70,7 @@ Tiny authoritative local job ledger for the overlap/cancel/restart demonstration
 - **Rationale:** The proposed first slice must demonstrate overlap, per-job cancellation, and safe restart reconciliation, which requires durable job truth outside any model or session (`docs/delivery/council.md:121-125`, `docs/delivery/council.md:150-151`). Durable IDs, cancellation races, and no blind replay after duplicates, disconnects, or restarts are contracted requirements ([REQ-05](prd.md#req-05), [REQ-06](prd.md#req-06)).
 - **Alternatives and trade-offs:** (a) A stateless, fully disposable task demonstrator — simpler and a legitimate counterfactual for instantaneous tasks, but it cannot establish durable truth or safe reconciliation, so it fails this slice's goals; reopen evidence below is exactly this case. (b) A distributed queue/framework or recurring jobs — rejected before evidence of need: added operational/state surface with no benefit to one host and two workers (`docs/delivery/council.md:186-187`).
 - **Implications:** Minimal task records still need bounded retention/delete rules ([DEC-10](#dec-10)); a ledger does not make a sleeping host process jobs (`docs/delivery/council.md:152-155`, `docs/delivery/council.md:207`).
-- **Source evidence:** [Council](docs/delivery/council.md):121-125, :150-151, :186-187, :207; design §3 ([docs/design/super-agent.md](docs/design/super-agent.md):394-395); task [RT-004](taks/004-task-ledger-and-policy.md).
+- **Source evidence:** [Council](docs/delivery/council.md):121-125, :150-151, :186-187, :207; design §3 ([docs/design/super-agent.md](docs/design/super-agent.md):394-395); task [RT-004](tasks/004-task-ledger-and-policy.md).
 - **Reopen:** If the selected first real tasks are truly instantaneous/disposable and require no recovery (no overlap/cancel/restart demonstration needed), remove the ledger to the stateless counterfactual, per the signed design.
 
 ### DEC-05
@@ -126,7 +126,7 @@ Durable intent/result/action IDs, task revisions, session/playback epochs, verif
 - **Alternatives and trade-offs:** (a) Trust model narration or browser echoes as task evidence — rejected across the council. (b) Promise exactly-once external effects — rejected: an uncertain external outcome still requires reconciliation, provider idempotency evidence, and disclosure.
 - **Implications:** Initial workers have no external effects; future tools must supply receipts and safe retry contracts; cancellation can legitimately resolve to success/failure/unknown.
 - **Source evidence:** [Council](docs/delivery/council.md):44-45, :55-58, :192-204, :201; [Discovery brief](docs/delivery/super-agent-brief.md):68-70.
-- **Reopen:** Evidence from future reconciliation/restart validation ([RT-007](taks/007-recovery-and-retention.md), [RT-008](taks/008-runtime-validation.md)) that the chosen correctness contract fails, or a real task needing an external-effect contract the ledger cannot express — both reopen the design, not the approval.
+- **Reopen:** Evidence from future reconciliation/restart validation ([RT-007](tasks/007-recovery-and-retention.md), [RT-008](tasks/008-runtime-validation.md)) that the chosen correctness contract fails, or a real task needing an external-effect contract the ledger cannot express — both reopen the design, not the approval.
 
 ### DEC-10
 
@@ -137,7 +137,7 @@ Minimal local records with retention; no recordings/transcripts by default; no s
 - **Alternatives and trade-offs:** (a) Persist raw audio always — better debugging, worse privacy and larger attack surface. (b) Claim "local database = private" — false: the client-delegation candidate needs transient text context, which can misroute work on transcript mistakes and is scoped/transient precisely to avoid persistent capture; conversational continuity is reduced (design §4). (c) Never leave cloud — the council split cloud-first only behind runtime consent and acceptable data terms (`docs/delivery/council.md`:207 area).
 - **Implications:** Cloud models are permitted for development, not automatically for runtime microphone or personal-context transmission; provider retention is disclosed separately and may not expose user-facing deletion.
 - **Source evidence:** [Discovery brief](docs/delivery/super-agent-brief.md):79-81, :18-22; [Council](docs/delivery/council.md):136-139, :182-193.
-- **Reopen:** Explicit user opt-in to recording/transcripts with an approved bounded retention rule; or passing private-native measurements ([RT-012](taks/012-private-native-audio-feasibility.md)) after separate approval.
+- **Reopen:** Explicit user opt-in to recording/transcripts with an approved bounded retention rule; or passing private-native measurements ([RT-012](tasks/012-private-native-audio-feasibility.md)) after separate approval.
 
 ### DEC-11
 
@@ -179,7 +179,7 @@ OpenCode V2 may later be an OS-contained worker adapter, not the assumed voice t
 - **Status:** Deferred.
 - **Rationale:** OpenCode v2.1.2 discovery returned HTTP 404 for its experimental voice route, and a reachable router port proves only port availability (`docs/delivery/super-agent-brief.md`:47-57); its permission model is not OS containment and event streams need reconciliation (`docs/delivery/super-agent-brief.md`:106-110; `docs/delivery/council.md`:159-165).
 - **Alternatives and trade-offs:** (a) Use OpenCode as the voice transport now — unproven and failing that recorded route. (b) Treat prompt permissions as a sandbox — false boundary.
-- **Implications:** No route/contact is claimed; version/access/child-scope/event-reconciliation evidence is required ([RT-010](taks/010-contained-opencode-adapter.md)).
+- **Implications:** No route/contact is claimed; version/access/child-scope/event-reconciliation evidence is required ([RT-010](tasks/010-contained-opencode-adapter.md)).
 - **Source evidence:** [Discovery brief](docs/delivery/super-agent-brief.md):47-57, :106-110; [Council](docs/delivery/council.md):159-165, :234-237.
 - **Reopen:** Demonstrated OS containment, least privilege, restricted credentials/egress, independent child-scope enforcement, and version/capability tests passing under a separate capability request.
 
@@ -192,7 +192,7 @@ Defer desktop packaging, wake detection, locked-screen operation, always-on host
 - **Alternatives and trade-offs:** (a) Build desktop/wake support now — richer ambient experience, added complexity and risk before the slice. (b) Promise always-on operation — requires the user's separate approval of an always-on host.
 - **Implications:** First experience is hands-free within an active session only; no native-local or locked-screen/always-on guarantee ([REQ-17](prd.md#req-17), [REQ-18](prd.md#req-18)).
 - **Source evidence:** [Council](docs/delivery/council.md):73-75, :126-139, :152-153; [Discovery brief](docs/delivery/super-agent-brief.md):43-46.
-- **Reopen:** A separate device/host/security/power decision ([RT-011](taks/011-always-on-and-desktop-feasibility.md)) or passing private-native hardware/quality/latency/egress benchmarks ([RT-012](taks/012-private-native-audio-feasibility.md)), each with its own approval.
+- **Reopen:** A separate device/host/security/power decision ([RT-011](tasks/011-always-on-and-desktop-feasibility.md)) or passing private-native hardware/quality/latency/egress benchmarks ([RT-012](tasks/012-private-native-audio-feasibility.md)), each with its own approval.
 
 ### DEC-16
 
@@ -216,12 +216,86 @@ Adopt repository-only automation (Husky hooks and an AI-agent pull-request templ
 - **Source evidence:** Explicit user request in this session (2026-11-07); `.github/pull_request_template.md`, `.husky/pre-commit`, `.husky/commit-msg`, `.husky/pre-push`, `scripts/check-repo.mjs`, `scripts/check-commit-msg.mjs`; [build.md](build.md).
 - **Reopen:** A decision to remove or replace Husky, add CI enforcement, or expand hooks to application tests after an approved scaffold.
 
+### DEC-18
+
+Replace the blanket ban on assistant capabilities with a capability ladder: authority grows one tier at a time, each tier only after its own approved design.
+
+- **Status:** Approved by both maintainers 2026-11-12: proposed by `jeevesh2515`, approved by `abhishek3059` in a [PR #35 review](https://github.com/abhishek3059/super-agent/pull/35#pullrequestreview-5878510644) ([approval record](docs/approvals/capability-ladder-decision.md)). In force. It authorizes no runtime work by itself; each tier still needs its own approved design.
+- **Rationale:** The product goal is a personal assistant that talks like a person, advises on productivity, and does day-to-day work for its owner. A fixed-worker-only rule ([REQ-08](prd.md#req-08)) cannot reach that goal. A single switch that opens everything would remove the main defense against prompt injection, which is the main threat to a voice agent that reads email and web pages.
+- **The ladder:**
+
+  | Tier | Capability | Gate to enable |
+  | --- | --- | --- |
+  | T0 | Conversation, coaching, planning, advice. No tools, no personal data access. | Data-boundary and cost decision (R-A.2). |
+  | T1 | Read-only access to calendar, email, notes, and allowlisted folders. | Approved design plus independent security review (R-A.4), after the PH-02 policy layer exists. |
+  | T2 | Reversible writes: drafts, calendar events, reminders, notes, files in a sandbox folder. Logged, with an undo path. | Approved design plus review (R-A.6), after the PH-03 stop controls exist. |
+  | T3 | Consequential actions: sending email or messages, allowlisted shell commands, browser actions, moving files to trash. Each action needs on-device approval. | Approved design plus review (R-A.8), after the PH-03 stop controls exist. |
+  | T4 | Purchases, money movement, credential handling, permanent deletion. | Stays disabled. Each needs its own separately approved design. |
+
+- **Invariants that do not change:** loopback-only API with a token ([REQ-11](prd.md#req-11)); voice is not identity, and voice alone never approves a T3 action ([REQ-09](prd.md#req-09), [DEC-07](#dec-07)); limits, scopes, recipients, and budgets are enforced in code, outside the model ([REQ-10](prd.md#req-10)); content from email, web pages, files, and tool output is data and never instructions; fail closed; every action is logged; an emergency stop always works.
+- **Alternatives and trade-offs:** (a) Keep REQ-08 as written: safest, but caps the product at demos. (b) Open all capabilities at once: fastest, but one injected email could send messages or run commands as the owner. (c) The ladder: slower, but each step is reviewed on its own and can be rolled back alone.
+- **Implications:** [REQ-08](prd.md#req-08) and [AGENTS.md](AGENTS.md) section 5 are amended to point here. Real voice and personal data going to a cloud provider needs the decision in R-A.2, because the PH-00 boundary kept personal microphone audio local and a free tier may train on inputs ([REQ-13](prd.md#req-13)). The $0 cap may need a decision for a paid tier, which needs both maintainers. The fixed workers in PH-02 and PH-03 are unchanged and stay the first implementation. Roadmap items are in parallel track A of [roadmap.md](roadmap.md); no phase moves.
+- **Source evidence:** `jeevesh2515` in chat with Claude Code, 2026-11-12, asking for max-capability use as the project's CTO; [AGENTS.md](AGENTS.md) sections 5 and 10.
+- **Reopen:** Any tier's design review fails or an incident occurs at that tier (drop back one tier); or the maintainers decide to add, merge, or remove a tier.
+
+### DEC-19
+
+Replace the required human review on `develop` with one shared AI reviewer that both maintainers run: [.claude/agents/reviewer.md](.claude/agents/reviewer.md).
+
+- **Status:** Approved by both maintainers: proposed by `abhishek3059` 2026-11-12, approved by `jeevesh2515` in a [PR #37 review](https://github.com/abhishek3059/super-agent/pull/37#pullrequestreview-5893054369) on 2026-11-13 ([approval record](docs/approvals/shared-ai-reviewer-decision.md)). In force when PR #37 merges. After it merges, `abhishek3059` removes the required approving review from the `develop` ruleset.
+- **Rationale:** The maintainers work in different time zones, so waiting for a human review stalls every PR. The quality gate in [AGENTS.md](AGENTS.md) section 9 already existed, but each agent scored itself or picked its own reviewer, so scores were not comparable across machines and tools. One committed reviewer, run in a fresh context with a fixed rubric (and a fixed model within Claude Code), makes the gate the same for every PR. Other tools use their own model and record it in the report.
+- **Alternatives and trade-offs:** (a) Keep the required human code-owner review: strongest check, but blocks for a day per PR across time zones. (b) No review: fastest, but nothing independent checks evidence before a roadmap tick. (c) A shared AI reviewer, run locally: free under the $0 cap and uniform, but a model can miss what a person would catch. (d) A hosted reviewer in CI or GitHub Agent HQ: automatic, but costs money against the $0 cap.
+- **Implications:** AGENTS.md sections 3, 9, and 11 rule 7, [CONTRIBUTING.md](CONTRIBUTING.md), the PR template, and roadmap item R-R.4 point to the shared reviewer. The **Repository checks** status check stays required. `main` keeps a required human review for release PRs. [.github/CODEOWNERS](.github/CODEOWNERS) still requests reviews, but they no longer block merging. The changes listed in AGENTS.md section 3 still need both maintainers (a paid service, moving a gate or phase, a roadmap exception, and, added by this decision, a change to an AGENTS.md rule or a DEC entry), and the reviewer returns REVISE without them. The reviewer's Bash access is read-only by instruction in its file, not by tool permissions. Maintainers can still review any PR by choice.
+- **Source evidence:** `abhishek3059` in chat with Claude Code, 2026-11-12 ([approval record](docs/approvals/shared-ai-reviewer-decision.md)).
+- **Reopen:** A defect reaches `develop` that the reviewer passed; a dishonest roadmap tick is found; or either maintainer asks to bring human review back.
+
+### DEC-20
+
+Keep the Gemini Live adapter as a testing option, make the local path the main direction, build the backend layer next, and measure open-weight native speech-to-speech models locally (spike A5).
+
+- **Status:** Approved by both maintainers: proposed 2026-11-13 by `abhishek3059` in chat with Claude Code, and approved by `jeevesh2515` in a [PR #41 review](https://github.com/abhishek3059/super-agent/pull/41#pullrequestreview-5893054740) on 2026-11-13. This entry authorizes no runtime work by itself, and no roadmap phase moves.
+- **Rationale:**
+  - Speech-to-text often fails on the operator's Indian English accent, so a native speech-to-speech model fits better than a speech-to-text chain.
+  - A council review on 2026-11-13 found that the user's own speech is the personal data. On a cloud voice route no gate can screen it, so private use needs a local voice path.
+  - $0 rules out paid hosting for now.
+- **Parts:**
+  1. Gemini Live stays selectable for testing only, under its [testing exception](docs/approvals/gemini-live-testing-exception.md). No more cloud features for now.
+  2. Provider keys stay in the process environment, or in the launcher's masked prompt, during testing. A settings screen for keys is a future proposal ([credentials proposal](docs/future/provider-credentials-for-users.md)), not decided.
+  3. The next build is the backend layer: PH-02 (ledger, code broker, fixed workers), after PH-01 closes. The ledger carries `origin`, `data_class`, and `provider` fields from the start, as the council recommended.
+  4. Spike A5 measures open-weight native speech-to-speech models on `jeevesh2515`'s Mac ([plan](spikes/a5-local-s2s/README.md), [exception](docs/approvals/local-s2s-spike-exception.md)). No model is verified to fit the Windows laptop.
+- **Alternatives and trade-offs:**
+  - (a) Cloud voice by default. Best accent handling today, but the user's speech goes to a free tier that may train on it.
+  - (b) A speech-to-text chain locally (PR 36). Private, but weak on the operator's accent.
+  - (c) Rented GPU hosting of an open model. Private from training, but costs money and still sends audio off the device.
+  - (d) This entry: test locally first, then decide (c) only with measurements.
+- **Implications:**
+  - PH-07 work (RT-012) happens before its phase, under an exception record that needs both maintainers.
+  - Open questions OD-1 and R-A.2 (may real voice go to a cloud provider) remain open.
+  - The brain design (PR 40) and the council verdict feed PH-02 and the memory gate. Neither is approved.
+- **Source evidence:** `abhishek3059` in chat with Claude Code, 2026-11-13 ("keep the gemini adapter as of now we switch to local setup and creating a robust backend layer ... try some inferencing"); [session log](tasks/logs/2026-11-13-session-log.md); [target architecture proposal](docs/future/architecture-target.md).
+- **Reopen:**
+  - Spike A5 passes or fails its thresholds.
+  - Both maintainers decide OD-1 or approve a paid tier.
+  - Local voice proves unusable on both machines.
+
+### DEC-21
+
+An agent may approve and merge a PR on a maintainer's behalf, one PR at a time, after that maintainer confirms it in chat.
+
+- **Status:** Decided 2026-11-14 by `abhishek3059`, who said in chat that his single review is enough and no second maintainer review is needed. In force when the PR that carries it merges.
+- **Rationale:** Many open agent-written PRs wait on the other maintainer's click. The maintainer still decides each merge; the agent only does the review and the clicks.
+- **Rules:** the agent reviews the PR and shows its findings first; the maintainer confirms that one PR in chat (no blanket approval); the agent never approves or merges a PR it authored, never approves on behalf of the PR's own author, and never uses admin bypass; the review text names the maintainer, the agent, and the date. Branch protection still applies.
+- **Alternatives and trade-offs:** (a) Keep the old rule: safest, but merges stall across time zones. (b) Blanket merge permission: fastest, but no human looks at each PR. (c) Per-PR confirmation: a human decides each merge, but trusts the agent's review of the code. One maintainer's confirmation is enough.
+- **Implications:** [AGENTS.md](AGENTS.md) sections 1, 3, 6, and 11, roadmap rule 5, and the shared reviewer's step 6 are amended. Releases into `main` still need the main ruleset's review. Works with [DEC-19](#dec-19): the shared reviewer still runs first. It replaces every both-maintainer requirement, including those in [DEC-18](#dec-18) and [DEC-19](#dec-19): one maintainer's approval is enough for every change, with no exception. A PR the maintainer authored cannot get his own GitHub approval, so the agent may merge it with the maintainer's admin bypass only when he confirms that PR in chat; the review comment says so.
+- **Source evidence:** `abhishek3059` in chat with Claude Code, 2026-11-14.
+- **Reopen:** A merged PR is found to have skipped its review, or a maintainer asks to bring back two-maintainer approval.
+
 ## Register fields
 
-Every DEC entry from [DEC-01](#dec-01) to [DEC-17](#dec-17) above carries the seven contracted fields inline: status, rationale, alternatives and trade-offs, implications, source evidence, and reopen conditions. This summary restates the register; it does not replace the individual records.
+Every DEC entry from [DEC-01](#dec-01) to [DEC-21](#dec-21) above carries the seven contracted fields inline: status, rationale, alternatives and trade-offs, implications, source evidence, and reopen conditions. This summary restates the register; it does not replace the individual records.
 
 ## Provisional and post-review status
 
-[DEC-04](#dec-04) is conditional; [DEC-06](#dec-06) records a provisional post-review Researcher follow-up candidate, not a re-voted council consensus and not a tested or approved runtime selection; [DEC-13](#dec-13), [DEC-14](#dec-14), and [DEC-15](#dec-15) are deferred; [DEC-17](#dec-17) is repository tooling only. None of these statuses is a runtime approval, and no decision in this register claims tested access or an approved provider.
+[DEC-04](#dec-04) is conditional; [DEC-06](#dec-06) records a provisional post-review Researcher follow-up candidate, not a re-voted council consensus and not a tested or approved runtime selection; [DEC-13](#dec-13), [DEC-14](#dec-14), and [DEC-15](#dec-15) are deferred; [DEC-17](#dec-17) is repository tooling only; [DEC-18](#dec-18) is approved by both maintainers but enables no tier by itself; [DEC-20](#dec-20) is approved by both maintainers and authorizes no runtime work by itself; [DEC-21](#dec-21) is a repository process rule, not a runtime approval. None of these statuses is a runtime approval, and no decision in this register claims tested access or an approved provider.
 
 See [Native transport research](docs/design/super-agent.md) in the signed design and the council meeting records.

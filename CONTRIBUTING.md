@@ -10,7 +10,7 @@ before release.
 | --- | --- | --- |
 | `main` | Production / stable | Only receives merges from `develop` (or hotfixes). No direct feature commits. |
 | `develop` | Integration and testing | Receives feature/fix PRs after CI passes. |
-| `feat/*`, `fix/*`, `docs/*`, `chore/*` | Short-lived work branches | Branch from `develop`, merge back through a PR. |
+| `feat/*`, `fix/*`, `docs/*`, `chore/*`, `spike/*` | Short-lived work branches | Branch from `develop`, merge back through a PR. `spike/*` holds throwaway experiments under `spikes/`. |
 
 ## Daily development flow
 
@@ -33,7 +33,7 @@ git commit -m "feat(scope): describe the change"
 git push -u origin feat/my-change
 gh pr create --base develop --fill
 
-# 6. After CI and review pass, merge the PR
+# 6. After CI and the shared reviewer pass (AGENTS.md section 9), merge the PR
 gh pr merge --squash --delete-branch
 ```
 
@@ -50,7 +50,7 @@ git switch develop
 git pull origin develop
 gh pr create --base main --head develop --title "release: describe the release"
 
-# Wait for the "Repository checks" CI job and human approval, then:
+# Wait for the "Repository checks" CI job, a shared-reviewer PASS, and human approval, then:
 gh pr merge --merge
 ```
 
@@ -86,6 +86,8 @@ git push origin develop
 ```
 
 ## AI-agent rules
+
+The full agent rulebook is [AGENTS.md](AGENTS.md); the path to follow is [roadmap.md](roadmap.md). Read the roadmap before starting and tick finished items, with evidence, in the same PR. In short:
 
 - Use the [pull request template](.github/pull_request_template.md) and disclose
   the agent, model/provider, and human operator.

@@ -1,0 +1,208 @@
+<div class="voice-shell" [attr.data-state]="visualState()" (document:keydown.escape)="closeSettings()">
+  <div class="ambient" aria-hidden="true">
+    <div class="aura aura-primary"></div>
+    <div class="aura aura-secondary"></div>
+    <div class="grid-glow"></div>
+  </div>
+
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true"></span>
+      <span>Super-Agent</span>
+    </div>
+
+    <div class="state-pill" role="status" aria-live="polite">
+      <span class="state-dot"></span>
+      <span>{{ statusLabel() }}</span>
+    </div>
+
+    <button #settingsButton class="icon-button settings-button" type="button" (click)="openSettings()"
+      aria-label="Open local connection settings" title="Local connection settings">
+      <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M10.3 4.3c.4-1.7 2.9-1.7 3.4 0a1.7 1.7 0 0 0 2.5 1.1c1.6-.9 3.3.8 2.4 2.4a1.7 1.7 0 0 0 1.1 2.5c1.7.4 1.7 2.9 0 3.4a1.7 1.7 0 0 0-1.1 2.5c.9 1.6-.8 3.3-2.4 2.4a1.7 1.7 0 0 0-2.5 1.1c-.5 1.7-3 1.7-3.4 0a1.7 1.7 0 0 0-2.5-1.1c-1.6.9-3.3-.8-2.4-2.4a1.7 1.7 0 0 0-1.1-2.5c-1.7-.5-1.7-3 0-3.4a1.7 1.7 0 0 0 1.1-2.5c-.9-1.6.8-3.3 2.4-2.4a1.7 1.7 0 0 0 2.5-1.1Z" />
+        <circle cx="12" cy="12" r="3" />
+      </svg>
+    </button>
+  </header>
+
+  <main class="voice-stage">
+    @if (session.error()) {
+      <div class="error-banner" role="alert">
+        <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="9" />
+          <path stroke-linecap="round" d="M12 7.5v5M12 16.5h.01" />
+        </svg>
+        <span>{{ session.error() }}</span>
+        <button type="button" (click)="openSettings()">Open settings</button>
+      </div>
+    }
+
+    <section class="orb-section" aria-labelledby="voice-state-title">
+      <button class="mic-core" type="button" (click)="centerAction()"
+        [disabled]="session.status() === 'connecting'"
+        [attr.aria-label]="isSessionActive() ? (session.muted() ? 'Unmute microphone' : 'Mute microphone') : 'Configure and start local voice session'">
+        <span class="orb-ring" aria-hidden="true"></span>
+        <span class="orb-sheen" aria-hidden="true"></span>
+        @if (session.muted()) {
+          <svg class="mic-icon muted-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+            <path stroke-linecap="round" stroke-linejoin="round" d="m4 4 16 16M12 18.8a6 6 0 0 0 4.1-1.6M6 11.3v1.5a6 6 0 0 0 6 6v3.7m-3.8 0h7.6M15 12.8V4.5a3 3 0 0 0-5.7-1.3M9 9.2v3.6a3 3 0 0 0 4.8 2.4" />
+          </svg>
+        } @else {
+          <svg class="mic-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 18.8a6 6 0 0 0 6-6v-1.5m-6 7.5a6 6 0 0 1-6-6v-1.5m6 7.5v3.7m-3.8 0h7.6M12 15.8a3 3 0 0 1-3-3V4.5a3 3 0 1 1 6 0v8.3a3 3 0 0 1-3 3Z" />
+          </svg>
+        }
+        <span class="session-timer">{{ elapsedLabel() }}</span>
+      </button>
+
+      <div class="voice-copy">
+        <h1 id="voice-state-title">{{ statusLabel() }}</h1>
+        <p>{{ pipelineSummary() }}</p>
+      </div>
+    </section>
+
+    <div class="spectrum" role="img" [attr.aria-label]="'Microphone input level: ' + session.inputLevel()">
+      @for (strength of bars; track $index) {
+        <span class="spectrum-bar" [style.height.%]="barHeight(strength)" [style.animation-delay.ms]="$index * -34"></span>
+      }
+    </div>
+    <p class="spectrum-label">Microphone level, not speech detection</p>
+
+    @if (session.provider() === 'local' || session.provider() === 'gemini-live') {
+      <section class="conversation" role="log" aria-live="polite" aria-label="Conversation transcript">
+        <ol #transcript>
+          @for (entry of session.conversation(); track $index) {
+            <li [class.user]="entry.role === 'user'">
+              <span class="who">{{ entry.role === 'user' ? 'You' : 'Assistant' }}</span>
+              <p>{{ entry.text }}</p>
+            </li>
+          } @empty {
+            <li class="empty">Say something to begin.</li>
+          }
+        </ol>
+      </section>
+    }
+
+    <details class="pipeline">
+      <summary>
+        <span class="pipeline-dot"></span>
+        <span>{{ pipelineSummary() }}</span>
+        <span class="pipeline-tag">{{ copy().tag }}</span>
+        <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M8 10l4 4 4-4" />
+        </svg>
+      </summary>
+      <div class="pipeline-panel">
+        <div class="pipeline-heading">
+          <div>
+            <span class="eyebrow">Current voice path</span>
+            <h2>Local session details</h2>
+          </div>
+          <span class="provider-badge">{{ copy().badge }}</span>
+        </div>
+        <ol>
+          <li [class.current]="session.status() === 'connecting'" [class.complete]="isSessionReady()">
+            <span class="step-number">1</span>
+            <div><strong>Loopback connection</strong><small>WebSocket on 127.0.0.1:8000</small></div>
+          </li>
+          <li [class.current]="session.status() === 'connecting'" [class.complete]="isSessionReady()">
+            <span class="step-number">2</span>
+            <div><strong>Local authentication</strong><small>Memory-only token, never saved by this page</small></div>
+          </li>
+          <li [class.current]="session.status() === 'listening' || session.status() === 'muted'" [class.complete]="session.status() === 'thinking' || session.status() === 'speaking'">
+            <span class="step-number">3</span>
+            <div><strong>Microphone capture</strong><small>{{ copy().micStep }}</small></div>
+          </li>
+          <li [class.current]="session.status() === 'thinking' || session.status() === 'speaking'">
+            <span class="step-number">4</span>
+            <div><strong>{{ copy().replyStep }}</strong><small>{{ copy().replyNote }}</small></div>
+          </li>
+        </ol>
+      </div>
+    </details>
+  </main>
+
+  <footer class="control-area">
+    <div class="control-dock" role="group" aria-label="Voice session controls">
+      <button class="dock-button" type="button" (click)="toggleMute()" [disabled]="!canControlSession()"
+        [class.active]="session.muted()" [attr.aria-label]="session.muted() ? 'Unmute microphone' : 'Mute microphone'"
+        [title]="session.muted() ? 'Unmute microphone' : 'Mute microphone'">
+        @if (session.muted()) {
+          <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9">
+            <path stroke-linecap="round" stroke-linejoin="round" d="m4 4 16 16M12 18.8a6 6 0 0 0 4.1-1.6M6 11.3v1.5a6 6 0 0 0 6 6v3.7m-3.8 0h7.6M15 12.8V4.5a3 3 0 0 0-5.7-1.3M9 9.2v3.6a3 3 0 0 0 4.8 2.4" />
+          </svg>
+        } @else {
+          <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 18.8a6 6 0 0 0 6-6v-1.5m-6 7.5a6 6 0 0 1-6-6v-1.5m6 7.5v3.7m-3.8 0h7.6M12 15.8a3 3 0 0 1-3-3V4.5a3 3 0 1 1 6 0v8.3a3 3 0 0 1-3 3Z" />
+          </svg>
+        }
+      </button>
+
+      <button class="dock-button" type="button" (click)="session.interrupt()" [disabled]="!canControlSession()"
+        aria-label="Stop local echo playback" title="Stop local echo playback">
+        <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9">
+          <rect x="5.25" y="5.25" width="13.5" height="13.5" rx="2.25" />
+        </svg>
+      </button>
+
+      <button class="dock-button session-button" type="button" (click)="endOrStart()"
+        [class.start]="!isSessionActive()" [attr.aria-label]="isSessionActive() ? 'End voice session' : 'Start voice session'"
+        [title]="isSessionActive() ? 'End voice session' : 'Start voice session'">
+        @if (isSessionActive()) {
+          <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+            <path stroke-linecap="round" d="M6 6l12 12M18 6 6 18" />
+          </svg>
+        } @else {
+          <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path stroke-linejoin="round" d="M6.2 5.7c0-.9 1-1.4 1.7-1l10.5 6.3c.7.4.7 1.4 0 1.9L7.9 19.2c-.7.4-1.7-.1-1.7-1V5.7Z" />
+          </svg>
+        }
+      </button>
+    </div>
+    <p class="privacy-note"><span></span> {{ copy().privacy }}</p>
+  </footer>
+
+  @if (settingsOpen()) {
+    <div class="modal-backdrop" (click)="closeSettingsFromBackdrop($event)">
+      <section #settingsPanel class="settings-panel" role="dialog" aria-modal="true"
+        aria-labelledby="settings-title" aria-describedby="settings-intro" (keydown)="onSettingsKeydown($event)">
+        <div class="settings-heading">
+          <div>
+            <span class="eyebrow">Loopback only</span>
+            <h2 id="settings-title">Local voice connection</h2>
+          </div>
+          <button class="icon-button" type="button" (click)="closeSettings()" aria-label="Close settings">
+            <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" d="M6 6l12 12M18 6 6 18" />
+            </svg>
+          </button>
+        </div>
+
+        <p class="settings-intro" id="settings-intro">Paste the current token created by the launcher. It remains in memory only and is cleared when you start the connection.</p>
+
+        <label for="token">Local session token</label>
+        <input #tokenInput id="token" type="password" autocomplete="off" spellcheck="false"
+          placeholder="Paste the current loopback token"
+          [value]="token" (input)="token = tokenInput.value">
+
+        <label for="endpoint">Local WebSocket endpoint</label>
+        <input id="endpoint" type="text" value="ws://127.0.0.1:8000/ws/voice" readonly>
+
+        <div class="boundary-card">
+          <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 3.5 5.5 6v5.3c0 4.1 2.7 7.8 6.5 9.2 3.8-1.4 6.5-5.1 6.5-9.2V6L12 3.5Z" />
+            <path stroke-linecap="round" stroke-linejoin="round" d="m9.3 12 1.8 1.8 3.8-4" />
+          </svg>
+          <div><strong>{{ copy().settingsTitle }}</strong><span>{{ copy().settingsNote }}</span></div>
+        </div>
+
+        @if (session.error()) { <p class="settings-error" role="alert">{{ session.error() }}</p> }
+
+        <div class="settings-actions">
+          <button class="secondary-button" type="button" (click)="closeSettings()">Cancel</button>
+          <button class="connect-button" type="button" (click)="start()" [disabled]="isSessionActive()">Connect locally</button>
+        </div>
+      </section>
+    </div>
+  }
+</div>

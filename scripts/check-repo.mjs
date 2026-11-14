@@ -8,12 +8,14 @@
  *  - unresolved merge-conflict markers
  *  - files larger than 2 MiB
  *  - local Markdown file links and heading fragments
+ *  - roadmap.md structure, evidence, and phase order (see check-roadmap.mjs)
  *
  * Exit code 1 on any error. External URLs are not fetched.
  */
 import { execFileSync } from "node:child_process";
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join, relative, resolve, sep } from "node:path";
+import { checkRoadmap } from "./check-roadmap.mjs";
 
 const root = resolve(
   execFileSync("git", ["rev-parse", "--show-toplevel"], {
@@ -271,6 +273,14 @@ for (const filePath of files) {
     fragmentLinks += counts.fragmentLinks;
   }
 }
+
+errors.push(
+  ...checkRoadmap(
+    readFileSync(join(root, "roadmap.md"), "utf8"),
+    readFileSync(join(root, "phases.md"), "utf8"),
+    readFileSync(join(root, "scripts", "roadmap-ids.txt"), "utf8"),
+  ),
+);
 
 const summary = {
   markdown_files: markdownFiles,

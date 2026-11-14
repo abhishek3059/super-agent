@@ -50,6 +50,21 @@ Evidence (logs, screenshots, output excerpts):
 <!-- paste or link redacted evidence -->
 ```
 
+## Roadmap (AGENTS.md section 11)
+
+- **Roadmap item(s) this PR works on:** <!-- e.g. R-00.2, or "none: roadmap PR" -->
+- [ ] I read `roadmap.md` before starting and again before opening this PR.
+- [ ] Items finished by this PR are ticked in `roadmap.md` with an Evidence link, or none are finished yet.
+- [ ] This PR stays on the current phase (or has an approved `[exception: link]`).
+
+## Quality scores (AGENTS.md section 9)
+
+| Correctness | Security | Honesty | Scope | Clarity | Average | Scored by |
+| --- | --- | --- | --- | --- | --- | --- |
+| <!-- 0-10 --> | | | | | | <!-- shared reviewer (.claude/agents/reviewer.md), tool and model --> |
+
+<!-- Paste the shared reviewer's full report here: verdict, checks, findings, unverified claims, approvals. -->
+
 ## AI-agent safety checklist
 
 - [ ] No secrets, tokens, private keys, `.env` files, or personal data added.
@@ -61,6 +76,8 @@ Evidence (logs, screenshots, output excerpts):
 - [ ] Future phases/tasks remain `not started` unless the change is the actual
       approved implementation.
 - [ ] Documentation status, PASS/FAIL claims, and links are accurate.
+- [ ] Documentation checked for stale status, commands, evidence, and
+      application-state descriptions; updated in this PR or confirmed unchanged.
 - [ ] Rollback path is stated below.
 
 ## Runtime and privacy impact
@@ -75,7 +92,7 @@ documentation-only changes.
 
 <!-- How can this change be reverted safely? -->
 
-## Human approval
+## Merge decision
 
-- [ ] This change requires human review before merge.
-- Approver / date: <!-- GitHub handle and date -->
+- [ ] The shared reviewer verdict above is PASS. Human review is optional for PRs into `develop`; a release into `main` needs a human approval ([DEC-19](../descisions.md#dec-19)).
+- Maintainer who decides the merge / date: <!-- GitHub handle and date -->
