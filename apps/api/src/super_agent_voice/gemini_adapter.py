@@ -116,6 +116,7 @@ class GeminiLiveAdapter:
         self._tool_out: asyncio.Queue[list[Any]] = asyncio.Queue()
         self._tool_calls = 0
         self._turn_tools: list[str] = []  # allowlisted names only, never arguments or outputs
+        self._turn_spoke = False  # whether this reply has sent any audio yet
         self._said = ""  # transcript fragments of one speaker, joined into a line
         self._said_role = ""
         self._events: asyncio.Queue[
@@ -310,6 +311,7 @@ class GeminiLiveAdapter:
             data = getattr(getattr(part, "inline_data", None), "data", None)
             if data:
                 self._turn_active = True
+                self._turn_spoke = True
                 # The bridge already advanced its playback epoch at local stop.
                 # Until the provider settles that turn, its PCM is still stale.
                 if self._ack_task is None or self._ack.is_set():
@@ -318,6 +320,7 @@ class GeminiLiveAdapter:
             self._flush_said()
             self._tool_calls = 0
             self._turn_tools = []
+            self._turn_spoke = False
             self._turn_active = False
             self._ack.set()
             self._events.put_nowait(Interrupted())
@@ -326,5 +329,11 @@ class GeminiLiveAdapter:
             self._tool_calls = 0
             self._turn_active = False
             self._ack.set()
+            # Gemini ends the turn in which it calls a tool, then speaks the answer in a
+            # second turn. Reporting the first as complete told the console and the live
+            # check the reply was over before a word was said. The tool names carry over.
+            if self._turn_tools and not self._turn_spoke:
+                return
             self._events.put_nowait(TurnComplete(tuple(self._turn_tools)))
             self._turn_tools = []
+            self._turn_spoke = False

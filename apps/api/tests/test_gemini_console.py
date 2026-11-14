@@ -8,10 +8,10 @@ from types import SimpleNamespace as NS
 import pytest
 
 from super_agent_voice import tools
-from super_agent_voice.adapter import Interrupted, Transcript, TurnComplete
+from super_agent_voice.adapter import AudioChunk, Interrupted, Transcript, TurnComplete
 from super_agent_voice.app import _adapter_from_environment
 from super_agent_voice.gemini_adapter import MAX_TOOL_CALLS_PER_TURN, GeminiLiveAdapter
-from test_gemini_adapter import FakeConnect, FakeSession, flag, run, sent, take
+from test_gemini_adapter import FakeConnect, FakeSession, audio, flag, run, sent, take
 
 
 class ToolSession(FakeSession):
@@ -82,17 +82,17 @@ def test_unknown_tools_get_an_error_and_cancellations_are_ignored():
     async def scenario():
         cancel = NS(tool_call=None, tool_call_cancellation=NS(ids=["c1"]), server_content=None, go_away=None)
         session = ToolSession([[calls(("c1", "run_shell", {"command": "id"})), cancel,
-                                flag(turn_complete=True)]])
+                                flag(turn_complete=True), audio(b"\x01\x00"), flag(turn_complete=True)]])
         adapter = make(session)
         await adapter.start()
         await tool_sent(session, 1)
-        events = await take(adapter, 1)
+        events = await take(adapter, 2)
         await adapter.close()
         return session.tool_sent, events
 
     sent_, events = run(scenario())
     assert sent_ == [[("c1", "run_shell", "error: no such tool.")]]
-    assert events == [TurnComplete(("unknown",))]  # never the model-chosen name
+    assert events[-1] == TurnComplete(("unknown",))  # never the model-chosen name
 
 
 def test_a_tool_response_survives_a_full_audio_queue():
@@ -153,3 +153,18 @@ def test_current_time_reads_aloud_and_only_gemini_declares_it():
     assert re.fullmatch(r"[A-Z][a-z]+ \d{2} [A-Z][a-z]+ \d{4}, \d{2}:\d{2}", tools.run_tool("current_time", {}))
     assert [f["name"] for f in tools.GEMINI_FUNCTIONS] == ["calculate", "current_time"]
     assert [t["function"]["name"] for t in tools.TOOLS] == ["calculate"]
+
+
+def test_the_turn_that_only_calls_a_tool_does_not_end_the_reply():
+    """Gemini closes the tool-call turn, then speaks in the next one; one TurnComplete covers both."""
+    async def scenario():
+        session = ToolSession([[calls(("c1", "calculate", {"expression": "17 * 23"})), flag(turn_complete=True),
+                                audio(b"\x01\x00"), flag(turn_complete=True)]])
+        adapter = make(session)
+        await adapter.start()
+        await tool_sent(session, 1)
+        events = await take(adapter, 2)
+        await adapter.close()
+        return events
+
+    assert run(scenario()) == [AudioChunk(b"\x01\x00", 24000), TurnComplete(("calculate",))]
