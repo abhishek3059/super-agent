@@ -16,32 +16,53 @@ console cannot connect to Gemini. Personal microphone audio stays local.
 
 ## Local private mode (opt-in, macOS)
 
-`SUPER_AGENT_ADAPTER=local` swaps the fake adapter for a fully local pipeline:
-Silero for speech detection, whisper.cpp for speech-to-text, a local model
-through Ollama, and the built-in macOS voice for speech. The only network peer is Ollama on
-`127.0.0.1:11434`. The model is told the date and time and has one tool, a
-calculator; it cannot read your data or act. The console shows what it heard
-and said for the session only. It needs `whisper-cli` and `ollama` on the
-PATH and the model files (Whisper and Silero; Kokoro only if you opt in) whose
-download commands are in
-[spike A4](../spikes/a4-local-voice/README.md). Status and approvals:
-[record](../docs/approvals/local-voice-exception.md).
+`SUPER_AGENT_ADAPTER=local` swaps the fake adapter for a fully local
+assistant. The only network peer is Ollama on `127.0.0.1:11434`; model names
+containing `cloud` are refused because Ollama would forward them off the
+machine.
+
+| Part | Default | Faster, more natural option |
+| --- | --- | --- |
+| Hearing | whisper.cpp `base.en` | LFM3-Audio-2B (`SUPER_AGENT_STT=lfm3`) |
+| Brain | `qwen3.5:4b` in Ollama (`SUPER_AGENT_LOCAL_MODEL`) | `qwen3.5:9b` if nothing else is loaded |
+| Voice | macOS `say` | LFM3-Audio-2B (`SUPER_AGENT_TTS=lfm3`), or Kokoro (`kokoro`, GPL dependencies) |
+| Speech detection | Silero | `SUPER_AGENT_VAD=rms` |
+
+The brain can do arithmetic and, if you enable it, read your files, calendar,
+notes, and mail (tier T1, [design](../docs/design/tier1-read-tools.md)). It
+cannot change, send, or delete anything. T1 is off unless you set
+`SUPER_AGENT_T1` (any of `files,calendar,notes,mail`) and, for files,
+`SUPER_AGENT_T1_FOLDERS`.
+
+### Start it on a Mac
+
+One-time setup (Python 3.12, about 9 GB of models outside the repository):
 
 ```bash
-python -m pip install --only-binary=:all: -r apps/api/requirements.lock -r apps/api/requirements-local.lock
-OLLAMA_HOST=127.0.0.1:11434 ollama serve    # separate terminal
-SUPER_AGENT_ADAPTER=local PYTHONPATH=apps/api/src python -m uvicorn super_agent_voice.app:create_app --factory --host 127.0.0.1 --port 8000 --ws-max-size 65600 --ws-max-queue 4
+python3.12 -m venv ~/.super-agent/venv
+~/.super-agent/venv/bin/python -m pip install --only-binary=:all: -r apps/api/requirements.lock \
+  -r apps/api/requirements-local.lock -r apps/api/requirements-lfm3.lock
+OLLAMA_HOST=127.0.0.1:11434 ollama pull qwen3.5:4b
 ```
 
-Optional settings: `SUPER_AGENT_LOCAL_MODEL` (default `qwen3.5:9b`),
-`SUPER_AGENT_WHISPER_MODEL` (a file name in `~/.super-agent/models`),
-`SUPER_AGENT_SAY_VOICE` (a macOS voice name), and `SUPER_AGENT_VAD=rms`
-(volume threshold, no extra packages).
+Model files go in `~/.super-agent/models` ([spike A4](../spikes/a4-local-voice/README.md)
+for Whisper and Silero) and `~/.super-agent/models/a5` (LFM3-Audio, see the
+spike A5 record).
 
-The Kokoro voice sounds more natural but is opt-in, because its packages
-include GPL-3.0 code and this repository is MIT (OD-8). To use it, install
-`apps/api/requirements-kokoro.lock` as well and set `SUPER_AGENT_TTS=kokoro`
-(optionally `SUPER_AGENT_KOKORO_VOICE`).
+Then, from the repository:
+
+```bash
+SUPER_AGENT_T1=files SUPER_AGENT_T1_FOLDERS="$HOME/super-agent-t1-demo" scripts/start-voice-mac.sh lfm3
+```
+
+Open <http://127.0.0.1:4200>, run `pbcopy < ~/.super-agent/voice-token`, paste
+the token, and connect. Use `cascade` instead of `lfm3` for whisper.cpp and
+`say`.
+
+Memory: the launcher keeps one Ollama model loaded at a time. LFM3-Audio and
+the 4B brain together use about 5 GB; the 9B brain next to LFM3-Audio was
+killed on a 16 GB Mac. Close heavy apps first. To let the assistant read
+Calendar, Notes, or Mail, allow the macOS Automation prompt the first time.
 
 ## Synthetic live check (opt-in)
 
