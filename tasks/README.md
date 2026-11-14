@@ -44,6 +44,16 @@ Creating a task Markdown file does not start or authorize implementation.
 | [RT-011](011-always-on-and-desktop-feasibility.md) | 011-always-on-and-desktop-feasibility.md | Optional feasibility/decision record for desktop activation, wake gating, locked-screen identity/privacy, sleep/power behavior or an approved always-on host; no always-on promise. | Separate UX/deployment consent; REQ-02, REQ-17, REQ-18; DEC-15 | not started |
 | [RT-012](012-private-native-audio-feasibility.md) | 012-private-native-audio-feasibility.md | Optional measurement and migration decision for genuinely native local/private audio with confirmed OS/hardware, quality/latency and denied-egress tests; no downloads from this request. | Separate private-runtime/hardware approval; REQ-01, REQ-14, REQ-15, REQ-17; DEC-10, DEC-15 | not started |
 
+## Session logs
+
+Dated records of working sessions: the motive, what was discussed, what was
+implemented, and what was decided. A log is a record only. It authorizes
+nothing and ticks nothing.
+
+| Date | Log | Topic |
+| --- | --- | --- |
+| 2026-11-13 | [Session log](logs/2026-11-13-session-log.md) | Gemini Live testing, architecture review, local-first direction (DEC-20, approved) |
+
 ## Ordering and dependencies
 
 - RT-001 → RT-002 → RT-003 (voice path).

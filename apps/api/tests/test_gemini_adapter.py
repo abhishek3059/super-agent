@@ -41,9 +41,11 @@ class FakeConnect:
         self.error = error
         self.exit_gate: asyncio.Event | None = None
         self.enter_gate: asyncio.Event | None = None
+        self.handles: list[str | None] = []
 
-    def __call__(self):
+    def __call__(self, handle: str | None = None):
         outer = self
+        self.handles.append(handle)
 
         class Context:
             async def __aenter__(self):
@@ -390,3 +392,212 @@ def NS_error(**attrs) -> Exception:
     for key, value in attrs.items():
         setattr(error, key, value)
     return error
+
+
+# --- provider audio sizing -------------------------------------------------
+
+LIMIT = 16 * 1024  # the adapter's chunk cap, half the app's 32 KiB frame limit
+
+
+def test_large_and_odd_provider_chunks_become_valid_frames_in_order() -> None:
+    big = bytes(range(256)) * 400  # 100 KiB
+    odd = b"\x01\x02\x03\x04\x05"  # 5 bytes: one is carried into the next chunk
+    tail = b"\x06\x07\x08"  # carry + 3 bytes is even again
+    dangling = b"\x09\x0a\x0b"  # an odd byte left at turn end is dropped
+
+    async def scenario():
+        turn = [audio(big), audio(odd), audio(tail), audio(dangling), flag(turn_complete=True)]
+        adapter = make(FakeSession([turn]))
+        await adapter.start()
+        events = []
+        async for event in adapter.events():
+            events.append(event)
+            if isinstance(event, TurnComplete):
+                break
+        await adapter.close()
+        return events
+
+    chunks = [e.data for e in run(scenario()) if isinstance(e, AudioChunk)]
+    assert all(0 < len(c) <= LIMIT and len(c) % 2 == 0 for c in chunks)
+    sent = big + odd + tail + dangling
+    assert b"".join(chunks) == sent[:-1]  # only the final stray byte is dropped
+
+
+def test_odd_byte_does_not_carry_into_the_next_turn() -> None:
+    async def scenario():
+        turn_one = [audio(b"\x01\x02\x03"), flag(turn_complete=True)]
+        adapter = make(FakeSession([turn_one, [audio(b"\x04\x05"), flag(turn_complete=True)]]))
+        await adapter.start()
+        events = await take(adapter, 4)
+        await adapter.close()
+        return events
+
+    assert run(scenario()) == [
+        AudioChunk(b"\x01\x02", 24000), TurnComplete(), AudioChunk(b"\x04\x05", 24000), TurnComplete(),
+    ]
+
+
+# --- session resumption ----------------------------------------------------
+
+HANDLE = "resume-handle-SENTINEL"
+
+
+def update(handle: str, resumable: bool = True) -> NS:
+    return NS(session_resumption_update=NS(new_handle=handle, resumable=resumable), go_away=None, server_content=None)
+
+
+def go_away() -> NS:
+    return NS(server_content=None, go_away=NS(time_left="5s"))
+
+
+class ResumeConnect:
+    """Hands out sessions in order; an Exception entry makes that connect fail."""
+
+    def __init__(self, *sessions: FakeSession | Exception) -> None:
+        self.sessions = list(sessions)
+        self.handles: list[str | None] = []
+        self.resume_gate: asyncio.Event | None = None
+
+    def __call__(self, handle: str | None = None):
+        self.handles.append(handle)
+        outer = self
+        entry = self.sessions.pop(0)
+
+        class Context:
+            async def __aenter__(self):
+                if handle is not None and outer.resume_gate:
+                    await outer.resume_gate.wait()
+                if isinstance(entry, Exception):
+                    raise entry
+                return entry
+
+            async def __aexit__(self, *exc):
+                if not isinstance(entry, Exception):
+                    entry.closed = True
+
+        return Context()
+
+
+def resumable(connect: ResumeConnect) -> GeminiLiveAdapter:
+    return GeminiLiveAdapter(MODEL, connect=connect, blob=lambda data: ("blob", data))
+
+
+def test_go_away_then_close_resumes_with_the_latest_handle(caplog) -> None:
+    async def scenario():
+        first = FakeSession([[update("old-handle"), update(HANDLE), audio(b"\x01\x00"), go_away(), update("", False)]])
+        first.turns.append([OSError("server closed")])
+        second = FakeSession([[audio(b"\x02\x00"), flag(turn_complete=True)]])
+        connect = ResumeConnect(first, second)
+        adapter = resumable(connect)
+        await adapter.start()
+        events = await take(adapter, 4)
+        await adapter.close()
+        return events, connect, first, second
+
+    with caplog.at_level("DEBUG"):
+        events, connect, first, second = run(scenario())
+    # The half-spoken reply is ended for the browser, then the resumed session continues.
+    assert events == [AudioChunk(b"\x01\x00", 24000), Interrupted(), AudioChunk(b"\x02\x00", 24000), TurnComplete()]
+    assert connect.handles == [None, HANDLE]  # a non-resumable update never replaces the handle
+    assert first.closed and second.closed
+    assert HANDLE not in caplog.text and HANDLE not in repr(events)
+
+
+def test_queued_input_is_delivered_to_the_resumed_session() -> None:
+    async def scenario():
+        first = FakeSession([[update(HANDLE), audio(b"\x01\x00"), OSError("closed")]], send_error=ConnectionResetError())
+        second = FakeSession()
+        connect = ResumeConnect(first, second)
+        connect.resume_gate = asyncio.Event()  # hold the reconnect while a frame is sent
+        adapter = resumable(connect)
+        await adapter.start()
+        await take(adapter, 1)
+        await adapter.enqueue_audio(b"\x07\x00")
+        await asyncio.sleep(0.1)  # the send fails on the dead session and waits
+        connect.resume_gate.set()
+        await sent(second, 1)
+        await adapter.close()
+        return second.sent
+
+    assert run(scenario()) == [{"audio": ("blob", b"\x07\x00")}]
+
+
+def test_failed_reconnect_fails_closed_without_the_handle() -> None:
+    async def scenario(second):
+        first = FakeSession([[update(HANDLE), go_away()], []])  # then the stream ends
+        adapter = resumable(ResumeConnect(first, second))
+        await adapter.start()
+        with pytest.raises(AdapterError) as error:
+            await take(adapter, 1)
+        await adapter.close()
+        return error.value
+
+    error = run(scenario(OSError(f"SENTINEL {HANDLE}")))
+    assert error.category == "provider-session-ended"
+    assert HANDLE not in str(error) and "SENTINEL" not in str(error)
+
+
+def test_without_a_resumable_handle_go_away_fails_closed() -> None:
+    async def scenario():
+        connect = ResumeConnect(FakeSession([[update("", False), go_away()]]))
+        adapter = resumable(connect)
+        await adapter.start()
+        with pytest.raises(AdapterError) as error:
+            await take(adapter, 1)
+        await adapter.close()
+        return error.value.category, connect.handles
+
+    assert run(scenario()) == ("provider-session-ended", [None])
+
+
+def test_reconnects_are_capped_per_session(monkeypatch) -> None:
+    import super_agent_voice.gemini_adapter as module
+
+    monkeypatch.setattr(module, "MAX_RECONNECTS", 2)
+
+    async def scenario():
+        ending = lambda: FakeSession([[update(HANDLE)], []])  # noqa: E731
+        connect = ResumeConnect(ending(), ending(), ending(), ending())
+        adapter = resumable(connect)
+        await adapter.start()
+        with pytest.raises(AdapterError) as error:
+            await take(adapter, 1)
+        await adapter.close()
+        return error.value.category, connect.handles
+
+    assert run(scenario()) == ("provider-session-ended", [None, HANDLE, HANDLE])
+
+
+def test_limit_and_unsupported_closes_are_not_retried() -> None:
+    async def scenario():
+        connect = ResumeConnect(FakeSession([[update(HANDLE), NS_error(code=429)]]), FakeSession())
+        adapter = resumable(connect)
+        await adapter.start()
+        with pytest.raises(AdapterError) as error:
+            await take(adapter, 1)
+        await adapter.close()
+        return error.value.category, connect.handles
+
+    assert run(scenario()) == ("provider-limits", [None])
+
+
+def test_sdk_config_enables_resumption_and_compression(monkeypatch) -> None:
+    from google.genai import live
+
+    from super_agent_voice.gemini_adapter import _sdk_connect
+
+    captured: dict = {}
+    monkeypatch.setattr(live.AsyncLive, "connect", lambda self, **kwargs: captured.update(kwargs))
+    _sdk_connect("offline-test-placeholder", MODEL)(None)
+    assert captured["config"].session_resumption.handle is None
+    assert captured["config"].context_window_compression.sliding_window is not None
+    _sdk_connect("offline-test-placeholder", MODEL)(HANDLE)
+    assert captured["config"].session_resumption.handle == HANDLE
+
+
+def test_a_free_tier_session_refusal_is_reported_as_a_limit() -> None:
+    class APIError(Exception):
+        code = 1011
+
+    assert classify(APIError("1011 None. Resource has been exhausted (e.g. check quota).")) == "provider-limits"
+    assert classify(APIError("1011 internal error")) == "session-failed"

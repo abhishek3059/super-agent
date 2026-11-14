@@ -249,6 +249,35 @@ Replace the required human review on `develop` with one shared AI reviewer that 
 - **Source evidence:** `abhishek3059` in chat with Claude Code, 2026-11-12 ([approval record](docs/approvals/shared-ai-reviewer-decision.md)).
 - **Reopen:** A defect reaches `develop` that the reviewer passed; a dishonest roadmap tick is found; or either maintainer asks to bring human review back.
 
+### DEC-20
+
+Keep the Gemini Live adapter as a testing option, make the local path the main direction, build the backend layer next, and measure open-weight native speech-to-speech models locally (spike A5).
+
+- **Status:** Approved by both maintainers: proposed 2026-11-13 by `abhishek3059` in chat with Claude Code, and approved by `jeevesh2515` in a [PR #41 review](https://github.com/abhishek3059/super-agent/pull/41#pullrequestreview-5893054740) on 2026-11-13. This entry authorizes no runtime work by itself, and no roadmap phase moves.
+- **Rationale:**
+  - Speech-to-text often fails on the operator's Indian English accent, so a native speech-to-speech model fits better than a speech-to-text chain.
+  - A council review on 2026-11-13 found that the user's own speech is the personal data. On a cloud voice route no gate can screen it, so private use needs a local voice path.
+  - $0 rules out paid hosting for now.
+- **Parts:**
+  1. Gemini Live stays selectable for testing only, under its [testing exception](docs/approvals/gemini-live-testing-exception.md). No more cloud features for now.
+  2. Provider keys stay in the process environment, or in the launcher's masked prompt, during testing. A settings screen for keys is a future proposal ([credentials proposal](docs/future/provider-credentials-for-users.md)), not decided.
+  3. The next build is the backend layer: PH-02 (ledger, code broker, fixed workers), after PH-01 closes. The ledger carries `origin`, `data_class`, and `provider` fields from the start, as the council recommended.
+  4. Spike A5 measures open-weight native speech-to-speech models on `jeevesh2515`'s Mac ([plan](spikes/a5-local-s2s/README.md), [exception](docs/approvals/local-s2s-spike-exception.md)). No model is verified to fit the Windows laptop.
+- **Alternatives and trade-offs:**
+  - (a) Cloud voice by default. Best accent handling today, but the user's speech goes to a free tier that may train on it.
+  - (b) A speech-to-text chain locally (PR 36). Private, but weak on the operator's accent.
+  - (c) Rented GPU hosting of an open model. Private from training, but costs money and still sends audio off the device.
+  - (d) This entry: test locally first, then decide (c) only with measurements.
+- **Implications:**
+  - PH-07 work (RT-012) happens before its phase, under an exception record that needs both maintainers.
+  - Open questions OD-1 and R-A.2 (may real voice go to a cloud provider) remain open.
+  - The brain design (PR 40) and the council verdict feed PH-02 and the memory gate. Neither is approved.
+- **Source evidence:** `abhishek3059` in chat with Claude Code, 2026-11-13 ("keep the gemini adapter as of now we switch to local setup and creating a robust backend layer ... try some inferencing"); [session log](tasks/logs/2026-11-13-session-log.md); [target architecture proposal](docs/future/architecture-target.md).
+- **Reopen:**
+  - Spike A5 passes or fails its thresholds.
+  - Both maintainers decide OD-1 or approve a paid tier.
+  - Local voice proves unusable on both machines.
+
 ### DEC-21
 
 An agent may approve and merge a PR on a maintainer's behalf, one PR at a time, after that maintainer confirms it in chat.
@@ -263,10 +292,10 @@ An agent may approve and merge a PR on a maintainer's behalf, one PR at a time, 
 
 ## Register fields
 
-Every DEC entry from [DEC-01](#dec-01) to [DEC-19](#dec-19), and [DEC-21](#dec-21), above carries the seven contracted fields inline: status, rationale, alternatives and trade-offs, implications, source evidence, and reopen conditions. This summary restates the register; it does not replace the individual records.
+Every DEC entry from [DEC-01](#dec-01) to [DEC-21](#dec-21) above carries the seven contracted fields inline: status, rationale, alternatives and trade-offs, implications, source evidence, and reopen conditions. This summary restates the register; it does not replace the individual records.
 
 ## Provisional and post-review status
 
-[DEC-04](#dec-04) is conditional; [DEC-06](#dec-06) records a provisional post-review Researcher follow-up candidate, not a re-voted council consensus and not a tested or approved runtime selection; [DEC-13](#dec-13), [DEC-14](#dec-14), and [DEC-15](#dec-15) are deferred; [DEC-17](#dec-17) is repository tooling only; [DEC-18](#dec-18) is approved by both maintainers but enables no tier by itself; [DEC-21](#dec-21) is a repository process rule, not a runtime approval. None of these statuses is a runtime approval, and no decision in this register claims tested access or an approved provider.
+[DEC-04](#dec-04) is conditional; [DEC-06](#dec-06) records a provisional post-review Researcher follow-up candidate, not a re-voted council consensus and not a tested or approved runtime selection; [DEC-13](#dec-13), [DEC-14](#dec-14), and [DEC-15](#dec-15) are deferred; [DEC-17](#dec-17) is repository tooling only; [DEC-18](#dec-18) is approved by both maintainers but enables no tier by itself; [DEC-20](#dec-20) is approved by both maintainers and authorizes no runtime work by itself; [DEC-21](#dec-21) is a repository process rule, not a runtime approval. None of these statuses is a runtime approval, and no decision in this register claims tested access or an approved provider.
 
 See [Native transport research](docs/design/super-agent.md) in the signed design and the council meeting records.

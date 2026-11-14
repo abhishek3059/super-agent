@@ -11,8 +11,9 @@ adapter exists behind the same seam with offline tests
 ([record](../docs/implementation/r01-7-gemini-adapter.md)), but the application
 never constructs it. An opt-in command, `live_check`, ran it once against the
 real service with synthetic speech ([record](../docs/implementation/r01-8-live-check.md)).
-You can run the local scaffold and test start, mute, barge-in, and stop, but the
-console cannot connect to Gemini. Personal microphone audio stays local.
+You can run the local scaffold and test start, mute, barge-in, and stop. By
+default the console cannot connect to Gemini and personal microphone audio stays
+local. The opt-in Gemini mode below is a testing exception.
 
 ## Local private mode (opt-in, macOS)
 
@@ -79,6 +80,61 @@ Calendar, Notes, or Mail, allow the macOS Automation prompt the first time.
 Tier 1 tools are macOS-only: on any other system, setting `SUPER_AGENT_T1`
 stops the session before it starts.
 
+## Gemini Live mode (opt-in, testing only)
+
+`SUPER_AGENT_ADAPTER=gemini` sends your real microphone audio to Google's free
+tier, which may use inputs for training. Speak nothing personal or sensitive.
+The model has two tools, a calculator and the local clock, and the console shows
+transcripts for the session only. Fake stays the default. Approval status:
+[record](../docs/approvals/gemini-live-testing-exception.md). The key comes from
+the process environment only; never put it in a file in the repository.
+
+Windows launcher (prompts for the key with masked input, sets the adapter, and
+restores your environment on exit):
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\start-voice-windows.ps1 -Gemini
+```
+
+Alternative, manual steps:
+
+```powershell
+$env:GEMINI_API_KEY = Read-Host "Gemini API key" -MaskInput   # PowerShell 7; this shell only
+$env:SUPER_AGENT_ADAPTER = "gemini"
+# optional: $env:SUPER_AGENT_GEMINI_MODEL = "gemini-3.8-live"
+$env:PYTHONPATH = "apps\api\src"
+& "$voiceVenv\Scripts\python" -m uvicorn super_agent_voice.app:create_app --factory --host 127.0.0.1 --port 8000 --ws-max-size 65600 --ws-max-queue 4
+```
+
+Startup fails if `GEMINI_API_KEY` is missing. Tool calls and transcripts need a
+live run to confirm; the offline tests use fakes only.
+
+### Long sessions and reconnects
+
+Gemini Live closes a connection after a limited lifetime and sends `go_away`
+first. The adapter asks for session resumption and sliding-window context
+compression, and keeps the latest resumable handle in memory only. The handle
+is never logged, sent to the browser, or put in an error.
+
+- After `go_away` the adapter keeps reading so a reply can finish. When the
+  server closes the connection (or the stream ends), it reconnects once with
+  the stored handle. Queued microphone audio is kept, and a frame that failed
+  on the dead connection is retried once on the new one (it waits up to 10 s).
+- A reply that was mid-speech when the connection closed ends with a provider
+  interruption, because the server state of that turn is gone.
+- At most 20 reconnects per session. With no resumable handle, a failed
+  reconnect, an exhausted cap, or a quota or unsupported-model close, the
+  session fails closed as before (`provider-session-ended` or the specific
+  category).
+- Limits: a tool response in flight during a close is not retried, and the
+  server may not be resumable mid-generation, so a few words around the
+  switch can be lost. The reconnect is covered by offline fakes only; it was
+  not run against the live service.
+
+Provider audio chunks are split into even-length pieces of at most 16 KiB
+before they reach the app, which still rejects frames over 32 KiB or of odd
+length as `invalid-audio`.
+
 ## Synthetic live check (opt-in)
 
 Sends synthetic speech to Google's free tier, which may use inputs for
@@ -90,11 +146,29 @@ GEMINI_API_KEY="$(cat ~/.super-agent/gemini-key)" PYTHONPATH=apps/api/src \
   python -m super_agent_voice.live_check --send-synthetic-audio
 ```
 
-The output is timing and state only. The key stays in the process environment.
-On macOS, the default command also generates two fixed speech clips to check
+On Windows (PowerShell), speech comes from Windows SAPI and the command asks
+for the key if `GEMINI_API_KEY` is not set:
+
+```powershell
+$env:PYTHONPATH = "appspi\src"; & "$env:LOCALAPPDATA\Temp\super-agent-voice-venv\Scripts\python.exe" -m super_agent_voice.live_check --send-synthetic-audio
+```
+
+The output is timing, state, tool names, and character counts only. The key
+stays in the process environment. A good result: the last line shows
+`"reached_gemini": true` and `"tools_ok": true`, and `unsupported-model` fails
+closed. The `tool-calculate` step lists `calculate` and `tool-clock` lists
+`current_time` under `tools`.
+
+On macOS and Windows, the default command also generates two fixed speech clips to check
 conversational interruption. The command reports whether it received a
 provider `Interrupted` event after queuing the second clip. With `--wav`
-the command skips that part.
+the command skips that part and prints `barge-in` as skipped.
+
+The backend also prints state-only status lines (adapter name, connect time,
+per-turn audio size, time to first audio since the previous turn boundary,
+allowlisted tool names, interruptions, session close). They never include
+audio, transcripts, tool arguments, or keys. `adapter=gemini-live` there shows
+the session reached Gemini.
 
 ## Backend
 

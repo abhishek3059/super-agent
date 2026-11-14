@@ -22,9 +22,13 @@ directory does not matter. It:
 The caller's original provider, token, and `PYTHONPATH` environment values are
 restored before the launcher returns.
 
-The script does not print or copy the token, contact Gemini, widen the Host or
+With the opt-in `-Gemini` switch, the launcher prompts for the key with masked
+input, sets `SUPER_AGENT_ADAPTER=gemini` for its own process, and restores both
+on exit. Without it, the fake adapter runs and the Gemini key is removed.
+
+The script does not print or copy the token, contact Gemini without `-Gemini`, widen the Host or
 Origin allowlists, or send microphone audio anywhere except the local fake
-adapter.
+adapter (or Gemini when `-Gemini` is given).
 
 ## Verification
 
