@@ -6,13 +6,42 @@ persist audio, or provide tools or actions.
 
 ## Current state (2026-11-12)
 
-The fake adapter is the only adapter the application uses. A Gemini Live
+The fake adapter is the default. A local private adapter is opt-in (see below). A Gemini Live
 adapter exists behind the same seam with offline tests
 ([record](../docs/implementation/r01-7-gemini-adapter.md)), but the application
 never constructs it. An opt-in command, `live_check`, ran it once against the
 real service with synthetic speech ([record](../docs/implementation/r01-8-live-check.md)).
 You can run the local scaffold and test start, mute, barge-in, and stop, but the
 console cannot connect to Gemini. Personal microphone audio stays local.
+
+## Local private mode (opt-in, macOS)
+
+`SUPER_AGENT_ADAPTER=local` swaps the fake adapter for a fully local pipeline:
+Silero for speech detection, whisper.cpp for speech-to-text, a local model
+through Ollama, and the built-in macOS voice for speech. The only network peer is Ollama on
+`127.0.0.1:11434`. The model is told the date and time and has one tool, a
+calculator; it cannot read your data or act. The console shows what it heard
+and said for the session only. It needs `whisper-cli` and `ollama` on the
+PATH and the model files (Whisper and Silero; Kokoro only if you opt in) whose
+download commands are in
+[spike A4](../spikes/a4-local-voice/README.md). Status and approvals:
+[record](../docs/approvals/local-voice-exception.md).
+
+```bash
+python -m pip install --only-binary=:all: -r apps/api/requirements.lock -r apps/api/requirements-local.lock
+OLLAMA_HOST=127.0.0.1:11434 ollama serve    # separate terminal
+SUPER_AGENT_ADAPTER=local PYTHONPATH=apps/api/src python -m uvicorn super_agent_voice.app:create_app --factory --host 127.0.0.1 --port 8000 --ws-max-size 65600 --ws-max-queue 4
+```
+
+Optional settings: `SUPER_AGENT_LOCAL_MODEL` (default `qwen3.5:9b`),
+`SUPER_AGENT_WHISPER_MODEL` (a file name in `~/.super-agent/models`),
+`SUPER_AGENT_SAY_VOICE` (a macOS voice name), and `SUPER_AGENT_VAD=rms`
+(volume threshold, no extra packages).
+
+The Kokoro voice sounds more natural but is opt-in, because its packages
+include GPL-3.0 code and this repository is MIT (OD-8). To use it, install
+`apps/api/requirements-kokoro.lock` as well and set `SUPER_AGENT_TTS=kokoro`
+(optionally `SUPER_AGENT_KOKORO_VOICE`).
 
 ## Synthetic live check (opt-in)
 

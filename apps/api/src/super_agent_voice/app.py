@@ -5,6 +5,7 @@ import hmac
 import json
 import logging
 import math
+import os
 import threading
 import time
 from collections import deque
@@ -14,7 +15,10 @@ from dataclasses import dataclass, field
 from fastapi import FastAPI, HTTPException, Request, WebSocket
 from starlette.websockets import WebSocketDisconnect
 
-from .adapter import AdapterError, AudioChunk, FakeVoiceAdapter, Interrupted, TurnComplete, VoiceAdapter
+from .adapter import (
+    AdapterError, AudioChunk, FakeVoiceAdapter, Interrupted, Thinking, Transcript, TurnComplete,
+    VoiceAdapter,
+)
 from .config import VoiceConfig
 
 AdapterFactory = Callable[[], VoiceAdapter]
@@ -163,9 +167,10 @@ class _OutboundQueue:
 
 def create_app(
     config: VoiceConfig | None = None,
-    adapter_factory: AdapterFactory = FakeVoiceAdapter,
+    adapter_factory: AdapterFactory | None = None,
 ) -> FastAPI:
     settings = config or VoiceConfig.from_environment()
+    adapter_factory = adapter_factory or _adapter_from_environment()
     # Fails closed before any session can run (teardown addendum 4.1).
     for name in (
         "teardown_seconds", "token_max_age_seconds", "auth_failure_window_seconds",
@@ -187,13 +192,24 @@ def create_app(
     async def health(request: Request) -> dict[str, str]:
         if request.headers.get("host") != settings.allowed_host:
             raise HTTPException(status_code=403)
-        return {"status": "ok", "provider": "fake"}
+        return {"status": "ok", "provider": getattr(adapter_factory, "name", "unknown")}
 
     @app.websocket("/ws/voice")
     async def voice_socket(websocket: WebSocket) -> None:
         await _voice_socket(websocket, settings, adapter_factory, gate, supervisors, auth)
 
     return app
+
+
+def _adapter_from_environment() -> AdapterFactory:
+    choice = os.environ.get("SUPER_AGENT_ADAPTER", "fake")
+    if choice == "fake":
+        return FakeVoiceAdapter
+    if choice == "local":
+        from .local_adapter import LocalVoiceAdapter
+        return LocalVoiceAdapter
+    # Fail closed: an unknown name never falls back to some other provider.
+    raise RuntimeError("SUPER_AGENT_ADAPTER must be 'fake' or 'local'")
 
 
 def _frame_logging_enabled() -> bool:
@@ -823,6 +839,16 @@ async def _forward_events(
                     "type": "audio.chunk", "playbackEpoch": state.epoch,
                     "rateHz": event.rate_hz, "channels": 1, "format": "pcm16",
                 }, audio=event.data, epoch=state.epoch))
+        elif isinstance(event, Thinking):
+            if not state.muted:
+                outbound.put(_Outbound({"type": "turn.state", "state": "thinking"}, epoch=state.epoch))
+        elif isinstance(event, Transcript):
+            # Shown in the console for this session only; sizes are bounded here,
+            # not trusted from the adapter.
+            if not state.muted and event.role in ("user", "assistant") and isinstance(event.text, str):
+                outbound.put(_Outbound({
+                    "type": "conversation.text", "role": event.role, "text": event.text[:500],
+                }, epoch=state.epoch))
         elif isinstance(event, TurnComplete):
             if not state.muted:
                 outbound.put(_Outbound({
