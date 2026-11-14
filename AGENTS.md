@@ -50,7 +50,12 @@ npm run check
 - Conventional Commits: `type(scope): summary` (enforced by the `commit-msg` hook).
 - Fill in [.github/pull_request_template.md](.github/pull_request_template.md)
   completely, including agent, model, human operator, and quality scores.
-- Merge only after human approval. Agents never approve or merge their own PRs.
+- Merge only after human approval. An agent never approves or merges a PR it
+  authored. An agent may approve and merge another author's PR on a
+  maintainer's behalf only when that maintainer confirms that one PR in chat
+  at that moment, after seeing the agent's review ([DEC-21](descisions.md#dec-21)).
+  The review text names the maintainer, the agent, and the date. Agents never
+  use admin bypass, and never approve on behalf of the PR's own author.
 
 ## 4. Honesty rules
 
