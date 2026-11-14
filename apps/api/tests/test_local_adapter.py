@@ -1116,3 +1116,21 @@ def test_a_bad_app_list_stops_the_session_at_start(monkeypatch):
     monkeypatch.setenv("SUPER_AGENT_ACTION_APPS", "Notes;Maps")
     with pytest.raises(RuntimeError):
         run(adapter.start())
+
+
+def test_every_memory_write_needs_the_users_words(monkeypatch, tmp_path):
+    monkeypatch.setattr(local_adapter.memory, "DB_PATH", tmp_path / "m.db")
+    monkeypatch.setenv("SUPER_AGENT_MEMORY", "on")
+
+    def said(heard, name, arguments):
+        async def one():
+            async def turn():
+                local_adapter._HEARD.set(heard)
+                return await local_adapter.call_tool(name, arguments)
+            return await asyncio.create_task(turn())
+        return run(one())
+
+    assert said("how is the weather", "undo_forget", {}) == local_adapter.NOT_ASKED
+    assert said("how is the weather", "complete_reminder", {"match": "bank"}) == local_adapter.NOT_ASKED
+    assert said("remind me to call mom, don't forget it", "forget", {"match": "mom"}) == local_adapter.NOT_ASKED
+    assert said("undo that", "undo_forget", {}) == "Nothing to restore."

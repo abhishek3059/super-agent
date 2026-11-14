@@ -39,6 +39,28 @@ Fixes are tracked in the PR that carries this record. Tools beyond the
 calculator and clock, and continuity across sessions, were not available in
 this test; see the widening in the exception record.
 
+## Agent live check of the tools, 2026-11-14
+
+Claude Code ran synthetic speech (macOS `say`, no microphone) against
+`gemini-3.8-live` on branch `feat/gemini-tools`, with weather, memory, and
+recap on, actions off, and a throwaway memory store and recap file. Two
+sessions, 15 seconds apart. The raw output was not saved; the table is the
+agent's summary of what it printed, so treat it as a smoke check, not gate
+evidence. This ran before the review fixes that keep only the user's words in
+the recap.
+
+| Said | Tool called | Spoken reply (synthetic data) |
+| --- | --- | --- |
+| "What is the weather in London right now?" | `get_weather` | Six degrees and clear in London, high of ten, no rain |
+| "Remember that my dog is called Biscuit." | `remember_fact` | Will remember the dog is called Biscuit |
+| "I feel a bit tired today." | none | A short kind reply; nothing saved |
+| New session: "What is my dog called?" | `list_memory` | Biscuit |
+| New session: "What did we talk about last time?" | none (recap in the instruction) | The weather, the dog's name, and feeling tired |
+
+The memory write passed the request-word gate, so Gemini's transcription
+arrived before its tool call in this run. Approved actions were not tried
+live (they need a click in the console).
+
 ## Not done
 
 - Stop playback was not reported on.

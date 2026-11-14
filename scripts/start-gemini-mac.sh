@@ -6,6 +6,7 @@
 # Optional switches, each off unless set to "on" before you run this:
 #   SUPER_AGENT_WEATHER  SUPER_AGENT_MEMORY  SUPER_AGENT_ACTIONS  SUPER_AGENT_RECAP
 set -euo pipefail
+unset GEMINI_API_KEY  # only the backend below gets the key, never the console
 cd "$(dirname "$0")/.."
 venv="${SUPER_AGENT_VENV:-$HOME/.super-agent/venv}"
 [[ -x "$venv/bin/python" ]] || { echo "No Python environment at $venv; see apps/voice-foundation.md"; exit 1; }

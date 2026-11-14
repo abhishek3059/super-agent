@@ -50,8 +50,9 @@ def _clean(text: str) -> str:
 def save(lines: list[tuple[str, str]]) -> None:
     """Writes the last few lines. Does nothing for an empty conversation, so an old recap is kept.
     Never raises: a recap that cannot be written must not break closing a session."""
-    cleaned = [f"{role}: {_clean(text)}" for role, text in lines[-MAX_LINES:]]
-    kept = [line for line in cleaned if not memory._SECRET.search(line)]  # noqa: SLF001  same rule as memory
+    user = [text for role, text in lines if role == "user"]  # never the assistant's own words
+    # The secret check sees the whole line, before it is cut to length.
+    kept = [f"user: {_clean(text)}" for text in user[-MAX_LINES:] if not memory._SECRET.search(text)]  # noqa: SLF001
     if not kept:
         return
     body = json.dumps({"saved": int(time.time()), "lines": kept}).encode()
@@ -73,7 +74,7 @@ def save(lines: list[tuple[str, str]]) -> None:
 def load(now: float | None = None) -> list[str]:
     """The saved lines, or none when the file is missing, old, odd, or not private to this user."""
     try:
-        fd = os.open(RECAP_PATH, os.O_RDONLY | os.O_NOFOLLOW)
+        fd = os.open(RECAP_PATH, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)  # a FIFO cannot block
         try:
             info = os.fstat(fd)
             if not stat.S_ISREG(info.st_mode) or info.st_mode & 0o077 or info.st_uid != os.getuid():
@@ -92,6 +93,8 @@ def load(now: float | None = None) -> list[str]:
         return []
 
 
-def clear() -> None:
+def clear() -> bool:
+    """True when no recap is left on disk."""
     with contextlib.suppress(OSError):
         RECAP_PATH.unlink(missing_ok=True)
+    return not RECAP_PATH.exists()

@@ -78,10 +78,9 @@ def test_a_tool_call_is_run_and_answered_through_the_send_loop():
     assert batch[1][:2] == ("c2", "current_time")
 
 
-def test_unknown_tools_get_an_error_and_cancellations_are_ignored():
+def test_unknown_tools_get_an_error():
     async def scenario():
-        cancel = NS(tool_call=None, tool_call_cancellation=NS(ids=["c1"]), server_content=None, go_away=None)
-        session = ToolSession([[calls(("c1", "run_shell", {"command": "id"})), cancel,
+        session = ToolSession([[calls(("c1", "run_shell", {"command": "id"})),
                                 flag(turn_complete=True), audio(b"\x01\x00"), flag(turn_complete=True)]])
         adapter = make(session)
         await adapter.start()
@@ -93,6 +92,23 @@ def test_unknown_tools_get_an_error_and_cancellations_are_ignored():
     sent_, events = run(scenario())
     assert sent_ == [[("c1", "run_shell", "error: no such tool.")]]
     assert events[-1] == TurnComplete(("unknown",))  # never the model-chosen name
+
+
+def test_a_cancelled_call_gets_no_answer_and_the_reply_still_ends():
+    async def scenario():
+        cancel = NS(tool_call=None, tool_call_cancellation=NS(ids=["c1"]), server_content=None, go_away=None)
+        session = ToolSession([[calls(("c1", "run_shell", {"command": "id"})), cancel,
+                                flag(turn_complete=True), audio(b"\x01\x00"), flag(turn_complete=True)]])
+        adapter = make(session)
+        await adapter.start()
+        events = await take(adapter, 2)
+        await asyncio.sleep(0.05)
+        await adapter.close()
+        return session.tool_sent, events
+
+    sent_, events = run(scenario())
+    assert sent_ == []
+    assert events[-1] == TurnComplete(("unknown",))
 
 
 def test_a_tool_response_survives_a_full_audio_queue():

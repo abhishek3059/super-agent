@@ -523,7 +523,7 @@ def test_a_recap_is_written_on_close_and_starts_the_next_session_as_data(monkeyp
     with caplog.at_level(logging.DEBUG):
         instruction = run(first())
     assert "Earlier conversation" not in instruction  # nothing saved yet
-    assert recap.load() == [f"user: {secret_words}", "assistant: Lovely, enjoy the visit."]
+    assert recap.load() == [f"user: {secret_words}"]  # never the assistant's words
     assert recap.RECAP_PATH.stat().st_mode & 0o777 == 0o600
 
     async def second():
@@ -553,7 +553,7 @@ def test_the_last_unfinished_line_is_kept_and_only_five_lines_are_saved(monkeypa
 
     run(scenario())
     kept = recap.load()
-    assert len(kept) == 5 and kept[-1] == "user: and one more thing" and kept[0] == "user: question 3"
+    assert len(kept) == 5 and kept[-1] == "user: and one more thing" and kept[0] == "user: question 1"
 
 
 def test_recap_off_writes_nothing():

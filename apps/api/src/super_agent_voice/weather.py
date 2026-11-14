@@ -21,7 +21,12 @@ from pathlib import Path
 AUDIT_LOG = Path.home() / ".super-agent" / "tool-audit.log"
 
 # Not the default opener: it would honour a system proxy and send the place name there.
-_DIRECT = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+class _NoRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, *args: object, **kwargs: object) -> None:
+        return None  # a redirect becomes an error before any second request is made
+
+
+_DIRECT = urllib.request.build_opener(urllib.request.ProxyHandler({}), _NoRedirect)
 GEOCODE_URL = "https://geocoding-api.open-meteo.com/v1/search"
 FORECAST_URL = "https://api.open-meteo.com/v1/forecast"
 TIMEOUT_SECONDS = 5.0
@@ -61,8 +66,6 @@ def _get(url: str) -> object:
         raise ValueError("https only")
     with _DIRECT.open(urllib.request.Request(url, headers={"Accept": "application/json"}),
                       timeout=TIMEOUT_SECONDS) as response:
-        if not response.geturl().startswith("https://"):  # a redirect must not downgrade
-            raise ValueError("redirected off https")
         body = response.read(MAX_BYTES + 1)
     if len(body) > MAX_BYTES:
         raise ValueError("response too large")
@@ -93,8 +96,7 @@ def _lookup(place: str) -> str:
         raise ValueError("bad geocode")
     top = results[0]
     latitude, longitude = _number(top.get("latitude"), -90, 90), _number(top.get("longitude"), -180, 180)
-    name = top.get("name")
-    name = name if isinstance(name, str) and _PLACE.fullmatch(name) else place  # the code-checked spelling only
+    name = place  # the user's own words, already checked; never text chosen by the service
     forecast = _get(
         f"{FORECAST_URL}?latitude={latitude:.4f}&longitude={longitude:.4f}"
         "&current=temperature_2m,apparent_temperature,weather_code,wind_speed_10m"

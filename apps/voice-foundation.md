@@ -111,9 +111,16 @@ $env:PYTHONPATH = "apps\api\src"
 Approved for testing in the
 [widening record](../docs/approvals/gemini-live-testing-exception.md). Each
 switch takes `on` or `off`; any other value stops the session at start. They
-reuse the local adapter's gates, so a tool call is refused unless the user's own
-words in that request asked for it. The words come from Gemini's transcription
-of your speech; if none has arrived, the call is refused.
+reuse the local adapter's gates: a call that changes memory, deletes the
+summary, or opens something is refused unless the user's own words in that
+request asked for it ("remember", "remind", "forget", "undo", "done", "open",
+"search" and similar). Reading memory, the weather, the calculator, and the
+clock need no request words. The words come from Gemini's transcription of
+your speech; if none has arrived, the call is refused. The recap keeps only
+your words, never the assistant's. Known gaps: the 5 newest facts are sent
+at every session start, not only when they bear on a turn, and forgetting a
+fact does not remove it from the recap; say "forget our conversation" for
+that.
 
 | Switch | What it adds | What goes to Google or elsewhere |
 | --- | --- | --- |

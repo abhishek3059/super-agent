@@ -112,9 +112,12 @@ def available_tools() -> list[dict]:
 # so a memory write runs only when the user's own words asked for that kind of change.
 _HEARD: contextvars.ContextVar[str | None] = contextvars.ContextVar("heard", default=None)
 _ASKED = {
-    "remember_fact": re.compile(r"remember|note|save|store|memori[sz]e|keep in mind|don'?t forget"),
-    "add_reminder": re.compile(r"remind|alarm|wake me|remember|don'?t (?:let me )?forget"),
-    "forget": re.compile(r"forget|delete|remove|erase|clear|scratch"),
+    "remember_fact": re.compile(r"\b(?:remember|note|save|store|memori[sz]e|keep in mind|don'?t forget)\b"),
+    "add_reminder": re.compile(r"\b(?:remind|alarm|wake me|remember|don'?t (?:let me )?forget)"),
+    # "don't forget" asks to keep something, so it never counts as a forget request.
+    "forget": re.compile(r"(?<!don't )(?<!dont )\b(?:forget|delete|remove|erase|scratch)\b"),
+    "undo_forget": re.compile(r"\b(?:undo|bring (?:it |that )?back|restore|put (?:it |that )?back)\b"),
+    "complete_reminder": re.compile(r"\b(?:done|did it|complete|completed|finished|tick|check (?:it )?off)\b"),
 }
 _ACTION_REQUEST = re.compile(r"\b(?:open|launch|start|search|look up|google|go to|show me|pull up)")
 NOT_ASKED = "error: the user did not ask for that, so nothing was changed. Do not say it was."
@@ -149,7 +152,8 @@ async def call_tool(name: object, arguments: object) -> str:
         if name in memory.WRITES and _READ_UNTRUSTED.get():
             return memory.AFTER_READ
         heard = _HEARD.get()
-        if heard is not None and name in _ASKED and not _ASKED[name].search(heard.casefold()):
+        # Every memory write needs a request in the user's own words; a write with no rule is refused.
+        if heard is not None and name in memory.WRITES and not (name in _ASKED and _ASKED[name].search(heard.casefold())):
             return NOT_ASKED
         return await asyncio.to_thread(memory.run, name, arguments)
     if name in actions.NAMES:

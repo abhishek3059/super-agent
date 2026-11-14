@@ -17,7 +17,7 @@ def mode(path) -> int:
 def test_save_and_load_round_trip_with_private_modes():
     recap.save([("user", "hello there"), ("assistant", "Hi, how can I help?")])
     assert mode(recap.RECAP_PATH) == 0o600 and mode(recap.RECAP_PATH.parent) == 0o700
-    assert recap.load() == ["user: hello there", "assistant: Hi, how can I help?"]
+    assert recap.load() == ["user: hello there"]  # never the assistant's words
     assert [p.name for p in recap.RECAP_PATH.parent.iterdir()] == ["recap.json"]  # no temp file left
 
 
@@ -26,7 +26,7 @@ def test_only_the_last_five_short_clean_lines_are_kept():
     lines[-1] = ("assistant", "x" * 900 + " tail")
     recap.save(lines)
     kept = recap.load()
-    assert len(kept) == recap.MAX_LINES and kept[0] == "user: line 7"
+    assert len(kept) == recap.MAX_LINES and kept[0] == "user: line 6"
     assert all(len(line) <= recap.MAX_LINE_CHARS for line in kept)
 
 

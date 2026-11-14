@@ -33,7 +33,7 @@ def ask(place="Lisbon"):
 def test_a_good_lookup_is_one_plain_sentence_built_by_code(monkeypatch):
     urls = fake_get(monkeypatch)
     assert ask(" Lisbon,  Portugal ") == (
-        "In Lisbon it is 18 degrees Celsius and partly cloudy, feels like 17, wind 12 kilometres an hour. "
+        "In Lisbon, Portugal it is 18 degrees Celsius and partly cloudy, feels like 17, wind 12 kilometres an hour. "
         "Today's high is 21 and the low is 12, with a 30 percent chance of rain.")
     assert urls[0] == ("https://geocoding-api.open-meteo.com/v1/search?name=Lisbon%2C%20Portugal"
                        "&count=1&language=en&format=json")
@@ -141,9 +141,11 @@ def test_the_real_fetch_caps_size_and_refuses_http_and_downgrades(monkeypatch):
     opener.response = _Response(b" " * (weather.MAX_BYTES + 1) + b"{}")
     with pytest.raises(ValueError):
         weather._get("https://api.open-meteo.com/x")
-    opener.response = _Response(b"{}", url="http://evil.example/x")
-    with pytest.raises(ValueError):
-        weather._get("https://api.open-meteo.com/x")
+
+
+def test_a_redirect_is_never_followed():
+    assert any(isinstance(h, weather._NoRedirect) for h in weather._DIRECT.handlers)
+    assert weather._NoRedirect().redirect_request(None, None, 302, "Found", {}, "http://127.0.0.1/internal") is None
 
 
 def test_the_opener_never_uses_a_proxy():

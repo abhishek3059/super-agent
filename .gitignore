@@ -1,4 +1,6 @@
 node_modules/
+# a symlink to node_modules is not a folder, so the line above misses it
+node_modules
 .husky/_/
 *.log
 .env
