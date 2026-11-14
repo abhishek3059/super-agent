@@ -455,6 +455,14 @@ def ack(id_: int, now: datetime | None = None) -> None:
                 db.execute("UPDATE reminders SET status = 'done', announced = 1 WHERE id = ?", (rid,))
 
 
+def recent_facts(limit: int = 5) -> list[str]:
+    """The newest facts, for a session that has no per-turn notes (Gemini Live)."""
+    if not DB_PATH.exists():
+        return []
+    with _db() as db:
+        return [t for _, t in _facts(db)][:limit]
+
+
 def context(query: str, now: datetime | None = None) -> str:
     """Notes for one turn: only facts and reminders (next 48 hours) that share a word with the question.
 

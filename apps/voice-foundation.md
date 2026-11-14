@@ -84,8 +84,8 @@ stops the session before it starts.
 
 `SUPER_AGENT_ADAPTER=gemini` sends your real microphone audio to Google's free
 tier, which may use inputs for training. Speak nothing personal or sensitive.
-The model has two tools, a calculator and the local clock, and the console shows
-transcripts for the session only. Fake stays the default. Approval status:
+By default the model has two tools, a calculator and the local clock, and the
+console shows transcripts for the session only. Fake stays the default. Approval status:
 [record](../docs/approvals/gemini-live-testing-exception.md). The key comes from
 the process environment only; never put it in a file in the repository.
 
@@ -104,6 +104,36 @@ $env:SUPER_AGENT_ADAPTER = "gemini"
 # optional: $env:SUPER_AGENT_GEMINI_MODEL = "gemini-3.8-live"
 $env:PYTHONPATH = "apps\api\src"
 & "$voiceVenv\Scripts\python" -m uvicorn super_agent_voice.app:create_app --factory --host 127.0.0.1 --port 8000 --ws-max-size 65600 --ws-max-queue 4
+```
+
+### Extra tools (each off unless switched on)
+
+Approved for testing in the
+[widening record](../docs/approvals/gemini-live-testing-exception.md). Each
+switch takes `on` or `off`; any other value stops the session at start. They
+reuse the local adapter's gates, so a tool call is refused unless the user's own
+words in that request asked for it. The words come from Gemini's transcription
+of your speech; if none has arrived, the call is refused.
+
+| Switch | What it adds | What goes to Google or elsewhere |
+| --- | --- | --- |
+| `SUPER_AGENT_WEATHER` | `get_weather(place)` from Open-Meteo, no key | Only the place name goes to Open-Meteo (not Google). Google sees the one-sentence answer. |
+| `SUPER_AGENT_MEMORY` | The memory and reminder tools; the 5 newest facts are put in the session instruction; due reminders show in the console transcript (not spoken) | Those facts, and any fact or reminder text the tools read or save, reach Google's free tier. |
+| `SUPER_AGENT_ACTIONS` | Open a page, search the web, open an allowed app (macOS only). Each needs a click on the console card; a spoken yes never counts. One action per request. | The model sees only the fixed result words (done, denied, timed out). |
+| `SUPER_AGENT_RECAP` | Keeps the last 5 transcript lines in `~/.super-agent/recap.json` (mode 0600) when a session closes, and starts the next session with them if they are under 7 days old. `forget_conversation` (asked for by voice with forget, clear or delete) deletes the file. | The recap lines go to Google at the next session start. Lines that look like secrets are never saved. |
+
+Reading files, notes, mail or calendar stays off with Gemini. The tool audit log
+(`~/.super-agent/tool-audit.log`) holds time, tool name and outcome only. A
+reminder is shown, not spoken, because Gemini owns the voice and its text is
+not trusted. A reminder that comes due while the console is muted is marked
+done without being shown.
+
+Mac launcher: it reads the key from `~/.super-agent/gemini-key` (refuses
+unless the file is mode 0600), gives it only to the backend, prints which
+switches are on, and stops the backend when the console exits:
+
+```bash
+SUPER_AGENT_WEATHER=on SUPER_AGENT_MEMORY=on scripts/start-gemini-mac.sh
 ```
 
 Startup fails if `GEMINI_API_KEY` is missing. Tool calls and transcripts need a

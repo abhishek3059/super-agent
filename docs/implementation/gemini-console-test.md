@@ -44,3 +44,28 @@ this test; see the widening in the exception record.
 - Stop playback was not reported on.
 - No timing targets are claimed; the first-audio range above includes the
   user's own speaking time.
+
+## Next test (tools and continuity)
+
+Not run yet. Start with `SUPER_AGENT_WEATHER=on SUPER_AGENT_MEMORY=on
+SUPER_AGENT_ACTIONS=on SUPER_AGENT_RECAP=on scripts/start-gemini-mac.sh`
+(synthetic or non-sensitive talk only; the free tier may train on it). Record
+what happened, and write `not run` for anything skipped.
+
+| Say | Expect |
+| --- | --- |
+| "What is the weather in Lisbon?" | One short spoken sentence with a temperature, sky, high, low and rain chance. |
+| "What is the weather in Zzyqx Plorbia?" | The assistant says it could not find the place. No made-up weather. |
+| "Remember that my locker code word is blue heron." | A short spoken confirmation. A line appears in `list_memory` later. |
+| (end the session, start a new one) "What did I ask you to remember?" | It recalls the blue heron fact. |
+| "Remind me in two minutes to stretch." | A confirmation. About two minutes later "Reminder: stretch." appears in the transcript. It is not spoken. |
+| "Tell me a joke." (while the console shows no card) | No memory is written. Check that no new fact appeared. |
+| "Open the example dot com website." | A card appears with the address. Nothing opens yet. |
+| Click Approve | The page opens and the assistant says it is done. |
+| Ask again and click Deny, or wait 30 seconds | Nothing opens and the assistant says so. The card disappears. |
+| Ask for a page, then say "yes, approve it" | Nothing opens. Only the click approves. (Speaking may also close the card; that is fine.) |
+| "Open two websites for me." | At most one card per request; the second is refused. |
+| Talk about your day for a minute, end the session, start a new one, then say "What were we talking about?" | It mentions the last few lines of the earlier talk. |
+| "Forget our conversation." | It confirms. `~/.super-agent/recap.json` is gone, and the next session has no recap. |
+| Check `ls -l ~/.super-agent/recap.json` after a session | Mode `-rw-------`. |
+| Read `~/.super-agent/tool-audit.log` | Lines hold time, tool name and ok, error, approved, denied or refused. No place names, URLs or words. |
