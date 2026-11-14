@@ -366,6 +366,39 @@ await (async function connectingBeforeReady() {
   assert.equal(env.micCalls, 0);
 })();
 
+await (async function nonLocalReadyDoesNotCapture() {
+  for (const provider of ['gemini-live', undefined]) {
+    beginTest('an unexpected or missing provider cannot start local microphone capture');
+    micResolved();
+    const service = new VoiceSessionService();
+    await service.start(TOKEN);
+    const socket = lastSocket();
+    socket.open();
+    socket.fireMessage({ ...READY, provider });
+    await flushed();
+    assert.equal(service.status(), 'error');
+    assert.equal(service.error(), 'Unexpected voice provider. Local capture stays off.');
+    assert.equal(env.micCalls, 0);
+    assert.equal(socket.countBinary(), 0);
+    assert.equal(socket.readyState, FakeWebSocket.CLOSED);
+  }
+})();
+
+await (async function localProviderMayCapture() {
+  beginTest('the on-device local provider may start microphone capture');
+  micResolved();
+  const service = new VoiceSessionService();
+  await service.start(TOKEN);
+  const socket = lastSocket();
+  socket.open();
+  socket.fireMessage({ ...READY, provider: 'local' });
+  await flushed();
+  assert.equal(service.error(), '');
+  assert.equal(service.provider(), 'local');
+  assert.equal(env.micCalls, 1);
+  service.stop();
+})();
+
 await (async function silentPcmIsNotSpeaking() {
   beginTest('silent PCM does not make speaking');
   const service = new VoiceSessionService();

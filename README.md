@@ -7,10 +7,10 @@ background task delegation.
 > **Mostly documentation.** The runnable application code is a local voice
 > scaffold in [`apps/`](apps/voice-foundation.md). On `develop` its browser
 > console constructs only the fake streaming adapter; a Gemini Live adapter and
-> locked SDK exist behind the seam. The open PRs #36, #43, and #45 (a stack,
-> not yet merged) add an opt-in fully local assistant: speech in and out and a
-> 4B model on the Mac, read-only file, calendar, notes, and mail tools (T1), and
-> local memory and reminders (T2). Nothing leaves the machine in that stack. There are
+> locked SDK exist behind the seam. An opt-in fully local voice adapter (speech in
+> and out and a small model on the Mac) is merged. The open PRs #43 and #45
+> add read-only file, calendar, notes, and mail tools (T1) and local memory and
+> reminders (T2). Nothing leaves the machine on that path. There are
 > no workers, stored audio, or complete assistant. RT-G01 and later runtime
 > gates remain open.
 
@@ -24,7 +24,7 @@ background task delegation.
 | [Phases](phases.md) | Milestone plan PH-DOC–PH-07 with entry and exit gates |
 | [Progress](progress.md) | Dated documentation milestone and dispositions |
 | [Build](build.md) | Current app-specific commands and the historical repository-root command proposal |
-| [Decisions](descisions.md) | Decision register DEC-01–DEC-17 |
+| [Decisions](descisions.md) | Decision register DEC-01–DEC-19 |
 | [Flows](flow.md) | Ten numbered workflows WF-01–WF-10 |
 | [Tasks](tasks/README.md) | Twelve task records; RT-001 is complete, RT-002 and RT-003 are in progress, and RT-004 and later tasks are `not started` |
 | [Council meetings](council%20meetings/README.md) | Three archived deliberation records |

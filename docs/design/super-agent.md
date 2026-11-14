@@ -345,8 +345,10 @@ Future phases and task files initially say **not started**. That is a dated init
 | PH-07 | Optional genuinely native private audio feasibility/migration; RT-012. | not started; compatible hardware/quality/latency/egress benchmark |
 
 Current status (2026-11-12): PH-00 is done and PH-01 is `in progress`. RT-002
-and RT-003 have implementation work, while R-01.4, task completion, and RT-G01
-remain open. The table above keeps the initial status from the signed design.
+and RT-003 have implementation work, and the
+[R-01.4 operator test](../approvals/r01-4-microphone-test.md) is recorded.
+Task completion and RT-G01 remain open. The table above keeps the initial
+status from the signed design.
 See [roadmap.md](../../roadmap.md) for the checklist of record.
 
 The future task index and twelve files must contain the following scopes. These are planning records only; creating a task Markdown file does not start or authorize its implementation.

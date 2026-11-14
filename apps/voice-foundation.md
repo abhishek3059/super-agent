@@ -69,6 +69,8 @@ Memory: the launcher keeps one Ollama model loaded at a time. LFM3-Audio and
 the 4B brain together use about 5 GB; the 9B brain next to LFM3-Audio was
 killed on a 16 GB Mac. Close heavy apps first. To let the assistant read
 Calendar, Notes, or Mail, allow the macOS Automation prompt the first time.
+Tier 1 tools are macOS-only: on any other system, setting `SUPER_AGENT_T1`
+stops the session before it starts.
 
 ## Synthetic live check (opt-in)
 
@@ -82,6 +84,10 @@ GEMINI_API_KEY="$(cat ~/.super-agent/gemini-key)" PYTHONPATH=apps/api/src \
 ```
 
 The output is timing and state only. The key stays in the process environment.
+On macOS, the default command also generates two fixed speech clips to check
+conversational interruption. The command reports whether it received a
+provider `Interrupted` event after queuing the second clip. With `--wav`
+the command skips that part.
 
 ## Backend
 
@@ -165,9 +171,10 @@ npm audit --prefix apps/web
 npm run check
 ```
 
-`npm run test:voice` runs 39 offline service-level cases against the real
+`npm run test:voice` runs 41 offline service-level cases against the real
 transpiled service with hand-written fake WebSocket, AudioContext, and
-getUserMedia objects: it covers silence until ready, audible-gated speaking
+getUserMedia objects: it covers refusal to capture with an unexpected or missing
+provider, silence until ready, audible-gated speaking
 and the 24 kHz metadata rate, untagged and stale-epoch dropping, mute and
 unmute, automatic barge-in (once per pending interrupt), stop with a silent
 event source, late permission grants and rejections against stopped and newer
@@ -185,7 +192,6 @@ call, or key is involved.
 mapping used by the live voice interface. `npm run test:epoch` keeps the 8
 focused playback-epoch cases separate.
 
-The R-01.3 Mac offline check is complete, although it covered the earlier
-scaffold at `4f51e00`. The revised-scaffold human microphone test, R-01.4, is
-still pending. No personal microphone audio may be forwarded to a cloud
-provider in this cycle.
+The R-01.3 Mac offline check covered the earlier scaffold at `4f51e00`.
+The [R-01.4 operator test](../docs/approvals/r01-4-microphone-test.md) covered
+the revised local scaffold at `a790530`. Personal microphone audio stays local.

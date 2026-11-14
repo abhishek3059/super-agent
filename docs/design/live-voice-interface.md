@@ -3,7 +3,7 @@
 | Field | Value |
 | --- | --- |
 | Date | 2026-11-12 |
-| Status | Implemented on the current work branch; pending review and the R-01.4 human microphone test |
+| Status | Merged in [PR #34](https://github.com/abhishek3059/super-agent/pull/34). The [R-01.4 human microphone test](../approvals/r01-4-microphone-test.md) used the preceding console. |
 | Human reference | [Standalone HTML reference](references/super-agent-live-voice-interface.html) |
 | Runtime boundary | Loopback backend and local fake echo only; no Gemini microphone session |
 

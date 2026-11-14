@@ -21,14 +21,17 @@ this file is a status pointer, not evidence and not a gate.
 | Field | Value |
 | --- | --- |
 | Phase | PH-01: local boundary and native voice connection |
-| PR | [#34](https://github.com/abhishek3059/super-agent/pull/34) is open for review; [#32](https://github.com/abhishek3059/super-agent/pull/32) is the latest merged phase PR |
-| Branch | `fix/ph-01-scaffold-readiness` at `03e4608`, based on `develop` at `651e33c` |
-| Status | #34 opened on 2026-11-12; PH-01 remains in progress |
+| Latest merged phase PR | [#34](https://github.com/abhishek3059/super-agent/pull/34), merged into `develop` as `3025155` on 2026-11-12 |
+| Status | PH-01 remains in progress. The [R-01.4 operator report](../approvals/r01-4-microphone-test.md) covers the revised offline scaffold before #34. |
 | Application state | The browser console is the reference-led live voice interface and uses only the offline fake adapter. The token stays in memory, the endpoint is fixed to the reviewed loopback address, and the spectrum is labeled as microphone level, not speech detection. A Gemini Live adapter exists behind the seam; the application never constructs it, but the opt-in `live_check` command ran it once against the real service with synthetic speech ([R-01.7](r01-7-gemini-adapter.md), [R-01.8 and R-01.9](r01-8-live-check.md)). Authentication, throttling, expiry, and a CSP are in place and independently reviewed ([R-01.6](../reviews/r01-6-security-review.md)). |
 | Merged scope (#32) | Ticks for R-01.3, R-01.5, and R-01.F1; credential findings CR-09 and CR-02; R-01.6 auth boundary; R-01.7 adapter port; locked `google-genai`; R-01.8 and R-01.9 live check |
-| Open scope (#34) | Reference-led live voice UI and UI self-test; Windows launcher; R-01.F2 Windows-portable symlink test; R-01.F3 Origin diagnostic; reconciled PH-01 status and microphone handoff |
+| Merged scope (#34) | Rebuilt voice console and UI self-test, R-01.F2 Windows-portable symlink test, R-01.F3 Origin diagnostic, and R-01.F4 Windows launcher |
 | Not in scope | Personal microphone audio to Gemini, tools, workers, external actions, paid services, or public deployment |
-| After merge | PH-01 remains in progress until R-01.4 and R-01.10 have evidence. |
+| Remaining gate work | [R-01.10](r01-10-acceptance.md): complete RT-002 and RT-003 and evidence RT-G01. The standalone Gemini run does not cover the application boundary or demonstrate interruption of a long reply. |
+
+R-01.F2 identifies the Windows test portability fix. F2 in the
+[R-01.6 risk acceptance](../approvals/r01-6-f2-risk-acceptance.md) identifies
+the independent security review's auth-throttle lockout finding.
 
 The previous work bundle, [#24](https://github.com/abhishek3059/super-agent/pull/24),
 merged into `develop` on 2026-11-11. The paragraphs below describe that PR and
@@ -80,17 +83,20 @@ keep one PR per phase.
 | [#29](https://github.com/abhishek3059/super-agent/pull/29) | `feat(voice): streaming seam and offline-tested Gemini Live adapter (R-01.7)` | closed | Not merged directly; its adapter was later ported onto the current seam in #32. |
 | [#31](https://github.com/abhishek3059/super-agent/pull/31) | `docs(plan): completion plan, JARVIS architecture, and agent hand-off prompt` | merged | Historical planning snapshot; no gate effect. |
 | [#32](https://github.com/abhishek3059/super-agent/pull/32) | `PH-01: tick evidenced items, token hardening, and Gemini Live adapter (R-01.7)` | merged | Merged as `651e33c`; R-01.3, R-01.5, R-01.F1, and R-01.6 through R-01.9 are ticked. |
-| [#36](https://github.com/abhishek3059/super-agent/pull/36) | `feat(voice): add an opt-in fully local voice adapter and spike A4` | open | Needs review. Base of the stack #43 and #45. |
-| [#42](https://github.com/abhishek3059/super-agent/pull/42) | `fix(ph-01): recover R-01.4 evidence and close playback, close, capture and provider-destination defects (F5-F8)` | open | Needs review. Recovers the R-01.4 record and the F5 to F8 fixes. |
-| [#43](https://github.com/abhishek3059/super-agent/pull/43) | `feat(voice): tier 1 read-only tools and LFM3-Audio ears and mouth with a 4B brain` | open | Stacked on #36. Out-of-order T1 work under an [exception record](../approvals/tier1-local-exception.md) awaiting the second maintainer. |
-| [#44](https://github.com/abhishek3059/super-agent/pull/44) | `docs(design): add the Roamies design reference (ideas only, no code)` | open | Design reference for PH-02, PH-05, and PH-06. Nothing built. |
-| [#45](https://github.com/abhishek3059/super-agent/pull/45) | `feat(voice): local memory and reminders (T2) with forget and undo` | open | Stacked on #43. Out-of-order T2 work under an [exception record](../approvals/local-memory-exception.md) awaiting the second maintainer. |
+| [#34](https://github.com/abhishek3059/super-agent/pull/34) | `PH-01: rebuild live voice console and Windows launcher` | merged | Merged as `3025155`. R-01.F2, R-01.F3, and R-01.F4 are ticked. |
+| [#36](https://github.com/abhishek3059/super-agent/pull/36) | `feat(voice): add an opt-in fully local voice adapter and spike A4` | merged | Merged as `0a9f1b4` on 2026-11-14. Base of #43 and #45. |
+| [#42](https://github.com/abhishek3059/super-agent/pull/42) | `fix(ph-01): recover R-01.4 evidence and close playback, close, capture and provider-destination defects (F5-F8)` | merged | Merged on 2026-11-14. Recovers the R-01.4 record and the F5 to F8 fixes. |
+| [#43](https://github.com/abhishek3059/super-agent/pull/43) | `feat(voice): tier 1 read-only tools and LFM3-Audio ears and mouth with a 4B brain` | open | Targets `develop`; needs review. Out-of-order T1 work under an [exception record](../approvals/tier1-local-exception.md) awaiting a maintainer review (DEC-21). |
+| [#44](https://github.com/abhishek3059/super-agent/pull/44) | `docs(design): add the Roamies design reference (ideas only, no code)` | merged | Merged on 2026-11-14. Design reference for PH-02, PH-05, and PH-06. Nothing built. |
+| [#45](https://github.com/abhishek3059/super-agent/pull/45) | `feat(voice): local memory and reminders (T2) with forget and undo` | open | Stacked on #43. Out-of-order T2 work under an [exception record](../approvals/local-memory-exception.md) awaiting a maintainer review (DEC-21). |
 
 ## Next PH-01 work
 
-PRs #24 and #32 are merged. R-01.3, R-01.5, R-01.F1, and R-01.6 through
-R-01.9 are ticked. R-01.4, the human local-only microphone test, is next;
-R-01.10 follows it. No open successor phase PR is identified in this snapshot.
+R-01.10 is the next acceptance item. The local microphone evidence and the
+standalone synthetic Gemini run cover separate paths. RT-G01 requires measured
+native media and backend event/control behavior. See the
+[gate definition](../../prd.md#rt-g01) and the
+[remaining checks and offline fixes](r01-10-acceptance.md).
 
 ### Open-PR inspection (2026-11-10, historical)
 

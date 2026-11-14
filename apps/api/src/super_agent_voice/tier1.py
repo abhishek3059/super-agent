@@ -11,11 +11,15 @@ Nothing here logs or prints content.
 from __future__ import annotations
 
 import asyncio
-import fcntl
+try:
+    import fcntl
+except ImportError:  # Windows: the F_GETPATH checks below are macOS-only
+    fcntl = None
 import json
 import os
 import re
 import stat
+import sys
 import time
 from collections.abc import Awaitable, Callable
 from pathlib import Path, PurePosixPath
@@ -77,6 +81,9 @@ def _config() -> tuple[frozenset[str], list[str]]:
     groups = frozenset(part.strip() for part in os.environ.get("SUPER_AGENT_T1", "").split(",") if part.strip())
     if not groups <= _GROUPS:
         raise RuntimeError("SUPER_AGENT_T1 may only list: " + ", ".join(sorted(_GROUPS)))
+    # The app tools need osascript and the path checks rely on macOS calls, so fail closed elsewhere.
+    if groups and sys.platform != "darwin":
+        raise RuntimeError("SUPER_AGENT_T1 is supported on macOS only")
     roots: list[str] = []
     if "files" in groups:
         for folder in filter(None, os.environ.get("SUPER_AGENT_T1_FOLDERS", "").split(os.pathsep)):

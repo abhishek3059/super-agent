@@ -58,7 +58,7 @@ Separately approved local scaffold/boundary and manually activated native voice 
 
 - **Entry prerequisites:** [RT-G00](prd.md#rt-g00) resolved (runtime consent, eligibility, host, task selection, budgets/retention) **and** explicit implementation authorization. The offline scaffold exists through the approved PH-01 exception. The Gemini adapter and standalone synthetic live check exist; browser-console provider integration, human microphone evidence, task completion, and RT-G01 acceptance remain phase work.
 - **Exit/acceptance gates:** [RT-002](tasks/002-local-scaffold-and-boundary.md) and [RT-003](tasks/003-native-voice-session.md) complete, and [RT-G01](prd.md#rt-g01) evidenced: actually reviewed scaffold/commands, deployed authentication/Host/Origin/CORS/WS/CSRF controls, backend-only secrets, and measured native media and backend event/control connection with manual activation, stop controls, visible states, and fail-closed transport behavior.
-- **Status:** `in progress`. Revision 2 of the [voice design](docs/design/voice-foundation.md) is merged. The Gemini Live adapter exists behind the seam with offline tests and has run once against the real service with synthetic speech. R-01.4, the human microphone test, is the next unticked roadmap item; R-01.10 is the last.
+- **Status:** `in progress`. Revision 2 of the [voice design](docs/design/voice-foundation.md) is merged. The Gemini Live adapter has offline tests and a standalone synthetic run against the real service. The [R-01.4 operator report](docs/approvals/r01-4-microphone-test.md) covers the revised offline scaffold. R-01.10 is the remaining roadmap item.
 
 Task links: [RT-002](tasks/002-local-scaffold-and-boundary.md), [RT-003](tasks/003-native-voice-session.md).
 

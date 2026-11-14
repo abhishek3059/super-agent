@@ -1,6 +1,7 @@
 import asyncio
 import json
 import struct
+import sys
 
 import pytest
 
@@ -609,6 +610,18 @@ def test_speech_to_text_choice_fails_closed(monkeypatch):
     assert local_adapter.default_synthesize() is local_adapter.lfm3_voice.lfm3_synthesize
 
 
+@pytest.mark.skipif(sys.platform == "darwin", reason="checks the non-macOS refusal")
+def test_tier1_refuses_to_enable_outside_macos(monkeypatch):
+    from super_agent_voice import tier1
+
+    monkeypatch.setenv("SUPER_AGENT_T1", "calendar")
+    with pytest.raises(RuntimeError, match="macOS only"):
+        tier1.enabled_tools()
+    monkeypatch.delenv("SUPER_AGENT_T1")
+    assert tier1.enabled_tools() == []
+
+
+@pytest.mark.skipif(sys.platform != "darwin", reason="tier 1 tools are macOS-only")
 def test_tier1_tools_are_offered_only_when_enabled_and_framed_as_untrusted(monkeypatch, tmp_path):
     monkeypatch.delenv("SUPER_AGENT_T1", raising=False)
     assert [tool["function"]["name"] for tool in local_adapter.available_tools()] == ["calculate"]
