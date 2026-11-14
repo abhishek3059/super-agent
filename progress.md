@@ -410,7 +410,8 @@ configurable endpoint, simulated research states, and future job claims are not
 used by the application. Verification on Windows: UI-state self-test 24 cases,
 voice-session self-test 39 cases, playback-epoch self-test 8 cases, production
 build 159.39 kB initial total, frontend audit 0 vulnerabilities, and repository
-check 0 errors. R-01.4 remains open until the human microphone run is recorded.
+check 0 errors. This work merged in
+[PR #34](https://github.com/abhishek3059/super-agent/pull/34) as `3025155`.
 
 ## Capability ladder proposal (2026-11-12)
 
@@ -429,3 +430,16 @@ reviewer, [.claude/agents/reviewer.md](.claude/agents/reviewer.md), becomes the
 review gate in AGENTS.md section 9, run the same way on both machines. The
 **Repository checks** status check stays required, and changes reserved to
 both maintainers still need both approvals. No runtime gate moves.
+
+## PH-01 local microphone evidence recovered (2026-11-12)
+
+The [R-01.4 operator report](docs/approvals/r01-4-microphone-test.md) was
+committed to the PR #32 branch after it merged. It records Jeevesh's two
+macOS Chrome runs against the revised offline scaffold at `a790530`.
+Jeevesh reported that the required steps worked. The secondary manual Stop
+playback control gave no visible or audible response. The result covers
+R-01.4 and predates the PR #34 console.
+
+R-01.10 and RT-G01 remain open. The recorded native run used a standalone
+synthetic probe. It did not cover native behavior through the application
+boundary or demonstrate interruption of a long provider reply.

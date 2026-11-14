@@ -4,7 +4,7 @@
 | --- | --- |
 | Date | 2026-11-12 |
 | Current phase | PH-01 |
-| Current phase PR | [PR #34](https://github.com/abhishek3059/super-agent/pull/34) is open with the live console, Windows launcher, and R-01.F2/F3/F4 evidence; PH-01 remains open with R-01.4 and R-01.10 pending. Details: [phase PR log](docs/implementation/phase-prs.md). |
+| Current phase PR | [PR #34](https://github.com/abhishek3059/super-agent/pull/34) merged the live console, Windows launcher, and R-01.F2/F3/F4 evidence. PH-01 remains open with R-01.10 pending. Details: [phase PR log](docs/implementation/phase-prs.md). |
 | Gate definitions | [phases.md](phases.md) (entry prerequisites and exit gates stay defined there) |
 | Task records | [tasks/](tasks/README.md) |
 | Enforced by | `npm run check` ([scripts/check-roadmap.mjs](scripts/check-roadmap.mjs), form only), the shared reviewer ([.claude/agents/reviewer.md](.claude/agents/reviewer.md), [DEC-19](descisions.md#dec-19)), and [AGENTS.md](AGENTS.md) section 11 |
@@ -75,10 +75,14 @@ Maps to [RT-002](tasks/002-local-scaffold-and-boundary.md), [RT-003](tasks/003-n
 - [x] R-01.F2 Make the POSIX token-symlink security test portable so unprivileged Windows test runs skip the POSIX-only fixture instead of failing before the assertion. Evidence: [R-01.F2 implementation record](docs/implementation/r01-f2-windows-symlink-test.md)
 - [x] R-01.F3 Make the exact browser Origin requirement and backend-unavailable failure actionable without widening the reviewed Origin allowlist. Evidence: [R-01.F3 implementation record](docs/implementation/r01-f3-origin-diagnostic.md)
 - [x] R-01.F4 Add one Windows launcher that starts the locked backend and frontend from its own checkout path and cleans up the backend when the frontend exits. Evidence: [R-01.F4 implementation record](docs/implementation/r01-f4-windows-launcher.md)
-- [ ] R-01.4 [human] Local microphone test (start, mute, conversational barge-in, stop) recorded on the revised scaffold after R-01.F1; no audio leaves the machine. Evidence: none yet
+- [x] R-01.4 [human] Local microphone test (start, mute, conversational barge-in, stop) recorded on the revised scaffold after R-01.F1; no audio leaves the machine. Evidence: [operator's microphone test record](docs/approvals/r01-4-microphone-test.md)
 - [x] R-01.6 Independent security review accepted for the implemented boundary: deployed authentication, Host, Origin, CORS, WebSocket, and CSRF controls, and backend-only secrets. Evidence: [security review](docs/reviews/r01-6-security-review.md), [F2 risk acceptance](docs/approvals/r01-6-f2-risk-acceptance.md)
 - [x] R-01.8 Opt-in synthetic-audio live command built (key from process environment only, excluded from default tests and CI, logs timing and state only). Evidence: [R-01.8 and R-01.9 record](docs/implementation/r01-8-live-check.md)
 - [x] R-01.9 Synthetic live test run and recorded; unsupported transport fails closed. Evidence: [saved live output](docs/implementation/evidence/r01-9-live-check-output-20261112T000230Z.txt), [R-01.8 and R-01.9 record](docs/implementation/r01-8-live-check.md)
+- [x] R-01.F5 Prevent queued and late native audio from resuming playback after a local interrupt. Evidence: [PH-01 acceptance record](docs/implementation/r01-10-acceptance.md#offline-fixes)
+- [x] R-01.F6 Require a clean SDK exit before reporting an established Gemini session closed. Evidence: [PH-01 acceptance record](docs/implementation/r01-10-acceptance.md#offline-fixes)
+- [x] R-01.F7 Refuse an unexpected or missing provider before the local echo console requests microphone capture. Evidence: [browser verification](docs/implementation/r01-10-acceptance.md#browser-verification)
+- [x] R-01.F8 Keep the synthetic Live adapter on the approved Gemini Developer API destination. Evidence: [provider destination check](docs/implementation/r01-10-acceptance.md#provider-destination)
 - [ ] R-01.10 RT-002 and RT-003 records complete and RT-G01 evidenced. Evidence: none yet
 
 ## PH-02: ledger, policy, and two fixed workers

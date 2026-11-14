@@ -5,7 +5,7 @@
 | Roadmap item | R-01.4 `[human]`, local microphone test (start, mute, conversational barge-in, stop) on the revised scaffold, no audio leaves the machine |
 | Tester | `jeevesh2515`, on the Mac |
 | Adapter under test | The offline fake adapter. It echoes your own voice back. Gemini is not involved. |
-| Status | Not run. This file is instructions only and is not evidence. |
+| Status | The operator ran the test on 2026-11-12. See the [result and tested revision](../approvals/r01-4-microphone-test.md). |
 
 The tick needs a record under `docs/approvals/` that says who tested, when,
 on which commit, and what was observed. The record is written from your
