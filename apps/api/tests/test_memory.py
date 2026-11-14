@@ -5,14 +5,18 @@ import stat
 import threading
 from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime, timedelta
-from zoneinfo import ZoneInfo
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 import pytest
 
 from super_agent_voice import memory
 from super_agent_voice.memory import parse_when
 
-LON = ZoneInfo("Europe/London")
+try:
+    LON = ZoneInfo("Europe/London")
+except ZoneInfoNotFoundError:
+    # shortcut: Windows has no tz database without the tzdata package; add tzdata to the test lock if memory runs there.
+    pytest.skip("no time zone database on this host", allow_module_level=True)
 NOW = datetime(2026, 11, 13, 10, 0, tzinfo=LON)  # a Friday, winter time (UTC+0)
 assert NOW.weekday() == 4
 
