@@ -1,0 +1,216 @@
+"""Limits and admission for background jobs (agent-backend design, sections 4, 5, 7).
+
+Everything here is enforced in code, outside any model. A caller supplies the
+task spec, but never the limits, the tool scope, or the planner's locality:
+those come from trusted code. Every failure raises PolicyError carrying one
+reason code from the closed set REASONS, never text taken from the spec.
+No model, no network, no clock of its own: time comes in as an argument.
+"""
+from __future__ import annotations
+
+import dataclasses
+import json
+from dataclasses import dataclass
+from datetime import datetime, timedelta
+
+from .ledger import TERMINAL, Job, LedgerError
+
+REASONS = frozenset({
+    "limits_invalid", "clock_invalid", "idempotency_key_invalid", "planner_locality_invalid",
+    "memory_flag_invalid", "spec_invalid", "task_type_invalid", "instruction_invalid",
+    "data_class_invalid", "personal_data_cloud_planner", "queue_full", "ledger_error",
+    "ledger_rejected", "input_invalid", "step_limit", "step_type_unknown", "retry_not_allowed",
+    "retries_exhausted", "step_deadline", "job_deadline", "model_call_limit", "input_too_large",
+    "output_too_large",
+})
+
+
+class PolicyError(Exception):
+    """A policy refusal. The message is the fixed reason code and nothing else."""
+
+    def __init__(self, code: str):
+        if code not in REASONS:
+            code = "input_invalid"
+        super().__init__(code)
+        self.code = code
+
+
+# Hard ceilings: no Limits object can exceed these, whoever builds it.
+CEILING = {
+    "steps_per_job": 32, "step_deadline_s": 600, "job_deadline_s": 3600, "retries_per_step": 2,
+    "model_calls_per_job": 100, "model_input_chars": 32_000, "step_output_chars": 16_000,
+    "concurrent_jobs": 8, "queued_jobs": 50,
+    # 1,500 chars is at most 6,000 UTF-8 bytes, inside the ledger's 8,000-byte spec cap.
+    "instruction_chars": 1500,
+}
+
+
+@dataclass(frozen=True)
+class Limits:
+    """Defaults are the provisional table in docs/design/agent-backend.md section 5."""
+    steps_per_job: int = 8
+    step_deadline_s: int = 30
+    job_deadline_s: int = 300
+    retries_per_step: int = 1
+    model_calls_per_job: int = 12
+    model_input_chars: int = 8000
+    step_output_chars: int = 4000
+    concurrent_jobs: int = 2
+    queued_jobs: int = 5
+    instruction_chars: int = 1000
+
+    def __post_init__(self) -> None:
+        for f in dataclasses.fields(self):
+            value = getattr(self, f.name)
+            if type(value) is not int or not 0 < value <= CEILING[f.name]:  # type is int rejects bool
+                raise PolicyError("limits_invalid")
+
+
+TASK_TYPES = frozenset({"answer", "summarize"})
+DATA_CLASSES = frozenset({"synthetic", "personal"})
+SPEC_KEYS = frozenset({"task_type", "instruction", "data_class"})
+STEP_TYPES = frozenset({"read_tool", "summarize", "ask_user", "finish"})
+RETRYABLE_STEPS = frozenset({"read_tool"})  # idempotent and read-only; a model call is neither
+
+# Tool scope by task type. The spec cannot name tools. All read-only.
+TOOL_SCOPE = {
+    "answer": frozenset({"calculate", "current_time"}),
+    "summarize": frozenset({"current_time"}),
+}
+# Tools that read personal data (tier1.py, memory.py reads). Granted only after the data-class rule passes.
+PERSONAL_TOOLS = {
+    "answer": frozenset({"list_files", "read_file", "search_files", "calendar_events", "recent_notes",
+                         "search_notes", "recent_emails", "list_memory", "list_reminders"}),
+    "summarize": frozenset({"list_files", "read_file", "search_files", "recent_notes", "search_notes"}),
+}
+
+
+@dataclass(frozen=True)
+class Admission:
+    job: Job
+    tools: frozenset[str]
+    memory_context: bool
+    deadline: datetime
+
+
+def _aware(value: object) -> bool:
+    return isinstance(value, datetime) and value.tzinfo is not None
+
+
+def _limits(limits: object) -> Limits:
+    if not isinstance(limits, Limits):
+        raise PolicyError("limits_invalid")
+    return limits
+
+
+def _count(value: object, low: int = 0) -> int:
+    if type(value) is not int or value < low:
+        raise PolicyError("input_invalid")
+    return value
+
+
+def _spec(spec: object, limits: Limits) -> dict:
+    if not isinstance(spec, dict) or set(spec) != SPEC_KEYS:
+        raise PolicyError("spec_invalid")
+    task, text, data = spec["task_type"], spec["instruction"], spec["data_class"]
+    if not isinstance(task, str) or task not in TASK_TYPES:
+        raise PolicyError("task_type_invalid")
+    if not isinstance(text, str) or not text.strip() or len(text) > limits.instruction_chars:
+        raise PolicyError("instruction_invalid")
+    try:
+        text.encode("utf-8")  # a lone surrogate is not storable
+        json.dumps(spec, allow_nan=False)
+    except (UnicodeError, TypeError, ValueError):
+        raise PolicyError("instruction_invalid") from None
+    if not isinstance(data, str) or data not in DATA_CLASSES:
+        raise PolicyError("data_class_invalid")
+    return spec
+
+
+def admit(spec: object, idempotency_key: object, planner_is_local: object, limits: object,
+          ledger, now: object, *, memory_is_synthetic: object = False) -> Admission:
+    """Validate, apply the data-class rule and queue cap, then create the job in the ledger.
+
+    planner_is_local and memory_is_synthetic come from trusted code and must be exactly bool;
+    anything else is a refusal. Refusals write nothing. Not atomic with the ledger: two
+    concurrent admissions can both pass the cap check (see the implementation record)."""
+    lim = _limits(limits)
+    if not _aware(now):
+        raise PolicyError("clock_invalid")
+    if not isinstance(idempotency_key, str) or not 0 < len(idempotency_key) <= 128:
+        raise PolicyError("idempotency_key_invalid")
+    if type(planner_is_local) is not bool:
+        raise PolicyError("planner_locality_invalid")
+    if type(memory_is_synthetic) is not bool:
+        raise PolicyError("memory_flag_invalid")
+    spec = _spec(spec, lim)
+    if not planner_is_local and spec["data_class"] == "personal":
+        raise PolicyError("personal_data_cloud_planner")
+    try:
+        jobs = ledger.list_jobs()
+        known = any(j.idempotency_key == idempotency_key for j in jobs)  # a repeat is not new load
+        if not known and sum(j.state not in TERMINAL for j in jobs) >= lim.concurrent_jobs + lim.queued_jobs:
+            raise PolicyError("queue_full")
+    except LedgerError:
+        raise PolicyError("ledger_error") from None
+    try:
+        job = ledger.create_job(spec, idempotency_key)
+    except LedgerError:
+        raise PolicyError("ledger_rejected") from None
+    task = spec["task_type"]
+    return Admission(job, TOOL_SCOPE[task] | PERSONAL_TOOLS[task],
+                     planner_is_local or memory_is_synthetic, now + timedelta(seconds=lim.job_deadline_s))
+
+
+# --- step-level checks: pure, each returns True or raises PolicyError --------
+
+def check_step_index(index: object, limits: object) -> bool:
+    lim = _limits(limits)
+    if _count(index, low=-1) >= lim.steps_per_job or index < 0:
+        raise PolicyError("step_limit")
+    return True
+
+
+def check_retry(step_type: object, retries_used: object, limits: object) -> bool:
+    lim = _limits(limits)
+    if not isinstance(step_type, str) or step_type not in STEP_TYPES:
+        raise PolicyError("step_type_unknown")
+    _count(retries_used)
+    if step_type not in RETRYABLE_STEPS:
+        raise PolicyError("retry_not_allowed")
+    if retries_used >= lim.retries_per_step:
+        raise PolicyError("retries_exhausted")
+    return True
+
+
+def check_step_deadline(started_at: object, now: object, limits: object) -> bool:
+    lim = _limits(limits)
+    if not _aware(started_at) or not _aware(now):
+        raise PolicyError("input_invalid")
+    if now - started_at > timedelta(seconds=lim.step_deadline_s):
+        raise PolicyError("step_deadline")
+    return True
+
+
+def check_job_deadline(deadline: object, now: object) -> bool:
+    if not _aware(deadline) or not _aware(now):
+        raise PolicyError("input_invalid")
+    if now > deadline:
+        raise PolicyError("job_deadline")
+    return True
+
+
+def check_model_call(calls_used: object, input_chars: object, limits: object) -> bool:
+    lim = _limits(limits)
+    _count(calls_used), _count(input_chars)
+    if calls_used >= lim.model_calls_per_job:
+        raise PolicyError("model_call_limit")
+    if input_chars > lim.model_input_chars:
+        raise PolicyError("input_too_large")
+    return True
+
+
+def check_step_output(output_chars: object, limits: object) -> bool:
+    if _count(output_chars) > _limits(limits).step_output_chars:
+        raise PolicyError("output_too_large")
+    return True

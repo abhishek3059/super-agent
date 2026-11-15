@@ -137,6 +137,11 @@ All enforced in code. A breach fails closed: the job goes to `failed`, or to
 | Output size per step | 4,000 characters |
 | Concurrent jobs | 2 |
 | Jobs queued | 5 |
+| Instruction length | 1,000 characters (added by slice 2) |
+
+Slice 2 admits a job only while non-terminal jobs are below concurrent plus
+queued (7). Every value also has a hard ceiling in code
+([record](../implementation/agent-backend-limits.md)).
 
 Budgets are not reset by a revision or by steering
 ([RT-004 failure considerations](../../tasks/004-task-ledger-and-policy.md)).
@@ -243,7 +248,8 @@ Proposed build order, each slice with its test:
    turns a `running` job into `unknown`. No model, no LangGraph. Built:
    [implementation record](../implementation/agent-backend-ledger.md).
 2. **Limits and admission.** Schemas, size caps, queue caps, deadlines. Test:
-   each limit breach fails closed.
+   each limit breach fails closed. Built:
+   [implementation record](../implementation/agent-backend-limits.md).
 3. **Runner.** A background runner with a stub graph. Test: the conversation
    loop answers while a job runs; cancel moves to `cancel_requested`.
 4. **Model seam with a scripted fake.** Test: hostile model output (unknown
