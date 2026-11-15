@@ -4,7 +4,7 @@
 | --- | --- |
 | Date | 2026-11-15 |
 | Author | Drafted by Claude Sonnet 5.5 (`claude-sonnet-5-5`); architecture and revisions by Claude Fable 5.2 (`claude-fable-5-2`); operator `abhishek3059` |
-| Status | **Proposal.** Design only. Builds nothing, ticks no roadmap item, closes no gate. |
+| Status | **Proposal.** This document builds nothing, ticks no roadmap item, and closes no gate. Slices built from it have their own records, linked in section 10. |
 | Approval | [Agent backend exception](../approvals/agent-backend-exception.md) |
 | Builds on | [brain overview](brain/overview.md), [brain evaluation](brain/evaluation.md), [tier 1 read tools](tier1-read-tools.md), [RT-004](../../tasks/004-task-ledger-and-policy.md), [RT-005](../../tasks/005-fixed-sample-workers.md), [RT-009](../../tasks/009-bounded-real-task-planner.md) |
 
@@ -233,7 +233,7 @@ If any claim fails, stop and ask the maintainers.
 | Background runner off the event loop | R-02.5 | REQ-04 |
 | Clarify node (bounded part) | R-04.2 | REQ-16 |
 | Typed steps, step catalog, verifier (bounded part) | R-04.3 | REQ-08, REQ-10, REQ-16 |
-| Model seam, synthetic data only | R-02.3 | REQ-13 |
+| Model seam, synthetic data only | R-02.3 | REQ-13, REQ-15 |
 | Local API binding and token | existing boundary | REQ-11 |
 
 Proposed build order, each slice with its test:
@@ -304,5 +304,5 @@ Proposed build order, each slice with its test:
 
 ## 12. What this does not do
 
-No code, no dependency, no tick, and no gate. It approves no auth, remote
+This document itself adds no code, no dependency, no tick, and no gate. It approves no auth, remote
 access, paid service, new recipient, or higher capability tier.
