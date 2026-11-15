@@ -1,0 +1,287 @@
+# Agent backend: background delegation (design)
+
+| Field | Value |
+| --- | --- |
+| Date | 2026-11-15 |
+| Author | Claude Sonnet 5.5 (`claude-sonnet-5-5`), operator `abhishek3059` |
+| Status | **Proposal.** Design only. Builds nothing, ticks no roadmap item, closes no gate. |
+| Approval | [Agent backend exception](../approvals/agent-backend-exception.md) |
+| Builds on | [brain overview](brain/overview.md), [brain evaluation](brain/evaluation.md), [tier 1 read tools](tier1-read-tools.md), [RT-004](../../tasks/004-task-ledger-and-policy.md), [RT-005](../../tasks/005-fixed-sample-workers.md), [RT-009](../../tasks/009-bounded-real-task-planner.md) |
+
+This is the design of one slice: the user delegates a task, the assistant
+answers at once, and the work runs in the background under a ledger. All
+numbers are provisional and unmeasured ([REQ-17](../../prd.md#req-17)).
+Claims about external packages are marked UNVERIFIED.
+
+## 1. What exists today
+
+| Fact | Source |
+| --- | --- |
+| Current phase is PH-01. R-01.4 and R-01.10 are unticked. PH-02 and PH-04 are not started. | [roadmap.md](../../roadmap.md) |
+| No ledger, planner, or worker exists. | [brain overview, section 1](brain/overview.md#1-what-exists-today) |
+| The voice adapter seam is `VoiceAdapter` (`start`, `enqueue_audio`, `end_audio_stream`, `interrupt`, `events`, `close`). | [adapter.py](../../apps/api/src/super_agent_voice/adapter.py) |
+| Adapters: Gemini Live and a local cascade. | [gemini_adapter.py](../../apps/api/src/super_agent_voice/gemini_adapter.py), [local_adapter.py](../../apps/api/src/super_agent_voice/local_adapter.py) |
+| Local memory (facts, reminders) lives in `~/.super-agent/memory.db`; it has a `context(query)` function and its own tool schemas. | [memory.py](../../apps/api/src/super_agent_voice/memory.py) |
+| Tier 1 read-only tools (files, calendar, notes, mail) are opt-in through `SUPER_AGENT_T1`. They read real local data. | [tier1.py](../../apps/api/src/super_agent_voice/tier1.py), [tier 1 design](tier1-read-tools.md) |
+| Fixed tools: `calculate`, `current_time`. | [tools.py](../../apps/api/src/super_agent_voice/tools.py) |
+| Cloud calls may carry synthetic data only. Budget is $0. Job metadata is deleted 24 hours after a terminal state. | [PH-00 setup decisions](../approvals/ph-00-setup-decisions.md) |
+
+## 2. Flow
+
+The conversation loop (voice or text) decides the user delegated a task. It
+calls one tool, `delegate_task`, with a typed task spec. Code does the rest.
+
+```text
+ user (voice or text)
+        |
+        v
+ conversation loop (model) --- delegate_task(spec) ---+
+        ^                                              v
+        |                              +---------------------------+
+        |   receipt at once            | ledger (SQLite)           |
+        +------------------------------|  create job: queued       |
+        |                              |  idempotency key, rev 1   |
+        |                              +-------------+-------------+
+        |                                            | background runner
+        |                                            | (off the event loop)
+        |                                            v
+        |                     +----------------------------------------+
+        |                     | one LangGraph graph per job            |
+        |                     | clarify? -> plan -> execute -> verify  |
+        |                     |            -> write receipt            |
+        |                     +-------------------+--------------------+
+        |                                         | app code writes a ledger
+        |                                         | transition at every node edge
+        |                                         v
+        |                     +---------------------------+
+        +-- job ended: brief -| ledger: succeeded/failed/ |
+            the user          |  cancelled/unknown        |
+                              +---------------------------+
+```
+
+Steps:
+
+1. **Delegate.** `delegate_task` validates the spec against a schema. The
+   ledger creates a job in `queued` with an idempotency key and returns a
+   receipt (job ID, revision, state). The conversation continues.
+2. **Run.** A background runner takes the job, off the conversation event
+   loop ([RT-A02, RT-A03](../../prd.md#rt-a03)). The ledger moves it to
+   `running`.
+3. **Clarify, only if needed.** If the spec is ambiguous, the graph asks one
+   question, surfaced to the user through the conversation loop. The eight
+   states have no state for this wait; see open decision 7.
+4. **Plan, execute, verify.** The planner emits typed steps from a fixed
+   catalog. Each step runs with a scoped tool set. A verifier checks the
+   result against receipts, not against model confidence.
+5. **Receipt and brief.** The graph writes a receipt. The ledger records the
+   terminal state. The conversation loop is told, and brings it up at the
+   next turn boundary ([brain overview, section 8](brain/overview.md#8-timing-the-queue-and-the-brief)).
+
+## 3. The ledger owns truth
+
+- SQLite file, owned by the app. It holds the job, its state, its revision,
+  its idempotency key, and its receipts.
+- States are the eight in [architecture.md](../../architecture.md#canonical-job-states):
+  `queued`, `running`, `waiting_for_approval`, `cancel_requested`,
+  `succeeded`, `failed`, `cancelled`, `unknown`. This design adds none.
+- LangGraph is only the executor under the ledger. Its checkpointer is not
+  the source of truth. App code writes a ledger transition at each node
+  boundary, in the same transaction as the step receipt.
+- On restart the ledger decides what resumes. A `running` job with no proof of
+  stop becomes `unknown`. Recovery to `queued` follows the
+  [architecture rule](../../architecture.md#canonical-job-states): only with
+  evidence of a safe read-only retry. No blind replay.
+- Retention starts from the [PH-00 rule](../approvals/ph-00-setup-decisions.md):
+  24 hours after a terminal state. A longer window is open decision 8.
+
+## 4. "Subagent" means a bounded worker run
+
+One job is one graph run. It has its own model context and a fixed, scoped
+tool set that policy code picks from the task type. It is not a new process
+with new authority.
+
+- The model never grants or widens scope.
+- No arbitrary shell, plugins, or dynamic code ([REQ-08](../../prd.md#req-08)).
+- The planner emits typed steps chosen from a **fixed step catalog**. Code
+  rejects a step type that is not in the catalog, and a step whose arguments
+  fail the schema.
+- The first catalog is small: `read_tool` (one allowlisted read-only tool
+  call), `summarize` (a model call over bounded step output), `ask_user` (the
+  clarify question), and `finish`. Exact schemas are implementation work.
+
+## 5. Limits outside the model (REQ-10)
+
+All enforced in code. A breach fails closed: the job goes to `failed`, or to
+`unknown` if the outcome cannot be proven.
+
+| Limit | First value (provisional) |
+| --- | --- |
+| Steps per job | 8 |
+| Per-step deadline | 30 seconds |
+| Per-job deadline | 5 minutes |
+| Retries per step | 1, read-only steps only |
+| Model calls per job | 12 |
+| Input size per model call | 8,000 characters |
+| Output size per step | 4,000 characters |
+| Concurrent jobs | 2 |
+| Jobs queued | 5 |
+
+Budgets are not reset by a revision or by steering
+([RT-004 failure considerations](../../tasks/004-task-ledger-and-policy.md)).
+Free-tier request counts are the only budget at $0, so the runner also counts
+provider requests per day.
+
+## 6. Model seam
+
+A small planner-model interface, in the style of the existing
+[adapter seam](../../apps/api/src/super_agent_voice/adapter.py): one method
+that takes an assembled prompt and a response schema and returns a typed reply
+or a fixed error category.
+
+First implementation: the **Gemini text API on the free tier**. The key comes
+from the process environment only. Synthetic data only, because Gemini is the
+approved recipient for generated synthetic content only
+([R-00.4](../approvals/ph-00-setup-decisions.md)). A local text model, and any
+paid model, sit behind the same seam later. A scripted fake model implements
+it for tests, as in [evaluation tier A](brain/evaluation.md#1-two-tiers-of-test).
+
+What testers do:
+
+- **A normal laptop:** text input, the Gemini text model, synthetic data.
+- **A capable machine** (one that can run a local speech-to-speech model):
+  voice runs locally through an existing local adapter, and the same
+  `delegate_task` tool is offered to it. Real personal data never goes to a
+  cloud model.
+
+UNVERIFIED (not checked against a primary source this session): a Claude Pro
+chat subscription does not include API usage, so calling a Haiku model from the
+backend would be a paid API. That needs a maintainer's approval under the $0
+rule. This design therefore does not choose Haiku. No model decision is final.
+The Gemini verification record covers the Live session; that it also covers the
+text API on the free tier is not verified here.
+
+## 7. Tools in the first slice
+
+The first slice uses existing read-only tools only: `calculate` and
+`current_time` in [tools.py](../../apps/api/src/super_agent_voice/tools.py),
+and, behind opt-in, the tier 1 tools in
+[tier1.py](../../apps/api/src/super_agent_voice/tier1.py) and the read-only
+parts of [memory.py](../../apps/api/src/super_agent_voice/memory.py).
+
+Limit: tier 1 tools read real local data. While the planner model is a cloud
+model, that data must not reach it ([REQ-13](../../prd.md#req-13)). So tier 1
+tools are offered to a job only when the planner model is local, or when the
+allowlisted folders hold synthetic files. Code enforces this by data class at
+admission, not by prompt. See conflict C2.
+
+"Research" over the open web needs a search or fetch provider. That is a new
+recipient and an egress decision at $0, so it is out of the first slice and is
+open decision 2.
+
+## 8. Brain in this slice
+
+- **Context assembly.** A code component builds the planner prompt from the
+  task spec, step receipts, and a read-only call to the existing memory layer
+  ([`memory.context`](../../apps/api/src/super_agent_voice/memory.py)). Memory
+  content is data, labelled untrusted, per
+  [brain overview, section 5.1](brain/overview.md#51-trust-labels). The planner
+  cannot write memory.
+- **Evaluation set.** About 20 synthetic delegated tasks, each with an expected
+  receipt, used to measure any later prompt or model change. It follows the
+  tier A and tier B split in [evaluation](brain/evaluation.md#1-two-tiers-of-test).
+- **"Self-improving" in this project means, in order:** a memory distiller
+  (proposed as R-M.12 in [brain overview](brain/overview.md#12-roadmap-proposal-proposed-text-only)),
+  the evaluation set, measured prompt changes, and only later any training, on
+  synthetic data. Nothing here trains a model.
+
+## 9. LangGraph as a dependency
+
+Not added by this document, and not added to any requirements file. Before
+adoption, in the PR that adds it ([AGENTS.md section 6](../../AGENTS.md)): pin
+an exact version, use a release older than 14 days, run `pip-audit` and report
+it, and check the licence.
+
+Claims to check against primary sources, all UNVERIFIED:
+
+- The core `langgraph` package is MIT-licensed.
+- The `langgraph-api` server package is under the Elastic License 2.0. It is
+  not needed and must not be installed.
+- A SQL-injection issue was disclosed in March 2026 in the SQLite checkpointer
+  package. This design does not use that package.
+
+If any claim fails, stop and ask the maintainers.
+
+## 10. Mapping and build order
+
+| Part | Roadmap items | Requirements |
+| --- | --- | --- |
+| Ledger: states, receipts, idempotency, revisions | R-02.1, R-02.2 | REQ-09 |
+| Limits and admission in code | R-02.3 | REQ-10 |
+| Fixed read-only task types, scoped tool sets | R-02.4 | REQ-08 |
+| Background runner off the event loop | R-02.5 | REQ-10 |
+| Clarify node (bounded part) | R-04.2 | REQ-09 |
+| Typed steps, step catalog, verifier (bounded part) | R-04.3 | REQ-08, REQ-10 |
+| Model seam, synthetic data only | R-02.3 | REQ-13 |
+| Local API binding and token | existing boundary | REQ-11 |
+
+Proposed build order, each slice with its test:
+
+1. **Ledger.** SQLite tables, state machine, idempotency key, revision. Test:
+   illegal transitions rejected; a repeated key returns the same job; a restart
+   turns a `running` job into `unknown`. No model, no LangGraph.
+2. **Limits and admission.** Schemas, size caps, queue caps, deadlines. Test:
+   each limit breach fails closed.
+3. **Runner.** A background runner with a stub graph. Test: the conversation
+   loop answers while a job runs; cancel moves to `cancel_requested`.
+4. **Model seam with a scripted fake.** Test: hostile model output (unknown
+   step type, widened scope) is rejected in code.
+5. **Graph.** Plan, execute, verify, receipt on the fake model, then clarify.
+   Test: each node edge writes one ledger transition.
+6. **`delegate_task` wired to the conversation loop**, text first. Test: a real
+   API call through the agent returns a receipt at once.
+7. **Gemini text model** behind the seam. Test: opt-in live check, synthetic
+   data, key from the environment, timing and state logged only.
+8. **Evaluation set** of about 20 tasks. Test: a deterministic run on the fake
+   model passes 100%; a model run reports a rate.
+
+## 11. Conflicts and open decisions
+
+### Conflicts found with existing documents
+
+| ID | Conflict | Where | Handling here |
+| --- | --- | --- | --- |
+| C1 | The brain design gives the conversation model four tools: `propose_task`, `query_ledger`, `cancel_task`, `steer_task`. This design names the entry tool `delegate_task`. | [brain overview, section 6](brain/overview.md#6-system-1-tool-contracts) | Not resolved. Proposal: `delegate_task` is the same admission step as `propose_task`, and the other three tools stay. A maintainer picks one name. |
+| C2 | Tier 1 tools read real local data. Sending their output to a cloud planner breaks the synthetic-only boundary. [DEC-18](../../descisions.md#dec-18) also places T1 after the PH-02 policy layer, and the tier 1 design notes it is not behind that layer yet. | [tier1-read-tools.md](tier1-read-tools.md) known limits; [REQ-13](../../prd.md#req-13) | Section 7: tier 1 only with a local planner or synthetic folders, enforced at admission. This slice is the policy layer tier 1 waits for, so it must not weaken it. |
+| C3 | PH-02 means two deterministic trusted workers. A model-planned graph is PH-04 work, and PH-04 entry needs RT-G04 and an approved real task pair. | [phases.md](../../phases.md) PH-02, PH-04 | Covered by the exception for the bounded parts only. Open decision 3. |
+| C4 | Roadmap rule 5 asks both maintainers to approve an exception record. The record has one. | [roadmap.md](../../roadmap.md) rule 5; [DEC-21](../../descisions.md#dec-21) | DEC-21 says one maintainer is enough. The record relies on it and notes `jeevesh2515` has not reviewed it. |
+| C5 | PH-00 deletes job metadata 24 hours after a terminal state. The brain design says some scenarios need longer. | [PH-00 setup decisions](../approvals/ph-00-setup-decisions.md); brain OD-18 in [overview](brain/overview.md#10-open-maintainer-decisions) | First slice keeps 24 hours. Open decision 8. |
+| C6 | The brain design treats the ledger contract as fixed and lists interface requests IR-1 to IR-10 (an origin field, `job_terminal` events, and others). This slice builds the ledger, so it must decide them. | [brain overview, section 11](brain/overview.md#11-interface-requests-for-the-ledger) | Build only the fields the slice needs. The rest wait. |
+
+### Open decisions for a maintainer
+
+1. **First model.** Gemini text on the free tier (proposed), a local text
+   model, or a paid Haiku model (needs approval under the $0 rule; the Claude
+   Pro claim above is unverified).
+2. **Web research provider.** A search or fetch service is a new recipient and
+   egress decision under [REQ-13](../../prd.md#req-13). Keep it out of the
+   first slice, or approve a named one.
+3. **Fixed workers first.** Whether the two PH-02 fixed workers
+   ([RT-005](../../tasks/005-fixed-sample-workers.md)) are built first as the
+   graph's first two task types. This design assumes yes.
+4. **Ledger file location.** A separate `~/.super-agent/ledger.db` next to
+   `memory.db` matches option (b) of brain OD-10 in the
+   [overview](brain/overview.md#10-open-maintainer-decisions). Confirm.
+5. **Tool name.** `delegate_task` or `propose_task` (conflict C1).
+6. **LangGraph checks.** Who verifies the three UNVERIFIED claims in section 9,
+   and what happens if one fails (plain Python, as the council advised).
+7. **Clarify wait state.** The eight states have no "waiting for the user's
+   answer" state, and `waiting_for_approval` is defined for configured approval
+   checkpoints only. Options: reuse it with a distinct reason code, or run the
+   clarify step before admission so a job starts only with a complete spec. The
+   second adds no state and is proposed.
+8. **Retention.** Keep the 24-hour window, or amend the PH-00 record.
+
+## 12. What this does not do
+
+No code, no dependency, no tick, and no gate. It approves no auth, remote
+access, paid service, new recipient, or higher capability tier.
