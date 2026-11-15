@@ -121,7 +121,7 @@ were still open.
 The operator recorded the PH-00 setup decisions in the
 [PH-00 setup decisions](docs/approvals/ph-00-setup-decisions.md). The first
 real task pair is local document summary plus action-item extraction. Job
-metadata retention is 24 hours after a terminal state, with at most 2 automatic
+metadata retention is 24 hours after a terminal state (amended to 14 days on 2026-11-15), with at most 2 automatic
 retries for idempotent read-only steps. Windows and macOS remain the hosts.
 PH-01 is authorized for offline work plus a synthetic-only Gemini adapter and
 opt-in live test. The secret mechanism is `GEMINI_API_KEY` in the process

@@ -3,7 +3,7 @@
 | Field | Value |
 | --- | --- |
 | Date | 2026-11-15 |
-| Author | Claude Sonnet 5.5 (`claude-sonnet-5-5`), operator `abhishek3059` |
+| Author | Drafted by Claude Sonnet 5.5 (`claude-sonnet-5-5`); architecture and revisions by Claude Fable 5.2 (`claude-fable-5-2`); operator `abhishek3059` |
 | Status | **Proposal.** Design only. Builds nothing, ticks no roadmap item, closes no gate. |
 | Approval | [Agent backend exception](../approvals/agent-backend-exception.md) |
 | Builds on | [brain overview](brain/overview.md), [brain evaluation](brain/evaluation.md), [tier 1 read tools](tier1-read-tools.md), [RT-004](../../tasks/004-task-ledger-and-policy.md), [RT-005](../../tasks/005-fixed-sample-workers.md), [RT-009](../../tasks/009-bounded-real-task-planner.md) |
@@ -94,7 +94,7 @@ Steps:
 - Retention: job history is deleted 14 days after a terminal state. The
   operator decided this on 2026-11-15, and the
   [PH-00 record](../approvals/ph-00-setup-decisions.md#amendments) is amended
-  in the same change. Deletion is enforced in code and tested.
+  in the same change. The ledger's purge function implements it and is tested ([ledger record](../implementation/agent-backend-ledger.md)); nothing schedules the purge yet. Until the 30 days approved under OD-18 is reconciled with this decision, 14 days governs everything the ledger stores.
 
 ## 4. "Subagent" means a bounded worker run
 
@@ -180,10 +180,10 @@ and, behind opt-in, the tier 1 tools in
 [tier1.py](../../apps/api/src/super_agent_voice/tier1.py) and the read-only
 parts of [memory.py](../../apps/api/src/super_agent_voice/memory.py).
 
-Limit: tier 1 tools read real local data. While the planner model is a cloud
+Limit: tier 1 tools and the memory layer read real personal data. While the planner model is a cloud
 model, that data must not reach it ([REQ-13](../../prd.md#req-13)). So tier 1
-tools are offered to a job only when the planner model is local, or when the
-allowlisted folders hold synthetic files. Code enforces this by data class at
+tools, the memory tools, and memory context are offered to a job only when the planner model is local, or when the
+allowlisted folders and the memory file hold synthetic data only. Code enforces this by data class at
 admission, not by prompt. See conflict C2.
 
 "Research" over the open web needs a search or fetch provider. That is a new
@@ -197,7 +197,7 @@ open decision 2.
   ([`memory.context`](../../apps/api/src/super_agent_voice/memory.py)). Memory
   content is data, labelled untrusted, per
   [brain overview, section 5.1](brain/overview.md#51-trust-labels). The planner
-  cannot write memory.
+  cannot write memory. With a cloud planner, memory context is left out unless the memory file is synthetic (section 7). `memory.py` states that nothing in it reaches the network, and this design keeps that.
 - **Evaluation set.** About 20 synthetic delegated tasks, each with an expected
   receipt, used to measure any later prompt or model change. It follows the
   tier A and tier B split in [evaluation](brain/evaluation.md#1-two-tiers-of-test).
@@ -227,12 +227,12 @@ If any claim fails, stop and ask the maintainers.
 
 | Part | Roadmap items | Requirements |
 | --- | --- | --- |
-| Ledger: states, receipts, idempotency, revisions | R-02.1, R-02.2 | REQ-09 |
+| Ledger: states, receipts, idempotency, revisions | R-02.1, R-02.2 | REQ-05, REQ-06 |
 | Limits and admission in code | R-02.3 | REQ-10 |
 | Read-only step catalog, scoped tool sets (not the two fixed workers; see decided item 3) | R-02.4 in part | REQ-08 |
-| Background runner off the event loop | R-02.5 | REQ-10 |
-| Clarify node (bounded part) | R-04.2 | REQ-09 |
-| Typed steps, step catalog, verifier (bounded part) | R-04.3 | REQ-08, REQ-10 |
+| Background runner off the event loop | R-02.5 | REQ-04 |
+| Clarify node (bounded part) | R-04.2 | REQ-16 |
+| Typed steps, step catalog, verifier (bounded part) | R-04.3 | REQ-08, REQ-10, REQ-16 |
 | Model seam, synthetic data only | R-02.3 | REQ-13 |
 | Local API binding and token | existing boundary | REQ-11 |
 
@@ -268,6 +268,7 @@ Proposed build order, each slice with its test:
 | C1 | The brain design gives the conversation model four tools: `propose_task`, `query_ledger`, `cancel_task`, `steer_task`. This design names the entry tool `delegate_task`. | [brain overview, section 6](brain/overview.md#6-system-1-tool-contracts) | Not resolved. Proposal: `delegate_task` is the same admission step as `propose_task`, and the other three tools stay. A maintainer picks one name. |
 | C2 | Tier 1 tools read real local data. Sending their output to a cloud planner breaks the synthetic-only boundary. [DEC-18](../../descisions.md#dec-18) also places T1 after the PH-02 policy layer, and the tier 1 design notes it is not behind that layer yet. | [tier1-read-tools.md](tier1-read-tools.md) known limits; [REQ-13](../../prd.md#req-13) | Section 7: tier 1 only with a local planner or synthetic folders, enforced at admission. This slice is the policy layer tier 1 waits for, so it must not weaken it. |
 | C3 | PH-02 means two deterministic trusted workers. A model-planned graph is PH-04 work, and PH-04 entry needs RT-G04 and an approved real task pair. | [phases.md](../../phases.md) PH-02, PH-04 | Covered by the exception for the bounded parts only. Open decision 3. |
+| C4 | [REQ-08](../../prd.md#req-08) says initial workers are small trusted fixed functions. Decided item 3 starts with model-planned tasks instead. | [prd.md](../../prd.md#req-08) | Not resolved. Every step in the catalog is still a fixed trusted function, but the requirement text and the PH-02 gate describe fixed workers. A maintainer changes that text or the workers get built. See decided item 3. |
 | C5 | PH-00 deletes job metadata 24 hours after a terminal state. The brain design says some scenarios need longer. | [PH-00 setup decisions](../approvals/ph-00-setup-decisions.md); brain OD-18 in [overview](brain/overview.md#10-open-maintainer-decisions) | Resolved for job history: 14 days, decided 2026-11-15 (item 8). The 30 days approved for task specs and checkpoints under OD-18 is longer than 14 days and is not reconciled here. |
 | C6 | The brain design treats the ledger contract as fixed and lists interface requests IR-1 to IR-10 (an origin field, `job_terminal` events, and others). This slice builds the ledger, so it must decide them. | [brain overview, section 11](brain/overview.md#11-interface-requests-for-the-ledger) | Build only the fields the slice needs. The rest wait. |
 

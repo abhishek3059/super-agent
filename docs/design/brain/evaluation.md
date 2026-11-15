@@ -230,7 +230,7 @@ trip, can you do it now?"
 | Ledger task specs with budget and constraints | PH-02 (R-02.1) | Not built |
 | Stop reason and actor, verified step checkpoints (IR-10) | PH-02, PH-03 | Not requested from the ledger owners yet |
 | `resume_task` (IR-9) | PH-03 | Not requested yet |
-| Job spec and checkpoint retention beyond 24 hours (OD-18) | Amendment to the [PH-00 setup decisions](../../approvals/ph-00-setup-decisions.md) | **Blocks the scenario today.** PH-00 deletes job metadata after 24 hours, and day 3 is 48 hours later. |
+| Job spec and checkpoint retention beyond 24 hours (OD-18) | Amendment to the [PH-00 setup decisions](../../approvals/ph-00-setup-decisions.md) | No longer blocks the scenario on retention: PH-00 was amended on 2026-11-15 to 14 days, and day 3 is 48 hours later. The 30 days approved under OD-18 is not reconciled with that amendment. |
 | Episode and decision stores with local embedding search | [Memory, section 9](memory.md#9-proposed-revision-2026-11-13-learning-from-conversation) | Proposal only |
 | A planner with checkpointed steps | PH-04 (R-04.3) | Not built |
 | Day-book or episode lookup | R-M.8 | Not built |

@@ -34,7 +34,7 @@ cloud provider, and does not authorize spend.
 
 The 30 days approved for task specs and checkpoints in the
 [memory learning decisions](memory-learning-decisions.md) (OD-18) is not
-changed or reconciled by this amendment.
+changed or reconciled by this amendment. Until it is reconciled, 14 days governs everything the job ledger stores. "History" is read here as job metadata in the ledger. That reading is the recording agent's; the operator was shown it in a chat summary and did not object, but did not confirm it in words.
 
 ## Task-pair detail
 
