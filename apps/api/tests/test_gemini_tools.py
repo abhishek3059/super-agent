@@ -627,6 +627,19 @@ def test_forget_conversation_sets_the_file_aside_only_after_a_click_and_nothing_
 
 
 @needs_posix_files
+def test_forgetting_over_an_older_forgotten_recap_says_so(monkeypatch):
+    monkeypatch.setenv("SUPER_AGENT_RECAP", "on")
+    recap.save([("user", "first")])
+    recap.clear()
+    recap.save([("user", "second")])
+    assert run(forget_session("forget our conversation", True)) == [recap.FORGOTTEN_REPLACED]
+    assert "second" not in recap.FORGOTTEN_REPLACED and "first" not in recap.FORGOTTEN_REPLACED
+    aside().unlink()  # no older copy now, so nothing is replaced this time
+    recap.save([("user", "third")])
+    assert run(forget_session("forget our conversation", True)) == [recap.FORGOTTEN]
+
+
+@needs_posix_files
 def test_a_forgotten_recap_is_not_injected_into_the_next_session(monkeypatch):
     monkeypatch.setenv("SUPER_AGENT_RECAP", "on")
     recap.save([("user", "old plans")])
@@ -641,22 +654,52 @@ def test_a_forgotten_recap_is_not_injected_into_the_next_session(monkeypatch):
     assert "old plans" not in run(scenario())
 
 
+async def restore_session(words: str, decision: bool | None):
+    """One 'restore the recap' request; `decision` is the click (None: no click comes)."""
+    session = ToolSession([[heard(words), calls(("r1", "restore_conversation", {}))]])
+    adapter = make(session)
+    await adapter.start()
+    if decision is None:
+        await asyncio.sleep(0.2)
+    else:
+        request = (await until(adapter, ApprovalRequest))[-1]
+        assert request.summary == gemini_adapter.RESTORE_CARD
+        assert aside().exists() and session.tool_sent == []  # a card, not a change
+        await adapter.decide_action(request.id, decision)
+    await tool_sent(session, 1)
+    back = recap.load()  # before close, which saves this session's own words as the new recap
+    await adapter.close()
+    return outputs(session), back
+
+
 @needs_posix_files
-def test_restore_conversation_needs_the_users_words_and_no_click(monkeypatch):
+def test_restore_conversation_needs_the_users_words_and_a_click(monkeypatch):
     monkeypatch.setenv("SUPER_AGENT_RECAP", "on")
     recap.save([("user", "old plans")])
     recap.clear()
 
-    async def ask(words):
-        session, adapter = await serve([[heard(words), calls(("r1", "restore_conversation", {}))]])
-        back = recap.load()  # before close, which saves this session's own words as the new recap
+    async def no_words():
+        session, adapter = await serve([[heard("tell me a joke"), calls(("r1", "restore_conversation", {}))]])
+        cards = [e for e in adapter._events._queue if isinstance(e, ApprovalRequest)]
         await adapter.close()
-        return outputs(session), back
+        return outputs(session), cards
 
-    assert run(ask("tell me a joke")) == ([gemini_adapter.NOT_ASKED], []) and aside().exists()
+    assert run(no_words()) == ([gemini_adapter.NOT_ASKED], []) and aside().exists()
     recap.RECAP_PATH.unlink()  # that session saved its own words on close; the restore needs a free slot
-    assert run(ask("please undo that, bring the recap back")) == ([recap.RESTORED], ["user: old plans"])
+    assert run(restore_session("please undo that, bring the recap back", True)) == ([recap.RESTORED], ["user: old plans"])
     assert not aside().exists()
+
+
+@needs_posix_files
+def test_restore_conversation_without_a_click_changes_nothing(monkeypatch):
+    monkeypatch.setenv("SUPER_AGENT_RECAP", "on")
+    recap.save([("user", "old plans")])
+    recap.clear()
+    assert run(restore_session("undo that", False)) == ([actions.DENIED], [])
+    recap.RECAP_PATH.unlink(missing_ok=True)
+    monkeypatch.setattr(gemini_adapter, "APPROVAL_SECONDS", 0.05)
+    assert run(restore_session("undo that", None)) == ([actions.TIMED_OUT], [])
+    assert aside().exists()
 
 
 @needs_posix_files
@@ -666,13 +709,7 @@ def test_restore_conversation_never_overwrites_a_newer_recap(monkeypatch):
     recap.clear()
     recap.save([("user", "newer")])
 
-    async def scenario():
-        session, adapter = await serve([[heard("restore it"), calls(("r1", "restore_conversation", {}))]])
-        kept = recap.load()  # before close, which saves this session's own words as the new recap
-        await adapter.close()
-        return outputs(session), kept
-
-    assert run(scenario()) == ([recap.NEWER_EXISTS], ["user: newer"]) and aside().exists()
+    assert run(restore_session("restore it", True)) == ([recap.NEWER_EXISTS], ["user: newer"]) and aside().exists()
 
 
 @needs_posix_files
@@ -691,6 +728,25 @@ def test_model_text_alone_cannot_restore_the_recap(monkeypatch):
         return outputs(session)
 
     assert run(scenario()) == [gemini_adapter.NOT_ASKED]
+    assert not recap.RECAP_PATH.exists() and aside().exists()
+
+
+@needs_posix_files
+def test_tool_output_alone_neither_shows_a_card_nor_restores_the_recap(monkeypatch):
+    monkeypatch.setenv("SUPER_AGENT_RECAP", "on")
+    recap.save([("user", "old plans")])
+    recap.clear()
+
+    async def scenario():
+        session = ToolSession([[calls(("c1", "current_time", {}), ("r1", "restore_conversation", {}))]])
+        adapter = make(session)
+        await adapter.start()
+        await tool_sent(session, 1)
+        cards = [e for e in adapter._events._queue if isinstance(e, ApprovalRequest)]
+        await adapter.close()
+        return outputs(session)[-1], cards
+
+    assert run(scenario()) == (gemini_adapter.NOT_ASKED, [])
     assert not recap.RECAP_PATH.exists() and aside().exists()
 
 

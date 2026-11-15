@@ -38,6 +38,9 @@ TOOLS = [{"type": "function", "function": {
                              "Only when the user asks to undo or restore it."))]
 FORGOTTEN = ("Done: the saved recap of earlier conversations is forgotten. It can be restored for 24 hours "
              "if the user asks to undo it.")
+FORGOTTEN_REPLACED = ("Done: the saved recap of earlier conversations is forgotten. It replaced the recap "
+                      "forgotten before, which can no longer be restored. This one can be restored for 24 hours "
+                      "if the user asks to undo it.")
 RESTORED = "Done: the saved recap of earlier conversations is restored."
 NOTHING_TO_RESTORE = "There is no forgotten recap to restore."
 NEWER_EXISTS = "error: a newer recap is saved, so the forgotten one was not restored. Say so."
@@ -138,6 +141,14 @@ def _expire() -> None:
         info = aside.lstat()
         if stat.S_ISREG(info.st_mode) and time.time() - info.st_mtime > UNDO_SECONDS:
             aside.unlink()
+
+
+def replaces_forgotten() -> bool:
+    """True when forgetting now would replace an older set-aside copy that is still inside its 24 hours."""
+    if not posix_files.available():
+        return False
+    _expire()
+    return os.path.lexists(RECAP_PATH) and os.path.lexists(_aside())
 
 
 def clear() -> bool:

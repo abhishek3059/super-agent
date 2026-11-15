@@ -51,7 +51,7 @@ Conditions 2, 3, and 5 still hold. Condition 4 is replaced by this list.
   delete that `undo_forget` restores for 24 hours, which is why it needs no
   click. Forgetting the saved summary sets the file aside and
   `restore_conversation` brings it back for 24 hours (the same window), unless
-  a newer summary has been saved, which is never overwritten. It still needs a
-  click on the console card.
+  a newer summary has been saved, which is never overwritten. Both forgetting
+  and restoring the summary need a click on the console card.
 - The weather service sees coordinates and the IP address, not only the name.
 - On 2026-11-15 `jeevesh2515` decided in chat that forgetting the recap must be recoverable, so no permanent delete exists in this slice.

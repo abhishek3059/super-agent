@@ -89,7 +89,7 @@ what happened, and write `not run` for anything skipped.
 | "Open two websites for me." | At most one card per request; the second is refused. |
 | Talk about your day for a minute, end the session, start a new one, then say "What were we talking about?" | It mentions the last few lines of the earlier talk. |
 | "Forget our conversation." | A card asks to forget the recap and nothing changes yet. Click Approve: it confirms, `~/.super-agent/recap.json` is gone but `recap.json.forgotten` (mode 0600) is there, and the next session has no recap. Deny or wait 30 seconds: the file stays and the assistant says so. |
-| After forgetting, start a new session and say "Undo that, bring the recap back." | No card. The assistant confirms and `recap.json` is back with the old lines. If you had already ended a session that saved a newer recap, it says a newer recap exists and changes nothing. |
+| After forgetting, start a new session and say "Undo that, bring the recap back." | A card asks to bring the recap back and nothing changes yet. Click Approve: the assistant confirms and `recap.json` is back with the old lines. If you had already ended a session that saved a newer recap, it says a newer recap exists and changes nothing. Deny or wait 30 seconds: nothing is restored and the assistant says so. |
 | "Don't forget to call mom." (also try it with a curly apostrophe or "dont") | No card and the recap file is not deleted. |
 | Check `ls -l ~/.super-agent/recap.json` after a session | Mode `-rw-------`. |
 | Read `~/.super-agent/tool-audit.log` | Lines hold time, tool name and ok, error, approved, denied or refused. No place names, URLs or words. |
