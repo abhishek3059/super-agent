@@ -1,15 +1,14 @@
 # Voice foundation scaffold
 
-The browser console is a local-only scaffold. It uses a deterministic adapter
-that echoes PCM audio. It does not construct the separate Gemini adapter,
-persist audio, or provide tools or actions.
+The browser console is a local-only scaffold. By default it uses a
+deterministic adapter that echoes PCM audio and persists no audio.
 
-## Current state (2026-11-12)
+## Current state (2026-11-15)
 
-The fake adapter is the default. A local private adapter is opt-in (see below). A Gemini Live
-adapter exists behind the same seam with offline tests
-([record](../docs/implementation/r01-7-gemini-adapter.md)), but the application
-never constructs it. An opt-in command, `live_check`, ran it once against the
+The fake adapter is the default. A local private adapter and a Gemini Live
+adapter are opt-in through `SUPER_AGENT_ADAPTER` (see below); the Gemini adapter
+has offline tests ([record](../docs/implementation/r01-7-gemini-adapter.md)).
+An opt-in command, `live_check`, ran it once against the
 real service with synthetic speech ([record](../docs/implementation/r01-8-live-check.md)).
 You can run the local scaffold and test start, mute, barge-in, and stop. By
 default the console cannot connect to Gemini and personal microphone audio stays

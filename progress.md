@@ -458,3 +458,16 @@ every change, with no exception, and that an agent may approve and merge a PR
 on a maintainer's behalf after he confirms that one PR in chat
 ([DEC-21](descisions.md#dec-21)). AGENTS.md, roadmap rule 5, and the shared
 reviewer's step 6 now say so. No runtime gate moves.
+
+## PH-01 close-out audit (2026-11-15)
+
+The [R-01.10 record](docs/implementation/r01-10-acceptance.md#criteria-and-evidence)
+now maps each RT-002 and RT-003 acceptance criterion and each RT-G01 condition
+to its evidence. The offline suites were re-run at `0638660`: 492 backend tests
+passed and 2 skipped, 112 frontend self-test cases passed, the build passed, and
+`npm audit` found nothing ([saved output](docs/implementation/evidence/r01-10-offline-suites-20261115.txt)).
+R-01.10 is not ticked and PH-01 stays in progress. Missing: a revised
+synthetic live run, a recorded native run through the console, and an
+independent review of the code merged after the R-01.6 review, including
+Gemini mode and finding F5. These need a person, a key, and a maintainer
+decision. No runtime gate moves.

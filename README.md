@@ -6,13 +6,13 @@ background task delegation.
 
 > **Mostly documentation.** The runnable application code is a local voice
 > scaffold in [`apps/`](apps/voice-foundation.md). On `develop` its browser
-> console constructs only the fake streaming adapter; a Gemini Live adapter and
-> locked SDK exist behind the seam. An opt-in fully local voice adapter (speech in
-> and out and a small model on the Mac) is merged. The open PRs #43 and #45
-> add read-only file, calendar, notes, and mail tools (T1) and local memory and
-> reminders (T2). Nothing leaves the machine on that path. There are
-> no workers, stored audio, or complete assistant. RT-G01 and later runtime
-> gates remain open.
+> console uses the fake streaming adapter by default. Two opt-ins are merged: a
+> fully local voice adapter (speech in and out and a small model on the Mac),
+> with read-only file, calendar, notes, and mail tools (T1) and local memory
+> and reminders (T2); and Gemini Live for maintainer testing only, which sends
+> microphone audio to Google ([testing exception](docs/approvals/gemini-live-testing-exception.md)).
+> There are no workers, stored audio, or complete assistant. RT-G01 and later
+> runtime gates remain open.
 
 ## Start here
 
