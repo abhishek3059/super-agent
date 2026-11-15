@@ -8,7 +8,7 @@ This is code only. It is not wired into `app.py`, and no roadmap item is ticked.
 
 - `apps/api/src/super_agent_voice/policy.py`: standard library only. No model,
   no network, no clock of its own.
-- `apps/api/tests/test_policy.py`: 186 tests.
+- `apps/api/tests/test_policy.py`: 199 tests.
 - `Limits`: a frozen dataclass. Every field must be exactly `int` (a bool is
   refused), above 0 and at or below a hard ceiling in `CEILING`. A bad value
   raises `PolicyError("limits_invalid")`, so an invalid object cannot exist.
@@ -47,11 +47,16 @@ is at most 6,000 UTF-8 bytes, inside the ledger's 8,000-byte spec cap.
   types, so these are mine). Data class: `synthetic` or `personal`. The
   instruction must be a non-blank string within `instruction_chars` that
   encodes as UTF-8 and serializes as JSON.
-- Tool scope is two fixed tables keyed by task type. `answer` gets `calculate`
-  and `current_time`; `summarize` gets `current_time`. Personal-data read
-  tools (tier 1 file, calendar, notes, mail reads; `list_memory`,
-  `list_reminders` for `answer`) are added only after the data-class rule
-  passes. No scope holds a memory write tool (tested against `memory.WRITES`).
+- Tool scope is fixed tables keyed by task type: base tools (`TOOL_SCOPE`:
+  `answer` gets `calculate` and `current_time`, `summarize` gets
+  `current_time`), tier 1 read tools (`TIER1_TOOLS`) and memory read tools
+  (`MEMORY_TOOLS`: `list_memory`, `list_reminders`, `answer` only). Tier 1
+  tools are added only if the planner is local or `tier1_is_synthetic` is
+  True. Memory tools and memory context are added only if the planner is local
+  or `memory_is_synthetic` is True. Both flags are keyword-only, default False,
+  and come from trusted code (deployment configuration). The spec's
+  `data_class` can only make admission stricter. No scope holds a memory write
+  tool (tested against `memory.WRITES`).
 - Queue cap: non-terminal jobs in the ledger must be below
   `concurrent_jobs + queued_jobs` (7 by default). A repeat of an already
   admitted key skips the cap, so a retry of a lost response still returns the
@@ -59,16 +64,19 @@ is at most 6,000 UTF-8 bytes, inside the ledger's 8,000-byte spec cap.
 
 ## Data-class decision table
 
-`planner_is_local` and `memory_is_synthetic` come from trusted code and must be
-exactly `bool`, else refusal (`planner_locality_invalid`,
-`memory_flag_invalid`).
+`planner_is_local`, `memory_is_synthetic` and `tier1_is_synthetic` come from
+trusted code and must be exactly `bool`, else refusal (`planner_locality_invalid`,
+`memory_flag_invalid`). The spec's `data_class` is model-controlled, so it
+never grants anything.
 
-| Planner | Job data class | Result | Memory context |
+| Planner | Spec data class | Tier 1 tools | Memory tools and context |
 | --- | --- | --- | --- |
-| local | synthetic | admitted | yes |
-| local | personal | admitted | yes |
-| cloud | synthetic | admitted | only if `memory_is_synthetic` is True |
-| cloud | personal | refused: `personal_data_cloud_planner` | none |
+| local | either | granted | granted |
+| cloud | personal | refused: `personal_data_cloud_planner` | refused |
+| cloud | synthetic | only if `tier1_is_synthetic` | only if `memory_is_synthetic` |
+
+Base tools are always granted. The tests run the full table over planner,
+data class and both flags.
 
 ## Reason codes
 
@@ -90,8 +98,8 @@ Command (venv built from `apps/api/requirements.lock`):
 PYTHONDONTWRITEBYTECODE=1 python -m pytest apps/api -p no:cacheprovider
 ```
 
-Real result on this host (Windows): `560 passed, 110 skipped in 25.37s` for
-`apps/api`; `186 passed in 2.70s` for `test_policy.py` alone. `npm run check`
+Real result on this host (Windows): `573 passed, 110 skipped in 25.26s` for
+`apps/api`. `npm run check`
 result is recorded in the commit report, not here.
 
 Covered: every limit breach and boundary, bool and wrong-type inputs, every
@@ -106,9 +114,9 @@ ledger untouched after any refusal, idempotent re-admission.
   their sum as the cap on non-terminal jobs. The runner slice must enforce the
   concurrent part when it picks jobs to start.
 - "Retries per step 1" is the default; the PH-00 maximum of 2 is the ceiling.
-- Tier 1 tools stay available to a cloud-planner `synthetic` job: the design
-  allows them when the folders hold synthetic data. Admission cannot verify
-  that; the caller's `data_class` claim and the deployment configuration carry it.
+- A cloud-planner job gets tier 1 or memory tools only through the trusted
+  flags, because the conversation model writes the spec and could label a job
+  `synthetic`.
 - `instruction_chars` and the ceilings are additions to the section 5 table.
 
 ## Known limits
@@ -117,7 +125,8 @@ ledger untouched after any refusal, idempotent re-admission.
   concurrent admissions can both pass at the cap edge, so the queue can exceed
   the cap by the number of simultaneous callers. Closing that needs a ledger
   change.
-- `data_class` is a label; nothing checks the data itself.
+- The trusted flags are statements by deployment configuration. Admission
+  cannot check that the folders or the memory file really hold synthetic data.
 - A model-call count and per-step state are the caller's to keep; the checks
   are pure.
 

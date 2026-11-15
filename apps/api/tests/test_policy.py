@@ -27,6 +27,10 @@ def code(fn, *a, **kw):
     return err.value.code
 
 
+def full(task):
+    return policy.TOOL_SCOPE[task] | policy.TIER1_TOOLS[task] | policy.MEMORY_TOOLS[task]
+
+
 def untouched():
     return ledger.list_jobs() == []
 
@@ -119,41 +123,63 @@ def test_bad_idempotency_key(key):
 def test_tools_come_from_the_task_type_only():
     a = go(key="a")
     s = go({**GOOD, "task_type": "summarize"}, key="b")
-    assert a.tools == policy.TOOL_SCOPE["answer"] | policy.PERSONAL_TOOLS["answer"]
-    assert s.tools == policy.TOOL_SCOPE["summarize"] | policy.PERSONAL_TOOLS["summarize"]
+    assert a.tools == full("answer")
+    assert s.tools == full("summarize")
     assert isinstance(a.tools, frozenset)
 
 
 def test_no_scope_contains_a_write_tool():
     from super_agent_voice import memory
-    every = set().union(*policy.TOOL_SCOPE.values(), *policy.PERSONAL_TOOLS.values())
+    every = set().union(*policy.TOOL_SCOPE.values(), *policy.TIER1_TOOLS.values(), *policy.MEMORY_TOOLS.values())
     assert not every & memory.WRITES
     assert {"calculate", "current_time"} >= set().union(*policy.TOOL_SCOPE.values())
 
 
 def test_scope_tables_cover_exactly_the_task_types():
-    assert set(policy.TOOL_SCOPE) == set(policy.PERSONAL_TOOLS) == set(policy.TASK_TYPES)
+    assert set(policy.TOOL_SCOPE) == set(policy.TIER1_TOOLS) == set(policy.MEMORY_TOOLS) == set(policy.TASK_TYPES)
 
 
 def test_personal_tools_are_real_tool_names():
     from super_agent_voice import memory, tier1
     known = tier1.T1_NAMES | memory.NAMES
-    assert set().union(*policy.PERSONAL_TOOLS.values()) <= known
+    assert set().union(*policy.TIER1_TOOLS.values()) <= tier1.T1_NAMES
+    assert set().union(*policy.MEMORY_TOOLS.values()) <= memory.NAMES
+    assert set().union(*policy.TIER1_TOOLS.values(), *policy.MEMORY_TOOLS.values()) <= known
 
 
 # --- data-class rule ------------------------------------------------------
 
-@pytest.mark.parametrize("local,dc,mem_synth",
-                         list(itertools.product([True, False], ["synthetic", "personal"], [True, False])))
-def test_data_class_table(local, dc, mem_synth):
+@pytest.mark.parametrize("local,dc,mem_synth,t1_synth",
+                         list(itertools.product([True, False], ["synthetic", "personal"], [True, False], [True, False])))
+def test_data_class_truth_table(local, dc, mem_synth, t1_synth):
     spec = {**GOOD, "data_class": dc}
     if not local and dc == "personal":
-        assert code(go, spec, local=local, memory_is_synthetic=mem_synth) == "personal_data_cloud_planner"
+        assert code(go, spec, local=local, memory_is_synthetic=mem_synth,
+                    tier1_is_synthetic=t1_synth) == "personal_data_cloud_planner"
         assert untouched()
         return
-    out = go(spec, local=local, memory_is_synthetic=mem_synth)
-    assert out.tools == policy.TOOL_SCOPE["answer"] | policy.PERSONAL_TOOLS["answer"]
+    out = go(spec, local=local, memory_is_synthetic=mem_synth, tier1_is_synthetic=t1_synth)
+    want = set(policy.TOOL_SCOPE["answer"])
+    if local or t1_synth:
+        want |= policy.TIER1_TOOLS["answer"]
+    if local or mem_synth:
+        want |= policy.MEMORY_TOOLS["answer"]
+    assert out.tools == want
     assert out.memory_context is (local or mem_synth)
+
+
+def test_a_spec_claiming_synthetic_cannot_by_itself_obtain_personal_tools_from_a_cloud_planner():
+    out = go({**GOOD, "data_class": "synthetic"}, local=False)
+    assert out.tools == policy.TOOL_SCOPE["answer"]
+    assert not out.tools & (policy.TIER1_TOOLS["answer"] | policy.MEMORY_TOOLS["answer"])
+    assert out.memory_context is False
+
+
+def test_trusted_flags_grant_each_source_separately():
+    t1 = go(local=False, tier1_is_synthetic=True, key="a").tools
+    mem = go(local=False, memory_is_synthetic=True, key="b").tools
+    assert t1 == policy.TOOL_SCOPE["answer"] | policy.TIER1_TOOLS["answer"]
+    assert mem == policy.TOOL_SCOPE["answer"] | policy.MEMORY_TOOLS["answer"]
 
 
 @pytest.mark.parametrize("local", [None, 1, 0, "true", "", [], 1.0])
@@ -169,13 +195,14 @@ def test_missing_locality_argument_is_a_type_error_not_an_allow():
 
 
 @pytest.mark.parametrize("flag", [None, 1, "yes"])
-def test_memory_synthetic_flag_must_be_a_bool(flag):
-    assert code(go, local=False, memory_is_synthetic=flag) == "memory_flag_invalid"
+@pytest.mark.parametrize("name", ["memory_is_synthetic", "tier1_is_synthetic"])
+def test_trusted_synthetic_flags_must_be_bools(flag, name):
+    assert code(go, local=False, **{name: flag}) == "memory_flag_invalid"
     assert untouched()
 
 
 def test_spec_cannot_claim_locality_or_memory():
-    for extra in ({"planner_local": True}, {"memory_is_synthetic": True}):
+    for extra in ({"planner_local": True}, {"memory_is_synthetic": True}, {"tier1_is_synthetic": True}):
         assert code(go, {**GOOD, "data_class": "personal", **extra}, local=False) == "spec_invalid"
 
 

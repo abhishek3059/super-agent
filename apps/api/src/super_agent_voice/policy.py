@@ -77,12 +77,14 @@ TOOL_SCOPE = {
     "answer": frozenset({"calculate", "current_time"}),
     "summarize": frozenset({"current_time"}),
 }
-# Tools that read personal data (tier1.py, memory.py reads). Granted only after the data-class rule passes.
-PERSONAL_TOOLS = {
+# Tools that read personal data, by source (tier1.py, memory.py reads). Granted per source only
+# when trusted code says the source is synthetic or the planner is local. Never from the spec.
+TIER1_TOOLS = {
     "answer": frozenset({"list_files", "read_file", "search_files", "calendar_events", "recent_notes",
-                         "search_notes", "recent_emails", "list_memory", "list_reminders"}),
+                         "search_notes", "recent_emails"}),
     "summarize": frozenset({"list_files", "read_file", "search_files", "recent_notes", "search_notes"}),
 }
+MEMORY_TOOLS = {"answer": frozenset({"list_memory", "list_reminders"}), "summarize": frozenset()}
 
 
 @dataclass(frozen=True)
@@ -128,11 +130,13 @@ def _spec(spec: object, limits: Limits) -> dict:
 
 
 def admit(spec: object, idempotency_key: object, planner_is_local: object, limits: object,
-          ledger, now: object, *, memory_is_synthetic: object = False) -> Admission:
+          ledger, now: object, *, memory_is_synthetic: object = False,
+          tier1_is_synthetic: object = False) -> Admission:
     """Validate, apply the data-class rule and queue cap, then create the job in the ledger.
 
-    planner_is_local and memory_is_synthetic come from trusted code and must be exactly bool;
-    anything else is a refusal. Refusals write nothing. Not atomic with the ledger: two
+    planner_is_local, memory_is_synthetic and tier1_is_synthetic come from trusted code
+    (deployment configuration) and must be exactly bool; anything else is a refusal. The spec's
+    data_class can only make admission stricter, never unlock a personal-data source. Refusals write nothing. Not atomic with the ledger: two
     concurrent admissions can both pass the cap check (see the implementation record)."""
     lim = _limits(limits)
     if not _aware(now):
@@ -141,7 +145,7 @@ def admit(spec: object, idempotency_key: object, planner_is_local: object, limit
         raise PolicyError("idempotency_key_invalid")
     if type(planner_is_local) is not bool:
         raise PolicyError("planner_locality_invalid")
-    if type(memory_is_synthetic) is not bool:
+    if type(memory_is_synthetic) is not bool or type(tier1_is_synthetic) is not bool:
         raise PolicyError("memory_flag_invalid")
     spec = _spec(spec, lim)
     if not planner_is_local and spec["data_class"] == "personal":
@@ -158,8 +162,12 @@ def admit(spec: object, idempotency_key: object, planner_is_local: object, limit
     except LedgerError:
         raise PolicyError("ledger_rejected") from None
     task = spec["task_type"]
-    return Admission(job, TOOL_SCOPE[task] | PERSONAL_TOOLS[task],
-                     planner_is_local or memory_is_synthetic, now + timedelta(seconds=lim.job_deadline_s))
+    tools = TOOL_SCOPE[task]
+    if planner_is_local or tier1_is_synthetic:
+        tools |= TIER1_TOOLS[task]
+    if planner_is_local or memory_is_synthetic:
+        tools |= MEMORY_TOOLS[task]
+    return Admission(job, tools, planner_is_local or memory_is_synthetic, now + timedelta(seconds=lim.job_deadline_s))
 
 
 # --- step-level checks: pure, each returns True or raises PolicyError --------
