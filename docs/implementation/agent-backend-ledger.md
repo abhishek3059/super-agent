@@ -7,7 +7,7 @@ This is code only. It is not wired into `app.py`, and no roadmap item is ticked.
 ## What was built
 
 - `apps/api/src/super_agent_voice/ledger.py`: standard-library `sqlite3` only.
-- `apps/api/tests/test_ledger.py`: 110 tests.
+- `apps/api/tests/test_ledger.py`: 122 tests (121 run on this host).
 - Storage: `~/.super-agent/ledger.db` beside `memory.db`, directory 0700, file
   0600, same `DB_PATH` override convention as `memory.py`. No WAL (memory.py
   does not use it). Schema version is `PRAGMA user_version = 1`. Tables:
@@ -19,7 +19,7 @@ This is code only. It is not wired into `app.py`, and no roadmap item is ticked.
   different spec it raises.
 - `transition(job_id, to_state, expected_revision, reason, receipt=None)`: a
   stale revision raises `StaleRevision`; a disallowed move raises; `succeeded`
-  and `failed` need a receipt (dict, at most 4,000 bytes, stored and not
+  `failed` and `cancelled` need a receipt (dict, at most 4,000 bytes, stored and not
   interpreted). Revision bump, state change and event are one transaction.
 - `get_job`, `list_jobs(state=None)`, `list_events(job_id)`.
 - `recover_after_restart()`: `running` and `cancel_requested` become
@@ -28,7 +28,9 @@ This is code only. It is not wired into `app.py`, and no roadmap item is ticked.
 - `purge(now)`: deletes terminal jobs and their events once
   `terminal_at <= now - 14 days`. `now` must be timezone-aware. Jobs that are
   not terminal, including `unknown`, are never purged.
-- Every database, file or validation failure raises `LedgerError`.
+- Every database, file or validation failure raises `LedgerError`, including
+  a corrupt stored spec or receipt, a non-string state, and a revision that is
+  not a plain int (a bool is refused).
 
 ## Transition table as implemented
 
@@ -53,6 +55,9 @@ From [architecture.md](../../architecture.md#canonical-job-states).
 - The table's "only at a verified checkpoint" and "only after valid approval
   revalidation" conditions are the caller's duty. The ledger checks the edge,
   not the evidence.
+- `cancelled` needs a receipt, because architecture.md reaches it only "after
+  evidence of non-execution or acknowledged stop". The ledger stores the
+  receipt and does not judge it.
 - `failed` always needs a receipt, including an admission failure from
   `queued`.
 - `unknown` is not terminal, so it keeps no terminal timestamp and is not
@@ -63,8 +68,8 @@ From [architecture.md](../../architecture.md#canonical-job-states).
 Run on Windows, Python 3.14.4, in a virtual environment under the system temp
 directory, installed from `apps/api/requirements.lock` with `--only-binary=:all:`.
 
-- `python -m pytest apps/api`: 361 passed, 110 skipped, 1 warning (existing).
-  `test_ledger.py` alone: 109 passed, 1 skipped.
+- `python -m pytest apps/api`: 374 passed, 110 skipped, 1 warning (existing).
+  `test_ledger.py` alone: 122 passed, 1 skipped.
 - The skips include the ledger file-mode test and the whole of `test_memory.py`
   (no time zone database on this host). The 0700 and 0600 mode test did not run
   here, because Windows has no POSIX modes. It is not verified.
@@ -72,7 +77,10 @@ directory, installed from `apps/api/requirements.lock` with `--only-binary=:all:
 
 ## Known limits
 
-- One process lock; two processes on one file rely on SQLite locking only.
+- One process lock. The transition is a compare-and-set in SQL
+  (`UPDATE ... WHERE id = ? AND revision = ?`, stale if no row matched, then
+  rolled back), tested by simulating a rival write inside one process. Real
+  two-process behaviour is still not tested.
 - No unique-violation race handling beyond the lock: the check and insert run
   under one lock and one transaction.
 - Sizes are provisional and not yet tied to the limits table in the design.

@@ -39,14 +39,14 @@ def mk(state="queued", key=None, spec=None):
     job = ledger.create_job(spec or {"task": "x"}, key or f"k-{state}-{os.urandom(4).hex()}")
     for step in ROUTE[state]:
         job = ledger.transition(job.id, step, job.revision, "test",
-                                RECEIPT if step in ("succeeded", "failed") else None)
+                                RECEIPT if step in ("succeeded", "failed", "cancelled") else None)
     return job
 
 
 @pytest.mark.parametrize("src,dst", ALLOWED)
 def test_allowed_transitions(src, dst):
     job = mk(src)
-    out = ledger.transition(job.id, dst, job.revision, "r", RECEIPT if dst in ("succeeded", "failed") else None)
+    out = ledger.transition(job.id, dst, job.revision, "r", RECEIPT if dst in ("succeeded", "failed", "cancelled") else None)
     assert out.state == dst and out.revision == job.revision + 1
 
 
@@ -75,15 +75,63 @@ def test_stale_revision_rejected():
     assert ledger.get_job(job.id).state == "running"
 
 
+def test_lost_update_is_caught_in_sql(monkeypatch):
+    job = mk()
+    real = ledger._stamp
+
+    def racer(*a, **k):
+        # another process wins between our read and our write
+        monkeypatch.setattr(ledger, "_stamp", real)
+        con = sqlite3.connect(ledger.DB_PATH)
+        con.execute("UPDATE jobs SET revision = revision + 1 WHERE id = ?", (job.id,))
+        con.commit()
+        con.close()
+        return real(*a, **k)
+
+    monkeypatch.setattr(ledger, "_stamp", racer)
+    with pytest.raises(ledger.StaleRevision):
+        ledger.transition(job.id, "running", job.revision, "r")
+    after = ledger.get_job(job.id)
+    assert after.state == "queued" and after.revision == job.revision + 1
+    assert len(ledger.list_events(job.id)) == 1
+
+
+def test_corrupt_spec_is_a_ledger_error():
+    job = mk()
+    con = sqlite3.connect(ledger.DB_PATH)
+    con.execute("UPDATE jobs SET spec = '{not json' WHERE id = ?", (job.id,))
+    con.commit()
+    con.close()
+    with pytest.raises(LedgerError):
+        ledger.get_job(job.id)
+
+
+@pytest.mark.parametrize("bad", [["running"], {"a": 1}, None, 5])
+def test_non_string_state_is_a_ledger_error(bad):
+    job = mk()
+    with pytest.raises(LedgerError):
+        ledger.transition(job.id, bad, job.revision, "r")
+
+
+@pytest.mark.parametrize("bad", [True, 1.0, "1", None])
+def test_revision_must_be_a_real_int(bad):
+    job = mk()
+    assert job.revision == 1
+    with pytest.raises(LedgerError):
+        ledger.transition(job.id, "running", bad, "r")
+    assert ledger.get_job(job.id) == job
+
+
 def test_missing_job_rejected():
     with pytest.raises(LedgerError):
         ledger.transition("nope", "running", 1, "r")
     assert ledger.get_job("nope") is None
 
 
-@pytest.mark.parametrize("dst", ["succeeded", "failed"])
-def test_receipt_required(dst):
-    job = mk("running")
+@pytest.mark.parametrize("dst,src", [("succeeded", "running"), ("failed", "running"),
+                                     ("cancelled", "cancel_requested"), ("cancelled", "unknown")])
+def test_receipt_required(dst, src):
+    job = mk(src)
     for bad in (None, "text", {"x": object()}, {"big": "a" * 9000}):
         with pytest.raises(LedgerError):
             ledger.transition(job.id, dst, job.revision, "r", bad)
@@ -188,6 +236,14 @@ def test_purge_boundary_and_non_terminal_survive():
     assert all(ledger.list_events(j.id) for j in live)
     with pytest.raises(LedgerError):
         ledger.purge(datetime.now())  # naive clock refused
+
+
+def test_purge_exact_edge_is_purged():
+    done = mk("succeeded")
+    stamp = datetime.fromisoformat(ledger.get_job(done.id).terminal_at)
+    assert ledger.purge(stamp + timedelta(days=14) - timedelta(microseconds=1)) == 0
+    assert ledger.purge(stamp + timedelta(days=14)) == 1
+    assert ledger.get_job(done.id) is None
 
 
 def test_db_error_is_a_ledger_error(monkeypatch):

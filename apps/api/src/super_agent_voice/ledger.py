@@ -36,7 +36,7 @@ NEXT = {
     "succeeded": set(), "failed": set(), "cancelled": set(),
 }
 TERMINAL = {"succeeded", "failed", "cancelled"}
-NEEDS_RECEIPT = {"succeeded", "failed"}
+NEEDS_RECEIPT = {"succeeded", "failed", "cancelled"}  # cancelled needs proof of stop or non-execution
 
 
 class LedgerError(Exception):
@@ -145,8 +145,15 @@ def _json(value: object, limit: int, what: str) -> str:
     return text
 
 
+def _load(text: str) -> dict:
+    try:
+        return json.loads(text)
+    except ValueError as err:
+        raise LedgerError("stored record is corrupt") from err
+
+
 def _job(row: sqlite3.Row | tuple) -> Job:
-    return Job(row[0], row[1], json.loads(row[2]), *row[3:])
+    return Job(row[0], row[1], _load(row[2]), *row[3:])
 
 
 _COLS = "id, idempotency_key, spec, state, revision, created_at, updated_at, terminal_at"
@@ -179,8 +186,12 @@ def _move(db, row, to_state: str, reason: str, receipt: dict | None) -> None:
     """Apply one allowed transition to a fetched job row, with its event. Caller has validated."""
     now, rev = _stamp(), row[4] + 1
     receipt_text = None if receipt is None else _json(receipt, MAX_RECEIPT_BYTES, "receipt")
-    db.execute("UPDATE jobs SET state = ?, revision = ?, updated_at = ?, terminal_at = ? WHERE id = ?",
-               (to_state, rev, now, now if to_state in TERMINAL else None, row[0]))
+    # compare-and-set: a concurrent writer that bumped the revision makes this match no row
+    cur = db.execute("UPDATE jobs SET state = ?, revision = ?, updated_at = ?, terminal_at = ? "
+                     "WHERE id = ? AND revision = ?",
+                     (to_state, rev, now, now if to_state in TERMINAL else None, row[0], row[4]))
+    if cur.rowcount != 1:
+        raise StaleRevision("stale revision")
     _append_event(db, row[0], row[3], to_state, rev, reason, receipt_text, now)
 
 
@@ -188,8 +199,10 @@ def transition(job_id: str, to_state: str, expected_revision: int, reason: str,
                receipt: dict | None = None) -> Job:
     if not isinstance(reason, str) or not 0 < len(reason) <= MAX_REASON:
         raise LedgerError("reason must be 1 to 64 characters")
-    if to_state not in NEXT:
+    if not isinstance(to_state, str) or to_state not in NEXT:
         raise LedgerError("unknown state")
+    if type(expected_revision) is not int:
+        raise LedgerError("revision must be an integer")
     if to_state in NEEDS_RECEIPT and receipt is None:
         raise LedgerError("this state needs a receipt")
     if receipt is not None:
@@ -224,7 +237,7 @@ def list_events(job_id: str) -> list[Event]:
     with _db() as db:
         rows = db.execute("SELECT job_id, from_state, to_state, revision, reason, receipt, at "
                           "FROM events WHERE job_id = ? ORDER BY seq", (job_id,))
-        return [Event(r[0], r[1], r[2], r[3], r[4], None if r[5] is None else json.loads(r[5]), r[6])
+        return [Event(r[0], r[1], r[2], r[3], r[4], None if r[5] is None else _load(r[5]), r[6])
                 for r in rows]
 
 
