@@ -17,3 +17,17 @@
 2. Open: acceptance of the independent security review, which R-A.4 requires.
 3. Open: Whether the LFM3-Audio weights (LFM Open License v1.0, free under $10M
    revenue, not bundled) may be the default voice once the spike is accepted.
+
+## Design acceptance, 2026-11-15
+
+`jeevesh2515` decided this on 2026-11-15, in chat with Claude Code. The agent
+described the three slice designs in one direct question (tier 1 read tools,
+local memory and reminders, and the Gemini tools) and he chose "Accept all
+three". Under [DEC-21](../../descisions.md#dec-21) one maintainer's decision
+is enough. Nothing is ticked.
+
+The [design](../design/tier1-read-tools.md) is accepted for the slice as built.
+Its tools, all read-only, local voice path only, macOS only, and off unless
+enabled: `list_files`, `search_files`, `read_file`, `recent_notes`,
+`search_notes`, `recent_emails`, `calendar_events`. Open item 2 above (the
+security review R-A.4 requires for the whole tier) stays open.

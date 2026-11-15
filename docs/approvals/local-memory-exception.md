@@ -17,3 +17,16 @@
 2. Open: acceptance of the independent review recorded in the PR.
 3. Open: The retention rule for memory under [REQ-14](../../prd.md#req-14): today
    facts and reminders stay until the user forgets them.
+
+## Design acceptance, 2026-11-15
+
+`jeevesh2515` decided this on 2026-11-15, in chat with Claude Code. The agent
+described the three slice designs in one direct question (tier 1 read tools,
+local memory and reminders, and the Gemini tools) and he chose "Accept all
+three". Under [DEC-21](../../descisions.md#dec-21) one maintainer's decision
+is enough. Nothing is ticked.
+
+The [design](../design/local-memory-reminders.md) is accepted for the slice as
+built. Its tools, off unless `SUPER_AGENT_MEMORY=on`: `remember_fact`,
+`list_memory`, `add_reminder`, `list_reminders`, `complete_reminder`, `forget`,
+`undo_forget`. Open item 3 above (the retention rule) stays open.

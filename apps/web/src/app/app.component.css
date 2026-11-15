@@ -15,7 +15,8 @@
   width: 100%;
   min-width: 0;
   grid-template-rows: auto minmax(0, 1fr) auto;
-  min-height: 100svh;
+  /* A fixed height keeps the control dock on screen; the stage scrolls instead. */
+  height: 100svh;
   overflow: hidden;
   background: #05070e;
   color: #f8fafc;
@@ -233,10 +234,16 @@ button:disabled {
   min-height: 0;
   margin: 0 auto;
   padding: 1.5rem 1.25rem 1rem;
+  overflow-y: auto;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
+  /* "safe" keeps the top reachable when the content is taller than the stage. */
+  justify-content: safe center;
   gap: clamp(1rem, 2.5vh, 1.8rem);
+}
+
+.voice-stage > * {
+  flex-shrink: 0;
 }
 
 .error-banner {
@@ -268,6 +275,38 @@ button:disabled {
   color: #fff;
   font-weight: 700;
   cursor: pointer;
+}
+
+.action-card {
+  width: min(100%, 30rem);
+  padding: 0.9rem 1rem;
+  border: 2px solid #fbbf24;
+  border-radius: 1rem;
+  background: rgba(69, 39, 3, 0.7);
+  color: #fef3c7;
+}
+
+.action-card .eyebrow {
+  color: #fbbf24;
+}
+
+.action-card p {
+  margin: 0.4rem 0 0;
+  font-size: 0.95rem;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.action-buttons {
+  display: flex;
+  margin-top: 0.8rem;
+  justify-content: flex-end;
+  gap: 0.65rem;
+}
+
+.action-card .secondary-button {
+  border-color: rgba(254, 243, 199, 0.4);
+  color: #fef3c7;
 }
 
 .orb-section {
@@ -410,7 +449,7 @@ button:disabled {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-  max-height: 12rem;
+  max-height: min(12rem, 28svh);
   margin: 0;
   padding: 0.75rem;
   overflow-y: auto;

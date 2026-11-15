@@ -16,10 +16,12 @@ from fastapi import FastAPI, HTTPException, Request, WebSocket
 from starlette.websockets import WebSocketDisconnect
 
 from .adapter import (
-    AdapterError, AudioChunk, FakeVoiceAdapter, Interrupted, Thinking, Transcript, TurnComplete,
+    AdapterError, ApprovalClosed, ApprovalRequest, AudioChunk, FakeVoiceAdapter, Interrupted, Thinking,
+    Transcript, TurnComplete,
     VoiceAdapter,
 )
 from .config import VoiceConfig
+from .gemini_adapter import TOOL_NAME_ALLOWLIST
 
 # States only, never content (REQ-12). uvicorn configures only its own loggers, so
 # without this handler these INFO lines would be dropped.
@@ -37,6 +39,10 @@ AdapterFactory = Callable[[], VoiceAdapter]
 # configurable: it is a liveness heuristic for the trusted residual, not a
 # deadline.
 _SUPERVISOR_NUDGE_GRACE_SECONDS = 5.0
+# Shortest time between sending an action.request and accepting an Approve for it. Same value as the
+# console's own delay (apps/web app.component.ts); keep the two equal. The page is only a courtesy
+# to the user, so the backend does not rely on it.
+APPROVE_MIN_DELAY_SECONDS = 0.5
 
 
 class SessionGate:
@@ -113,6 +119,7 @@ class _SessionState:
     last_input: float
     muted: bool = False
     epoch: int = 0
+    last_action: tuple[str, float] = ("", 0.0)  # id and send time of the latest action.request
 
 
 @dataclass(frozen=True)
@@ -809,7 +816,8 @@ async def _receive(
             if not state.muted:
                 await adapter.enqueue_audio(audio)
             continue
-        event = _control(incoming.get("text"), settings).get("type")
+        control = _control(incoming.get("text"), settings)
+        event = control.get("type")
         if event == "capture.mute":
             state.muted = True
             outbound.clear_playback()
@@ -826,6 +834,20 @@ async def _receive(
             outbound.put(_Outbound({
                 "type": "playback.interrupted", "playbackEpoch": state.epoch, "source": "local",
             }))
+        elif event == "action.decision":
+            id_, allow = control.get("id"), control.get("allow")
+            if (control.keys() != {"type", "id", "allow"} or not isinstance(id_, str)
+                    or not 0 < len(id_) <= 32 or not id_.isascii() or type(allow) is not bool):
+                raise _SessionFailure("invalid-control")
+            # An approve that follows its request too fast is a script or a click meant for something
+            # the card pushed aside, not a read card. The browser enforces the same delay; this half
+            # holds even if the page is bypassed. Fail closed: it becomes a deny.
+            sent_id, sent_at = state.last_action
+            if allow and id_ == sent_id and time.monotonic() - sent_at < APPROVE_MIN_DELAY_SECONDS:
+                allow = False
+            # Only the local and Gemini adapters have actions; for the others a decision is a harmless no-op.
+            if (decide := getattr(adapter, "decide_action", None)) is not None:
+                await decide(id_, allow)
         elif event == "session.stop":
             raise _Stopped()
         else:
@@ -889,8 +911,17 @@ async def _forward_events(
                 outbound.put(_Outbound({
                     "type": "conversation.text", "role": event.role, "text": event.text[:500],
                 }, epoch=state.epoch))
+        elif isinstance(event, ApprovalRequest):
+            # Not tied to mute or the playback epoch: the card must reach the screen, and the
+            # summary is bounded here, not trusted from the adapter.
+            if isinstance(event.id, str) and isinstance(event.summary, str):
+                state.last_action = (event.id[:32], time.monotonic())
+                outbound.put(_Outbound({"type": "action.request", "id": event.id[:32], "summary": event.summary[:200]}))
+        elif isinstance(event, ApprovalClosed):
+            if isinstance(event.id, str):
+                outbound.put(_Outbound({"type": "action.closed", "id": event.id[:32]}))
         elif isinstance(event, TurnComplete):
-            tools = [t if t in ("calculate", "current_time") else "unknown" for t in getattr(event, "tools", ())]
+            tools = [t if t in TOOL_NAME_ALLOWLIST else "unknown" for t in getattr(event, "tools", ())]
             log.info(
                 "voice: turn complete adapter=%s audio_kb=%d first_audio_ms=%s tools=[%s]",
                 adapter.name, audio_bytes // 1024, first_audio_ms, ",".join(tools),

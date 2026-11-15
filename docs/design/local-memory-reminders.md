@@ -2,7 +2,7 @@
 
 | Field | Value |
 | --- | --- |
-| Status | Proposal, built on branch `feat/local-memory-reminders` ahead of the roadmap order. Not accepted. |
+| Status | Accepted by `jeevesh2515` on 2026-11-15 for this slice as built ([decision](../approvals/local-memory-exception.md#design-acceptance-2026-11-15)). Built ahead of the roadmap order; R-A.6 and R-A.7 stay unticked. |
 | Tier | T2 under [DEC-18](../../descisions.md#dec-18): reversible writes to the assistant's own store, logged, with an undo path |
 | Approval | [Out-of-order record](../approvals/local-memory-exception.md) |
 | Reference | Roamies design reference, section 1 (ideas only), in [PR 44](https://github.com/abhishek3059/super-agent/pull/44) |

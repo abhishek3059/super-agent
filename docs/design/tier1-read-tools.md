@@ -2,7 +2,7 @@
 
 | Field | Value |
 | --- | --- |
-| Status | Proposal, built on branch `feat/t1-local-tools` ahead of the roadmap order. Not accepted. R-A.4 and R-A.5 stay unticked. |
+| Status | Accepted by `jeevesh2515` on 2026-11-15 for this slice as built ([decision](../approvals/tier1-local-exception.md#design-acceptance-2026-11-15)). Built ahead of the roadmap order; R-A.4 and R-A.5 stay unticked. |
 | Decision | [DEC-18](../../descisions.md#dec-18), tier T1: read-only access to calendar, email, notes, and allowlisted folders |
 | Approval | [Tier 1 exception record](../approvals/tier1-local-exception.md) |
 | Code | `apps/api/src/super_agent_voice/tier1.py`, wired in `local_adapter.py` |

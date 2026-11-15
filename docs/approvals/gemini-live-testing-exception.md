@@ -20,3 +20,54 @@
 ## Still open
 
 Whether the data-boundary decision (R-A.2, OD-1) allows real voice to a cloud provider for anyone beyond the maintainers. This record does not answer it.
+
+## Widening, 2026-11-14
+
+`jeevesh2515` approved in chat with Claude Code on 2026-11-14 that, for
+testing only, the Gemini console may also get these tools, each off unless
+switched on:
+
+- **Weather:** the free Open-Meteo service. It receives the place name, the
+  coordinates that name resolves to (for the forecast), and the Mac's IP address.
+- **Memory and reminders:** stored facts and reminders reach Gemini when they
+  bear on a turn, and Gemini may save new ones the user asks for.
+- **Approved actions:** open a page, search the web, or open an allowed app,
+  each only after a click on the console card.
+- **Continuity:** a short summary of the last session is kept on the Mac
+  (mode 0600, can be forgotten) and starts the next session.
+
+Reading files, notes, mail, or calendar stays off with Gemini. Under
+[DEC-21](../../descisions.md#dec-21) this approval is enough. Condition 1
+above changes: facts the user chooses to store are personal data sent to
+Google's free tier, which may train on it. The user accepts that for testing.
+Conditions 2, 3, and 5 still hold. Condition 4 is replaced by this list.
+
+### Known limits (2026-11-15, disclosure only, no scope change)
+
+- Saved facts are not put in the session instruction. They reach Google only
+  when the model calls a memory tool for a turn.
+- A memory write or forget is gated on the user's words as Gemini transcribed
+  them, so provider text alone is that gate. Forgetting a fact is a soft
+  delete that `undo_forget` restores for 24 hours, which is why it needs no
+  click. Forgetting the saved summary sets the file aside and
+  `restore_conversation` brings it back for 24 hours (the same window), unless
+  a newer summary has been saved, which is never overwritten. Both forgetting
+  and restoring the summary need a click on the console card.
+- The weather service sees coordinates and the IP address, not only the name.
+- On 2026-11-15 `jeevesh2515` decided in chat that forgetting the recap must be recoverable, so no permanent delete exists in this slice.
+
+## Design acceptance, 2026-11-15
+
+`jeevesh2515` decided this on 2026-11-15, in chat with Claude Code. The agent
+described the three slice designs in one direct question (tier 1 read tools,
+local memory and reminders, and the Gemini tools) and he chose "Accept all
+three". Under [DEC-21](../../descisions.md#dec-21) one maintainer's decision
+is enough. Nothing is ticked.
+
+The [design](../design/gemini-tools.md) is accepted for the slice as built, for
+testing only. Its tools, each off unless its switch is on: `get_weather`; the
+memory tools `remember_fact`, `list_memory`, `add_reminder`, `list_reminders`,
+`complete_reminder`, `forget`, `undo_forget`; `forget_conversation` and
+`restore_conversation` for the session recap; and the three approved actions
+in the [T3 record](t3-actions-exception.md). Speech, and any saved text these
+tools read or write, reaches Google's free tier during testing.

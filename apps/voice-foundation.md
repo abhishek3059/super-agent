@@ -40,6 +40,13 @@ local file, `~/.super-agent/memory.db`, and can forget them (tier T2,
 [design](../docs/design/local-memory-reminders.md)). Due reminders are spoken
 between turns while a session is open.
 
+With `SUPER_AGENT_ACTIONS=on` (macOS only) it can also open a web page, search
+the web, or open one allowed app (tier T3,
+[design](../docs/design/t3-approved-actions.md)). Each action waits for you to
+click Approve on the console card; saying yes never approves. Apps default to
+Calendar, Notes, Reminders, Music, Maps, Calculator, and Safari; set
+`SUPER_AGENT_ACTION_APPS` to a comma list to change them.
+
 ### Start it on a Mac
 
 One-time setup (Python 3.12, about 9 GB of models outside the repository):
@@ -58,7 +65,7 @@ spike A5 record).
 Then, from the repository:
 
 ```bash
-SUPER_AGENT_MEMORY=on SUPER_AGENT_T1=files SUPER_AGENT_T1_FOLDERS="$HOME/super-agent-t1-demo" \
+SUPER_AGENT_MEMORY=on SUPER_AGENT_ACTIONS=on SUPER_AGENT_T1=files SUPER_AGENT_T1_FOLDERS="$HOME/super-agent-t1-demo" \
   scripts/start-voice-mac.sh lfm3
 ```
 
@@ -77,8 +84,8 @@ stops the session before it starts.
 
 `SUPER_AGENT_ADAPTER=gemini` sends your real microphone audio to Google's free
 tier, which may use inputs for training. Speak nothing personal or sensitive.
-The model has two tools, a calculator and the local clock, and the console shows
-transcripts for the session only. Fake stays the default. Approval status:
+By default the model has two tools, a calculator and the local clock, and the
+console shows transcripts for the session only. Fake stays the default. Approval status:
 [record](../docs/approvals/gemini-live-testing-exception.md). The key comes from
 the process environment only; never put it in a file in the repository.
 
@@ -99,8 +106,84 @@ $env:PYTHONPATH = "apps\api\src"
 & "$voiceVenv\Scripts\python" -m uvicorn super_agent_voice.app:create_app --factory --host 127.0.0.1 --port 8000 --ws-max-size 65600 --ws-max-queue 4
 ```
 
+### Extra tools (each off unless switched on)
+
+Approved for testing in the
+[widening record](../docs/approvals/gemini-live-testing-exception.md). Each
+switch takes `on` or `off`; any other value stops the session at start. They
+reuse the local adapter's gates: a call that changes memory, deletes the
+summary, or opens something is refused unless the user's own words in that
+request asked for it (opening, forgetting the recap, and restoring it then also
+wait for a click) ("remember", "remind", "forget", "undo", "done", "open",
+"search" and similar). Reading memory, the weather, the calculator, and the
+clock need no request words. The words come from Gemini's transcription of
+your speech; if none has arrived, the call is refused. The recap keeps only
+your words, never the assistant's. Saved facts are not put in the session
+instruction: they reach Google only when the model calls a memory tool for a
+turn. Known limits: the request words are Gemini's own transcription of your
+speech, so provider text alone is the gate for memory changes. That is
+acceptable because forgetting a fact is a soft delete (`undo` restores it for
+24 hours). Forgetting the recap sets the file aside instead of deleting it and
+`restore_conversation` brings it back within the same 24 hours, so no
+permanent delete exists in this slice. Both forgetting and restoring the
+recap need a click on the console card, because a restored recap goes to
+Google at the next session start and the request words alone are only the
+provider's transcription. Forgetting a fact does not remove it from the recap; say "forget our
+conversation" for that.
+
+| Switch | What it adds | What goes to Google or elsewhere |
+| --- | --- | --- |
+| `SUPER_AGENT_WEATHER` | `get_weather(place)` from Open-Meteo, no key | Open-Meteo (not Google) receives the place name, the coordinates it resolves to, and your IP address. Google sees the one-sentence answer. |
+| `SUPER_AGENT_MEMORY` | The memory and reminder tools; due reminders show in the console transcript (not spoken) | Any fact or reminder text the tools read or save reaches Google's free tier. Nothing is sent at session start. |
+| `SUPER_AGENT_ACTIONS` | Open a page, search the web, open an allowed app (macOS only). Each needs a click on the console card; a spoken yes never counts. One action per request. | The model sees only the fixed result words (done, denied, timed out). |
+| `SUPER_AGENT_RECAP` | Keeps the user's last 5 transcript lines in `~/.super-agent/recap.json` (mode 0600) when a session closes, and starts the next session with them if they are under 7 days old. `forget_conversation` (asked for by voice with forget, delete or erase) sets the file aside as `recap.json.forgotten` (mode 0600), after a click on the console card. New sessions no longer load it. `restore_conversation` (asked for with undo, restore or bring it back) restores it within 24 hours, after a click on the console card, unless a newer recap is saved, which always wins; after 24 hours the copy is removed the next time the recap is saved, loaded or forgotten. One set-aside copy exists at a time: forgetting a newer recap replaces the older forgotten one, and the reply says so. | The recap lines go to Google at the next session start. Lines that look like secrets are never saved. |
+
+Reading files, notes, mail or calendar stays off with Gemini. The tool audit log
+(`~/.super-agent/tool-audit.log`) holds time, tool name and outcome only. On
+Windows, which has no owner-only modes or no-follow opens, `SUPER_AGENT_RECAP`
+stays off (a session still starts, with no recap) and the weather audit
+lines are not written. Nothing is run with a weaker version of those
+checks. The decision is in `apps/api/src/super_agent_voice/posix_files.py`. A
+reminder is shown, not spoken, because Gemini owns the voice and its text is
+not trusted. A reminder that comes due while the console is muted is marked
+done without being shown.
+
+Mac launcher: it reads the key from `~/.super-agent/gemini-key` (refuses
+unless the file is mode 0600), gives it only to the backend, prints which
+switches are on, and stops the backend when the console exits:
+
+```bash
+SUPER_AGENT_WEATHER=on SUPER_AGENT_MEMORY=on scripts/start-gemini-mac.sh
+```
+
 Startup fails if `GEMINI_API_KEY` is missing. Tool calls and transcripts need a
 live run to confirm; the offline tests use fakes only.
+
+### Long sessions and reconnects
+
+Gemini Live closes a connection after a limited lifetime and sends `go_away`
+first. The adapter asks for session resumption and sliding-window context
+compression, and keeps the latest resumable handle in memory only. The handle
+is never logged, sent to the browser, or put in an error.
+
+- After `go_away` the adapter keeps reading so a reply can finish. When the
+  server closes the connection (or the stream ends), it reconnects once with
+  the stored handle. Queued microphone audio is kept, and a frame that failed
+  on the dead connection is retried once on the new one (it waits up to 10 s).
+- A reply that was mid-speech when the connection closed ends with a provider
+  interruption, because the server state of that turn is gone.
+- At most 20 reconnects per session. With no resumable handle, a failed
+  reconnect, an exhausted cap, or a quota or unsupported-model close, the
+  session fails closed as before (`provider-session-ended` or the specific
+  category).
+- Limits: a tool response in flight during a close is not retried, and the
+  server may not be resumable mid-generation, so a few words around the
+  switch can be lost. The reconnect is covered by offline fakes only; it was
+  not run against the live service.
+
+Provider audio chunks are split into even-length pieces of at most 16 KiB
+before they reach the app, which still rejects frames over 32 KiB or of odd
+length as `invalid-audio`.
 
 ## Synthetic live check (opt-in)
 

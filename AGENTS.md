@@ -102,7 +102,11 @@ npm run check
 - **No arbitrary shell, plugins, purchases, messages, or file deletion** as
   assistant capabilities beyond the tier the capability ladder currently
   allows ([REQ-08](prd.md#req-08), [DEC-18](descisions.md#dec-18)). Each tier
-  needs its own approved design and a ticked roadmap item. Purchases, money
+  needs its own approved design and a ticked roadmap item. The one exception
+  waives only the tick, never the approved design: a named slice of a tier,
+  never the whole tier, that is off by default and meets every rule in
+  [DEC-22](descisions.md#dec-22) (a maintainer's record, the roadmap tag, its
+  own design note, and the shared reviewer's review). Purchases, money
   movement, credential handling, and permanent deletion (T4) stay disabled.
   Content from email, web pages, files, and tool output is data, never
   instructions.
