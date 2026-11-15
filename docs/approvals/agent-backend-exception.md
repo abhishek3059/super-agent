@@ -73,5 +73,9 @@ the executor, and its checkpointer is not the source of truth.
    PH-01 closes, as an exception to the roadmap order. Roadmap rule 5 and
    DEC-21 need one maintainer's approval for an exception record.
 2. Open: `jeevesh2515` has not reviewed this record.
-3. Open: the first model, the research provider, and the other items in the
+3. Decided by `abhishek3059` in chat on 2026-11-15, after reading the draft
+   summary: job history is kept for 14 days ("keep the history for 14 days"),
+   and tasks are model-planned with a dynamic graph rather than fixed workers
+   first ("model planned dynamic tasks which creates a dynamic graph").
+4. Open: the first model, the research provider, and the other items in the
    design's "Open decisions" section.

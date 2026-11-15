@@ -126,7 +126,7 @@ One entry per terminal job revision, written by code when the ledger emits
   not terminal in [architecture.md](../../../architecture.md#canonical-job-states),
   so an `unknown` job gets no entry until it reconciles to one of the three.
   Until then the ledger snapshot is the only record, and the ledger keeps
-  it because the 24-hour purge starts at a terminal state;
+  it because the purge (14 days since the 2026-11-15 PH-00 amendment) starts at a terminal state;
 - the verifier's bounded summary (at most 200 characters);
 - an evidence digest, the job ID, and the revision;
 - the job's data class and the entry's expiry;
@@ -363,7 +363,7 @@ machine under the recommended OD-1.
 | `inferred` profile record | Expires unless reinforced | OD-17 (proposed, section 9) |
 | Episode | 90 days, adjustable | OD-17 (proposed, section 9) |
 | Decision or commitment | Until done or forgotten | OD-17 (proposed, section 9) |
-| Job spec, verified checkpoints, stop reason | 30 days | OD-18 (proposed); PH-00 says 24 hours today |
+| Job spec, verified checkpoints, stop reason | 30 days | OD-18 (proposed); PH-00 says 14 days since the 2026-11-15 amendment |
 
 ## 9. Proposed revision (2026-11-13): learning from conversation
 

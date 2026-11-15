@@ -24,7 +24,7 @@ Claims about external packages are marked UNVERIFIED.
 | Local memory (facts, reminders) lives in `~/.super-agent/memory.db`; it has a `context(query)` function and its own tool schemas. | [memory.py](../../apps/api/src/super_agent_voice/memory.py) |
 | Tier 1 read-only tools (files, calendar, notes, mail) are opt-in through `SUPER_AGENT_T1`. They read real local data. | [tier1.py](../../apps/api/src/super_agent_voice/tier1.py), [tier 1 design](tier1-read-tools.md) |
 | Fixed tools: `calculate`, `current_time`. | [tools.py](../../apps/api/src/super_agent_voice/tools.py) |
-| Cloud calls may carry synthetic data only. Budget is $0. Job metadata is deleted 24 hours after a terminal state. | [PH-00 setup decisions](../approvals/ph-00-setup-decisions.md) |
+| Cloud calls may carry synthetic data only. Budget is $0. Job metadata was deleted 24 hours after a terminal state; amended to 14 days on 2026-11-15. | [PH-00 setup decisions](../approvals/ph-00-setup-decisions.md) |
 
 ## 2. Flow
 
@@ -91,8 +91,10 @@ Steps:
   stop becomes `unknown`. Recovery to `queued` follows the
   [architecture rule](../../architecture.md#canonical-job-states): only with
   evidence of a safe read-only retry. No blind replay.
-- Retention starts from the [PH-00 rule](../approvals/ph-00-setup-decisions.md):
-  24 hours after a terminal state. A longer window is open decision 8.
+- Retention: job history is deleted 14 days after a terminal state. The
+  operator decided this on 2026-11-15, and the
+  [PH-00 record](../approvals/ph-00-setup-decisions.md#amendments) is amended
+  in the same change. Deletion is enforced in code and tested.
 
 ## 4. "Subagent" means a bounded worker run
 
@@ -108,6 +110,16 @@ with new authority.
 - The first catalog is small: `read_tool` (one allowlisted read-only tool
   call), `summarize` (a model call over bounded step output), `ask_user` (the
   clarify question), and `finish`. Exact schemas are implementation work.
+
+**The graph is dynamic; the step types are not.** The operator decided on
+2026-11-15 that tasks are model-planned and each job gets its own graph. The
+planner returns a plan: a list of typed steps and which steps depend on which.
+Code validates the whole plan before anything runs (every step type in the
+catalog, every argument valid, no cycle, step count within the limit) and then
+builds the LangGraph graph from it. A plan that fails validation is rejected
+and the job fails closed. The shape of the graph changes per task. What a step
+may do, and which tools it may touch, is still fixed by the catalog and policy
+code.
 
 ## 5. Limits outside the model (REQ-10)
 
@@ -217,7 +229,7 @@ If any claim fails, stop and ask the maintainers.
 | --- | --- | --- |
 | Ledger: states, receipts, idempotency, revisions | R-02.1, R-02.2 | REQ-09 |
 | Limits and admission in code | R-02.3 | REQ-10 |
-| Fixed read-only task types, scoped tool sets | R-02.4 | REQ-08 |
+| Read-only step catalog, scoped tool sets (not the two fixed workers; see decided item 3) | R-02.4 in part | REQ-08 |
 | Background runner off the event loop | R-02.5 | REQ-10 |
 | Clarify node (bounded part) | R-04.2 | REQ-09 |
 | Typed steps, step catalog, verifier (bounded part) | R-04.3 | REQ-08, REQ-10 |
@@ -235,8 +247,10 @@ Proposed build order, each slice with its test:
    loop answers while a job runs; cancel moves to `cancel_requested`.
 4. **Model seam with a scripted fake.** Test: hostile model output (unknown
    step type, widened scope) is rejected in code.
-5. **Graph.** Plan, execute, verify, receipt on the fake model, then clarify.
-   Test: each node edge writes one ledger transition.
+5. **Dynamic graph.** Plan validation, then a graph built from the validated
+   plan: execute, verify, receipt on the fake model, then clarify. Test: each
+   node edge writes one ledger transition; a plan with an unknown step type, a
+   cycle, or too many steps is rejected before any step runs.
 6. **`delegate_task` wired to the conversation loop**, text first. Test: a real
    API call through the agent returns a receipt at once.
 7. **Gemini text model** behind the seam. Test: opt-in live check, synthetic
@@ -253,7 +267,7 @@ Proposed build order, each slice with its test:
 | C1 | The brain design gives the conversation model four tools: `propose_task`, `query_ledger`, `cancel_task`, `steer_task`. This design names the entry tool `delegate_task`. | [brain overview, section 6](brain/overview.md#6-system-1-tool-contracts) | Not resolved. Proposal: `delegate_task` is the same admission step as `propose_task`, and the other three tools stay. A maintainer picks one name. |
 | C2 | Tier 1 tools read real local data. Sending their output to a cloud planner breaks the synthetic-only boundary. [DEC-18](../../descisions.md#dec-18) also places T1 after the PH-02 policy layer, and the tier 1 design notes it is not behind that layer yet. | [tier1-read-tools.md](tier1-read-tools.md) known limits; [REQ-13](../../prd.md#req-13) | Section 7: tier 1 only with a local planner or synthetic folders, enforced at admission. This slice is the policy layer tier 1 waits for, so it must not weaken it. |
 | C3 | PH-02 means two deterministic trusted workers. A model-planned graph is PH-04 work, and PH-04 entry needs RT-G04 and an approved real task pair. | [phases.md](../../phases.md) PH-02, PH-04 | Covered by the exception for the bounded parts only. Open decision 3. |
-| C5 | PH-00 deletes job metadata 24 hours after a terminal state. The brain design says some scenarios need longer. | [PH-00 setup decisions](../approvals/ph-00-setup-decisions.md); brain OD-18 in [overview](brain/overview.md#10-open-maintainer-decisions) | First slice keeps 24 hours. Open decision 8. |
+| C5 | PH-00 deletes job metadata 24 hours after a terminal state. The brain design says some scenarios need longer. | [PH-00 setup decisions](../approvals/ph-00-setup-decisions.md); brain OD-18 in [overview](brain/overview.md#10-open-maintainer-decisions) | Resolved for job history: 14 days, decided 2026-11-15 (item 8). The 30 days approved for task specs and checkpoints under OD-18 is longer than 14 days and is not reconciled here. |
 | C6 | The brain design treats the ledger contract as fixed and lists interface requests IR-1 to IR-10 (an origin field, `job_terminal` events, and others). This slice builds the ledger, so it must decide them. | [brain overview, section 11](brain/overview.md#11-interface-requests-for-the-ledger) | Build only the fields the slice needs. The rest wait. |
 
 ### Open decisions for a maintainer
@@ -264,9 +278,13 @@ Proposed build order, each slice with its test:
 2. **Web research provider.** A search or fetch service is a new recipient and
    egress decision under [REQ-13](../../prd.md#req-13). Keep it out of the
    first slice, or approve a named one.
-3. **Fixed workers first.** Whether the two PH-02 fixed workers
-   ([RT-005](../../tasks/005-fixed-sample-workers.md)) are built first as the
-   graph's first two task types. This design assumes yes.
+3. **Fixed workers first. Decided 2026-11-15 by `abhishek3059`: no.** Tasks are
+   model-planned with a dynamic graph from the start (section 4). Consequence,
+   still open: R-02.4 and the PH-02 exit gate in [phases.md](../../phases.md)
+   ask for two trusted fixed workers
+   ([RT-005](../../tasks/005-fixed-sample-workers.md)). This slice does not
+   build them, so it cannot tick R-02.4 as written. Either they are built
+   later, or the gate changes in a roadmap PR.
 4. **Ledger file location.** A separate `~/.super-agent/ledger.db` next to
    `memory.db` matches option (b) of brain OD-10 in the
    [overview](brain/overview.md#10-open-maintainer-decisions). Confirm.
@@ -278,7 +296,9 @@ Proposed build order, each slice with its test:
    checkpoints only. Options: reuse it with a distinct reason code, or run the
    clarify step before admission so a job starts only with a complete spec. The
    second adds no state and is proposed.
-8. **Retention.** Keep the 24-hour window, or amend the PH-00 record.
+8. **Retention. Decided 2026-11-15 by `abhishek3059`: 14 days** for job
+   history. Still open: whether 14 days also replaces the 30 days approved
+   under OD-18 for task specs and checkpoints.
 
 ## 12. What this does not do
 
