@@ -5,6 +5,7 @@ import sys
 
 import pytest
 
+from conftest import expect_audit
 from super_agent_voice import local_adapter
 from super_agent_voice.adapter import (
     AdapterError, ApprovalClosed, ApprovalRequest, AudioChunk, Interrupted, Thinking, Transcript, TurnComplete,
@@ -970,7 +971,7 @@ def test_an_approved_action_runs_exactly_once_with_the_command_built_in_code(mon
     assert ApprovalClosed(request.id) in events
     assert any(isinstance(e, Transcript) and e.text == local_adapter.APPROVAL_SENTENCE for e in events)
     assert adapter._pending is None
-    assert local_adapter.actions.AUDIT_LOG.read_text().split()[1:] == ["open_url", "approved"]
+    expect_audit(local_adapter.actions.AUDIT_LOG, ["open_url", "approved"])
 
 
 def test_a_denial_runs_nothing(monkeypatch):
@@ -984,7 +985,7 @@ def test_a_denial_runs_nothing(monkeypatch):
         await adapter.close()
     run(scenario())
     assert ran == [] and results == [local_adapter.actions.DENIED]
-    assert local_adapter.actions.AUDIT_LOG.read_text().split()[1:] == ["open_url", "denied"]
+    expect_audit(local_adapter.actions.AUDIT_LOG, ["open_url", "denied"])
 
 
 def test_no_click_in_time_runs_nothing_and_closes_the_request(monkeypatch):
@@ -1001,7 +1002,7 @@ def test_no_click_in_time_runs_nothing_and_closes_the_request(monkeypatch):
     request, events = run(scenario())
     assert ran == [] and results == [local_adapter.actions.TIMED_OUT]
     assert ApprovalClosed(request.id) in events
-    assert local_adapter.actions.AUDIT_LOG.read_text().split()[1:] == ["open_url", "timeout"]
+    expect_audit(local_adapter.actions.AUDIT_LOG, ["open_url", "timeout"])
 
 
 def test_slow_speech_does_not_shorten_the_click_window(monkeypatch):
@@ -1128,8 +1129,8 @@ def test_an_action_is_refused_after_a_read_without_a_request_with_no_approver_an
     assert no_approver == [local_adapter.actions.NO_APPROVER]
     assert twice == [local_adapter.actions.DONE, local_adapter.actions.ONE_PER_TURN]
     assert ran == [EXAMPLE_ARGV]  # only the one approved, permitted call ever ran
-    outcomes = [line.split()[2] for line in local_adapter.actions.AUDIT_LOG.read_text().splitlines()]
-    assert outcomes == ["refused", "refused", "refused", "approved", "refused"]
+    expect_audit(local_adapter.actions.AUDIT_LOG, *[["open_url", outcome] for outcome in
+                                                    ("refused", "refused", "refused", "approved", "refused")])
 
 
 def test_a_bad_app_list_stops_the_session_at_start(monkeypatch):

@@ -135,7 +135,11 @@ console card. Forgetting a fact does not remove it from the recap; say
 | `SUPER_AGENT_RECAP` | Keeps the last 5 transcript lines in `~/.super-agent/recap.json` (mode 0600) when a session closes, and starts the next session with them if they are under 7 days old. `forget_conversation` (asked for by voice with forget, clear or delete) deletes the file, after a click on the console card (it cannot be undone). | The recap lines go to Google at the next session start. Lines that look like secrets are never saved. |
 
 Reading files, notes, mail or calendar stays off with Gemini. The tool audit log
-(`~/.super-agent/tool-audit.log`) holds time, tool name and outcome only. A
+(`~/.super-agent/tool-audit.log`) holds time, tool name and outcome only. On
+Windows, which has no owner-only modes or no-follow opens, `SUPER_AGENT_RECAP`
+stays off (a session still starts, with no recap) and the weather audit
+lines are not written. Nothing is run with a weaker version of those
+checks. The decision is in `apps/api/src/super_agent_voice/posix_files.py`. A
 reminder is shown, not spoken, because Gemini owns the voice and its text is
 not trusted. A reminder that comes due while the console is muted is marked
 done without being shown.

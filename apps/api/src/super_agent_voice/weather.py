@@ -15,8 +15,9 @@ import os
 import re
 import urllib.parse
 import urllib.request
-from datetime import datetime
 from pathlib import Path
+
+from . import posix_files
 
 # Same file and format as the other tools' audit logs.
 AUDIT_LOG = Path.home() / ".super-agent" / "tool-audit.log"
@@ -138,14 +139,4 @@ async def run(name: object, arguments: object) -> str:
 
 def _audit(outcome: str) -> None:
     """Appends time, tool name, and outcome. Never the place or the answer (REQ-14)."""
-    line = f"{datetime.now().astimezone().strftime('%Y-%m-%dT%H:%M:%S%z')} get_weather {outcome}\n"
-    try:
-        AUDIT_LOG.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
-        fd = os.open(AUDIT_LOG, os.O_WRONLY | os.O_APPEND | os.O_CREAT | os.O_NOFOLLOW, 0o600)
-        try:
-            os.fchmod(fd, 0o600)
-            os.write(fd, line.encode())
-        finally:
-            os.close(fd)
-    except OSError:
-        pass  # an unwritable log must not break an answer
+    posix_files.append_audit(AUDIT_LOG, posix_files.audit_line("get_weather", outcome))

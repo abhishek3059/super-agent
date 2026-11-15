@@ -17,8 +17,9 @@ import re
 import unicodedata
 import urllib.parse
 from collections.abc import Awaitable, Callable
-from datetime import datetime
 from pathlib import Path
+
+from . import posix_files
 
 # Metadata only, same file and format as tier1's audit log.
 AUDIT_LOG = Path.home() / ".super-agent" / "tool-audit.log"
@@ -191,14 +192,4 @@ async def run(name: object, arguments: object, approve: Callable[[str], Awaitabl
 def audit(name: object, outcome: str) -> None:
     """Appends time, tool name, and outcome. Never arguments or content (REQ-14)."""
     shown = name if isinstance(name, str) and name in NAMES else "unknown"
-    line = f"{datetime.now().astimezone().strftime('%Y-%m-%dT%H:%M:%S%z')} {shown} {outcome}\n"
-    try:
-        AUDIT_LOG.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
-        fd = os.open(AUDIT_LOG, os.O_WRONLY | os.O_APPEND | os.O_CREAT | os.O_NOFOLLOW, 0o600)
-        try:
-            os.fchmod(fd, 0o600)  # an older file keeps its mode otherwise
-            os.write(fd, line.encode())
-        finally:
-            os.close(fd)
-    except OSError:
-        pass  # an unwritable log must not stop an action the user approved
+    posix_files.append_audit(AUDIT_LOG, posix_files.audit_line(shown, outcome))

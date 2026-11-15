@@ -6,8 +6,11 @@ import stat
 import time
 
 import pytest
-
+from conftest import needs_posix_files
 from super_agent_voice import recap
+
+# Every test here asserts owner-only modes, no-follow opens or the files they protect.
+pytestmark = needs_posix_files
 
 
 def mode(path) -> int:

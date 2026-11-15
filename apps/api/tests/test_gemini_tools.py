@@ -12,8 +12,9 @@ import sys
 from types import SimpleNamespace as NS
 
 import pytest
+from conftest import expect_audit, needs_posix_files
 
-from super_agent_voice import actions, gemini_adapter, memory, recap, weather
+from super_agent_voice import actions, gemini_adapter, memory, posix_files, recap, weather
 from super_agent_voice.adapter import ApprovalClosed, ApprovalRequest, AudioChunk, Interrupted, Transcript
 from super_agent_voice.gemini_adapter import GeminiLiveAdapter, system_instruction
 from test_gemini_adapter import FakeConnect, FakeSession, audio, flag, run
@@ -91,6 +92,9 @@ def test_the_declarations_are_exactly_the_enabled_tools(monkeypatch, on, extra):
     monkeypatch.setattr(sys, "platform", "darwin")
     for name in on:
         monkeypatch.setenv(f"SUPER_AGENT_{name}", "on")
+    if not posix_files.available():  # the recap is off where owner-only files do not exist (Windows)
+        on = tuple(name for name in on if name != "RECAP")
+        extra = [name for name in extra if name != "forget_conversation"]
 
     async def scenario():
         adapter = make(FakeSession())
@@ -321,7 +325,7 @@ def test_an_approved_action_runs_once_after_the_click_and_the_receive_loop_keeps
     request, session, rest = run(scenario())
     assert opened == [ARGV] and outputs(session) == [actions.DONE]
     assert ApprovalClosed(request.id) in rest
-    assert actions.AUDIT_LOG.read_text().split()[1:] == ["open_url", "approved"]
+    expect_audit(actions.AUDIT_LOG, ["open_url", "approved"])
 
 
 def test_a_denial_runs_nothing(opened):
@@ -389,7 +393,7 @@ def test_no_click_in_time_runs_nothing_and_closes_the_request(opened, monkeypatc
     result, events = run(scenario())
     assert result == [actions.TIMED_OUT] and opened == []
     assert events[-1] == ApprovalClosed(events[0].id)
-    assert actions.AUDIT_LOG.read_text().split()[1:] == ["open_url", "timeout"]
+    expect_audit(actions.AUDIT_LOG, ["open_url", "timeout"])
 
 
 def test_an_action_nobody_asked_for_never_shows_a_card(opened):
@@ -399,7 +403,7 @@ def test_an_action_nobody_asked_for_never_shows_a_card(opened):
         return outputs(session)
 
     assert run(scenario()) == [gemini_adapter.NOT_ASKED] and opened == []
-    assert actions.AUDIT_LOG.read_text().split()[1:] == ["open_url", "refused"]
+    expect_audit(actions.AUDIT_LOG, ["open_url", "refused"])
 
 
 def test_no_transcript_yet_means_not_asked(opened):
@@ -502,6 +506,7 @@ def speak(user: str, model: str) -> list:
             flag(turn_complete=True)]
 
 
+@needs_posix_files
 def test_a_recap_is_written_on_close_and_starts_the_next_session_as_data(monkeypatch, caplog):
     monkeypatch.setenv("SUPER_AGENT_RECAP", "on")
     secret_words = "my sister Zorblatt is visiting"
@@ -534,6 +539,7 @@ def test_a_recap_is_written_on_close_and_starts_the_next_session_as_data(monkeyp
     assert not actions.AUDIT_LOG.exists() or "Zorblatt" not in actions.AUDIT_LOG.read_text()
 
 
+@needs_posix_files
 def test_the_last_unfinished_line_is_kept_and_only_five_lines_are_saved(monkeypatch):
     monkeypatch.setenv("SUPER_AGENT_RECAP", "on")
 
@@ -562,6 +568,7 @@ def test_recap_off_writes_nothing():
     assert not recap.RECAP_PATH.exists()
 
 
+@needs_posix_files
 def test_an_old_recap_is_not_used(monkeypatch):
     monkeypatch.setenv("SUPER_AGENT_RECAP", "on")
     recap.save([("user", "ancient history")])
@@ -592,6 +599,7 @@ async def forget_session(words: str, decision: bool | None):
     return outputs(session)
 
 
+@needs_posix_files
 def test_forget_conversation_deletes_the_file_only_after_a_click_and_nothing_new_is_saved(monkeypatch):
     monkeypatch.setenv("SUPER_AGENT_RECAP", "on")
     recap.save([("user", "old plans")])
@@ -613,6 +621,7 @@ def test_forget_conversation_deletes_the_file_only_after_a_click_and_nothing_new
     assert not recap.RECAP_PATH.exists()  # closing did not write this session's words back
 
 
+@needs_posix_files
 def test_forget_conversation_without_an_approve_click_keeps_the_file(monkeypatch):
     monkeypatch.setenv("SUPER_AGENT_RECAP", "on")
     cleared: list = []
@@ -623,6 +632,7 @@ def test_forget_conversation_without_an_approve_click_keeps_the_file(monkeypatch
     assert cleared == []
 
 
+@needs_posix_files
 def test_forget_conversation_needs_the_users_words(monkeypatch):
     monkeypatch.setenv("SUPER_AGENT_RECAP", "on")
     cleared: list = []
@@ -643,6 +653,7 @@ def test_forget_conversation_needs_the_users_words(monkeypatch):
     "call mom and do not forget the milk",
     "call mom and Don\u2019t  Forget the milk",
 ])
+@needs_posix_files
 def test_dont_forget_never_asks_to_delete_the_recap_however_it_is_typed(monkeypatch, words):
     monkeypatch.setenv("SUPER_AGENT_RECAP", "on")
     cleared: list = []
@@ -650,6 +661,7 @@ def test_dont_forget_never_asks_to_delete_the_recap_however_it_is_typed(monkeypa
     assert run(forget_session(words, None)) == [gemini_adapter.NOT_ASKED] and cleared == []
 
 
+@needs_posix_files
 def test_model_text_and_tool_output_alone_cannot_forget_anything(monkeypatch):
     """The model's own words and tool output never count as the user's request: only the input
     transcription does. So no memory delete runs, and the recap file is never touched."""

@@ -16,7 +16,7 @@ import time
 import unicodedata
 from pathlib import Path
 
-from . import memory
+from . import memory, posix_files
 
 RECAP_PATH = Path.home() / ".super-agent" / "recap.json"
 MAX_LINES = 5
@@ -38,7 +38,8 @@ def enabled() -> bool:
     choice = os.environ.get("SUPER_AGENT_RECAP", "off")
     if choice not in ("on", "off"):
         raise RuntimeError("SUPER_AGENT_RECAP must be 'on' or 'off'")
-    return choice == "on"
+    # Off on Windows: the file needs owner-only modes and no-follow opens (posix_files decides).
+    return choice == "on" and posix_files.available()
 
 
 def _clean(text: str) -> str:
@@ -50,6 +51,8 @@ def _clean(text: str) -> str:
 def save(lines: list[tuple[str, str]]) -> None:
     """Writes the last few lines. Does nothing for an empty conversation, so an old recap is kept.
     Never raises: a recap that cannot be written must not break closing a session."""
+    if not posix_files.available():
+        return
     user = [text for role, text in lines if role == "user"]  # never the assistant's own words
     # The secret check sees the whole line, before it is cut to length.
     kept = [f"user: {_clean(text)}" for text in user[-MAX_LINES:] if not memory._SECRET.search(text)]  # noqa: SLF001
@@ -73,6 +76,8 @@ def save(lines: list[tuple[str, str]]) -> None:
 
 def load(now: float | None = None) -> list[str]:
     """The saved lines, or none when the file is missing, old, odd, or not private to this user."""
+    if not posix_files.available():
+        return []
     try:
         fd = os.open(RECAP_PATH, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)  # a FIFO cannot block
         try:

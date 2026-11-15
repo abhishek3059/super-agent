@@ -6,6 +6,7 @@ import time
 
 import pytest
 
+from conftest import expect_audit
 from super_agent_voice import weather
 
 GEO = {"results": [{"name": "Lisbon", "latitude": 38.72, "longitude": -9.14, "country": "Portugal"}]}
@@ -38,7 +39,7 @@ def test_a_good_lookup_is_one_plain_sentence_built_by_code(monkeypatch):
     assert urls[0] == ("https://geocoding-api.open-meteo.com/v1/search?name=Lisbon%2C%20Portugal"
                        "&count=1&language=en&format=json")
     assert urls[1].startswith("https://api.open-meteo.com/v1/forecast?latitude=38.7200&longitude=-9.1400&current=")
-    assert weather.AUDIT_LOG.read_text().split()[1:] == ["get_weather", "ok"]
+    expect_audit(weather.AUDIT_LOG, ["get_weather", "ok"])
 
 
 def test_a_missing_rain_chance_is_left_out(monkeypatch):
@@ -95,7 +96,7 @@ def good(**changes):
 def test_malformed_or_non_finite_json_gives_the_fixed_failure(monkeypatch, geo, forecast):
     fake_get(monkeypatch, geo=geo, forecast=forecast)
     assert ask() == weather.FAILED
-    assert weather.AUDIT_LOG.read_text().split()[1:] == ["get_weather", "error"]
+    expect_audit(weather.AUDIT_LOG, ["get_weather", "error"])
 
 
 def test_an_odd_weather_code_is_called_unsettled_and_a_hostile_name_is_not_echoed(monkeypatch):

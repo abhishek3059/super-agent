@@ -2,6 +2,7 @@ import asyncio
 
 import pytest
 
+from conftest import expect_audit, needs_posix_files
 from super_agent_voice import actions
 
 
@@ -153,12 +154,12 @@ def test_run_executes_only_after_an_explicit_true_and_logs_metadata_only(monkeyp
     assert run(actions.run("open_url", {"url": "http://example.com"}, late)) == actions.BAD_URL
     assert run(actions.run("open_url", {"url": "https://example.com"}, None)) == actions.NO_APPROVER
     assert len(calls) == 1
-    log = actions.AUDIT_LOG.read_text()
-    assert [line.split()[1:] for line in log.splitlines()] == (
-        [["open_url", "approved"]] + [["open_url", "denied"]] * 5 + [["open_url", "timeout"],
-                                                                      ["open_url", "refused"], ["open_url", "refused"]])
-    assert "example" not in log and "secret" not in log and "hidden" not in log
-    assert actions.AUDIT_LOG.stat().st_mode & 0o777 == 0o600
+    expect_audit(actions.AUDIT_LOG, ["open_url", "approved"], *[["open_url", "denied"]] * 5, ["open_url", "timeout"],
+                 ["open_url", "refused"], ["open_url", "refused"])
+    if actions.AUDIT_LOG.exists():
+        log = actions.AUDIT_LOG.read_text()
+        assert "example" not in log and "secret" not in log and "hidden" not in log
+        assert actions.AUDIT_LOG.stat().st_mode & 0o777 == 0o600
 
 
 def test_a_failed_or_slow_command_gives_a_fixed_error(monkeypatch):
@@ -174,7 +175,7 @@ def test_a_failed_or_slow_command_gives_a_fixed_error(monkeypatch):
     for execute in (broken, slow):
         monkeypatch.setattr(actions, "execute", execute)
         assert run(actions.run("open_url", {"url": "https://example.com"}, approve)) == actions.FAILED
-    assert actions.AUDIT_LOG.read_text().count("open_url error") == 2
+    expect_audit(actions.AUDIT_LOG, ["open_url", "error"], ["open_url", "error"])
 
 
 def test_cancelling_a_waiting_action_is_logged_as_denied(monkeypatch):
@@ -191,7 +192,7 @@ def test_cancelling_a_waiting_action_is_logged_as_denied(monkeypatch):
         with pytest.raises(asyncio.CancelledError):
             await task
     run(scenario())
-    assert actions.AUDIT_LOG.read_text().split()[1:] == ["open_app", "denied"]
+    expect_audit(actions.AUDIT_LOG, ["open_app", "denied"])
 
 
 def test_the_real_executor_uses_an_argument_list_and_reports_failure(monkeypatch):
@@ -268,6 +269,7 @@ def test_the_card_summary_is_never_longer_than_the_console_shows():
     assert len(actions.prepare("web_search", {"query": "q" * actions.MAX_QUERY})[0]) <= actions.MAX_SUMMARY
 
 
+@needs_posix_files
 def test_the_audit_log_is_tightened_and_never_followed_through_a_link(tmp_path, monkeypatch):
     log = tmp_path / "audit.log"
     log.write_text("")
