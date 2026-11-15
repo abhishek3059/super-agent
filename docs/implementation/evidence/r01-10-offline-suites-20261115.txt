@@ -2,6 +2,7 @@ date_utc=2026-11-15T03:57:56Z
 commit=0638660 (upstream/develop, clean worktree)
 host=macOS (Darwin 27.2.0), Python 3.14.4, node v22.22.3, npm 10.9.8
 GEMINI_API_KEY and SUPER_AGENT_ADAPTER unset for the backend run; no provider call
+note=trimmed and redacted: pytest progress lines and repeated warning text are cut, and the local checkout path is replaced with <worktree>
 
 $ python -m pytest apps/api -rs
 =============================== warnings summary ===============================

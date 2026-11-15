@@ -31,10 +31,11 @@
   synthetic live command.
 - (Written 2026-11-11; superseded. [PR #41](https://github.com/abhishek3059/super-agent/pull/41)
   added the opt-in `SUPER_AGENT_ADAPTER=gemini` path under the
-  [testing exception](../approvals/gemini-live-testing-exception.md).)
-  The application never builds a `GeminiLiveAdapter`. `create_app` still
-  defaults to the fake adapter, and no setting switches the browser console
-  to Gemini. Personal microphone audio stays local.
+  [testing exception](../approvals/gemini-live-testing-exception.md). The
+  original text said: "The application never builds a `GeminiLiveAdapter`.
+  `create_app` still defaults to the fake adapter, and no setting switches
+  the browser console to Gemini. Personal microphone audio stays local."
+  Only the fake-adapter default still holds.)
 - No reconnect, session resumption, or context window compression. The design
   defers resumption to a separately reviewed design.
 
