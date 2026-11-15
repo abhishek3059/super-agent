@@ -86,9 +86,9 @@ keep one PR per phase.
 | [#34](https://github.com/abhishek3059/super-agent/pull/34) | `PH-01: rebuild live voice console and Windows launcher` | merged | Merged as `3025155`. R-01.F2, R-01.F3, and R-01.F4 are ticked. |
 | [#36](https://github.com/abhishek3059/super-agent/pull/36) | `feat(voice): add an opt-in fully local voice adapter and spike A4` | merged | Merged as `0a9f1b4` on 2026-11-14. Base of #43 and #45. |
 | [#42](https://github.com/abhishek3059/super-agent/pull/42) | `fix(ph-01): recover R-01.4 evidence and close playback, close, capture and provider-destination defects (F5-F8)` | merged | Merged on 2026-11-14. Recovers the R-01.4 record and the F5 to F8 fixes. |
-| [#43](https://github.com/abhishek3059/super-agent/pull/43) | `feat(voice): tier 1 read-only tools and LFM3-Audio ears and mouth with a 4B brain` | open | Targets `develop`; needs review. Out-of-order T1 work under an [exception record](../approvals/tier1-local-exception.md) awaiting a maintainer review (DEC-21). |
+| [#43](https://github.com/abhishek3059/super-agent/pull/43) | `feat(voice): tier 1 read-only tools and LFM3-Audio ears and mouth with a 4B brain` | merged | Merged on 2026-11-14. Out-of-order T1 slice under an [exception record](../approvals/tier1-local-exception.md); R-A.4 and R-A.5 stay unticked. |
 | [#44](https://github.com/abhishek3059/super-agent/pull/44) | `docs(design): add the Roamies design reference (ideas only, no code)` | merged | Merged on 2026-11-14. Design reference for PH-02, PH-05, and PH-06. Nothing built. |
-| [#45](https://github.com/abhishek3059/super-agent/pull/45) | `feat(voice): local memory and reminders (T2) with forget and undo` | open | Stacked on #43. Out-of-order T2 work under an [exception record](../approvals/local-memory-exception.md) awaiting a maintainer review (DEC-21). |
+| [#45](https://github.com/abhishek3059/super-agent/pull/45) | `feat(voice): local memory and reminders (T2) with forget and undo` | merged | Merged on 2026-11-14. Out-of-order T2 slice under an [exception record](../approvals/local-memory-exception.md); R-A.6 and R-A.7 stay unticked. |
 
 ## Next PH-01 work
 
