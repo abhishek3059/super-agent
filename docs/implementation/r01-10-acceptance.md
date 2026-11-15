@@ -83,6 +83,15 @@ R-01.10 stays unticked until these are cleared. None can be produced offline.
   verify that SDK exit errors are reported without a traceback. The revised
   live command has **not been run** against Gemini.
 
+The follow-up reliability slice frames larger Gemini PCM messages within the
+configured WebSocket limit, lets the writer run between chunks, and invalidates
+queued audio when Gemini reports an interruption. A partial sample is discarded
+at an interrupt or turn boundary. It keeps Stop, Mute and End visible while the transcript scrolls and
+labels Gemini microphone upload in the listening state. The Windows launcher
+scopes the provider key to the backend, and the synthetic command removes voice
+credentials from both speech generator environments. Gemini session resumption
+and the native gate run remain open.
+
 Offline re-run on 2026-11-15 at `0638660` (macOS, Python 3.14.4, Node 22.22.3,
 no key set): 492 backend tests passed and 2 skipped (no `onnxruntime`; a
 non-macOS-only check); frontend self-tests passed (57 voice, 47 UI, 8 epoch);

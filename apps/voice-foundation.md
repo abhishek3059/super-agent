@@ -82,7 +82,8 @@ transcripts for the session only. Fake stays the default. Approval status:
 the process environment only; never put it in a file in the repository.
 
 Windows launcher (prompts for the key with masked input, sets the adapter, and
-restores your environment on exit):
+restores your environment on exit). The provider key goes to the backend
+process only. Dependency installers, token generation and Angular start without it.
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\start-voice-windows.ps1 -Gemini
@@ -116,7 +117,7 @@ On Windows (PowerShell), speech comes from Windows SAPI and the command asks
 for the key if `GEMINI_API_KEY` is not set:
 
 ```powershell
-$env:PYTHONPATH = "appspi\src"; & "$env:LOCALAPPDATA\Temp\super-agent-voice-venv\Scripts\python.exe" -m super_agent_voice.live_check --send-synthetic-audio
+$env:PYTHONPATH = "apps\api\src"; & "$env:LOCALAPPDATA\Temp\super-agent-voice-venv\Scripts\python.exe" -m super_agent_voice.live_check --send-synthetic-audio
 ```
 
 The output is timing, state, tool names, and character counts only. The key

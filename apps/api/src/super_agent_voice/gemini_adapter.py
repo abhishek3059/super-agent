@@ -19,6 +19,8 @@ OUTPUT_RATE_HZ = 24000
 MAX_INPUT_FRAMES = 64
 MAX_TOOL_CALLS_PER_TURN = 4
 MAX_TRANSCRIPT_CHARS = 2000
+# Provider messages can exceed the bridge's 32 KiB frame limit.
+MAX_OUTPUT_CHUNK_BYTES = 32 * 1024
 INPUT_MIME = f"audio/pcm;rate={INPUT_RATE_HZ}"
 SYSTEM_INSTRUCTION = (
     "You are a concise voice assistant. Keep answers short. You have two tools: calculate, "
@@ -102,13 +104,17 @@ class GeminiLiveAdapter:
         blob: Blob | None = None,
         tool_response: ToolResponse | None = None,
         interrupt_timeout: float = 5.0,
+        output_frame_bytes: int = MAX_OUTPUT_CHUNK_BYTES,
     ) -> None:
         if connect is None and not api_key:
             raise AdapterError("provider-unavailable")
+        if type(output_frame_bytes) is not int or output_frame_bytes < 2:
+            raise ValueError("output_frame_bytes must fit at least one PCM16 sample")
         self._connect = connect or _sdk_connect(api_key, model)
         self._blob = blob or _sdk_blob
         self._tool_response = tool_response or _sdk_tool_response
         self._interrupt_timeout = interrupt_timeout
+        self._output_frame_bytes = min(output_frame_bytes, MAX_OUTPUT_CHUNK_BYTES) & ~1
         # None is the end-of-stream marker, ordered after queued audio.
         self._input: asyncio.Queue[Any] = asyncio.Queue(MAX_INPUT_FRAMES)
         # Tool responses must never be dropped like stale audio, so they wait here
@@ -123,6 +129,7 @@ class GeminiLiveAdapter:
             tuple[int, AudioChunk] | Transcript | TurnComplete | Interrupted | AdapterError | None
         ] = asyncio.Queue()
         self._audio_epoch = 0
+        self._pcm_tail = b""
         self._stack = contextlib.AsyncExitStack()
         self._session: Any = None
         self._tasks: list[asyncio.Task[None]] = []
@@ -166,6 +173,7 @@ class GeminiLiveAdapter:
             return
         # Even a completed turn may have PCM waiting for the event consumer.
         self._audio_epoch += 1
+        self._pcm_tail = b""
         if not self._turn_active:
             return
         # Otherwise the provider must confirm with `interrupted` or a turn
@@ -188,6 +196,8 @@ class GeminiLiveAdapter:
                 epoch, chunk = item
                 if epoch == self._audio_epoch:
                     yield chunk
+                    # Let the bridge writer drain bursts produced from one provider message.
+                    await asyncio.sleep(0)
                 continue
             yield item
 
@@ -311,12 +321,21 @@ class GeminiLiveAdapter:
             data = getattr(getattr(part, "inline_data", None), "data", None)
             if data:
                 self._turn_active = True
-                self._turn_spoke = True
                 # The bridge already advanced its playback epoch at local stop.
                 # Until the provider settles that turn, its PCM is still stale.
                 if self._ack_task is None or self._ack.is_set():
-                    self._events.put_nowait((self._audio_epoch, AudioChunk(bytes(data), OUTPUT_RATE_HZ)))
+                    pcm = self._pcm_tail + bytes(data)
+                    complete = len(pcm) - len(pcm) % 2
+                    self._pcm_tail = pcm[complete:]
+                    for offset in range(0, complete, self._output_frame_bytes):
+                        chunk = pcm[offset : min(offset + self._output_frame_bytes, complete)]
+                        self._events.put_nowait((self._audio_epoch, AudioChunk(chunk, OUTPUT_RATE_HZ)))
+                        self._turn_spoke = True
         if getattr(content, "interrupted", False):
+            # The writer can run between chunks. Invalidate unsent adapter audio
+            # before the bridge receives and applies the provider interrupt.
+            self._audio_epoch += 1
+            self._pcm_tail = b""
             self._flush_said()
             self._tool_calls = 0
             self._turn_tools = []
@@ -325,6 +344,7 @@ class GeminiLiveAdapter:
             self._ack.set()
             self._events.put_nowait(Interrupted())
         if getattr(content, "turn_complete", False):
+            self._pcm_tail = b""
             self._flush_said()
             self._tool_calls = 0
             self._turn_active = False

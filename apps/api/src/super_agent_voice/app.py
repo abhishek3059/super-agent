@@ -179,7 +179,9 @@ def create_app(
     adapter_factory: AdapterFactory | None = None,
 ) -> FastAPI:
     settings = config or VoiceConfig.from_environment()
-    adapter_factory = adapter_factory or _adapter_from_environment(settings.gemini_model)
+    adapter_factory = adapter_factory or _adapter_from_environment(
+        settings.gemini_model, output_frame_bytes=settings.max_audio_frame_bytes,
+    )
     # Fails closed before any session can run (teardown addendum 4.1).
     for name in (
         "teardown_seconds", "token_max_age_seconds", "auth_failure_window_seconds",
@@ -210,7 +212,11 @@ def create_app(
     return app
 
 
-def _adapter_from_environment(gemini_model: str = VoiceConfig.gemini_model) -> AdapterFactory:
+def _adapter_from_environment(
+    gemini_model: str = VoiceConfig.gemini_model,
+    *,
+    output_frame_bytes: int = VoiceConfig.max_audio_frame_bytes,
+) -> AdapterFactory:
     choice = os.environ.get("SUPER_AGENT_ADAPTER", "fake")
     if choice == "fake":
         return FakeVoiceAdapter
@@ -227,7 +233,7 @@ def _adapter_from_environment(gemini_model: str = VoiceConfig.gemini_model) -> A
         from .gemini_adapter import GeminiLiveAdapter
 
         def gemini_factory() -> GeminiLiveAdapter:
-            return GeminiLiveAdapter(gemini_model, api_key)
+            return GeminiLiveAdapter(gemini_model, api_key, output_frame_bytes=output_frame_bytes)
 
         gemini_factory.name = GeminiLiveAdapter.name  # type: ignore[attr-defined]
         return gemini_factory
