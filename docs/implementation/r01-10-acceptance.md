@@ -30,7 +30,13 @@ the last column says what the evidence does not cover.
 
 ## Blockers
 
-R-01.10 stays unticked until these are cleared. None can be produced offline.
+R-01.10 stays unticked until these are cleared. Native media evidence needs a
+live run. Boundary implementation and offline verification can proceed first.
+
+The [subscription-backed runtime proposal](../design/subscription-backed-runtime.md)
+describes an OpenAI candidate and a later Claude worker. It needs a provider
+decision and its own runtime evidence. The existing Gemini-specific evidence
+and blockers below record the current approved path.
 
 1. **Revised synthetic live run.** The operator runs the
    [live command](../../apps/voice-foundation.md#synthetic-live-check-opt-in)
