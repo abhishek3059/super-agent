@@ -8,12 +8,13 @@ This is code only. It is not wired into `app.py`, and no roadmap item is ticked.
 
 - `apps/api/src/super_agent_voice/policy.py`: standard library only. No model,
   no network, no clock of its own.
-- `apps/api/tests/test_policy.py`: 199 tests.
+- `apps/api/tests/test_policy.py`: 206 tests.
 - `Limits`: a frozen dataclass. Every field must be exactly `int` (a bool is
   refused), above 0 and at or below a hard ceiling in `CEILING`. A bad value
   raises `PolicyError("limits_invalid")`, so an invalid object cannot exist.
   The spec has no way to reach it.
-- `admit(spec, idempotency_key, planner_is_local, limits, ledger, now, *, memory_is_synthetic=False)`
+- `admit(spec, idempotency_key, planner_is_local, limits, ledger, now, *, memory_is_synthetic=False,
+  tier1_is_synthetic=False)`
   returns an `Admission` (job, scoped tool set, memory-context flag, absolute
   deadline). `ledger` is the `ledger` module (anything with `list_jobs` and
   `create_job`).
@@ -49,10 +50,15 @@ is at most 6,000 UTF-8 bytes, inside the ledger's 8,000-byte spec cap.
   encodes as UTF-8 and serializes as JSON.
 - Tool scope is fixed tables keyed by task type: base tools (`TOOL_SCOPE`:
   `answer` gets `calculate` and `current_time`, `summarize` gets
-  `current_time`), tier 1 read tools (`TIER1_TOOLS`) and memory read tools
-  (`MEMORY_TOOLS`: `list_memory`, `list_reminders`, `answer` only). Tier 1
-  tools are added only if the planner is local or `tier1_is_synthetic` is
-  True. Memory tools and memory context are added only if the planner is local
+  `current_time`), tier 1 file tools (`TIER1_FILE_TOOLS`: `list_files`,
+  `read_file`, `search_files`, which read the allowlisted folders), tier 1 app
+  tools (`TIER1_APP_TOOLS`: `calendar_events`, `recent_notes`, `search_notes`,
+  `recent_emails`, which read the user's real Calendar, Notes and Mail apps;
+  `summarize` gets only the two notes tools) and memory read tools
+  (`MEMORY_TOOLS`: `list_memory`, `list_reminders`, `answer` only). File tools
+  are added only if the planner is local or `tier1_is_synthetic` is True. App
+  tools are added only if the planner is local: no flag vouches for app data.
+  Memory tools and memory context are added only if the planner is local
   or `memory_is_synthetic` is True. Both flags are keyword-only, default False,
   and come from trusted code (deployment configuration). The spec's
   `data_class` can only make admission stricter. No scope holds a memory write
@@ -69,18 +75,28 @@ trusted code and must be exactly `bool`, else refusal (`planner_locality_invalid
 `memory_flag_invalid`). The spec's `data_class` is model-controlled, so it
 never grants anything.
 
-| Planner | Spec data class | Tier 1 tools | Memory tools and context |
-| --- | --- | --- | --- |
-| local | either | granted | granted |
-| cloud | personal | refused: `personal_data_cloud_planner` | refused |
-| cloud | synthetic | only if `tier1_is_synthetic` | only if `memory_is_synthetic` |
+| Planner | Spec data class | Tier 1 file tools | Tier 1 app tools | Memory tools and context |
+| --- | --- | --- | --- | --- |
+| local | either | granted | granted | granted |
+| cloud | personal | refused: `personal_data_cloud_planner` | refused | refused |
+| cloud | synthetic | only if `tier1_is_synthetic` | never | only if `memory_is_synthetic` |
 
 Base tools are always granted. The tests run the full table over planner,
 data class and both flags.
 
+## Tier 1 groups are not checked here
+
+`Admission.tools` does not look at which `SUPER_AGENT_T1` groups are enabled.
+`tier1.run_t1` refuses a disabled group at run time, so a disabled tool in the
+admitted set fails when called, and is never made to work. The runner slice
+must intersect the admitted set with `tier1.enabled_tools()` before it offers
+tools to the planner.
+
 ## Reason codes
 
-`limits_invalid`, `clock_invalid`, `idempotency_key_invalid`,
+`limits_invalid`, `clock_invalid` (clock not timezone-aware, deadline overflow, or a step
+start in the future), `idempotency_key_invalid` (also a key that does not
+encode as UTF-8),
 `planner_locality_invalid`, `memory_flag_invalid`, `spec_invalid`,
 `task_type_invalid`, `instruction_invalid`, `data_class_invalid`,
 `personal_data_cloud_planner`, `queue_full`, `ledger_error` (ledger could not
@@ -98,13 +114,14 @@ Command (venv built from `apps/api/requirements.lock`):
 PYTHONDONTWRITEBYTECODE=1 python -m pytest apps/api -p no:cacheprovider
 ```
 
-Real result on this host (Windows): `573 passed, 110 skipped in 25.26s` for
-`apps/api`. `npm run check`
+Real result on this host (Windows): `592 passed, 110 skipped in 25.35s` for
+`apps/api` (`test_policy.py` 206, `test_ledger.py` 134 passed and 1 skipped). `npm run check`
 result is recorded in the commit report, not here.
 
 Covered: every limit breach and boundary, bool and wrong-type inputs, every
-locality and data-class combination, unknown or extra spec keys (a spec cannot
-name tools, limits, locality or the memory flag), free text never in an error,
+locality, data-class and trusted-flag combination, the app-tool rule, deadline
+overflow, a future step start, unknown or extra spec keys (a spec cannot
+name tools, limits, locality or the trusted flags), free text never in an error,
 ledger untouched after any refusal, idempotent re-admission.
 
 ## Choices where the design was unclear
@@ -114,7 +131,11 @@ ledger untouched after any refusal, idempotent re-admission.
   their sum as the cap on non-terminal jobs. The runner slice must enforce the
   concurrent part when it picks jobs to start.
 - "Retries per step 1" is the default; the PH-00 maximum of 2 is the ceiling.
-- A cloud-planner job gets tier 1 or memory tools only through the trusted
+- Classification of tier 1 tools, from `tier1.py` groups: `files` group
+  (`list_files`, `read_file`, `search_files`) are file tools; `calendar`
+  (`calendar_events`), `notes` (`recent_notes`, `search_notes`) and `mail`
+  (`recent_emails`) are app tools. A test checks this against `tier1._TOOLS`.
+- A cloud-planner job gets tier 1 file or memory tools only through the trusted
   flags, because the conversation model writes the spec and could label a job
   `synthetic`.
 - `instruction_chars` and the ceilings are additions to the section 5 table.
@@ -125,6 +146,8 @@ ledger untouched after any refusal, idempotent re-admission.
   concurrent admissions can both pass at the cap edge, so the queue can exceed
   the cap by the number of simultaneous callers. Closing that needs a ledger
   change.
+- `check_job_deadline` takes only a deadline and a time, so it has no start
+  time to compare and no future-start check; `check_step_deadline` does.
 - The trusted flags are statements by deployment configuration. Admission
   cannot check that the folders or the memory file really hold synthetic data.
 - A model-call count and per-step state are the caller's to keep; the checks

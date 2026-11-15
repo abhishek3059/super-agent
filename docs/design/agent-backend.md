@@ -188,8 +188,9 @@ parts of [memory.py](../../apps/api/src/super_agent_voice/memory.py).
 Limit: tier 1 tools and the memory layer read real personal data. While the planner model is a cloud
 model, that data must not reach it ([REQ-13](../../prd.md#req-13)). So tier 1
 tools, the memory tools, and memory context are offered to a job only when the planner model is local, or when
-trusted deployment configuration states that the allowlisted folders (tier 1) or the memory file hold synthetic
-data only. That statement never comes from the task spec, which the conversation model writes; the spec's data class
+trusted deployment configuration states that the allowlisted folders (tier 1 file tools) or the memory file hold
+synthetic data only. That flag covers the allowlisted folders only: the calendar, notes and mail tools read the
+user's real apps, and they need a local planner. Neither statement comes from the task spec, which the conversation model writes; the spec's data class
 can only make admission stricter. Code enforces this at admission, not by prompt. See conflict C2.
 
 "Research" over the open web needs a search or fetch provider. That is a new

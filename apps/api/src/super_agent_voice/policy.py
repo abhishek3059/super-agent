@@ -79,10 +79,15 @@ TOOL_SCOPE = {
 }
 # Tools that read personal data, by source (tier1.py, memory.py reads). Granted per source only
 # when trusted code says the source is synthetic or the planner is local. Never from the spec.
-TIER1_TOOLS = {
-    "answer": frozenset({"list_files", "read_file", "search_files", "calendar_events", "recent_notes",
-                         "search_notes", "recent_emails"}),
-    "summarize": frozenset({"list_files", "read_file", "search_files", "recent_notes", "search_notes"}),
+# File tools read the allowlisted folders, which trusted config may vouch for as synthetic. App tools read the
+# user's real Calendar, Notes and Mail apps; no flag vouches for those, so only a local planner gets them.
+TIER1_FILE_TOOLS = {
+    "answer": frozenset({"list_files", "read_file", "search_files"}),
+    "summarize": frozenset({"list_files", "read_file", "search_files"}),
+}
+TIER1_APP_TOOLS = {
+    "answer": frozenset({"calendar_events", "recent_notes", "search_notes", "recent_emails"}),
+    "summarize": frozenset({"recent_notes", "search_notes"}),
 }
 MEMORY_TOOLS = {"answer": frozenset({"list_memory", "list_reminders"}), "summarize": frozenset()}
 
@@ -143,6 +148,13 @@ def admit(spec: object, idempotency_key: object, planner_is_local: object, limit
         raise PolicyError("clock_invalid")
     if not isinstance(idempotency_key, str) or not 0 < len(idempotency_key) <= 128:
         raise PolicyError("idempotency_key_invalid")
+    try:
+        idempotency_key.encode("utf-8")
+        deadline = now + timedelta(seconds=lim.job_deadline_s)  # before any write
+    except UnicodeError:
+        raise PolicyError("idempotency_key_invalid") from None
+    except OverflowError:
+        raise PolicyError("clock_invalid") from None
     if type(planner_is_local) is not bool:
         raise PolicyError("planner_locality_invalid")
     if type(memory_is_synthetic) is not bool or type(tier1_is_synthetic) is not bool:
@@ -164,10 +176,12 @@ def admit(spec: object, idempotency_key: object, planner_is_local: object, limit
     task = spec["task_type"]
     tools = TOOL_SCOPE[task]
     if planner_is_local or tier1_is_synthetic:
-        tools |= TIER1_TOOLS[task]
+        tools |= TIER1_FILE_TOOLS[task]
+    if planner_is_local:
+        tools |= TIER1_APP_TOOLS[task]
     if planner_is_local or memory_is_synthetic:
         tools |= MEMORY_TOOLS[task]
-    return Admission(job, tools, planner_is_local or memory_is_synthetic, now + timedelta(seconds=lim.job_deadline_s))
+    return Admission(job, tools, planner_is_local or memory_is_synthetic, deadline)
 
 
 # --- step-level checks: pure, each returns True or raises PolicyError --------
@@ -195,6 +209,8 @@ def check_step_deadline(started_at: object, now: object, limits: object) -> bool
     lim = _limits(limits)
     if not _aware(started_at) or not _aware(now):
         raise PolicyError("input_invalid")
+    if started_at > now:  # a start in the future is a clock fault, not elapsed time
+        raise PolicyError("clock_invalid")
     if now - started_at > timedelta(seconds=lim.step_deadline_s):
         raise PolicyError("step_deadline")
     return True

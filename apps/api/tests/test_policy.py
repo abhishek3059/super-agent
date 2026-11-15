@@ -28,7 +28,7 @@ def code(fn, *a, **kw):
 
 
 def full(task):
-    return policy.TOOL_SCOPE[task] | policy.TIER1_TOOLS[task] | policy.MEMORY_TOOLS[task]
+    return policy.TOOL_SCOPE[task] | policy.TIER1_FILE_TOOLS[task] | policy.TIER1_APP_TOOLS[task] | policy.MEMORY_TOOLS[task]
 
 
 def untouched():
@@ -40,8 +40,8 @@ def untouched():
 def test_default_limits_match_the_design_table():
     d = Limits()
     assert (d.steps_per_job, d.step_deadline_s, d.job_deadline_s, d.retries_per_step, d.model_calls_per_job,
-            d.model_input_chars, d.step_output_chars, d.concurrent_jobs, d.queued_jobs) == (
-        8, 30, 300, 1, 12, 8000, 4000, 2, 5)
+            d.model_input_chars, d.step_output_chars, d.concurrent_jobs, d.queued_jobs, d.instruction_chars) == (
+        8, 30, 300, 1, 12, 8000, 4000, 2, 5, 1000)
 
 
 def test_limits_are_immutable():
@@ -130,21 +130,30 @@ def test_tools_come_from_the_task_type_only():
 
 def test_no_scope_contains_a_write_tool():
     from super_agent_voice import memory
-    every = set().union(*policy.TOOL_SCOPE.values(), *policy.TIER1_TOOLS.values(), *policy.MEMORY_TOOLS.values())
+    from super_agent_voice import tools
+    every = set().union(*policy.TOOL_SCOPE.values(), *policy.TIER1_FILE_TOOLS.values(),
+                        *policy.TIER1_APP_TOOLS.values(), *policy.MEMORY_TOOLS.values())
     assert not every & memory.WRITES
-    assert {"calculate", "current_time"} >= set().union(*policy.TOOL_SCOPE.values())
+    base = {t["function"]["name"] for t in tools.TOOLS} | {t["name"] for t in tools.GEMINI_FUNCTIONS}
+    assert set().union(*policy.TOOL_SCOPE.values()) <= base
 
 
 def test_scope_tables_cover_exactly_the_task_types():
-    assert set(policy.TOOL_SCOPE) == set(policy.TIER1_TOOLS) == set(policy.MEMORY_TOOLS) == set(policy.TASK_TYPES)
+    assert set(policy.TOOL_SCOPE) == set(policy.TIER1_FILE_TOOLS) == set(policy.TIER1_APP_TOOLS) == set(policy.MEMORY_TOOLS) == set(policy.TASK_TYPES)
 
 
 def test_personal_tools_are_real_tool_names():
     from super_agent_voice import memory, tier1
     known = tier1.T1_NAMES | memory.NAMES
-    assert set().union(*policy.TIER1_TOOLS.values()) <= tier1.T1_NAMES
+    files = set().union(*policy.TIER1_FILE_TOOLS.values())
+    apps = set().union(*policy.TIER1_APP_TOOLS.values())
+    groups = {schema["function"]["name"]: group for group, schema in tier1._TOOLS}
+    assert files | apps <= tier1.T1_NAMES
+    assert {groups[n] for n in files} == {"files"}
+    assert "files" not in {groups[n] for n in apps}
+    assert files | apps == tier1.T1_NAMES
     assert set().union(*policy.MEMORY_TOOLS.values()) <= memory.NAMES
-    assert set().union(*policy.TIER1_TOOLS.values(), *policy.MEMORY_TOOLS.values()) <= known
+    assert set().union(*policy.MEMORY_TOOLS.values()) <= known
 
 
 # --- data-class rule ------------------------------------------------------
@@ -161,7 +170,9 @@ def test_data_class_truth_table(local, dc, mem_synth, t1_synth):
     out = go(spec, local=local, memory_is_synthetic=mem_synth, tier1_is_synthetic=t1_synth)
     want = set(policy.TOOL_SCOPE["answer"])
     if local or t1_synth:
-        want |= policy.TIER1_TOOLS["answer"]
+        want |= policy.TIER1_FILE_TOOLS["answer"]
+    if local:
+        want |= policy.TIER1_APP_TOOLS["answer"]
     if local or mem_synth:
         want |= policy.MEMORY_TOOLS["answer"]
     assert out.tools == want
@@ -171,15 +182,32 @@ def test_data_class_truth_table(local, dc, mem_synth, t1_synth):
 def test_a_spec_claiming_synthetic_cannot_by_itself_obtain_personal_tools_from_a_cloud_planner():
     out = go({**GOOD, "data_class": "synthetic"}, local=False)
     assert out.tools == policy.TOOL_SCOPE["answer"]
-    assert not out.tools & (policy.TIER1_TOOLS["answer"] | policy.MEMORY_TOOLS["answer"])
+    assert not out.tools & (policy.TIER1_FILE_TOOLS["answer"] | policy.TIER1_APP_TOOLS["answer"]
+                            | policy.MEMORY_TOOLS["answer"])
     assert out.memory_context is False
 
 
 def test_trusted_flags_grant_each_source_separately():
     t1 = go(local=False, tier1_is_synthetic=True, key="a").tools
     mem = go(local=False, memory_is_synthetic=True, key="b").tools
-    assert t1 == policy.TOOL_SCOPE["answer"] | policy.TIER1_TOOLS["answer"]
+    assert t1 == policy.TOOL_SCOPE["answer"] | policy.TIER1_FILE_TOOLS["answer"]
     assert mem == policy.TOOL_SCOPE["answer"] | policy.MEMORY_TOOLS["answer"]
+
+
+@pytest.mark.parametrize("task", ["answer", "summarize"])
+def test_synthetic_flag_never_grants_calendar_notes_or_mail_to_a_cloud_planner(task):
+    out = go({**GOOD, "task_type": task}, local=False, tier1_is_synthetic=True, memory_is_synthetic=True)
+    assert not out.tools & {"calendar_events", "recent_notes", "search_notes", "recent_emails"}
+    assert {"list_files", "read_file", "search_files"} <= out.tools
+    local = go({**GOOD, "task_type": task}, local=True, key="loc")
+    assert policy.TIER1_APP_TOOLS[task] <= local.tools
+
+
+def test_app_tools_are_the_calendar_notes_and_mail_tools():
+    assert policy.TIER1_APP_TOOLS["answer"] == {"calendar_events", "recent_notes", "search_notes", "recent_emails"}
+    assert policy.TIER1_APP_TOOLS["summarize"] == {"recent_notes", "search_notes"}
+    assert policy.TIER1_FILE_TOOLS["answer"] == policy.TIER1_FILE_TOOLS["summarize"] == {
+        "list_files", "read_file", "search_files"}
 
 
 @pytest.mark.parametrize("local", [None, 1, 0, "true", "", [], 1.0])
@@ -204,6 +232,7 @@ def test_trusted_synthetic_flags_must_be_bools(flag, name):
 def test_spec_cannot_claim_locality_or_memory():
     for extra in ({"planner_local": True}, {"memory_is_synthetic": True}, {"tier1_is_synthetic": True}):
         assert code(go, {**GOOD, "data_class": "personal", **extra}, local=False) == "spec_invalid"
+        assert untouched()
 
 
 # --- admission, queue and ledger ------------------------------------------
@@ -303,8 +332,27 @@ def test_retry_count_bad_type(n):
     assert code(policy.check_retry, "read_tool", n, Limits()) == "input_invalid"
 
 
-def test_retry_ceiling_is_two():
-    assert policy.CEILING["retries_per_step"] == 2
+def test_retries_above_two_cannot_be_built_and_a_third_retry_is_refused():
+    code(Limits, retries_per_step=3)
+    lim = Limits(retries_per_step=2)
+    assert policy.check_retry("read_tool", 1, lim) is True
+    assert code(policy.check_retry, "read_tool", 2, lim) == "retries_exhausted"
+
+
+def test_step_started_in_the_future_is_a_clock_error():
+    assert code(policy.check_step_deadline, NOW + timedelta(seconds=1), NOW, Limits()) == "clock_invalid"
+    assert policy.check_step_deadline(NOW, NOW, Limits()) is True
+
+
+def test_deadline_overflow_writes_nothing():
+    assert code(go, now=datetime.max.replace(tzinfo=UTC)) == "clock_invalid"
+    assert untouched()
+
+
+@pytest.mark.parametrize("key", ["k\ud800", "\ud800"])
+def test_key_that_does_not_encode_is_refused_before_the_ledger(key):
+    assert code(go, key=key) == "idempotency_key_invalid"
+    assert untouched()
 
 
 def test_step_deadline():
