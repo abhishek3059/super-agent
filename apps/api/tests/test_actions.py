@@ -214,6 +214,50 @@ def test_the_real_executor_uses_an_argument_list_and_reports_failure(monkeypatch
     assert {seen["options"][key] for key in ("stdin", "stdout", "stderr")} == {asyncio.subprocess.DEVNULL}
 
 
+def test_a_timed_out_command_is_killed_and_reaped(monkeypatch):
+    monkeypatch.setattr(actions, "TIMEOUT_SECONDS", 0.05)
+    state = {"killed": False, "reaped": False}
+
+    class Process:
+        returncode = None
+
+        def kill(self):
+            state["killed"] = True
+
+        async def wait(self):
+            if not state["killed"]:
+                await asyncio.sleep(10)
+            state["reaped"] = True
+            return -9
+
+    async def spawn(*argv, **options):
+        return Process()
+    monkeypatch.setattr(asyncio, "create_subprocess_exec", spawn)
+    with pytest.raises(TimeoutError):
+        run(actions.execute(["/usr/bin/open", "-a", "Notes"]))
+    assert state == {"killed": True, "reaped": True}
+
+
+def test_a_child_that_will_not_die_cannot_hold_the_turn(monkeypatch):
+    monkeypatch.setattr(actions, "TIMEOUT_SECONDS", 0.05)
+    monkeypatch.setattr(actions, "REAP_SECONDS", 0.05)
+
+    class Process:
+        returncode = None
+
+        def kill(self):
+            pass
+
+        async def wait(self):
+            await asyncio.sleep(10)
+
+    async def spawn(*argv, **options):
+        return Process()
+    monkeypatch.setattr(asyncio, "create_subprocess_exec", spawn)
+    with pytest.raises(TimeoutError):
+        run(actions.execute(["/usr/bin/open", "-a", "Notes"]))
+
+
 def test_the_card_summary_is_never_longer_than_the_console_shows():
     for url in ("https://" + "a" * 60 + "." + "b" * 60 + ".com/" + "c" * 63, "https://example.com/" + "a" * 63):
         try:

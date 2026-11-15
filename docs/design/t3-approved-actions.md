@@ -34,10 +34,14 @@ only opens them for the user.
 2. **A click is the only approval.** The backend asks through a
    `action.request` message and waits up to 30 seconds for an
    `action.decision` message sent by the console's Approve or Deny button.
-   Only an exact `true` approves. A spoken "yes", model text, or a timeout
-   never approves. Deny is focused when the card appears, so a stray Enter or
-   Space denies. The page ignores a click event that a script made (it must be
-   a real click), and no keyboard shortcut approves.
+   The 30 seconds start after the spoken prompt ends, so slow speech does not
+   shorten the click window. Only an exact `true` approves. A spoken "yes",
+   model text, or a timeout never approves. The backend also turns an Approve
+   that arrives less than half a second after its request was sent into a
+   deny (`APPROVE_MIN_DELAY_SECONDS` in `app.py`). Deny is focused when the
+   card appears, so a stray Enter or Space denies. No keyboard shortcut
+   approves. See [Where each control is enforced](#where-each-control-is-enforced)
+   for what the browser alone does.
 3. **The user must have asked.** The tool runs only when the user's words in
    that turn contain a request word (open, launch, start, search, look up,
    google, go to, show me, pull up). Otherwise it refuses.
@@ -66,8 +70,7 @@ only opens them for the user.
    `/._~-`), so a long or percent-encoded path is refused. The query string and
    fragment are dropped, because a model could hide file or memory text there.
    A summary over 200 characters is refused, never cut, so the card shows the
-   whole cleaned address, which is exactly what opens. Approve is ignored for
-   half a second after the card appears.
+   whole cleaned address, which is exactly what opens.
 10. **Search rules.** One line of 1 to 100 characters with control, bidi, and
     zero-width characters removed. Code builds the search address and encodes
     the words, so they cannot add parameters or change the site.
@@ -86,6 +89,27 @@ only opens them for the user.
 15. **Tool results are fixed strings** ("Done: it is open on the screen.", "the user did
     not approve, so nothing was done"), so the model cannot learn page or app
     content and is told to say when nothing happened.
+
+## Where each control is enforced
+
+An attacker who can bypass the page (for example a script on the same machine
+that holds the session token) meets only the server-side column.
+
+| Control | Backend | Browser only |
+| --- | --- | --- |
+| Opt-in, Mac only, tool allowlist, argument and address rules, fixed command, summary built by code (1, 7 to 12) | Yes | No |
+| Only an exact `true` approves; id match; one request at a time; every exit closes the request (2, 6, 13) | Yes | No |
+| 30 second click window, started after the spoken prompt, local adapter (2) | Yes | No |
+| Approve refused if it arrives under half a second after the request was sent (2) | Yes (`APPROVE_MIN_DELAY_SECONDS`) | The page applies the same delay from when the card is shown |
+| Request word, no action after reading, one action per turn (3 to 5) | Yes | No |
+| Audit log (14) | Yes | No |
+| Ignore a click that a script made (`isTrusted`) | No | Yes |
+| Deny focused first, no keyboard shortcut approves, card drawn from its own message | No | Yes |
+
+The `isTrusted` check cannot be enforced by the backend, because a decision is
+the same JSON whoever sends it. The backend relies on the session token and the
+Origin and Host checks of the local boundary to keep other callers out, and the
+half-second rule only slows a scripted caller that is already inside.
 
 ## Threat notes
 
@@ -127,9 +151,9 @@ only opens them for the user.
   the microphone, be transcribed, and cancel the request. That fails closed
   (the action is denied), and the browser's echo cancellation usually prevents
   it.
-- The path of an https address is not restricted. Only the user's reading of
-  the card stops a harmful path. A site the user approves can do whatever any
-  web page can do.
+- The path of an https address is limited to 64 plain characters (control 9), but within that limit it is not otherwise checked.
+  Only the user's reading of the card stops a harmful path. A site the user
+  approves can do whatever any web page can do.
 - `open_app` opens any app on the allowlist, and an app can do things on its
   own after it opens. Keep the list short.
 - The request-word check is a regular expression on the transcript. It stops a

@@ -346,8 +346,10 @@ class LocalVoiceAdapter:
         self._pending = (id_, decision)
         try:
             await self._events.put(ApprovalRequest(id_, summary))
+            # The click window starts after the sentence, so slow speech never shortens it. An early
+            # click already sits in `decision`.
+            await self._speak(APPROVAL_SENTENCE, asyncio.get_running_loop().time())
             async with asyncio.timeout(APPROVAL_SECONDS):
-                await self._speak(APPROVAL_SENTENCE, asyncio.get_running_loop().time())
                 return await decision
         finally:
             self._pending = None

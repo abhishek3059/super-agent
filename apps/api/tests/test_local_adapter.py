@@ -1004,6 +1004,27 @@ def test_no_click_in_time_runs_nothing_and_closes_the_request(monkeypatch):
     assert local_adapter.actions.AUDIT_LOG.read_text().split()[1:] == ["open_url", "timeout"]
 
 
+def test_slow_speech_does_not_shorten_the_click_window(monkeypatch):
+    monkeypatch.setattr(local_adapter, "APPROVAL_SECONDS", 0.3)
+    adapter, ran, results = make_acting(monkeypatch, [OPEN_EXAMPLE])
+
+    async def slow_synthesize(text):
+        await asyncio.sleep(0.4)  # longer than the whole click window
+        return bytes(2400)
+    adapter._synthesize = slow_synthesize
+
+    async def scenario():
+        await adapter.start()
+        await speak(adapter)
+        request = await request_of(adapter)
+        await asyncio.sleep(0.5)  # the sentence is done, the window has just begun
+        await adapter.decide_action(request.id, True)
+        await collect(adapter)
+        await adapter.close()
+    run(scenario())
+    assert ran == [EXAMPLE_ARGV] and results == [local_adapter.actions.DONE]
+
+
 def test_an_interrupt_or_a_close_while_waiting_runs_nothing_and_closes_the_request(monkeypatch):
     for how in ("interrupt", "close"):
         adapter, ran, results = make_acting(monkeypatch, [OPEN_EXAMPLE])
