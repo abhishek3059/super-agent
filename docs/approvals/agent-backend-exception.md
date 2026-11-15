@@ -70,9 +70,8 @@ the executor, and its checkpointer is not the source of truth.
 ## Decided and still open
 
 1. Decided by `abhishek3059`'s approval above: this slice may start before
-   PH-01 closes, as an exception to the roadmap order. Roadmap rule 5 asks for
-   both maintainers on an exception record; DEC-21 says one is enough, and
-   this record relies on DEC-21.
+   PH-01 closes, as an exception to the roadmap order. Roadmap rule 5 and
+   DEC-21 need one maintainer's approval for an exception record.
 2. Open: `jeevesh2515` has not reviewed this record.
 3. Open: the first model, the research provider, and the other items in the
    design's "Open decisions" section.
