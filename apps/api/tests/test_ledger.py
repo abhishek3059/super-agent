@@ -106,6 +106,40 @@ def test_corrupt_spec_is_a_ledger_error():
         ledger.get_job(job.id)
 
 
+@pytest.mark.parametrize("stored", ["5", "[1]", "null", '"x"'])
+def test_stored_spec_that_is_not_an_object_is_a_ledger_error(stored):
+    job = mk()
+    con = sqlite3.connect(ledger.DB_PATH)
+    con.execute("UPDATE jobs SET spec = ? WHERE id = ?", (stored, job.id))
+    con.commit()
+    con.close()
+    with pytest.raises(LedgerError):
+        ledger.get_job(job.id)
+
+
+@pytest.mark.parametrize("stored", ["5", "[1]", '"x"'])
+def test_stored_receipt_that_is_not_an_object_is_a_ledger_error(stored):
+    job = mk("failed")
+    con = sqlite3.connect(ledger.DB_PATH)
+    con.execute("UPDATE events SET receipt = ? WHERE job_id = ? AND receipt IS NOT NULL", (stored, job.id))
+    con.commit()
+    con.close()
+    with pytest.raises(LedgerError):
+        ledger.list_events(job.id)
+
+
+@pytest.mark.parametrize("bad", [["x"], {"a": 1}, 5, "nope"])
+def test_list_jobs_bad_state_is_a_ledger_error(bad):
+    with pytest.raises(LedgerError):
+        ledger.list_jobs(bad)
+
+
+def test_key_that_does_not_encode_is_a_ledger_error():
+    with pytest.raises(LedgerError):
+        ledger.create_job({"task": "x"}, "k\ud800")
+    assert ledger.list_jobs() == []
+
+
 @pytest.mark.parametrize("bad", [["running"], {"a": 1}, None, 5])
 def test_non_string_state_is_a_ledger_error(bad):
     job = mk()

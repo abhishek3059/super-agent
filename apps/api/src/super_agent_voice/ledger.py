@@ -147,9 +147,12 @@ def _json(value: object, limit: int, what: str) -> str:
 
 def _load(text: str) -> dict:
     try:
-        return json.loads(text)
+        value = json.loads(text)
     except ValueError as err:
         raise LedgerError("stored record is corrupt") from err
+    if not isinstance(value, dict):  # specs and receipts are objects
+        raise LedgerError("stored record is corrupt")
+    return value
 
 
 def _job(row: sqlite3.Row | tuple) -> Job:
@@ -168,6 +171,10 @@ def _append_event(db, job_id, from_state, to_state, revision, reason, receipt_te
 def create_job(spec: dict, idempotency_key: str) -> Job:
     if not isinstance(idempotency_key, str) or not 0 < len(idempotency_key) <= MAX_KEY:
         raise LedgerError("idempotency key must be 1 to 128 characters")
+    try:
+        idempotency_key.encode("utf-8")  # a lone surrogate would raise inside sqlite
+    except UnicodeError:
+        raise LedgerError("idempotency key must be valid text") from None
     text = _json(spec, MAX_SPEC_BYTES, "task spec")
     with _db() as db:
         row = db.execute(f"SELECT {_COLS} FROM jobs WHERE idempotency_key = ?", (idempotency_key,)).fetchone()
@@ -226,7 +233,7 @@ def get_job(job_id: str) -> Job | None:
 
 
 def list_jobs(state: str | None = None) -> list[Job]:
-    if state is not None and state not in NEXT:
+    if state is not None and (not isinstance(state, str) or state not in NEXT):
         raise LedgerError("unknown state")
     with _db() as db:
         sql = f"SELECT {_COLS} FROM jobs" + ("" if state is None else " WHERE state = ?") + " ORDER BY created_at, id"
