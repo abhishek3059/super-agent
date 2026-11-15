@@ -240,7 +240,8 @@ Proposed build order, each slice with its test:
 
 1. **Ledger.** SQLite tables, state machine, idempotency key, revision. Test:
    illegal transitions rejected; a repeated key returns the same job; a restart
-   turns a `running` job into `unknown`. No model, no LangGraph.
+   turns a `running` job into `unknown`. No model, no LangGraph. Built:
+   [implementation record](../implementation/agent-backend-ledger.md).
 2. **Limits and admission.** Schemas, size caps, queue caps, deadlines. Test:
    each limit breach fails closed.
 3. **Runner.** A background runner with a stub graph. Test: the conversation
