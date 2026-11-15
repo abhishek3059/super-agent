@@ -60,8 +60,10 @@ holds the criterion-by-criterion table:
 - Met offline: no silent fallback (unknown adapter or missing key refuses to
   start), fail-closed unsupported model, provider-mismatch refusal, local stop
   and interruption ordering at the bridge.
+- Met by one standalone live run (2026-11-15): the revised synthetic live
+  run, with barge-in and tool calls.
 - Missing: native stop, interruption, and visible-state behavior measured
-  through the application, and the revised synthetic live run with barge-in.
+  through the application.
 
 Task completion and RT-G01 remain open.
 

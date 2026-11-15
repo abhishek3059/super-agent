@@ -2,7 +2,7 @@
 
 | Field | Value |
 | --- | --- |
-| Date | 2026-11-12; criteria table and offline re-run added 2026-11-15 |
+| Date | 2026-11-12; criteria table, offline re-run, and revised live run added 2026-11-15 |
 | Integration baseline | `3025155` on `develop` (merge of [PR #34](https://github.com/abhishek3059/super-agent/pull/34)); offline suites re-run at `0638660` on 2026-11-15 |
 | Status | In progress. R-01.10 cannot be ticked: RT-002 and RT-003 are not accepted and [RT-G01](../../prd.md#rt-g01) remains open. Blockers are listed under [Blockers](#blockers). |
 | Approved boundary | [PH-00 setup decisions](../approvals/ph-00-setup-decisions.md): synthetic speech only to Gemini, personal microphone audio stays local |
@@ -20,7 +20,7 @@ the last column says what the evidence does not cover.
 | RT-002: credential design reviewed; entropy, token file, expiry, throttling implemented | [credential design review](../reviews/r01-5-credential-design.md), token and throttle cases in `test_voice_api.py` | Met, except the Windows owner-only ACL (N2) and the token directory mode, which stay open as recorded in the [F2 acceptance](../approvals/r01-6-f2-risk-acceptance.md). |
 | RT-002: independent review covers the boundary as it now exists on `develop` | None. The `docs/reviews` folder has no review of the local adapter, the T1 and memory tools, the rebuilt console, or Gemini mode in the console. | **Missing.** |
 | RT-003: single manual native adapter and thin UI with indicators, backend control, mic and playback stops | Gemini adapter ([R-01.7](r01-7-gemini-adapter.md)); console with fake adapter tested by a person ([R-01.4](../approvals/r01-4-microphone-test.md), predates #34); generated-audio browser run (summary below, raw output not saved) | Partly met. The operator reported in the [PR #41](https://github.com/abhishek3059/super-agent/pull/41) description that a live Gemini session through the console worked. The output was not saved, so it is not evidence. |
-| RT-003: native behavior measured: stops, interruption, consent and failure | [Saved synthetic run](evidence/r01-9-live-check-output-20261112T000230Z.txt): reply, unsupported model refused. Offline bridge tests for PCM framing and interruption order. | **Missing** through the application. The run was standalone, one sample, and did not show barge-in. The revised live command has not been run. |
+| RT-003: native behavior measured: stops, interruption, consent and failure | [Saved synthetic run](evidence/r01-9-live-check-output-20261112T000230Z.txt): reply, unsupported model refused. [Revised synthetic run, 2026-11-15](evidence/r01-10-live-check-output-20261115T172901Z.txt): reply, provider `Interrupted` on barge-in, `calculate` and `current_time` tool calls, unsupported model refused. Offline bridge tests for PCM framing and interruption order. | Met for the standalone adapter. **Missing** through the application. Both runs were standalone and one sample each. In the revised run the `interrupt` step still ended with `TurnComplete`, not `Interrupted`. |
 | RT-003: no silent provider fallback; native model access not assumed | `test_gemini_selection_needs_the_key_and_never_echoes_it` in `test_gemini_console.py`, `SUPER_AGENT_ADAPTER` selection in `app.py` (unknown value or missing key refuses to start), `unsupported-model` step of the saved run, F7 and F8 below | Met offline and by one standalone live step. |
 | RT-G01: reviewed scaffold and commands | R-01.6 review, [Windows launcher record](r01-f4-windows-launcher.md) | Partly met. Same limit as the independent-review row. |
 | RT-G01: deployed authentication, Host, Origin, CORS, WebSocket, CSRF controls | R-01.6 review and [F2 acceptance](../approvals/r01-6-f2-risk-acceptance.md) | Met for the reviewed boundary. Review finding F5 (token goes to whatever process holds the port) is open, and the review said to raise it before Gemini is wired into a session. Gemini mode now is. The F2 acceptance has the same trigger. |
@@ -38,10 +38,16 @@ describes an OpenAI candidate and a later Claude worker. It needs a provider
 decision and its own runtime evidence. The existing Gemini-specific evidence
 and blockers below record the current approved path.
 
-1. **Revised synthetic live run.** The operator runs the
+1. **Revised synthetic live run. Cleared 2026-11-15.** `abhishek3059` ran the
    [live command](../../apps/voice-foundation.md#synthetic-live-check-opt-in)
-   from a shell holding the approved key and saves the redacted output here.
-   Needs a person, a key, and network. Owner: `jeevesh2515`.
+   on Windows at `0638660` and the
+   [saved output](evidence/r01-10-live-check-output-20261115T172901Z.txt) is
+   complete and holds no key. Summary line: `reached_gemini`, `tools_ok`, and
+   `fails_closed` all true. The barge-in step got a provider `Interrupted`
+   event after the second clip. It is one sample on one host. An earlier
+   attempt the same evening failed every step with `session-failed`; the key
+   prompt had probably received pasted text instead of the key. That output
+   was not kept.
 2. **Native run through the console, recorded.** Activation, playback, visible
    state, stop and interruption, fail-closed failure with no fallback, and a
    check that client audio cannot bypass the adapter. A maintainer must first
@@ -54,7 +60,7 @@ and blockers below record the current approved path.
    plus a decision on finding F5 and the F2 condition. Both were tied to
    wiring Gemini into a session. Owner: one maintainer decides; an
    independent reviewer agent can do the review.
-4. **Records.** After 1 to 3, update the RT-002 and RT-003 records and tick
+4. **Records.** After 2 and 3, update the RT-002 and RT-003 records and tick
    R-01.10 with links to the saved output and review.
 
 ## What the evidence covers
@@ -86,8 +92,9 @@ and blockers below record the current approved path.
   `Interrupted` follows local enqueue with no error. This reports order,
   not proof that the queued frame reached Google or caused the interruption.
   Offline tests distinguish that observation from `TurnComplete` and
-  verify that SDK exit errors are reported without a traceback. The revised
-  live command has **not been run** against Gemini.
+  verify that SDK exit errors are reported without a traceback. The later
+  [standalone run](evidence/r01-10-live-check-output-20261115T172901Z.txt)
+  reported a provider interruption after enqueueing the second clip.
 
 The follow-up reliability slice frames larger Gemini PCM messages within the
 configured WebSocket limit, lets the writer run between chunks, and invalidates

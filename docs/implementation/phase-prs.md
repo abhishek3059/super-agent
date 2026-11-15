@@ -27,7 +27,7 @@ this file is a status pointer, not evidence and not a gate.
 | Merged scope (#32) | Ticks for R-01.3, R-01.5, and R-01.F1; credential findings CR-09 and CR-02; R-01.6 auth boundary; R-01.7 adapter port; locked `google-genai`; R-01.8 and R-01.9 live check |
 | Merged scope (#34) | Rebuilt voice console and UI self-test, R-01.F2 Windows-portable symlink test, R-01.F3 Origin diagnostic, and R-01.F4 Windows launcher |
 | Not in scope | Personal microphone audio to Gemini, tools, workers, external actions, paid services, or public deployment |
-| Remaining gate work | [R-01.10](r01-10-acceptance.md): complete RT-002 and RT-003 and evidence RT-G01. The 2026-11-15 criteria table lists the [blockers](r01-10-acceptance.md#blockers): a revised live run, a recorded native run through the console, and independent review of the code now on `develop`. |
+| Remaining gate work | [R-01.10](r01-10-acceptance.md): complete RT-002 and RT-003 and evidence RT-G01. The 2026-11-15 criteria table lists the [blockers](r01-10-acceptance.md#blockers): a recorded native run through the console and independent review of the code now on `develop`. The revised live run was recorded on 2026-11-15. |
 
 R-01.F2 identifies the Windows test portability fix. F2 in the
 [R-01.6 risk acceptance](../approvals/r01-6-f2-risk-acceptance.md) identifies
