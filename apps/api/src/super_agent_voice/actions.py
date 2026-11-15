@@ -11,6 +11,7 @@ outcome only, never a URL, query, or app name (REQ-14).
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import os
 import re
 import unicodedata
@@ -24,6 +25,7 @@ AUDIT_LOG = Path.home() / ".super-agent" / "tool-audit.log"
 
 OPEN = "/usr/bin/open"
 TIMEOUT_SECONDS = 5.0
+REAP_SECONDS = 1.0  # after a kill, how long to wait for the child to be collected
 MAX_URL, MAX_QUERY = 300, 100
 DEFAULT_APPS = ("Calendar", "Notes", "Reminders", "Music", "Maps", "Calculator", "Safari")
 
@@ -150,7 +152,10 @@ async def execute(argv: list[str]) -> None:
         code = await asyncio.wait_for(process.wait(), TIMEOUT_SECONDS)
     except BaseException:
         if process.returncode is None:
-            process.kill()
+            with contextlib.suppress(ProcessLookupError):
+                process.kill()
+            with contextlib.suppress(Exception):  # a stuck child must not hold the turn past this bound
+                await asyncio.wait_for(process.wait(), REAP_SECONDS)  # reaps it, no zombie
         raise
     if code:
         raise RuntimeError("non-zero exit")
