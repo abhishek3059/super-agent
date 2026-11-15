@@ -2,7 +2,7 @@
 
 | Field | Value |
 | --- | --- |
-| Status | Accepted for testing only, under the [Gemini testing exception](../approvals/gemini-live-testing-exception.md). It is not a tier approval, and no roadmap item is ticked by it. |
+| Status | Accepted by `jeevesh2515` on 2026-11-15 for this slice as built, for testing only ([decision](../approvals/gemini-live-testing-exception.md#design-acceptance-2026-11-15)), under the [Gemini testing exception](../approvals/gemini-live-testing-exception.md). It is not a tier approval, and no roadmap item is ticked by it. |
 | Scope | The optional tools the Gemini Live adapter offers when a switch is on: weather, memory and reminders, approved actions, and the session recap. The calculator and the clock are always on and are not covered here. |
 | Decision | [DEC-22](../../descisions.md#dec-22) (opt-in slices under a recorded exception) and [DEC-18](../../descisions.md#dec-18) (tiers) |
 | Code | `apps/api/src/super_agent_voice/gemini_adapter.py`, `weather.py`, `memory.py`, `recap.py`, `posix_files.py`; `actions.py` and the shared gates in `local_adapter.py` |

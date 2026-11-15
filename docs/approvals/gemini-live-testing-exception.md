@@ -55,3 +55,19 @@ Conditions 2, 3, and 5 still hold. Condition 4 is replaced by this list.
   and restoring the summary need a click on the console card.
 - The weather service sees coordinates and the IP address, not only the name.
 - On 2026-11-15 `jeevesh2515` decided in chat that forgetting the recap must be recoverable, so no permanent delete exists in this slice.
+
+## Design acceptance, 2026-11-15
+
+`jeevesh2515` decided this on 2026-11-15, in chat with Claude Code. The agent
+described the three slice designs in one direct question (tier 1 read tools,
+local memory and reminders, and the Gemini tools) and he chose "Accept all
+three". Under [DEC-21](../../descisions.md#dec-21) one maintainer's decision
+is enough. Nothing is ticked.
+
+The [design](../design/gemini-tools.md) is accepted for the slice as built, for
+testing only. Its tools, each off unless its switch is on: `get_weather`; the
+memory tools `remember_fact`, `list_memory`, `add_reminder`, `list_reminders`,
+`complete_reminder`, `forget`, `undo_forget`; `forget_conversation` and
+`restore_conversation` for the session recap; and the three approved actions
+in the [T3 record](t3-actions-exception.md). Speech, and any saved text these
+tools read or write, reaches Google's free tier during testing.
