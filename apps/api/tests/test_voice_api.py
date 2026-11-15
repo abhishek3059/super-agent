@@ -23,6 +23,7 @@ from super_agent_voice.adapter import (
     Interrupted,
     TurnComplete,
 )
+from super_agent_voice import app as app_module
 from super_agent_voice import config as config_module
 from super_agent_voice import generate_token
 from super_agent_voice.app import create_app
@@ -1038,7 +1039,8 @@ class DecidingAdapter(ScriptedAdapter):
         self.decisions.append((id, allow))
 
 
-def test_an_approval_request_reaches_the_browser_bounded_and_a_decision_reaches_the_adapter() -> None:
+def test_an_approval_request_reaches_the_browser_bounded_and_a_decision_reaches_the_adapter(monkeypatch) -> None:
+    monkeypatch.setattr(app_module, "APPROVE_MIN_DELAY_SECONDS", 0.0)  # the delay has its own tests below
     adapter = DecidingAdapter([ApprovalRequest("req-1", "x" * 300), ApprovalClosed("req-1")])
     with make_client(adapter) as client, connect(client) as websocket:
         authenticate(websocket)
@@ -1049,6 +1051,22 @@ def test_an_approval_request_reaches_the_browser_bounded_and_a_decision_reaches_
         websocket.send_json({"type": "capture.mute"})  # its reply shows both decisions were handled
         assert websocket.receive_json() == {"type": "session.state", "muted": True}
     assert adapter.decisions == [("req-1", True), ("req-2", False)]
+
+
+def test_the_backend_turns_an_approve_that_comes_too_soon_into_a_deny(monkeypatch) -> None:
+    monkeypatch.setattr(app_module, "APPROVE_MIN_DELAY_SECONDS", 0.3)
+    adapter = DecidingAdapter([ApprovalRequest("req-1", "Open the app Notes?")])
+    with make_client(adapter) as client, connect(client) as websocket:
+        authenticate(websocket)
+        assert websocket.receive_json()["type"] == "action.request"
+        websocket.send_json({"type": "action.decision", "id": "req-1", "allow": True})  # too soon
+        websocket.send_json({"type": "action.decision", "id": "req-1", "allow": False})  # a deny is never held back
+        time.sleep(0.4)
+        websocket.send_json({"type": "action.decision", "id": "req-1", "allow": True})  # after the delay
+        websocket.send_json({"type": "action.decision", "id": "other", "allow": True})  # not the latest request
+        websocket.send_json({"type": "capture.mute"})
+        assert websocket.receive_json() == {"type": "session.state", "muted": True}
+    assert adapter.decisions == [("req-1", False), ("req-1", False), ("req-1", True), ("other", True)]
 
 
 def test_a_decision_is_harmless_when_the_adapter_has_no_actions() -> None:
