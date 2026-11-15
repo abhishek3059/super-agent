@@ -113,7 +113,7 @@ Approved for testing in the
 switch takes `on` or `off`; any other value stops the session at start. They
 reuse the local adapter's gates: a call that changes memory, deletes the
 summary, or opens something is refused unless the user's own words in that
-request asked for it (opening and deleting the summary then also wait for a
+request asked for it (opening and forgetting the recap then also wait for a
 click) ("remember", "remind", "forget", "undo", "done", "open",
 "search" and similar). Reading memory, the weather, the calculator, and the
 clock need no request words. The words come from Gemini's transcription of
@@ -123,16 +123,18 @@ instruction: they reach Google only when the model calls a memory tool for a
 turn. Known limits: the request words are Gemini's own transcription of your
 speech, so provider text alone is the gate for memory changes. That is
 acceptable because forgetting a fact is a soft delete (`undo` restores it for
-24 hours). Deleting the recap is permanent, so it also needs a click on the
-console card. Forgetting a fact does not remove it from the recap; say
-"forget our conversation" for that.
+24 hours). Forgetting the recap sets the file aside instead of deleting it and
+`restore_conversation` brings it back within the same 24 hours, so no
+permanent delete exists in this slice; it still needs a click on the console
+card. Forgetting a fact does not remove it from the recap; say "forget our
+conversation" for that.
 
 | Switch | What it adds | What goes to Google or elsewhere |
 | --- | --- | --- |
 | `SUPER_AGENT_WEATHER` | `get_weather(place)` from Open-Meteo, no key | Open-Meteo (not Google) receives the place name, the coordinates it resolves to, and your IP address. Google sees the one-sentence answer. |
 | `SUPER_AGENT_MEMORY` | The memory and reminder tools; due reminders show in the console transcript (not spoken) | Any fact or reminder text the tools read or save reaches Google's free tier. Nothing is sent at session start. |
 | `SUPER_AGENT_ACTIONS` | Open a page, search the web, open an allowed app (macOS only). Each needs a click on the console card; a spoken yes never counts. One action per request. | The model sees only the fixed result words (done, denied, timed out). |
-| `SUPER_AGENT_RECAP` | Keeps the last 5 transcript lines in `~/.super-agent/recap.json` (mode 0600) when a session closes, and starts the next session with them if they are under 7 days old. `forget_conversation` (asked for by voice with forget, clear or delete) deletes the file, after a click on the console card (it cannot be undone). | The recap lines go to Google at the next session start. Lines that look like secrets are never saved. |
+| `SUPER_AGENT_RECAP` | Keeps the last 5 transcript lines in `~/.super-agent/recap.json` (mode 0600) when a session closes, and starts the next session with them if they are under 7 days old. `forget_conversation` (asked for by voice with forget, clear or delete) sets the file aside as `recap.json.forgotten` (mode 0600), after a click on the console card. New sessions no longer load it. `restore_conversation` (asked for with undo, restore or bring it back) restores it within 24 hours unless a newer recap is saved, which always wins; after 24 hours the copy is removed the next time the recap is saved, loaded or forgotten. One set-aside copy exists at a time. | The recap lines go to Google at the next session start. Lines that look like secrets are never saved. |
 
 Reading files, notes, mail or calendar stays off with Gemini. The tool audit log
 (`~/.super-agent/tool-audit.log`) holds time, tool name and outcome only. On

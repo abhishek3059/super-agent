@@ -1,8 +1,10 @@
 """A short recap of the last Gemini conversation, kept on this Mac so the next session can continue it.
 
 Built by code from the last few transcript lines, with no extra model call. The file is
-0600 in a 0700 folder, replaced atomically, ignored after seven days, and deletable by
-voice. The text is personal data, so it is never logged. When read back it is data: the
+0600 in a 0700 folder, replaced atomically, ignored after seven days, and forgettable by
+voice. Forgetting sets the file aside instead of deleting it, so it can be restored for the same
+24 hours as a forgotten memory fact; nothing here permanently deletes a recap the user did not
+replace. The text is personal data, so it is never logged. When read back it is data: the
 caller frames it as such, and a line that looks like a secret is never saved.
 """
 from __future__ import annotations
@@ -23,14 +25,23 @@ MAX_LINES = 5
 MAX_LINE_CHARS = 200
 MAX_AGE_SECONDS = 7 * 24 * 3600
 MAX_FILE_BYTES = 8 * 1024
+UNDO_SECONDS = memory._UNDO_HOURS * 3600  # noqa: SLF001  the window memory's undo_forget uses
 
-NAMES = frozenset({"forget_conversation"})
+NAMES = frozenset({"forget_conversation", "restore_conversation"})
 TOOLS = [{"type": "function", "function": {
-    "name": "forget_conversation",
-    "description": "Delete the saved recap of earlier conversations. Only when the user asks to forget, "
-                   "clear or delete it.",
-    "parameters": {"type": "object", "properties": {}, "required": []}}}]
-FORGOTTEN = "Done: the saved recap of earlier conversations is deleted."
+    "name": name,
+    "description": description,
+    "parameters": {"type": "object", "properties": {}, "required": []}}} for name, description in (
+    ("forget_conversation", "Forget the saved recap of earlier conversations. It is set aside and can be "
+                            "restored for 24 hours. Only when the user asks to forget, clear or delete it."),
+    ("restore_conversation", "Bring back the recap the user just had forgotten, if it was within 24 hours. "
+                             "Only when the user asks to undo or restore it."))]
+FORGOTTEN = ("Done: the saved recap of earlier conversations is forgotten. It can be restored for 24 hours "
+             "if the user asks to undo it.")
+RESTORED = "Done: the saved recap of earlier conversations is restored."
+NOTHING_TO_RESTORE = "There is no forgotten recap to restore."
+NEWER_EXISTS = "error: a newer recap is saved, so the forgotten one was not restored. Say so."
+RESTORE_FAILED = "error: the recap could not be restored. Say so."
 _SKIPS_UNICODE = ("Cc", "Cf", "Cs")  # control, format (bidi, zero-width, BOM) and surrogates
 
 
@@ -53,6 +64,7 @@ def save(lines: list[tuple[str, str]]) -> None:
     Never raises: a recap that cannot be written must not break closing a session."""
     if not posix_files.available():
         return
+    _expire()
     user = [text for role, text in lines if role == "user"]  # never the assistant's own words
     # The secret check sees the whole line, before it is cut to length.
     kept = [f"user: {_clean(text)}" for text in user[-MAX_LINES:] if not memory._SECRET.search(text)]  # noqa: SLF001
@@ -78,6 +90,7 @@ def load(now: float | None = None) -> list[str]:
     """The saved lines, or none when the file is missing, old, odd, or not private to this user."""
     if not posix_files.available():
         return []
+    _expire()
     try:
         fd = os.open(RECAP_PATH, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)  # a FIFO cannot block
         try:
@@ -98,8 +111,80 @@ def load(now: float | None = None) -> list[str]:
         return []
 
 
-def clear() -> bool:
-    """True when no recap is left on disk."""
+def _aside() -> Path:
+    return RECAP_PATH.with_name(RECAP_PATH.name + ".forgotten")
+
+
+def _open_private(path: Path) -> int | None:
+    """An open descriptor for a regular file that only this user can use, or None. Never follows a link."""
+    try:
+        fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+    except OSError:
+        return None
+    try:
+        info = os.fstat(fd)
+        if stat.S_ISREG(info.st_mode) and not info.st_mode & 0o077 and info.st_uid == os.getuid():
+            return fd
+    except OSError:
+        pass
+    os.close(fd)
+    return None
+
+
+def _expire() -> None:
+    """Removes the set-aside copy once its 24 hours are over. A link or odd file there is left alone."""
+    aside = _aside()
     with contextlib.suppress(OSError):
-        RECAP_PATH.unlink(missing_ok=True)
-    return not RECAP_PATH.exists()
+        info = aside.lstat()
+        if stat.S_ISREG(info.st_mode) and time.time() - info.st_mtime > UNDO_SECONDS:
+            aside.unlink()
+
+
+def clear() -> bool:
+    """Forgets the recap by setting it aside next to itself (same folder, still 0600), so new sessions
+    no longer load it and restore() can bring it back for 24 hours. True when no recap is left in place.
+    Only one set-aside copy exists: forgetting a newer recap replaces the older forgotten one. Nothing
+    is moved when there is no recap, and an odd file (a link, a folder, a file others can read) in
+    either place is refused and left untouched."""
+    if not posix_files.available():
+        return not RECAP_PATH.exists()
+    _expire()
+    if not os.path.lexists(RECAP_PATH):
+        return True
+    try:
+        if os.path.lexists(_aside()) and not stat.S_ISREG(_aside().lstat().st_mode):
+            return False
+        fd = _open_private(RECAP_PATH)
+        if fd is None:
+            return False
+        try:
+            os.utime(fd)  # the 24 hours run from now, not from when the recap was written
+            os.replace(RECAP_PATH, _aside())
+        finally:
+            os.close(fd)
+    except OSError:
+        return False
+    return True
+
+
+def restore() -> str:
+    """Brings the forgotten recap back, one of the fixed messages above. Within 24 hours only.
+    A newer recap always wins: if one is saved, the forgotten copy stays set aside (until its
+    window ends) and nothing is overwritten. The restore is a hard link that refuses an existing
+    path, so even a recap saved at the same moment is never replaced."""
+    if not posix_files.available():
+        return NOTHING_TO_RESTORE
+    _expire()
+    fd = _open_private(_aside())
+    if fd is None:
+        return NOTHING_TO_RESTORE
+    os.close(fd)
+    try:
+        os.link(_aside(), RECAP_PATH, follow_symlinks=False)
+    except FileExistsError:
+        return NEWER_EXISTS
+    except OSError:
+        return RESTORE_FAILED
+    with contextlib.suppress(OSError):
+        _aside().unlink()
+    return RESTORED

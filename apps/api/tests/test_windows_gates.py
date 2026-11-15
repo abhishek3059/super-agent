@@ -42,7 +42,7 @@ def test_a_gemini_session_starts_with_every_switch_on_and_the_posix_features_are
 
     names, instruction = run(scenario())
     assert "get_weather" in names and memory.NAMES <= names  # nothing POSIX-only about these
-    assert not names & actions.NAMES and "forget_conversation" not in names
+    assert not names & actions.NAMES and not names & recap.NAMES
     assert "forget_conversation" not in instruction and "Earlier conversation" not in instruction
     assert not recap.RECAP_PATH.exists() and not actions.AUDIT_LOG.exists()
 
@@ -52,6 +52,9 @@ def test_the_recap_is_off_and_never_touches_a_file(windows, monkeypatch):
     assert recap.enabled() is False
     recap.save([("user", "call mom")])
     assert not recap.RECAP_PATH.exists() and recap.load() == []
+    # Forget and restore are no-ops there: no file is moved, linked or created, and nothing raises.
+    assert recap.clear() is True and recap.restore() == recap.NOTHING_TO_RESTORE
+    assert not recap.RECAP_PATH.parent.exists()
     monkeypatch.setenv("SUPER_AGENT_RECAP", "maybe")
     with pytest.raises(RuntimeError):  # a mistyped switch still stops the session
         recap.enabled()
