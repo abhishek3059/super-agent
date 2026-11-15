@@ -174,8 +174,8 @@ Tiers are defined in [DEC-18](descisions.md#dec-18). R-A.1 and R-A.2 can happen 
 - [ ] R-A.5 T1 read-only connectors built behind the policy layer, with negative tests. Evidence: none yet
 - [ ] R-A.6 [human] T2 reversible-write design (logging, undo path, sandbox folder) approved after independent security review. Evidence: none yet
 - [ ] R-A.7 T2 reversible writes built behind the policy layer, with negative tests. Evidence: none yet
-- [ ] R-A.8 [human] T3 consequential-action design (on-device approval, shell and recipient allowlists, kill switch) approved after independent security review. Evidence: none yet
-- [ ] R-A.9 T3 consequential actions built behind the policy layer, with negative tests. Evidence: none yet
+- [ ] R-A.8 [human] [exception: [T3 actions exception](docs/approvals/t3-actions-exception.md)] T3 consequential-action design (on-device approval, shell and recipient allowlists, kill switch) approved after independent security review. Evidence: none yet
+- [ ] R-A.9 [exception: [T3 actions exception](docs/approvals/t3-actions-exception.md)] T3 consequential actions built behind the policy layer, with negative tests. Evidence: none yet
 
 ## Parallel track C: community and launch
 

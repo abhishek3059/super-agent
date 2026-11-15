@@ -2,7 +2,7 @@
 
 | Field | Value |
 | --- | --- |
-| Status | Proposal, built on branch `feat/t3-approved-actions` ahead of the roadmap order. Not accepted. |
+| Status | Accepted by `jeevesh2515` on 2026-11-15 for this slice only ([decision record](../approvals/t3-actions-exception.md#decisions-2026-11-15)). Built ahead of the roadmap order; R-A.8 and R-A.9 stay unticked. |
 | Tier | A small slice of T3 under [DEC-18](../../descisions.md#dec-18): consequential actions, each needing on-device approval |
 | Approval | [Out-of-order record](../approvals/t3-actions-exception.md) |
 | Code | `apps/api/src/super_agent_voice/actions.py`, wired in `local_adapter.py` and `app.py`; the approval card is in `apps/web/src/app` |
