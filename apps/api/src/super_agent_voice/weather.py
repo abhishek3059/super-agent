@@ -1,4 +1,5 @@
-"""Weather for a named place from Open-Meteo (free, no key). Only the place name leaves the Mac.
+"""Weather for a named place from Open-Meteo (free, no key). Open-Meteo receives
+the place name, the coordinates it resolves to (for the forecast), and the Mac's IP address.
 
 The model's argument is hostile input: it is validated here, and the one sentence the
 model hears is built from validated numbers and a fixed word table, never from raw
@@ -127,6 +128,7 @@ async def run(name: object, arguments: object) -> str:
         return BAD_ARGS  # refused before any request leaves the machine
     try:
         # to_thread alone cannot be cancelled mid-request, so the wait is bounded here too.
+        # shortcut: wait_for abandons the worker thread, which runs on until its socket timeout (TIMEOUT_SECONDS per read), upgrade to an async HTTP client if abandoned threads ever pile up.
         result = await asyncio.wait_for(asyncio.to_thread(_lookup, place), TIMEOUT_SECONDS * 3)
     except Exception:  # network, timeout, bad JSON, bad numbers: one fixed answer
         result = FAILED
