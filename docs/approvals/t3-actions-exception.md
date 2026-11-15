@@ -20,10 +20,12 @@ asked the question directly. He chose "Accept T3". Under
 1. This T3 work may merge before the PH-02 policy layer and PH-03 stop
    controls exist, as an exception to the order of R-A.8 and R-A.9. Both items
    stay unticked.
-2. The security review is accepted: the shared reviewer's two reports of
+2. The security review is accepted: the shared reviewer's reports of
    2026-11-15, posted as comments on PR 48.
 3. The limits in the design are accepted for now: no emergency stop yet, and
    the path of an approved address is limited to 64 plain characters.
+4. Merging before R-A.8 is ticked rests on [DEC-22](../../descisions.md#dec-22),
+   which he approved the same day.
 
 ## Limits of this exception
 
