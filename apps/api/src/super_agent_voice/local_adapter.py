@@ -111,11 +111,20 @@ def available_tools() -> list[dict]:
 # What the user said this turn. A small model sometimes saves things nobody asked it to,
 # so a memory write runs only when the user's own words asked for that kind of change.
 _HEARD: contextvars.ContextVar[str | None] = contextvars.ContextVar("heard", default=None)
+_APOSTROPHES = str.maketrans(dict.fromkeys("‘’ʼ´`＇", "'"))
+
+
+def fold(heard: str) -> str:
+    """The user's words the way the gates read them. A transcriber may type a curly apostrophe or
+    double spaces, which would slip past a "don't forget" guard."""
+    return " ".join(heard.translate(_APOSTROPHES).casefold().split())
+
+
 _ASKED = {
     "remember_fact": re.compile(r"\b(?:remember|note|save|store|memori[sz]e|keep in mind|don'?t forget)\b"),
     "add_reminder": re.compile(r"\b(?:remind|alarm|wake me|remember|don'?t (?:let me )?forget)"),
     # "don't forget" asks to keep something, so it never counts as a forget request.
-    "forget": re.compile(r"(?<!don't )(?<!dont )\b(?:forget|delete|remove|erase|scratch)\b"),
+    "forget": re.compile(r"(?<!don't )(?<!dont )(?<!do not )\b(?:forget|delete|remove|erase|scratch)\b"),
     "undo_forget": re.compile(r"\b(?:undo|bring (?:it |that )?back|restore|put (?:it |that )?back)\b"),
     "complete_reminder": re.compile(r"\b(?:done|did it|complete|completed|finished|tick|check (?:it )?off)\b"),
 }
@@ -133,7 +142,7 @@ def _action_refusal() -> str | None:
     heard = _HEARD.get()
     if _READ_UNTRUSTED.get():  # text from a file or email could ask for a page to be opened
         return actions.AFTER_READ
-    if heard is None or not _ACTION_REQUEST.search(heard.casefold()):
+    if heard is None or not _ACTION_REQUEST.search(fold(heard)):
         return NOT_ASKED
     if _ACTED.get():
         return actions.ONE_PER_TURN
@@ -153,7 +162,7 @@ async def call_tool(name: object, arguments: object) -> str:
             return memory.AFTER_READ
         heard = _HEARD.get()
         # Every memory write needs a request in the user's own words; a write with no rule is refused.
-        if heard is not None and name in memory.WRITES and not (name in _ASKED and _ASKED[name].search(heard.casefold())):
+        if heard is not None and name in memory.WRITES and not (name in _ASKED and _ASKED[name].search(fold(heard))):
             return NOT_ASKED
         return await asyncio.to_thread(memory.run, name, arguments)
     if name in actions.NAMES:

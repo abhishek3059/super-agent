@@ -27,7 +27,8 @@ Whether the data-boundary decision (R-A.2, OD-1) allows real voice to a cloud pr
 testing only, the Gemini console may also get these tools, each off unless
 switched on:
 
-- **Weather:** the free Open-Meteo service. Only a place name leaves the Mac.
+- **Weather:** the free Open-Meteo service. It receives the place name, the
+  coordinates that name resolves to (for the forecast), and the Mac's IP address.
 - **Memory and reminders:** stored facts and reminders reach Gemini when they
   bear on a turn, and Gemini may save new ones the user asks for.
 - **Approved actions:** open a page, search the web, or open an allowed app,
@@ -40,3 +41,14 @@ Reading files, notes, mail, or calendar stays off with Gemini. Under
 above changes: facts the user chooses to store are personal data sent to
 Google's free tier, which may train on it. The user accepts that for testing.
 Conditions 2, 3, and 5 still hold. Condition 4 is replaced by this list.
+
+### Known limits (2026-11-15, disclosure only, no scope change)
+
+- Saved facts are not put in the session instruction. They reach Google only
+  when the model calls a memory tool for a turn.
+- A memory write or forget is gated on the user's words as Gemini transcribed
+  them, so provider text alone is that gate. Forgetting a fact is a soft
+  delete that `undo_forget` restores for 24 hours, which is why it needs no
+  click. Deleting the saved summary cannot be undone, so it needs a click on
+  the console card.
+- The weather service sees coordinates and the IP address, not only the name.

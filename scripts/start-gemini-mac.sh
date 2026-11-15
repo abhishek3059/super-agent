@@ -23,7 +23,7 @@ cleanup() { kill "${pids[@]}" 2>/dev/null || true; }
 trap cleanup EXIT INT TERM
 echo "Gemini Live: your microphone audio goes to Google's free tier."
 echo "Weather: ${SUPER_AGENT_WEATHER:-off} (the place name goes to Open-Meteo)"
-echo "Memory and reminders: ${SUPER_AGENT_MEMORY:-off} (newest facts and tool results go to Google)"
+echo "Memory and reminders: ${SUPER_AGENT_MEMORY:-off} (facts and reminders reach Google only when a turn calls the memory tools)"
 echo "Approved actions: ${SUPER_AGENT_ACTIONS:-off}${SUPER_AGENT_ACTION_APPS:+ (apps: $SUPER_AGENT_ACTION_APPS)}"
 echo "Conversation recap: ${SUPER_AGENT_RECAP:-off} (kept in ~/.super-agent/recap.json for 7 days)"
 

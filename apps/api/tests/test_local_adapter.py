@@ -1134,3 +1134,24 @@ def test_every_memory_write_needs_the_users_words(monkeypatch, tmp_path):
     assert said("how is the weather", "complete_reminder", {"match": "bank"}) == local_adapter.NOT_ASKED
     assert said("remind me to call mom, don't forget it", "forget", {"match": "mom"}) == local_adapter.NOT_ASKED
     assert said("undo that", "undo_forget", {}) == "Nothing to restore."
+
+
+@pytest.mark.parametrize("words", [
+    "remind me to call mom, don’t forget it",  # typographic apostrophe, as a transcriber may type it
+    "remind me to call mom, dont forget it",
+    "remind me to call mom, do not forget it",
+    "remind me to call mom, Don’t  FORGET it",
+])
+def test_dont_forget_never_counts_as_a_forget_request_however_it_is_typed(monkeypatch, tmp_path, words):
+    monkeypatch.setattr(local_adapter.memory, "DB_PATH", tmp_path / "m.db")
+    monkeypatch.setenv("SUPER_AGENT_MEMORY", "on")
+    local_adapter.memory.remember_fact("call mom on Sunday")
+
+    async def one():
+        async def turn():
+            local_adapter._HEARD.set(words)
+            return await local_adapter.call_tool("forget", {"match": "mom"})
+        return await asyncio.create_task(turn())
+
+    assert run(one()) == local_adapter.NOT_ASKED
+    assert local_adapter.memory.list_memory().endswith("call mom on Sunday")  # still stored
