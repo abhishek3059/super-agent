@@ -1,9 +1,9 @@
-# Super-agent — phased plan and approvals
+# Super-agent: phased plan and approvals
 
 | Field | Value |
 | --- | --- |
-| Date | 2026-11-12 |
-| Revision | 5 |
+| Date | 2026-11-16 |
+| Revision | 6 |
 | Status | PH-DOC and PH-00 done; PH-01 in progress; later phases not started |
 | Revision 2 note | Corrections applied 2026-11-07 for independent review finding R-02 (see [docs/reviews/super-agent.md](docs/reviews/super-agent.md)): entry prerequisites and exit/acceptance gates are now stated separately per phase; no gate is asserted to have passed. |
 | Revision 4 note | Status metadata updated 2026-11-07: actual independent reports now exist at [docs/reviews/super-agent.md](docs/reviews/super-agent.md) (design review, opens PASS for the revision-3 correction set) and [docs/security/super-agent.md](docs/security/super-agent.md) (design-stage security, opens PASS, findings LOW-01 and INFO-01–03, for signed design revision 1 plus that set); see [progress](progress.md). No future-phase gate is claimed passed and no runtime work has started; PH-DOC status is a status-revision clarification, not a final acceptance. |
@@ -58,7 +58,7 @@ Separately approved local scaffold/boundary and manually activated native voice 
 
 - **Entry prerequisites:** [RT-G00](prd.md#rt-g00) resolved (runtime consent, eligibility, host, task selection, budgets/retention) **and** explicit implementation authorization. The offline scaffold exists through the approved PH-01 exception. The Gemini adapter and standalone synthetic live check exist; browser-console provider integration, human microphone evidence, task completion, and RT-G01 acceptance remain phase work.
 - **Exit/acceptance gates:** [RT-002](tasks/002-local-scaffold-and-boundary.md) and [RT-003](tasks/003-native-voice-session.md) complete, and [RT-G01](prd.md#rt-g01) evidenced: actually reviewed scaffold/commands, deployed authentication/Host/Origin/CORS/WS/CSRF controls, backend-only secrets, and measured native media and backend event/control connection with manual activation, stop controls, visible states, and fail-closed transport behavior.
-- **Status:** `in progress`. Revision 2 of the [voice design](docs/design/voice-foundation.md) is merged. The Gemini Live adapter has offline tests and a standalone synthetic run against the real service. The [R-01.4 operator report](docs/approvals/r01-4-microphone-test.md) covers the revised offline scaffold. R-01.10 is the remaining roadmap item.
+- **Status:** `in progress`. Revision 2 of the [voice design](docs/design/voice-foundation.md) is merged. The Gemini Live adapter has offline tests and a standalone synthetic run against the real service. The [R-01.4 operator report](docs/approvals/r01-4-microphone-test.md) covers the revised offline scaffold. Defect items R-01.F5–F8 are resolved and verified (PR #42). R-01.10 is the remaining roadmap item.
 
 Task links: [RT-002](tasks/002-local-scaffold-and-boundary.md), [RT-003](tasks/003-native-voice-session.md).
 
