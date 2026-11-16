@@ -215,20 +215,51 @@ open decision 2.
 
 ## 9. LangGraph as a dependency
 
-Not added by this document, and not added to any requirements file. Before
-adoption, in the PR that adds it ([AGENTS.md section 6](../../AGENTS.md)): pin
-an exact version, use a release older than 14 days, run `pip-audit` and report
-it, and check the licence.
+**Added 2026-11-16** by the commit `build(api): add langgraph 1.2.19 behind the job runner`, after the
+maintainer's decision (open decision 6). `langgraph==1.2.19` is pinned in
+`apps/api/pyproject.toml`, `requirements.in` and `requirements.lock`.
 
-Claims to check against primary sources, all UNVERIFIED:
+Checked by the orchestrator (Claude Fable 5.2) on 2026-11-16 against PyPI metadata, installed package
+metadata and `pip-audit`; not checked by a maintainer:
 
-- The core `langgraph` package is MIT-licensed.
-- The `langgraph-api` server package is under the Elastic License 2.0. It is
-  not needed and must not be installed.
-- A SQL-injection issue was disclosed in March 2026 in the SQLite checkpointer
-  package. This design does not use that package.
+- Resolved with `pip install --only-binary=:all: --uploaded-prior-to 2026-11-02T00:00:00Z -r apps/api/requirements.lock
+  langgraph==1.2.19` on Python 3.14.4, Windows. `pip check`: no broken requirements. No existing pin changed.
+- 16 packages were added, all released at least 14 days before 2026-11-16 (`langgraph` itself on 2026-10-30), so
+  [AGENTS.md section 6](../../AGENTS.md) is met. Licences, from installed package metadata:
 
-If any claim fails, stop and ask the maintainers.
+| Package | Version | Licence |
+| --- | --- | --- |
+| `langgraph` | 1.2.19 | MIT |
+| `langgraph-checkpoint` | 4.3.1 | MIT |
+| `langgraph-prebuilt` | 1.1.1 | MIT |
+| `langgraph-sdk` | 0.4.11 | MIT |
+| `langchain-core` | 1.7.3 | MIT |
+| `langchain-protocol` | 0.0.20 | MIT |
+| `langsmith` | 0.14.16 | MIT |
+| `jsonpatch` | 1.39 | BSD-3-Clause |
+| `jsonpointer` | 3.7 | Modified BSD |
+| `orjson` | 3.13.0 | MPL-2.0 AND (Apache-2.0 OR MIT) |
+| `ormsgpack` | 1.13.0 | Apache-2.0 OR MIT |
+| `PyYAML` | 6.0.3 | MIT |
+| `requests-toolbelt` | 1.0.0 | Apache 2.0 |
+| `uuid_utils` | 0.19.0 | BSD-3-Clause |
+| `xxhash` | 4.0.2 | BSD-2-Clause |
+| `zstandard` | 0.25.0 | BSD-3-Clause |
+
+- Flag: `orjson` includes MPL-2.0, a file-level copyleft licence. It is used unmodified as a dependency. No
+  package has a non-commercial or custom licence.
+- `pip-audit` on the resolved set: 0 known vulnerabilities in the 16 new packages. It reports one in a package
+  that was already pinned before this change: `opentelemetry-api 1.45.1`, CVE-2026-126360, fixed in 1.45.2. That
+  is pre-existing, this change does not touch it, and bumping it is a maintainer decision.
+- `langgraph-api` (the Elastic-licensed server) is not in the installed set (`import langgraph_api` fails), and it
+  must not be installed. `langgraph-checkpoint-sqlite` is not installed either, and the graph is compiled with no
+  checkpointer, so the ledger stays the truth.
+- `langsmith` is a tracing client. With tracing environment variables set it sends run data to a cloud service,
+  which would be an unapproved recipient ([REQ-13](../../prd.md#req-13)). The graph work refuses to run when any
+  such variable is set (built by the next commit).
+
+Still UNVERIFIED: that a SQL-injection issue was disclosed in March 2026 in the SQLite checkpointer package (not
+used here), and any claim about LangGraph not listed above.
 
 ## 10. Mapping and build order
 
@@ -301,8 +332,9 @@ Proposed build order, each slice with its test:
    `memory.db` matches option (b) of brain OD-10 in the
    [overview](brain/overview.md#10-open-maintainer-decisions). Confirm.
 5. **Tool name.** `delegate_task` or `propose_task` (conflict C1).
-6. **LangGraph checks.** Who verifies the three UNVERIFIED claims in section 9,
-   and what happens if one fails (plain Python, as the council advised).
+6. **LangGraph checks. Decided 2026-11-16 by `abhishek3059`: add LangGraph 1.2.19** as the executor
+   (chat). The orchestrator's checks are in section 9. Still open for a maintainer: the pre-existing
+   `opentelemetry-api` advisory, and the one UNVERIFIED claim.
 7. **Clarify wait state.** The eight states have no "waiting for the user's
    answer" state, and `waiting_for_approval` is defined for configured approval
    checkpoints only. Options: reuse it with a distinct reason code, or run the
