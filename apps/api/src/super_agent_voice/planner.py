@@ -15,8 +15,11 @@ from . import policy
 from .policy import Admission, Limits, PolicyError
 
 MODEL_ERRORS = ("unavailable", "timeout", "malformed")  # the seam's closed set of failure kinds
-MAX_ARGS_BYTES, MAX_QUESTION_CHARS = 1000, 300  # fixed here: Limits has no field that fits
-MAX_REPLY_BYTES = 64_000  # 32 steps at the args cap, with room for keys; a bigger reply is not a plan
+# Sizes are characters of ensure_ascii JSON text (a non-BMP character is 12). Fixed here: Limits has no field that fits.
+MAX_ARGS_CHARS, MAX_QUESTION_CHARS = 1000, 300
+# Worst valid plan: 31 ask_user steps with a 300 non-BMP question (3,600 escaped) and a full `after`, plus finish,
+# measures 114,882; read_tool steps at the args cap are far smaller. A bigger reply is not a plan.
+MAX_REPLY_CHARS = 120_000
 _KEYS = {  # allowed keys per step type; every key but "after" is required
     "read_tool": {"type", "tool", "args", "after"}, "summarize": {"type", "after"},
     "ask_user": {"type", "question", "after"}, "finish": {"type", "after"},
@@ -110,8 +113,9 @@ def _step(raw: object, index: int, admission: Admission) -> Step:
     try:
         if type(raw["args"]) is not dict:
             raise _bad()
-        text = json.dumps(raw["args"], sort_keys=True, ensure_ascii=False, allow_nan=False)
-        if len(text.encode("utf-8")) > MAX_ARGS_BYTES:
+        json.dumps(raw["args"], ensure_ascii=False, allow_nan=False).encode("utf-8")  # lone surrogate: UnicodeError
+        text = json.dumps(raw["args"], sort_keys=True, allow_nan=False)
+        if len(text) > MAX_ARGS_CHARS:
             raise _bad()
     except Exception:  # TypeError, ValueError, RecursionError
         raise _bad() from None
@@ -123,7 +127,7 @@ def _normalize(reply: object) -> object:
     exotic objects cannot reach the checks. Any failure, including RecursionError, is a bad plan."""
     try:
         text = json.dumps(reply, allow_nan=False)
-        if len(text) > MAX_REPLY_BYTES:  # ensure_ascii text, so characters are bytes
+        if len(text) > MAX_REPLY_CHARS:
             raise _bad()
         return json.loads(text)
     except Exception:
@@ -135,8 +139,13 @@ def request_plan(model: PlannerModel, prompt: str, admission: Admission, limits:
     if type(prompt) is not str:
         raise PolicyError("input_invalid")
     # An admission granted to a local planner carries real personal-data tools; a cloud model must not use it.
-    if admission.planner_is_local and model.is_local is not True:
-        raise PolicyError("planner_locality_invalid")
+    if admission.planner_is_local:
+        try:
+            local = model.is_local is True
+        except Exception:  # a broken flag is not local
+            local = False
+        if not local:
+            raise PolicyError("planner_locality_invalid")
     policy.check_model_call(calls_used, len(prompt), limits)
     try:
         reply = model.complete(prompt)

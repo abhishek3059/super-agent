@@ -292,3 +292,74 @@ def test_local_model_with_a_cloud_admission_is_allowed():
 
 def test_admission_records_the_locality_it_was_granted_under():
     assert adm(local=True).planner_is_local is True and adm(local=False).planner_is_local is False
+
+
+# --- sizes are measured as escaped JSON text, and the ceiling plan fits -------
+
+def args_of(n):
+    return {"a": "x" * (n - 9)}  # '{"a": "' + x... + '"}' is n characters of JSON text
+
+
+@pytest.mark.parametrize("size,ok", [(1000, True), (1001, False)])
+def test_args_cap_is_exact(size, ok):
+    assert len(json.dumps(args_of(size))) == size
+    reply = steps({**READ, "args": args_of(size)}, {"type": "finish"})
+    if ok:
+        assert plan(reply).steps[0].args
+    else:
+        assert code(reply) == "plan_invalid"
+
+
+def test_non_bmp_args_count_as_escaped_text():
+    emoji = {"a": "\U0001F600" * 83}  # 12 characters each once escaped: 1,005 in all
+    assert code(steps({**READ, "args": emoji}, {"type": "finish"})) == "plan_invalid"
+    assert plan(steps({**READ, "args": {"a": "\U0001F600" * 82}}, {"type": "finish"}))
+
+
+def test_worst_valid_plan_at_the_ceiling_is_accepted():
+    lim = Limits(steps_per_job=32)
+    question = "\U0001F600" * 300
+    items = [{"type": "ask_user", "question": question, "after": list(range(i))} for i in range(31)]
+    items.append({"type": "finish", "after": list(range(31))})
+    reply = {"steps": items}
+    assert 100_000 < len(json.dumps(reply)) <= 120_000
+    assert len(plan(reply, limits=lim).steps) == 32
+    mixed = [{**READ, "tool": "calendar_events", "args": args_of(1000), "after": list(range(i))} for i in range(31)]
+    assert len(plan({"steps": mixed + [{"type": "finish"}]}, limits=lim).steps) == 32
+
+
+# --- a broken is_local flag is "not local" -------------------------------------
+
+class RaisingFlag:
+    @property
+    def is_local(self):
+        raise RuntimeError("secret flag")
+
+    def complete(self, prompt):
+        raise AssertionError("must not be called")
+
+
+class NoFlag:
+    def complete(self, prompt):
+        raise AssertionError("must not be called")
+
+
+@pytest.mark.parametrize("model", [RaisingFlag(), NoFlag()])
+def test_broken_locality_flag_with_a_local_admission_is_refused(model):
+    with pytest.raises(PolicyError) as err:
+        request_plan(model, "p", adm(local=True), LIM, 0)
+    assert err.value.code == "planner_locality_invalid" and "secret" not in repr(err.value)
+    assert err.value.__cause__ is None
+
+
+def test_broken_locality_flag_with_a_cloud_admission_does_not_matter():
+    class Cloud(ScriptedModel):
+        @property
+        def is_local(self):
+            raise RuntimeError("secret flag")
+
+        @is_local.setter
+        def is_local(self, value):
+            pass
+
+    assert len(request_plan(Cloud([GOOD]), "p", adm(local=False), LIM, 0).steps) == 3
