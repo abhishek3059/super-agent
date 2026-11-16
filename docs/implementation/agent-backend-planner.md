@@ -8,7 +8,7 @@ item is ticked. No real model, no network, no LangGraph.
 ## What was built
 
 - `apps/api/src/super_agent_voice/planner.py`: standard library only.
-- `apps/api/tests/test_planner.py`: 61 tests (several are parametrized).
+- `apps/api/tests/test_planner.py`: 92 tests (many are parametrized).
 - `PlannerModel`: a `typing.Protocol` with `is_local: bool` and
   `complete(prompt: str) -> object`, which returns the reply as parsed JSON or
   raises `ModelError`. Trusted code reads `is_local` for
@@ -18,13 +18,19 @@ item is ticked. No real model, no network, no LangGraph.
   It replays queued replies in order, raises a queued `ModelError`, records every
   prompt in `prompts`, and raises `unavailable` when it runs out.
 - `request_plan(model, prompt, admission, limits, calls_used) -> Plan`: trusted
-  code around one model call. The reply is hostile data and is validated into an
-  immutable `Plan` (frozen dataclasses, tuples, args as canonical JSON text), or a
-  `PolicyError` with a fixed code is raised.
+  code around one model call. The reply is hostile data. It is first normalized by a
+  JSON round trip (`json.loads(json.dumps(reply, allow_nan=False))`, any exception
+  including `RecursionError` is `plan_invalid`, and a reply over 64,000 bytes is refused),
+  so only plain dict, list, str, int, float, bool and None reach the checks. It is then
+  validated into an immutable `Plan` (frozen dataclasses, tuples, args as canonical JSON
+  text). Any failure raises a `PolicyError` with a fixed code; nothing else escapes,
+  because the validation is also wrapped to fail closed.
 
 ## Order of checks
 
-1. The prompt must be a `str`, then `policy.check_model_call(calls_used, len(prompt), limits)`
+1. The prompt must be a `str`. If the `Admission` was granted to a local planner and
+   `model.is_local is not True`, the call is refused (`planner_locality_invalid`). A local
+   model with a cloud-granted admission is allowed. Then `policy.check_model_call(calls_used, len(prompt), limits)`
    (budget and input size). The model is not called if either fails.
 2. Any exception from the model becomes `PolicyError("model_error")`. The text is dropped.
 3. The reply must be an object with exactly one key, `steps`, a non-empty list. More
@@ -48,7 +54,7 @@ cycle impossible by construction, so there is no separate cycle check.
 ## Reason codes
 
 Existing: `step_type_unknown`, `step_limit`, `model_call_limit`, `input_too_large`,
-`input_invalid`. Added to `policy.REASONS`: `plan_invalid` (reply or step shape, `after`,
+`input_invalid`, `planner_locality_invalid` (model locality does not match the admission). Added to `policy.REASONS`: `plan_invalid` (reply or step shape, `after`,
 args, question, finish rules), `tool_out_of_scope` (a tool not in the admitted set),
 `model_error` (the model raised anything). Messages are the code only.
 
@@ -63,11 +69,13 @@ args, question, finish rules), `tool_out_of_scope` (a tool not in the admitted s
   `tool_out_of_scope`. A tool with a non-string name is also `tool_out_of_scope`.
 - Tool arguments are not validated against each tool's own schema here. `tools.py`,
   `tier1.py` and `memory.py` validate arguments when the tool runs, so this slice
-  only bounds their size and encoding. Argument validation happens at execution (slice 5).
+  only bounds their size and encoding. Slice 5 must validate every tool argument when it validates the whole plan, before any
+  step runs (design section 4); this slice only bounds size and encoding.
 - The args bound (1,000 bytes) and question bound (300 characters) are fixed constants
   in `planner.py`, because `Limits` has no field that fits. They are my choice.
 - `after` is optional on every type except `summarize`.
-- `args` is stored as canonical JSON text so the frozen plan has no mutable parts.
+- `args` is stored as canonical JSON text, and steps hold tuples, so every field of a
+  `Plan` is an immutable str, int, tuple or None.
 - A reply with the right shape but a bad `type` value reports `step_type_unknown`
   before key checks.
 
@@ -81,6 +89,9 @@ args, question, finish rules), `tool_out_of_scope` (a tool not in the admitted s
   a cloud prompt) is not part of this slice.
 - The seam is synchronous and has no timeout of its own. A real model must enforce its
   own timeout and raise `ModelError("timeout")`.
+- The JSON round trip turns a non-string dict key such as `1` into `"1"` before the checks. A
+  real adapter returns parsed JSON, which never has such keys, and the top-level and step key
+  checks still refuse them where they matter.
 - `calls_used` is the caller's count. This slice does not keep it.
 
 ## Tests and result
@@ -97,8 +108,10 @@ and missing keys on the reply and steps, bad `after` values (forward, self, dupl
 negative, bool, float, string, non-list), a `summarize` with no dependency, zero and
 too many steps, finish rules, bad `args`, bad `question` values, replies of the wrong
 shape (list, string, None, NaN), seam errors, an arbitrary exception whose text must
-not appear, the scripted fake running out, and budget and size refused before any
-model call. Real result: see the commit report; it is not copied here so this file
+not appear, the scripted fake running out, budget and size refused before any
+model call, hostile replies (20,000 deep nesting in args and in the reply, objects with raising
+`__repr__` and `__hash__`, a huge int in `after`, non-string keys, an oversized reply, a `str`
+subclass with lying `__hash__` and `__eq__`), and the locality rule in both directions. Real result: see the commit report; it is not copied here so this file
 cannot go stale.
 
 ## Not built

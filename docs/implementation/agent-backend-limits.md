@@ -16,7 +16,8 @@ This is code only. It is not wired into `app.py`, and no roadmap item is ticked.
 - `admit(spec, idempotency_key, planner_is_local, limits, ledger, now, *, memory_is_synthetic=False,
   tier1_is_synthetic=False)`
   returns an `Admission` (job, scoped tool set, memory-context flag, absolute
-  deadline). `ledger` is the `ledger` module (anything with `list_jobs` and
+  deadline, and `planner_is_local`, the locality it was granted under; the
+  [planner](agent-backend-planner.md) refuses a non-local model for a local grant). `ledger` is the `ledger` module (anything with `list_jobs` and
   `create_job`).
 - Step checks, pure, each returns `True` or raises: `check_step_index`,
   `check_retry`, `check_step_deadline`, `check_job_deadline`,
@@ -126,8 +127,8 @@ Command (venv built from `apps/api/requirements.lock`):
 PYTHONDONTWRITEBYTECODE=1 python -m pytest apps/api -p no:cacheprovider
 ```
 
-Real result on this host (Windows): `688 passed, 110 skipped` for
-`apps/api` (`test_policy.py` 217, `test_runner.py` 24, `test_planner.py` 61, `test_ledger.py` 134 passed and 1 skipped). `npm run check`
+Real result on this host (Windows): `721 passed, 110 skipped` for
+`apps/api` (`test_policy.py` 217, `test_runner.py` 25, `test_planner.py` 92, `test_ledger.py` 135 passed and 1 skipped, `test_ledger.py` 134 passed and 1 skipped). `npm run check`
 result is recorded in the commit report, not here.
 
 Covered: every limit breach and boundary, bool and wrong-type inputs, every

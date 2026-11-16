@@ -327,3 +327,13 @@ def test_refused_success_write_is_not_recorded_as_a_bad_receipt():
     last = ledger.list_events(adm.job.id)[-1]
     assert last.reason == "terminal_write_failed"
     assert "bad_receipt" not in repr(ledger.list_events(adm.job.id))
+
+
+def test_deeply_nested_receipt_is_a_bad_receipt_not_a_failed_write(made):
+    deep = {}
+    for _ in range(20000):
+        deep = {"a": deep}
+    runner, adm = made(lambda j, t, s: deep), admit()
+    runner.submit(adm)
+    wait_state(adm.job, "failed")
+    assert ledger.list_events(adm.job.id)[-1].reason == "bad_receipt"

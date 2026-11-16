@@ -21,7 +21,7 @@ def _storable(receipt: object) -> bool:
     """True if the ledger would accept this as a receipt (same rules as ledger._json)."""
     try:
         text = json.dumps(receipt, sort_keys=True, separators=(",", ":"), allow_nan=False)
-    except (TypeError, ValueError):
+    except (TypeError, ValueError, RecursionError):
         return False
     return isinstance(receipt, dict) and len(text.encode()) <= MAX_RECEIPT_BYTES
 

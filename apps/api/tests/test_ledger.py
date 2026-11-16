@@ -308,3 +308,12 @@ def test_files_are_private_even_when_they_already_existed():
         assert stat.S_IMODE(ledger.DB_PATH.stat().st_mode) == 0o600
     finally:
         os.umask(old)
+
+
+def test_deeply_nested_receipt_is_a_ledger_error_not_a_recursion_error():
+    deep = {}
+    for _ in range(20000):
+        deep = {"a": deep}
+    job = ledger.create_job({"a": 1}, "deep")
+    with pytest.raises(ledger.LedgerError):
+        ledger.transition(job.id, "running", job.revision, "start", deep)

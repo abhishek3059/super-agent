@@ -1,5 +1,6 @@
 import dataclasses
 import json
+import sys
 from datetime import UTC, datetime
 
 import pytest
@@ -83,19 +84,33 @@ def test_memory_write_tool_is_refused_even_for_a_local_planner():
         assert code(steps({**READ, "tool": tool}, {"type": "finish"})) == "tool_out_of_scope"
 
 
+def bump(index, **extra):
+    """GOOD with one step carrying one extra key, valid in every other way."""
+    items = [dict(x) for x in GOOD["steps"]]
+    items[index].update(extra)
+    return {"steps": items}
+
+
 @pytest.mark.parametrize("reply", [
-    {"steps": [READ, FIN], "tools": ["read_file"]},
-    {"steps": [READ, FIN], "limits": {"steps_per_job": 99}},
-    {"steps": [{**READ, "tools": ["x"]}, FIN]},
-    {"steps": [{**READ, "limits": {}}, FIN]},
-    {"steps": [{**READ, "scope": "all"}, FIN]},
-    {"steps": [READ, {**FIN, "deadline": 9999}]},
-    {"steps": [{**SUM, "tool": "calculate"}, FIN]},
-    {"steps": [{"type": "read_tool", "tool": "calculate"}, FIN]},
-    {},
+    {**GOOD, "tools": ["read_file"]},
+    {**GOOD, "limits": {"steps_per_job": 99}},
+    *[bump(i, **{key: value}) for i in range(3)
+      for key, value in (("tools", ["x"]), ("limits", {}), ("scope", "all"), ("deadline", 9999))],
 ])
-def test_extra_or_missing_keys_are_refused(reply):
+def test_extra_keys_are_refused(reply):
     assert code(reply) == "plan_invalid"
+
+
+@pytest.mark.parametrize("reply", [
+    {},
+    {"steps": GOOD["steps"], "steps2": 1},
+    {"steps": [{"type": "read_tool", "tool": "calculate"}, SUM, FIN]},  # no args
+    {"steps": [{"type": "read_tool", "args": {}}, SUM, FIN]},  # no tool
+    {"steps": [READ, SUM, {"after": [1]}]},  # no type
+    {"steps": [READ, SUM, {"type": "ask_user", "after": [1]}, {"type": "finish", "after": [2]}]},  # no question
+])
+def test_missing_keys_are_refused(reply):
+    assert code(reply) in {"plan_invalid", "step_type_unknown"}
 
 
 @pytest.mark.parametrize("after", [[1], [5], [0, 0], [-1], [True], [0.0], ["0"], 0, None, [[0]]])
@@ -184,3 +199,96 @@ def test_budget_and_size_are_checked_before_the_model_is_called():
 
 def test_model_locality_is_readable_for_admission():
     assert ScriptedModel([], is_local=False).is_local is False and ScriptedModel([]).is_local is True
+
+
+# --- hostile objects: only PolicyError may escape, with a fixed code ----------
+
+def nested(depth, leaf=None):
+    x = leaf
+    for _ in range(depth):
+        x = [x]
+    return x
+
+
+class LyingStr(str):
+    """Claims to be an admitted tool in hash and equality, but its value is another tool."""
+
+    def __hash__(self):
+        return hash("calculate")
+
+    def __eq__(self, other):
+        return other == "calculate"
+
+
+class Hostile:
+    def __repr__(self):
+        raise RuntimeError("secret repr")
+
+    def __hash__(self):
+        raise RuntimeError("secret hash")
+
+
+def deep_loads(depth):
+    try:
+        return json.loads("[" * depth + "]" * depth)
+    except RecursionError:  # the parser itself refuses; the object loop below covers the deeper case
+        return nested(depth)
+
+
+@pytest.mark.parametrize("reply", [
+    {"steps": [{**READ, "args": {"a": nested(20000)}}, {"type": "finish"}]},
+    {"steps": [{**READ, "args": {"a": deep_loads(900)}}, {"type": "finish"}]},
+    {"steps": nested(20000)},
+    {"steps": [READ, {"type": "finish"}], "x": deep_loads(900)},
+    {"steps": [{"type": "finish", "after": [10 ** 5000]}]},
+    {"steps": [READ, {"type": "summarize", "after": [Hostile()]}, {"type": "finish", "after": [1]}]},
+    {"steps": [{**READ, "tool": Hostile()}, {"type": "finish"}]},
+    {"steps": [{**READ, "args": {"a": Hostile()}}, {"type": "finish"}]},
+    {"steps": [{**READ, "args": {(1, 2): 3}}, {"type": "finish"}]},
+    {1: "x", 2: "y"},
+    {"steps": [{1: "x"}, {"type": "finish"}]},
+    {"steps": [READ, {"type": "finish", "note": "x" * 100_000}]},
+])
+def test_hostile_replies_raise_only_a_fixed_policy_error(reply):
+    with pytest.raises(PolicyError) as err:
+        plan(reply)
+    assert err.value.code in {"plan_invalid", "step_type_unknown"}
+    assert str(err.value) == err.value.code and "secret" not in repr(err.value)
+
+
+def test_str_subclass_cannot_smuggle_a_tool():
+    assert code(steps({**READ, "tool": LyingStr("read_file")}, {"type": "finish"}), local=False) == "tool_out_of_scope"
+    got = plan(steps({**READ, "tool": LyingStr("calculate")}, {"type": "finish"}))
+    assert type(got.steps[0].tool) is str and got.steps[0].tool == "calculate"
+
+
+def test_recursion_limit_is_unchanged_after_a_deep_reply():
+    before = sys.getrecursionlimit()
+    code({"steps": nested(20000)})
+    assert sys.getrecursionlimit() == before
+
+
+# --- the model's locality must match the admission ----------------------------
+
+def test_cloud_model_with_a_local_admission_is_refused_before_the_call():
+    model = ScriptedModel([GOOD], is_local=False)
+    with pytest.raises(PolicyError) as err:
+        request_plan(model, "p", adm(local=True), LIM, 0)
+    assert err.value.code == "planner_locality_invalid" and model.prompts == []
+
+
+@pytest.mark.parametrize("flag", [None, 1, "yes"])
+def test_non_bool_locality_is_not_local(flag):
+    model = ScriptedModel([GOOD])
+    model.is_local = flag
+    with pytest.raises(PolicyError) as err:
+        request_plan(model, "p", adm(local=True), LIM, 0)
+    assert err.value.code == "planner_locality_invalid" and model.prompts == []
+
+
+def test_local_model_with_a_cloud_admission_is_allowed():
+    assert plan(GOOD, local=False).steps[0].tool == "calculate"
+
+
+def test_admission_records_the_locality_it_was_granted_under():
+    assert adm(local=True).planner_is_local is True and adm(local=False).planner_is_local is False

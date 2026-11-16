@@ -138,7 +138,7 @@ def _json(value: object, limit: int, what: str) -> str:
         raise LedgerError(f"{what} must be an object")
     try:
         text = json.dumps(value, sort_keys=True, separators=(",", ":"), allow_nan=False)
-    except (TypeError, ValueError) as err:
+    except (TypeError, ValueError, RecursionError) as err:  # RecursionError: absurdly deep nesting
         raise LedgerError(f"{what} is not valid JSON") from err
     if len(text.encode()) > limit:
         raise LedgerError(f"{what} is too large")

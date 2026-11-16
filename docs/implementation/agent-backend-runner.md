@@ -8,7 +8,7 @@ This is code only. It is not wired into `app.py`, and no roadmap item is ticked.
 
 - `apps/api/src/super_agent_voice/runner.py`: standard library only
   (`concurrent.futures.ThreadPoolExecutor`). No model, no network, no LangGraph.
-- `apps/api/tests/test_runner.py`: 24 tests (the bad-receipt test runs 4 cases, the invalid-limits test 3).
+- `apps/api/tests/test_runner.py`: 25 tests (the bad-receipt test runs 4 cases, the invalid-limits test 3).
 - `Runner(ledger, limits, work, clock)`. `ledger` is the ledger module, `limits` a
   `policy.Limits`, `clock` a zero-argument callable returning an aware `datetime`.
   `work(job, tools, should_stop) -> dict` is the stub graph seam: trusted code
@@ -28,7 +28,7 @@ This is code only. It is not wired into `app.py`, and no roadmap item is ticked.
 | Cancel requested, work saw `should_stop()` | `cancelled` | `cancel_stopped` | `{"stopped": true}` |
 | Work saw `should_stop()` true but no cancel is confirmed (failed ledger read, or state unreadable after work) | `failed` | `stop_unconfirmed` | `{"error": "stop_unconfirmed"}` |
 | Cancel requested, work never polled and returned | `succeeded` | `work_done` | the work's receipt |
-| Receipt not a dict, too large, or not JSON (judged from the receipt itself, with the ledger's cap and encoding) | `failed` | `bad_receipt` | `{"error": "bad_receipt"}` |
+| Receipt not a dict, too large, or not JSON (judged from the receipt itself, with the ledger's cap and encoding; a very deeply nested receipt counts as not JSON) | `failed` | `bad_receipt` | `{"error": "bad_receipt"}` |
 | No terminal write possible | `unknown` | `terminal_write_failed` | none |
 | `cancel` on a queued job | `cancel_requested` then `cancelled` | `user_cancel`, `cancelled_before_start` | `{"executed": false}` |
 | `cancel` on a running job | `cancel_requested` | `user_cancel` | none |
@@ -119,7 +119,8 @@ release), a raising work function with no text leaked, a passed deadline with a
 fake clock, four bad receipts, the tier 1 filter and its fail-closed config
 error, one terminal event per job, `recover`, a failed poll and an unreadable
 state after cancel (neither ends `succeeded`), a raising clock, invalid limits
-(3 cases), and a refused success write that is not recorded as `bad_receipt`. Real result: see the commit
+(3 cases), a refused success write that is not recorded as `bad_receipt`, and a very deeply
+nested receipt (`bad_receipt`, not a refused write). Real result: see the commit
 report; it is not copied here so this file cannot go stale.
 
 ## Not built

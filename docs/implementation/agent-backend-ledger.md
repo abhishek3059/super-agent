@@ -7,8 +7,9 @@ This is code only. It is not wired into `app.py`, and no roadmap item is ticked.
 ## What was built
 
 - `apps/api/src/super_agent_voice/ledger.py`: standard-library `sqlite3` only.
-- `apps/api/tests/test_ledger.py`: 135 tests: 134 passed and 1 skipped on this host (the first
-  version had 122 passed and 1 skipped; slice 2 review fixes added 12).
+- `apps/api/tests/test_ledger.py`: 136 tests: 135 passed and 1 skipped on this host (the first
+  version had 122 passed and 1 skipped; slice 2 review fixes added 12, the planner
+  review fix added 1: a very deeply nested receipt is a `LedgerError`).
 - Storage: `~/.super-agent/ledger.db` beside `memory.db`, directory 0700, file
   0600, same `DB_PATH` override convention as `memory.py`. No WAL (memory.py
   does not use it). Schema version is `PRAGMA user_version = 1`. Tables:

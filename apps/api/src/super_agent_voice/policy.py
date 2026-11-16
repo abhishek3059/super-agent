@@ -100,6 +100,7 @@ class Admission:
     tools: frozenset[str]
     memory_context: bool
     deadline: datetime
+    planner_is_local: bool  # what the grant was made under; request_plan holds the model to it
 
 
 def _aware(value: object) -> bool:
@@ -194,7 +195,7 @@ def admit(spec: object, idempotency_key: object, planner_is_local: object, limit
         tools |= TIER1_APP_TOOLS[task]
     if planner_is_local or memory_is_synthetic:
         tools |= MEMORY_TOOLS[task]
-    return Admission(job, tools, planner_is_local or memory_is_synthetic, deadline)
+    return Admission(job, tools, planner_is_local or memory_is_synthetic, deadline, planner_is_local)
 
 
 # --- step-level checks: pure, each returns True or raises PolicyError --------
