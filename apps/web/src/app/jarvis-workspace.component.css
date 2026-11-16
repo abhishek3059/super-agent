@@ -1,0 +1,274 @@
+:host {
+  display: block;
+  min-width: 0;
+  container-type: inline-size;
+}
+
+.workspace {
+  --panel: #211b19;
+  --surface: #2c2420;
+  --field: #181412;
+  --border: #655044;
+  --text: #fff3e9;
+  --muted: #cbb8ab;
+  --accent: #f8ba90;
+  --accent-text: #25160f;
+  --warn: #ffd3a3;
+  --error: #ffb3ae;
+  min-width: 0;
+  padding: clamp(1rem, 4cqw, 2rem);
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  color: var(--text);
+  color-scheme: dark;
+}
+
+.workspace[data-skin='Carbon'] {
+  --panel: #181919;
+  --surface: #232525;
+  --field: #111212;
+  --border: #595d5d;
+  --text: #f7f8f6;
+  --muted: #bec3c1;
+  --accent: #d1d7d2;
+  --accent-text: #18211e;
+  --warn: #f5d4a0;
+  --error: #ffb8b8;
+}
+
+.workspace[data-skin='Paper'] {
+  --panel: #f7eee0;
+  --surface: #fff9f0;
+  --field: #fffdf7;
+  --border: #9b745d;
+  --text: #2a211d;
+  --muted: #604a3d;
+  --accent: #7d3424;
+  --accent-text: #fff6eb;
+  --warn: #75411b;
+  --error: #8f2724;
+  color-scheme: light;
+}
+
+h2,
+h3,
+p,
+ul {
+  margin: 0;
+}
+
+ul {
+  padding: 0;
+  list-style: none;
+}
+
+.workspace-header {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: center;
+  gap: 0.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--border);
+}
+
+h2 {
+  font-size: clamp(1.25rem, 5cqw, 1.65rem);
+  font-weight: 680;
+  letter-spacing: -0.045em;
+}
+
+h3,
+label {
+  font-size: 0.875rem;
+  font-weight: 650;
+}
+
+.skin-label,
+.connection-note,
+.worker p,
+.desktop-note,
+.empty-jobs,
+.job-status {
+  color: var(--muted);
+}
+
+.connection-note {
+  margin-top: 1rem;
+  font-size: 0.875rem;
+  line-height: 1.45;
+}
+
+.workspace-body {
+  display: grid;
+  gap: 1.25rem;
+  margin-top: 1rem;
+}
+
+.roster,
+.dispatch-column,
+.jobs,
+.dispatch-form {
+  display: grid;
+  align-content: start;
+  min-width: 0;
+  gap: 0.625rem;
+}
+
+.dispatch-column {
+  gap: 1rem;
+}
+
+.worker + .worker,
+.job + .job {
+  margin-top: 0.375rem;
+}
+
+.worker,
+.job,
+.empty-jobs {
+  min-width: 0;
+  padding: 0.625rem 0.75rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 0.375rem;
+  overflow-wrap: anywhere;
+}
+
+.worker-top,
+.job-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.25rem 0.75rem;
+  font-size: 0.875rem;
+}
+
+.worker-status,
+.worker p,
+.desktop-note,
+.job-status,
+.receipt {
+  font-size: 0.78rem;
+  line-height: 1.5;
+}
+
+.worker-status {
+  color: var(--muted);
+}
+
+.worker-status[data-worker-status='Ready'],
+a,
+summary {
+  color: var(--accent);
+}
+
+.worker-status[data-worker-status='Busy'] {
+  color: var(--warn);
+}
+
+.worker a {
+  display: inline-block;
+  padding-block: 0.375rem;
+  font-size: 0.875rem;
+}
+
+select,
+textarea,
+button {
+  min-width: 0;
+  min-height: 2.75rem;
+  padding: 0.5rem 0.625rem;
+  border: 1px solid var(--border);
+  border-radius: 0.375rem;
+  color: var(--text);
+  background: var(--field);
+  font: inherit;
+  font-size: 0.875rem;
+}
+
+textarea {
+  width: 100%;
+  resize: vertical;
+  line-height: 1.5;
+}
+
+textarea::placeholder {
+  color: var(--muted);
+  opacity: 1;
+}
+
+:is(select, textarea, button, a, summary):focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+button {
+  cursor: pointer;
+}
+
+.primary {
+  padding-inline: 1rem;
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-text);
+  font-weight: 650;
+}
+
+button:disabled,
+select:disabled {
+  color: var(--muted);
+  background: var(--surface);
+  border-color: var(--border);
+  cursor: default;
+}
+
+.request-error {
+  color: var(--error);
+  font-size: 0.875rem;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.job-prompt,
+.result,
+.empty-jobs {
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.job-prompt,
+.result,
+details,
+.stop-job {
+  margin-top: 0.375rem;
+}
+
+.result,
+.receipt {
+  white-space: pre-wrap;
+}
+
+summary {
+  width: fit-content;
+  padding-block: 0.25rem;
+  cursor: pointer;
+  font-size: 0.875rem;
+}
+
+@container (min-width: 34rem) {
+  .workspace-body {
+    grid-template-columns: minmax(10rem, 0.8fr) minmax(0, 1.35fr);
+  }
+}
+
+@container (max-width: 16rem) {
+  .workspace-header {
+    grid-template-columns: auto 1fr;
+  }
+
+  h2 {
+    grid-column: 1 / -1;
+  }
+}

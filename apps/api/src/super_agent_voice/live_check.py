@@ -59,7 +59,7 @@ def load_pcm(path: Path) -> bytes:
 def _speech_environment() -> dict[str, str]:
     return {
         name: value for name, value in os.environ.items()
-        if name.upper() not in {"GEMINI_API_KEY", "SUPER_AGENT_LOCAL_TOKEN"}
+        if name.upper() not in {"GEMINI_API_KEY", "OPENAI_API_KEY", "SUPER_AGENT_LOCAL_TOKEN"}
     }
 
 

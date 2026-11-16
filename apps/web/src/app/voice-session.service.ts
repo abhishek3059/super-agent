@@ -24,6 +24,34 @@ const MAX_MESSAGE_CHARS = 500;
 const MAX_ENTRY_CHARS = 4000;
 /** Consecutive loud frames (about 128 ms each) required before barge-in. */
 const BARGE_IN_FRAMES = 2;
+const AUTH_HEX = /^[0-9a-f]{64}$/;
+
+export function hex(bytes: Uint8Array): string {
+  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('');
+}
+
+export async function proveLocalBackend(
+  token: Uint8Array<ArrayBuffer>, clientNonce: string, data: unknown, purpose: 'voice' | 'workspace' = 'voice',
+): Promise<string> {
+  try {
+    if (typeof data !== 'string' || data.length > 512) throw new Error();
+    const challenge = JSON.parse(data) as { type?: unknown; serverNonce?: unknown; proof?: unknown };
+    const { type, serverNonce, proof } = challenge;
+    if (type !== 'session.challenge' || typeof serverNonce !== 'string' || !AUTH_HEX.test(serverNonce)
+      || typeof proof !== 'string' || !AUTH_HEX.test(proof)) throw new Error();
+    const key = await crypto.subtle.importKey('raw', token, { name: 'HMAC', hash: 'SHA-256' }, false, ['verify', 'sign']);
+    const transcript = `/${clientNonce}/${serverNonce}`;
+    const encoder = new TextEncoder();
+    const signature = Uint8Array.from({ length: 32 }, (_, i) => parseInt(proof.slice(i * 2, i * 2 + 2), 16));
+    if (!await crypto.subtle.verify('HMAC', key, signature, encoder.encode(`super-agent.${purpose}.v1/server${transcript}`))) {
+      throw new Error();
+    }
+    const reply = await crypto.subtle.sign('HMAC', key, encoder.encode(`super-agent.${purpose}.v1/client${transcript}`));
+    return hex(new Uint8Array(reply));
+  } finally {
+    token.fill(0);
+  }
+}
 
 export interface ConversationEntry {
   role: 'user' | 'assistant';
@@ -74,6 +102,10 @@ export class VoiceSessionService {
       this.error.set(token.length < 32 ? 'Local token must contain at least 32 characters.' : 'Session already active.');
       return;
     }
+    if (!globalThis.crypto?.subtle) {
+      this.fail('Local voice authentication requires a secure browser context.');
+      return;
+    }
     this.generation += 1;
     const generation = this.generation;
     this.error.set('');
@@ -94,12 +126,34 @@ export class VoiceSessionService {
     const socket = new WebSocket('ws://127.0.0.1:8000/ws/voice');
     socket.binaryType = 'arraybuffer';
     this.socket = socket;
+    const clientNonce = hex(crypto.getRandomValues(new Uint8Array(32)));
+    let authPhase: 'waiting' | 'verifying' | 'proved' = 'waiting';
+    const ownsOpenSocket = () => this.socket === socket && this.generation === generation
+      && socket.readyState === WebSocket.OPEN;
     socket.onopen = () => {
-      if (this.socket !== socket || this.generation !== generation) return;
-      socket.send(JSON.stringify({ type: 'session.auth', token }));
+      if (!ownsOpenSocket()) return;
+      socket.send(JSON.stringify({ type: 'session.hello', clientNonce }));
     };
     socket.onmessage = (event) => {
-      if (this.socket !== socket || this.generation !== generation) return;
+      if (!ownsOpenSocket()) return;
+      if (authPhase !== 'proved') {
+        const reject = () => {
+          if (ownsOpenSocket()) this.fail('Could not verify the local voice backend. Check the local token and launcher.');
+        };
+        if (authPhase !== 'waiting') {
+          reject();
+          return;
+        }
+        authPhase = 'verifying';
+        const keyBytes = new TextEncoder().encode(token);
+        token = '';
+        void proveLocalBackend(keyBytes, clientNonce, event.data).then((proof) => {
+          if (!ownsOpenSocket()) return;
+          authPhase = 'proved';
+          socket.send(JSON.stringify({ type: 'session.auth', proof }));
+        }).catch(reject);
+        return;
+      }
       void this.handleMessage(event, socket, generation).catch(() => {
         if (this.socket === socket && this.generation === generation) {
           this.fail('Invalid local voice response.');

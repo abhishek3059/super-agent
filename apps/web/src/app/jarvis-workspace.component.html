@@ -1,0 +1,100 @@
+<section class="workspace" [attr.data-skin]="skin()" aria-labelledby="jarvis-workspace-title">
+  <header class="workspace-header">
+    <h2 id="jarvis-workspace-title">Jarvis workspace</h2>
+    <label class="skin-label" for="jarvis-skin">Skin</label>
+    <select #skinPicker id="jarvis-skin" [value]="skin()" (change)="selectSkin(skinPicker.value)">
+      @for (name of skins; track name) {
+        <option [value]="name">{{ name }}</option>
+      }
+    </select>
+  </header>
+
+  @if (!connected()) {
+    <div class="connection-note">
+      <span role="status">Workspace disconnected.</span>
+      <button type="button" (click)="connectRequested.emit()">Connect workspace</button>
+    </div>
+  } @else if (!availableWorkers().length) {
+    <p class="connection-note" role="status">No workers are available to receive a request.</p>
+  }
+
+  <div class="workspace-body">
+    <section class="roster" aria-labelledby="jarvis-roster-title">
+      <h3 id="jarvis-roster-title">Workers</h3>
+      <ul>
+        @for (worker of roster(); track $index) {
+          <li class="worker">
+            <div class="worker-top">
+              <strong>{{ worker.name }}</strong>
+              <span class="worker-status" [attr.data-worker-status]="worker.status">{{ worker.status }}</span>
+            </div>
+            @if (worker.role) { <p>{{ worker.role }}</p> }
+            @if (worker.latest; as job) {
+              <p>Last job · {{ jobStatus(job) }}</p>
+            }
+            @if (worker.desktop; as href) {
+              <a [href]="href" target="_blank" rel="noopener noreferrer"
+                [attr.aria-label]="'Open ' + worker.name + ' desktop in a new tab'">Open desktop</a>
+            }
+          </li>
+        }
+      </ul>
+      @if (!hasDesktop()) { <p class="desktop-note">Worker desktops are unavailable.</p> }
+    </section>
+
+    <div class="dispatch-column">
+      <form class="dispatch-form" (submit)="submit($event)" [attr.aria-busy]="submitting()">
+        <label for="jarvis-dispatch-worker">Send to</label>
+        <select #workerPicker id="jarvis-dispatch-worker" [value]="workerId()" [disabled]="!connected()"
+          (change)="selectWorker(workerPicker.value)">
+          <option value="" disabled>Select a worker</option>
+          @for (worker of configuredWorkers(); track worker.id) {
+            <option [value]="worker.id" [disabled]="worker.status !== 'ready'">
+              {{ worker.name }}{{ worker.status === 'ready' ? '' : ' · ' + worker.status }}
+            </option>
+          }
+        </select>
+
+        <label for="jarvis-prompt">Request</label>
+        <textarea #promptInput id="jarvis-prompt" rows="3" [maxLength]="maxPromptLength" [value]="draft()"
+          (input)="setDraft(promptInput.value)" placeholder="Describe what the worker should do"></textarea>
+        <div class="dispatch-actions">
+          <button class="primary" type="submit" [disabled]="!canDispatch()">
+            {{ submitting() ? 'Sending…' : 'Send request' }}
+          </button>
+        </div>
+        @if (error()) { <p class="request-error" role="alert">{{ error() }}</p> }
+      </form>
+
+      <section class="jobs" aria-labelledby="jarvis-jobs-title">
+        <h3 id="jarvis-jobs-title">Recent jobs</h3>
+        <ul class="job-list" aria-live="polite">
+          @for (job of recentJobs(); track job.id) {
+            <li class="job">
+              <div class="job-header">
+                <strong>{{ workerName(job.workerId) }}</strong>
+                <span class="job-status">{{ jobStatus(job) }}</span>
+              </div>
+              @if (job.prompt) { <p class="job-prompt">{{ job.prompt }}</p> }
+              @if (job.status === 'succeeded' && job.receipt?.status === 'completed' && job.result) {
+                <p class="result">{{ job.result }}</p>
+              }
+              @if (job.receipt) {
+                <details>
+                  <summary>Receipt</summary>
+                  <p class="receipt">{{ job.receipt.runId }} · {{ job.receipt.status }}@if (job.receipt.resultTruncated) { · Result shortened }</p>
+                </details>
+              }
+              @if (canCancel(job)) {
+                <button class="stop-job" type="button" (click)="cancelJob.emit(job.id)"
+                  [attr.aria-label]="'Stop ' + workerName(job.workerId) + ' job ' + job.id">Stop job</button>
+              }
+            </li>
+          } @empty {
+            <li class="empty-jobs">No job receipts yet.</li>
+          }
+        </ul>
+      </section>
+    </div>
+  </div>
+</section>

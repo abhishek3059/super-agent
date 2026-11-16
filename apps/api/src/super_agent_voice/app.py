@@ -6,11 +6,15 @@ import json
 import logging
 import math
 import os
+import re
+import secrets
 import threading
 import time
 from collections import deque
 from collections.abc import Awaitable, Callable
+from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
+from uuid import UUID
 
 from fastapi import FastAPI, HTTPException, Request, WebSocket
 from starlette.websockets import WebSocketDisconnect
@@ -20,6 +24,7 @@ from .adapter import (
     VoiceAdapter,
 )
 from .config import VoiceConfig
+from .jarvis_runtime import JarvisRuntime
 
 # States only, never content (REQ-12). uvicorn configures only its own loggers, so
 # without this handler these INFO lines would be dropped.
@@ -177,6 +182,8 @@ class _OutboundQueue:
 def create_app(
     config: VoiceConfig | None = None,
     adapter_factory: AdapterFactory | None = None,
+    *,
+    workspace: JarvisRuntime | None = None,
 ) -> FastAPI:
     settings = config or VoiceConfig.from_environment()
     adapter_factory = adapter_factory or _adapter_from_environment(
@@ -191,13 +198,22 @@ def create_app(
     for name in ("max_pre_auth_connections", "auth_failure_threshold", "max_delayed_rejections"):
         _validated_positive(name, getattr(settings, name), integer=True)
     if _frame_logging_enabled():
-        raise RuntimeError("debug logging would record the session token; use --log-level info")
+        raise RuntimeError("debug logging would record local voice protocol frames; use --log-level info")
     gate = SessionGate(settings.max_active_sessions)
+    workspace_gate = SessionGate(1)
+    workspace = workspace or JarvisRuntime()
     auth = _AuthControl(settings)
     # Strong references to one residual supervisor per quarantined session
     # are owned here, by the app scope (addendum section 4.7).
     supervisors: list[asyncio.Task] = []
-    app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
+    @asynccontextmanager
+    async def lifespan(_app: FastAPI):
+        try:
+            yield
+        finally:
+            await workspace.close()
+
+    app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None, lifespan=lifespan)
 
     @app.get("/health")
     async def health(request: Request) -> dict[str, str]:
@@ -208,6 +224,10 @@ def create_app(
     @app.websocket("/ws/voice")
     async def voice_socket(websocket: WebSocket) -> None:
         await _voice_socket(websocket, settings, adapter_factory, gate, supervisors, auth)
+
+    @app.websocket("/ws/workspace")
+    async def workspace_socket(websocket: WebSocket) -> None:
+        await _workspace_socket(websocket, settings, auth, workspace_gate, workspace)
 
     return app
 
@@ -242,7 +262,7 @@ def _adapter_from_environment(
 
 
 def _frame_logging_enabled() -> bool:
-    """DEBUG frame logging would write the token from the first message (REQ-12).
+    """DEBUG frame logging would expose proofs, audio and job content (REQ-12).
 
     Checked at startup and again per connection, because a launcher can build
     the app before uvicorn sets up logging, or raise the level later.
@@ -251,11 +271,11 @@ def _frame_logging_enabled() -> bool:
 
 
 def _control(text: str | None, settings: VoiceConfig) -> dict[str, object]:
-    if text is None or len(text.encode("utf-8")) > settings.max_control_bytes:
-        raise _SessionFailure("invalid-control")
     try:
+        if text is None or len(text.encode("utf-8")) > settings.max_control_bytes:
+            raise _SessionFailure("invalid-control")
         message = json.loads(text)
-    except (json.JSONDecodeError, ValueError):
+    except (ValueError, RecursionError):
         raise _SessionFailure("invalid-control") from None
     if not isinstance(message, dict):
         raise _SessionFailure("invalid-control")
@@ -441,38 +461,65 @@ async def _run_wire_ops(record: _SessionTeardown) -> None:
 
 
 
-# Internal marker for a rejected credential: closes 1008 and sends nothing.
+# Internal marker for a rejected proof: closes 1008 without an error payload.
 _AUTH_FAILED = "auth-failed"
+_AUTH_HEX = re.compile(r"[0-9a-f]{64}")
+
+
+async def _receive_auth(websocket: WebSocket, settings: VoiceConfig) -> dict[str, object]:
+    incoming = await websocket.receive()
+    if incoming["type"] == "websocket.disconnect":
+        raise WebSocketDisconnect(incoming.get("code", 1000))
+    return _control(incoming.get("text"), settings)
 
 
 async def _authenticate(
-    websocket: WebSocket, settings: VoiceConfig, auth: _AuthControl, deadline: float
+    websocket: WebSocket, settings: VoiceConfig, auth: _AuthControl, deadline: float, *, purpose: str = "voice",
 ) -> None:
     loop = asyncio.get_running_loop()
     # CT-04: authentication has its own explicit deadline and is still
     # bounded by whatever remains of the total session budget, so the
     # total budget is never dropped during auth.
     effective = min(deadline, loop.time() + settings.auth_timeout_seconds)
+    if effective <= loop.time():
+        raise _SessionFailure("max-duration")
+    key = settings.local_token.encode("utf-8")
     try:
-        incoming = await asyncio.wait_for(
-            websocket.receive(), timeout=effective - loop.time()
-        )
+        async with asyncio.timeout_at(effective):
+            hello = await _receive_auth(websocket, settings)
+            client_nonce = hello.get("clientNonce")
+            if (
+                hello.keys() != {"type", "clientNonce"}
+                or hello["type"] != "session.hello"
+                or not isinstance(client_nonce, str)
+                or not _AUTH_HEX.fullmatch(client_nonce)
+            ):
+                raise _SessionFailure(_AUTH_FAILED, close_code=1008)
+            server_nonce = secrets.token_hex(32)
+            transcript = f"/{client_nonce}/{server_nonce}"
+            # Separate domains prevent the backend's proof serving as a client proof.
+            domain = f"super-agent.{purpose}.v1"
+            server_proof = hmac.digest(key, f"{domain}/server{transcript}".encode(), "sha256")
+            await websocket.send_json({
+                "type": "session.challenge", "serverNonce": server_nonce, "proof": server_proof.hex(),
+            })
+            response = await _receive_auth(websocket, settings)
+            proof = response.get("proof")
+            expected = hmac.digest(key, f"{domain}/client{transcript}".encode(), "sha256")
+            if (
+                response.keys() != {"type", "proof"}
+                or response["type"] != "session.auth"
+                or not isinstance(proof, str)
+                or not _AUTH_HEX.fullmatch(proof)
+                or not hmac.compare_digest(proof, expected.hex())
+                or auth.expired()
+            ):
+                raise _SessionFailure(_AUTH_FAILED, close_code=1008)
     except TimeoutError:
         # The category records which actual deadline expired.
         raise _SessionFailure(
             "max-duration" if loop.time() >= deadline else "session-timeout"
         ) from None
-    if incoming["type"] == "websocket.disconnect":
-        raise WebSocketDisconnect(incoming.get("code", 1000))
-    message = _control(incoming.get("text"), settings)
-    supplied = message.get("token")
-    # CR-08: compare UTF-8 bytes; surrogatepass keeps a lone surrogate in the
-    # JSON from raising, so it is only a failed attempt.
-    token_ok = isinstance(supplied, str) and hmac.compare_digest(
-        supplied.encode("utf-8", "surrogatepass"), settings.local_token.encode("utf-8")
-    )
-    if message.get("type") != "session.auth" or not token_ok or auth.expired():
-        raise _SessionFailure(_AUTH_FAILED, close_code=1008)
 
 
 async def _refuse(
@@ -514,25 +561,18 @@ async def _hold_open(websocket: WebSocket, seconds: float) -> None:
             return
 
 
-async def _voice_socket(
-    websocket: WebSocket,
-    settings: VoiceConfig,
-    adapter_factory: AdapterFactory,
-    gate: SessionGate,
-    supervisors: list[asyncio.Task],
-    auth: _AuthControl,
-) -> None:
+async def _accept_local(
+    websocket: WebSocket, settings: VoiceConfig, auth: _AuthControl, deadline: float, *, purpose: str,
+) -> bool:
     if (
         websocket.headers.get("host") != settings.allowed_host
         or websocket.headers.get("origin") != settings.allowed_origin
     ):
         await websocket.close(code=1008)
-        return
+        return False
     if _frame_logging_enabled():
         await websocket.close(code=1011)
-        return
-    loop = asyncio.get_running_loop()
-    deadline = loop.time() + settings.max_session_seconds
+        return False
     # CR-06: authentication happens before the single-session slot is taken, so
     # an unauthenticated client can never starve the real user. Pre-auth sockets
     # have their own cap instead, taken before accept so a client that sees the
@@ -540,13 +580,13 @@ async def _voice_socket(
     if not auth.connections.acquire():
         await websocket.accept()
         await websocket.close(code=1013)
-        return
+        return False
     failure: _SessionFailure | None = None
     try:
         await websocket.accept()
-        await _authenticate(websocket, settings, auth, deadline)
+        await _authenticate(websocket, settings, auth, deadline, purpose=purpose)
     except WebSocketDisconnect:
-        return
+        return False
     except _SessionFailure as error:
         failure = error
     except Exception:
@@ -557,8 +597,64 @@ async def _voice_socket(
         auth.connections.release()
     if failure is not None:
         await _refuse(websocket, settings, auth, failure)
-        return
+        return False
     auth.succeeded()
+    return True
+
+
+async def _workspace_socket(
+    websocket: WebSocket, settings: VoiceConfig, auth: _AuthControl, gate: SessionGate, workspace: JarvisRuntime,
+) -> None:
+    deadline = asyncio.get_running_loop().time() + settings.max_session_seconds
+    if not await _accept_local(websocket, settings, auth, deadline, purpose="workspace"):
+        return
+    if not gate.acquire():
+        await websocket.close(code=1013)
+        return
+    try:
+        async with asyncio.timeout_at(deadline):
+            await websocket.send_json({"type": "workspace.snapshot", **workspace.snapshot()})
+            while True:
+                command = await _receive_auth(websocket, settings)
+                kind = command.get("type")
+                operation = kind.removeprefix("workspace.") if kind in ("workspace.submit", "workspace.cancel") else "snapshot"
+                try:
+                    if kind == "workspace.submit" and command.keys() == {"type", "workerId", "prompt", "requestId"}:
+                        request_id = command["requestId"]
+                        if not isinstance(request_id, str) or len(request_id) != 36:
+                            raise ValueError
+                        job_id = workspace.submit(command["workerId"], command["prompt"], UUID(request_id))
+                        await websocket.send_json({"type": "workspace.admitted", "jobId": job_id})
+                    elif kind == "workspace.cancel" and command.keys() == {"type", "jobId"}:
+                        if not workspace.cancel(command["jobId"]):
+                            raise ValueError
+                    elif command != {"type": "workspace.snapshot"}:
+                        raise ValueError
+                except ValueError:
+                    await websocket.send_json({"type": "workspace.error", "operation": operation, "category": "request-rejected"})
+                except RuntimeError:
+                    await websocket.send_json({"type": "workspace.error", "operation": operation, "category": "worker-unavailable"})
+                await websocket.send_json({"type": "workspace.snapshot", **workspace.snapshot()})
+    except WebSocketDisconnect:
+        return
+    except (TimeoutError, _SessionFailure):
+        await websocket.close(code=1008)
+    finally:
+        gate.release()
+
+
+async def _voice_socket(
+    websocket: WebSocket,
+    settings: VoiceConfig,
+    adapter_factory: AdapterFactory,
+    gate: SessionGate,
+    supervisors: list[asyncio.Task],
+    auth: _AuthControl,
+) -> None:
+    loop = asyncio.get_running_loop()
+    deadline = loop.time() + settings.max_session_seconds
+    if not await _accept_local(websocket, settings, auth, deadline, purpose="voice"):
+        return
     # Teardown releases the slot only after worker quiescence and confirmed
     # adapter closure.
     if not gate.acquire():

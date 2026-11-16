@@ -230,13 +230,22 @@ any state -> error -> closed
 fails, the browser receives a fixed `session.error` and the socket closes. The
 browser does not start microphone capture until it receives `session.ready`.
 
-## 5. Browser protocol revision 2
+## 5. Browser protocol
+
+The current trust handshake uses distinct client and server proofs based on
+fresh 32-byte nonces. Proofs are HMAC-SHA256 over a versioned transport and
+direction label followed by both nonces. The browser checks the server proof
+before revealing the client proof. The local credential stays in memory and
+never crosses either WebSocket. Workspace proofs and voice proofs use
+different labels. The local console still assumes a trusted frontend and
+does not defend an active relay or a compromised OS account.
 
 Client events:
 
 | Event | Payload | Rule |
 | --- | --- | --- |
-| `session.auth` | `{ "type": "session.auth", "token": "..." }` | First message. Required before any audio. |
+| `session.hello` | `{ "type": "session.hello", "clientNonce": "..." }` | First message. Uses lowercase hex. |
+| `session.auth` | `{ "type": "session.auth", "proof": "..." }` | Sent only after verifying the server proof. Uses lowercase hex. |
 | `capture.mute` | `{ "type": "capture.mute" }` | Stops browser capture and ends the provider audio stream. |
 | `capture.unmute` | `{ "type": "capture.unmute" }` | Starts a new provider audio stream. |
 | `playback.interrupt` | `{ "type": "playback.interrupt" }` | Local barge-in. Stops playback and bumps the epoch. |
@@ -246,6 +255,7 @@ Server events:
 
 | Event | Payload | Rule |
 | --- | --- | --- |
+| `session.challenge` | `{ "type": "session.challenge", "serverNonce": "...", "proof": "..." }` | First reply to the client hello. Both values are lowercase hex. |
 | `session.ready` | `{ "type": "session.ready", "playbackEpoch": 0, "outputRateHz": 24000, "provider": "gemini-live" }` | Sent after provider start succeeds. |
 | `audio.chunk` | `{ "type": "audio.chunk", "playbackEpoch": 0, "rateHz": 24000, "channels": 1, "format": "pcm16" }` | Followed immediately by one binary frame. |
 | `turn.complete` | `{ "type": "turn.complete", "playbackEpoch": 0 }` | Model turn ended. |
@@ -271,8 +281,9 @@ Binary rules:
 Startup sequence:
 
 1. Browser connects to `/ws/voice` with the allowed Host and Origin.
-2. Browser sends `session.auth`.
-3. Backend validates the token, acquires the one-session gate, creates the
+2. Browser sends `session.hello`, verifies the server's `session.challenge`,
+   and sends the corresponding `session.auth` proof.
+3. Backend validates the proof, acquires the one-session gate, creates the
    adapter, and calls `adapter.start()`.
 4. On provider failure, backend sends `session.error` and closes. No
    microphone capture starts.
@@ -487,9 +498,10 @@ Failed-auth throttling (CR-01):
 
 Browser flow, minimal (development only):
 
-- The user pastes the token into a password field. The page keeps it only until
-  the first `session.auth` message is sent, then zeroes it in the service and
-  the field. It is never written to `localStorage` or `sessionStorage`.
+- The user pastes the token into a password field. The app clears the field
+  on connection attempt. The handshake clears its token reference and wipes
+  the byte array after using it for the HMAC operations. The token is never
+  written to `localStorage` or `sessionStorage`.
 - A strict Content-Security-Policy is required: no inline scripts, no
   third-party scripts.
 - A bad token closes the socket with code 1008.

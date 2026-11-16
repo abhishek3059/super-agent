@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import base64
+import json
 import os
 import secrets
 import socket
@@ -11,6 +12,7 @@ import time
 from pathlib import Path
 
 import pytest
+from voice_auth_helpers import auth_proof
 
 SRC = Path(__file__).resolve().parents[1] / "src"
 # The documented launch flags: small frame and queue limits before authentication.
@@ -71,6 +73,14 @@ def text_frame(payload: bytes) -> bytes:
     return head + mask + bytes(byte ^ mask[index % 4] for index, byte in enumerate(payload))
 
 
+def read_text(stream) -> str:
+    opcode, length = stream.read(2)
+    assert opcode == 0x81 and length <= 126
+    if length == 126:
+        length = int.from_bytes(stream.read(2), "big")
+    return stream.read(length).decode()
+
+
 def stop(process: subprocess.Popen) -> None:
     process.terminate()
     try:
@@ -86,21 +96,29 @@ def test_token_is_not_logged_by_a_real_server_and_debug_refuses_to_start(tmp_pat
     process, port = start(token, "info", info_log)
     try:
         wait_for_port(process, port)
-        connection = handshake(port)
-        connection.sendall(text_frame(('{"type":"session.auth","token":"%s"}' % token).encode()))
-        assert b"session.ready" in connection.recv(4096)
-        connection.close()
+        with handshake(port) as connection, connection.makefile("rb") as incoming:
+            client_nonce = secrets.token_hex(32)
+            hello = {"type": "session.hello", "clientNonce": client_nonce}
+            connection.sendall(text_frame(json.dumps(hello).encode()))
+            challenge = json.loads(read_text(incoming))
+            assert challenge["type"] == "session.challenge"
+            server_nonce = challenge["serverNonce"]
+            assert challenge["proof"] == auth_proof(token, "server", client_nonce, server_nonce)
+            proof = auth_proof(token, "client", client_nonce, server_nonce)
+            connection.sendall(text_frame(json.dumps({"type": "session.auth", "proof": proof}).encode()))
+            assert json.loads(read_text(incoming))["type"] == "session.ready"
     finally:
         stop(process)
 
-    # DEBUG would log the first frame, so the app must refuse to start.
+    # DEBUG would log protocol and audio frames, so the app must refuse to start.
     process, _ = start(token, "debug", debug_log)
     assert process.wait(20) != 0
 
     for log in (info_log, debug_log):
         text = log.read_text()
         assert token not in text and token[:12] not in text
-    assert "debug logging would record the session token" in debug_log.read_text()
+        assert proof not in text and challenge["proof"] not in text
+    assert "debug logging would record local voice protocol frames" in debug_log.read_text()
 
 
 def test_oversized_frame_before_auth_is_closed_without_buffering_it(tmp_path) -> None:

@@ -3,6 +3,17 @@
   min-height: 100svh;
 }
 
+.jarvis-console {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(320px, 0.85fr);
+  align-items: start;
+  background: #08090c;
+}
+
+@media (max-width: 900px) {
+  .jarvis-console { grid-template-columns: minmax(0, 1fr); }
+}
+
 .voice-shell {
   --accent: #94a3b8;
   --accent-soft: rgba(148, 163, 184, 0.16);

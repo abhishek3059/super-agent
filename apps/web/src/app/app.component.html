@@ -1,3 +1,4 @@
+<div class="jarvis-console">
 <div class="voice-shell" [attr.data-state]="visualState()" (document:keydown.escape)="closeSettings()">
   <div class="ambient" aria-hidden="true">
     <div class="aura aura-primary"></div>
@@ -169,7 +170,7 @@
         <div class="settings-heading">
           <div>
             <span class="eyebrow">Loopback only</span>
-            <h2 id="settings-title">Local voice connection</h2>
+            <h2 id="settings-title">Local connection</h2>
           </div>
           <button class="icon-button" type="button" (click)="closeSettings()" aria-label="Close settings">
             <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -200,9 +201,20 @@
 
         <div class="settings-actions">
           <button class="secondary-button" type="button" (click)="closeSettings()">Cancel</button>
+          @if (workspace.connected()) {
+            <button class="secondary-button" type="button" (click)="workspace.disconnect()">Disconnect workspace</button>
+          } @else {
+            <button class="secondary-button" type="button" (click)="openWorkspace()" [disabled]="token.trim().length < 32">Connect workspace</button>
+          }
           <button class="connect-button" type="button" (click)="start()" [disabled]="isSessionActive()">Connect locally</button>
         </div>
       </section>
     </div>
   }
+</div>
+<app-jarvis-workspace [workers]="workspace.workers()" [jobs]="workspace.jobs()"
+  [connected]="workspace.connected()" [submitting]="workspace.submitting()" [error]="workspace.error()"
+  [admitted]="workspace.admitted()"
+  (dispatchJob)="workspace.submit($event)" (cancelJob)="workspace.cancel($event)"
+  (connectRequested)="openSettings()" />
 </div>

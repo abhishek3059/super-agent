@@ -184,7 +184,9 @@ Open exactly `http://127.0.0.1:4200`, select the blue start control or settings
 button, paste the token into the in-memory connection dialog, and select
 **Connect locally**. Do not use `localhost`: the page loads through that alias,
 but the reviewed backend Origin policy rejects its session. Browser permission
-is requested only after the backend authenticates the session.
+is requested only after the browser verifies the server proof and the backend
+authenticates the session. Select **Connect workspace** to open the worker UI
+without using the microphone. See the [Jarvis operator preview](../docs/implementation/jarvis-operator-preview.md).
 
 The browser UI follows the [live voice interface design](../docs/design/live-voice-interface.md).
 It keeps the token in memory only, fixes the WebSocket endpoint to the reviewed

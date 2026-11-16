@@ -10,6 +10,8 @@ import {
   signal,
 } from '@angular/core';
 import { VoiceSessionService } from './voice-session.service';
+import { JarvisWorkspaceComponent } from './jarvis-workspace.component';
+import { WorkspaceSessionService } from './workspace-session.service';
 import {
   formatElapsed,
   isSessionActive,
@@ -23,6 +25,7 @@ import {
 @Component({
   selector: 'app-root',
   standalone: true,
+  imports: [JarvisWorkspaceComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './app.component.html',
   styleUrl: './app.component.css',
@@ -34,6 +37,7 @@ export class AppComponent implements OnDestroy {
   @ViewChild('transcript') private transcript?: ElementRef<HTMLElement>;
 
   readonly session = inject(VoiceSessionService);
+  readonly workspace = inject(WorkspaceSessionService);
   readonly settingsOpen = signal(false);
   readonly elapsedMs = signal(0);
   readonly bars = Array.from({ length: 40 }, (_, index) => {
@@ -71,6 +75,7 @@ export class AppComponent implements OnDestroy {
 
   ngOnDestroy(): void {
     window.clearInterval(this.timer);
+    this.workspace.disconnect();
   }
 
   openSettings(): void {
@@ -111,6 +116,11 @@ export class AppComponent implements OnDestroy {
     this.sessionStartedAt = performance.now();
     this.elapsedMs.set(0);
     void this.session.start(token);
+    this.closeSettings();
+  }
+
+  openWorkspace(): void {
+    this.workspace.connect(this.token.trim());
     this.closeSettings();
   }
 

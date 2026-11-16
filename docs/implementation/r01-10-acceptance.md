@@ -44,7 +44,10 @@ call setup, audio and playback controls and adds no provider or microphone
 path. A separate generated-audio browser check used the fake adapter through
 the running local server and observed Listening, Mute and End. This is offline
 evidence. Native OpenAI voice, physical microphone behavior and the open
-loopback boundary finding remain outside the evidence.
+loopback boundary finding remain outside that probe evidence. The
+[Jarvis operator preview](jarvis-operator-preview.md#evidence-and-product-gaps)
+adds mutual loopback proofs and workspace tests. The original acceptance
+record below still needs independent review and a recorded live console run.
 
 1. **Revised synthetic live run. Cleared 2026-11-15.** `abhishek3059` ran the
    [live command](../../apps/voice-foundation.md#synthetic-live-check-opt-in)

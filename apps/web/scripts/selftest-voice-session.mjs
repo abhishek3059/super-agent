@@ -5,6 +5,7 @@
 // environments are hand-written fakes below. Every promise is controlled;
 // there are no sleeps, only microtask flushes.
 import assert from 'node:assert/strict';
+import { createHmac, randomBytes } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { basename, dirname, join, resolve } from 'node:path';
@@ -73,14 +74,21 @@ class FakeWebSocket {
     this.onmessage = null;
     this.onerror = null;
     this.onclose = null;
+    this.closed = defer();
+    this.authSent = defer();
     current.sockets.push(this);
   }
   send(data) {
     assert.equal(this.readyState, FakeWebSocket.OPEN, 'send on a non-open socket');
     this.sent.push(data);
+    if (typeof data === 'string' && this.lastText().type === 'session.auth') {
+      this.authSent.resolve(this.lastText());
+    }
   }
   close() {
     if (this.readyState < FakeWebSocket.CLOSING) this.readyState = FakeWebSocket.CLOSED;
+    this.closed.resolve();
+    this.authSent.resolve(null);
   }
   // Test controls.
   open() {
@@ -88,6 +96,19 @@ class FakeWebSocket {
       this.readyState = FakeWebSocket.OPEN;
       this.onopen?.();
     }
+  }
+  async authenticate() {
+    this.open();
+    const hello = this.lastText();
+    assert.equal(hello.type, 'session.hello');
+    assert.match(hello.clientNonce, /^[0-9a-f]{64}$/);
+    const challenge = serverChallenge(hello.clientNonce);
+    this.fireMessage(challenge);
+    assert.deepEqual(await this.authSent.promise, {
+      type: 'session.auth',
+      proof: proofFor('client', hello.clientNonce, challenge.serverNonce),
+    });
+    assert.ok(this.sent.every((message) => !message.includes(TOKEN)));
   }
   fireMessage(data) {
     // JSON messages and binary frames are delivered the way the browser does:
@@ -250,9 +271,17 @@ function loadModule(file) {
   return moduleObj.exports;
 }
 const { VoiceSessionService } = loadModule('voice-session.service.ts');
+const { WorkspaceSessionService } = loadModule('workspace-session.service.ts');
 
 // ---------- helpers ----------
 const TOKEN = 'x'.repeat(40);
+const proofFor = (role, clientNonce, serverNonce, purpose = 'voice') => createHmac('sha256', TOKEN)
+  .update(`super-agent.${purpose}.v1/${role}/${clientNonce}/${serverNonce}`)
+  .digest('hex');
+function serverChallenge(clientNonce, purpose = 'voice') {
+  const serverNonce = randomBytes(32).toString('hex');
+  return { type: 'session.challenge', serverNonce, proof: proofFor('server', clientNonce, serverNonce, purpose) };
+}
 const READY = {
   type: 'session.ready', playbackEpoch: 0, outputRateHz: 16000, provider: 'fake',
 };
@@ -310,9 +339,8 @@ async function startLive(service) {
   await service.start(TOKEN);
   const socket = lastSocket();
   await flushed();
-  socket.open();
+  await socket.authenticate();
   await flushed();
-  assert.deepEqual(socket.lastText(), { type: 'session.auth', token: TOKEN });
   socket.fireMessage(READY);
   await flushed();
   return socket;
@@ -323,7 +351,7 @@ async function startReadyPending(service) {
   await service.start(TOKEN);
   const socket = lastSocket();
   await flushed();
-  socket.open();
+  await socket.authenticate();
   await flushed();
   socket.fireMessage(READY);
   await flushed();
@@ -366,6 +394,55 @@ await (async function connectingBeforeReady() {
   assert.equal(env.micCalls, 0);
 })();
 
+await (async function claimedReadyBeforeProofCannotCapture() {
+  beginTest('an unverified backend cannot request microphone capture');
+  const service = new VoiceSessionService();
+  await service.start(TOKEN);
+  const socket = lastSocket();
+  socket.open();
+  socket.fireMessage(READY);
+  await socket.closed.promise;
+  assert.equal(env.micCalls, 0);
+  assert.equal(socket.countText('session.auth'), 0);
+  assert.equal(service.status(), 'error');
+})();
+
+await (async function staleOrInvalidServerProofCannotCapture() {
+  beginTest('a captured server proof cannot authenticate a fresh socket');
+  const service = new VoiceSessionService();
+  await service.start(TOKEN);
+  const first = lastSocket();
+  first.open();
+  const clientNonce = first.lastText().clientNonce;
+  const challenge = serverChallenge(clientNonce);
+  first.fireMessage(challenge);
+  assert.equal((await first.authSent.promise).type, 'session.auth');
+  service.stop();
+  await service.start(TOKEN);
+  const second = lastSocket();
+  second.open();
+  assert.notEqual(second.lastText().clientNonce, clientNonce);
+  second.fireMessage(challenge);
+  await second.closed.promise;
+  assert.equal(env.micCalls, 0);
+  assert.equal(second.countText('session.auth'), 0);
+  assert.equal(service.status(), 'error');
+})();
+
+await (async function forgedPipelineCannotOutrunVerification() {
+  beginTest('a ready message queued during verification cannot trigger capture or a client proof');
+  const service = new VoiceSessionService();
+  await service.start(TOKEN);
+  const socket = lastSocket();
+  socket.open();
+  socket.fireMessage(serverChallenge(socket.lastText().clientNonce));
+  socket.fireMessage(READY);
+  await socket.closed.promise;
+  assert.equal(env.micCalls, 0);
+  assert.equal(socket.countText('session.auth'), 0);
+  assert.equal(service.status(), 'error');
+})();
+
 await (async function nonLocalReadyDoesNotCapture() {
   for (const provider of ['unknown-cloud', undefined]) {
     beginTest('an unexpected or missing provider cannot start local microphone capture');
@@ -373,7 +450,7 @@ await (async function nonLocalReadyDoesNotCapture() {
     const service = new VoiceSessionService();
     await service.start(TOKEN);
     const socket = lastSocket();
-    socket.open();
+    await socket.authenticate();
     socket.fireMessage({ ...READY, provider });
     await flushed();
     assert.equal(service.status(), 'error');
@@ -390,7 +467,7 @@ await (async function localProviderMayCapture() {
   const service = new VoiceSessionService();
   await service.start(TOKEN);
   const socket = lastSocket();
-  socket.open();
+  await socket.authenticate();
   socket.fireMessage({ ...READY, provider: 'local' });
   await flushed();
   assert.equal(service.error(), '');
@@ -405,7 +482,7 @@ await (async function geminiLiveProviderMayCapture() {
   const service = new VoiceSessionService();
   await service.start(TOKEN);
   const socket = lastSocket();
-  socket.open();
+  await socket.authenticate();
   socket.fireMessage({ ...READY, provider: 'gemini-live' });
   await flushed();
   assert.equal(service.error(), '');
@@ -648,7 +725,7 @@ await (async function latePermissionAfterNewStart() {
   await service.start(TOKEN);
   const second = lastSocket();
   await flushed();
-  second.open();
+  await second.authenticate();
   await flushed();
   second.fireMessage(READY);
   await flushed();
@@ -685,7 +762,7 @@ await (async function lateRejectionAfterNewStart() {
   await service.start(TOKEN);
   const second = lastSocket();
   await flushed();
-  second.open();
+  await second.authenticate();
   await flushed();
   second.fireMessage(READY);
   await flushed();
@@ -727,7 +804,7 @@ await (async function deferredContextCloseVersusRestart() {
   await service.start(TOKEN);
   const newSocket = lastSocket();
   await flushed();
-  newSocket.open();
+  await newSocket.authenticate();
   await flushed();
   newSocket.fireMessage(READY);
   await flushed();
@@ -764,7 +841,7 @@ await (async function restartFromError() {
   await service.start(TOKEN);
   const second = lastSocket();
   await flushed();
-  second.open();
+  await second.authenticate();
   await flushed();
   second.fireMessage(READY);
   await flushed();
@@ -795,7 +872,7 @@ await (async function freshEpochZeroOnRestart() {
   await service.start(TOKEN);
   const second = lastSocket();
   await flushed();
-  second.open();
+  await second.authenticate();
   await flushed();
   second.fireMessage(READY);
   await flushed();
@@ -879,7 +956,7 @@ await (async function guardedStarts() {
   await service.start(TOKEN);
   const socket = lastSocket();
   await flushed();
-  socket.open();
+  await socket.authenticate();
   await flushed();
   await service.start(TOKEN);
   assert.equal(service.error(), 'Session already active.');
@@ -904,7 +981,7 @@ await (async function localCaptureFactoryThrowSource() {
   await service.start(TOKEN);
   const second = lastSocket();
   await flushed();
-  second.open();
+  await second.authenticate();
   await flushed();
   second.fireMessage(READY);
   await flushed();
@@ -928,7 +1005,7 @@ await (async function localCaptureFactoryThrowProcessor() {
   await service.start(TOKEN);
   const second = lastSocket();
   await flushed();
-  second.open();
+  await second.authenticate();
   await flushed();
   second.fireMessage(READY);
   await flushed();
@@ -959,7 +1036,7 @@ await (async function syncThrowUponCloseDuringStop() {
   await service.start(TOKEN);
   const second = lastSocket();
   await flushed();
-  second.open();
+  await second.authenticate();
   await flushed();
   second.fireMessage(READY);
   await flushed();
@@ -985,7 +1062,7 @@ await (async function rejectingCloseDuranteFail() {
   await service.start(TOKEN);
   const second = lastSocket();
   await flushed();
-  second.open();
+  await second.authenticate();
   await flushed();
   second.fireMessage(READY);
   await flushed();
@@ -1012,7 +1089,7 @@ await (async function hangingCloseFailureFinalizesImmediately() {
   await service.start(TOKEN);
   const second = lastSocket();
   await flushed();
-  second.open();
+  await second.authenticate();
   await flushed();
   second.fireMessage(READY);
   await flushed();
@@ -1084,7 +1161,7 @@ await (async function stopAndNewStartDuringDeferredResume() {
   await service.start(TOKEN);
   const newSocket = lastSocket();
   await flushed();
-  newSocket.open();
+  await newSocket.authenticate();
   await flushed();
   newSocket.fireMessage(READY);
   await flushed();
@@ -1119,7 +1196,7 @@ await (async function stopAndNewStartDuringDeferredResumeReject() {
   await service.start(TOKEN);
   const newSocket = lastSocket();
   await flushed();
-  newSocket.open();
+  await newSocket.authenticate();
   await flushed();
   newSocket.fireMessage(READY);
   await flushed();
@@ -1160,7 +1237,7 @@ await (async function staleSocketCallbacksCannotTouchNewSession() {
   await service.start(TOKEN);
   const newSocket = lastSocket();
   await flushed();
-  newSocket.open();
+  await newSocket.authenticate();
   await flushed();
   newSocket.fireMessage(READY);
   await flushed();
@@ -1211,7 +1288,7 @@ await (async function errorDuringPendingPermissionThenLateFulfill() {
   await service.start(TOKEN);
   const second = lastSocket();
   await flushed();
-  second.open();
+  await second.authenticate();
   await flushed();
   second.fireMessage(READY);
   await flushed();
@@ -1249,7 +1326,7 @@ await (async function mutedStopRestartDoesNotInheritMute() {
   const newSocket = lastSocket();
   assert.equal(service.muted(), false);
   await flushed();
-  newSocket.open();
+  await newSocket.authenticate();
   await flushed();
   newSocket.fireMessage(READY);
   await flushed();
@@ -1443,7 +1520,7 @@ await (async function thinkingIgnoredBeforeReady() {
   const service = new VoiceSessionService();
   await service.start(TOKEN);
   const socket = lastSocket();
-  socket.open();
+  await socket.authenticate();
   await flushed();
   socket.fireMessage(THINKING);
   await flushed();
@@ -1598,7 +1675,7 @@ for (const [sent, kept] of [['gemini-live', 'gemini-live'], ['local', 'local'], 
     await service.start(TOKEN);
     const socket = lastSocket();
     await flushed();
-    socket.open();
+    await socket.authenticate();
     await flushed();
     socket.fireMessage({ ...READY, provider: sent });
     await flushed();
@@ -1606,5 +1683,34 @@ for (const [sent, kept] of [['gemini-live', 'gemini-live'], ['local', 'local'], 
   })();
 }
 
-// Any failed assert above throws and exits with a non-zero code.
+for (const matches of [true, false]) {
+  beginTest(`workspace ${matches ? 'accepts matching' : 'rejects unrelated'} admission`);
+  globalThis.window = globalThis;
+  const workspace = new WorkspaceSessionService();
+  try {
+    workspace.connect(TOKEN);
+    const socket = lastSocket();
+    socket.open();
+    const nonce = socket.lastText().clientNonce;
+    const challenge = serverChallenge(nonce, 'workspace');
+    socket.fireMessage(challenge);
+    assert.equal((await socket.authSent.promise).proof, proofFor('client', nonce, challenge.serverNonce, 'workspace'));
+    socket.fireMessage({ type: 'workspace.snapshot', workers: [], jobs: [] });
+    const job = { workerId: 'research', prompt: 'Read the fixture' };
+    workspace.cancel('already-complete');
+    workspace.submit(job);
+    assert.equal(workspace.submitting(), true);
+    const id = socket.lastText().requestId;
+    socket.fireMessage({ type: 'workspace.error', operation: 'cancel', category: 'request-rejected' });
+    assert.equal(workspace.submitting(), true, 'a rejected Stop must not clear another in-flight request');
+    socket.fireMessage({ type: 'workspace.admitted', jobId: matches ? id : 'unrelated' });
+    assert.equal(workspace.connected(), matches);
+    assert.deepEqual(workspace.admitted(), matches ? job : null);
+    assert.equal(current.micCalls, 0);
+  } finally {
+    workspace.disconnect();
+    delete globalThis.window;
+  }
+}
+
 console.log(`voice-session self-test: PASS (${casesRun} cases)`);
