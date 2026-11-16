@@ -418,3 +418,9 @@ def test_repeat_with_unparseable_created_at_is_refused(monkeypatch):
     real = ledger.create_job
     monkeypatch.setattr(ledger, "create_job", lambda *a: dataclasses.replace(real(*a), created_at="junk"))
     assert code(go) == "ledger_error"
+
+
+@pytest.mark.parametrize("data", [float("nan"), 7, None, "x" * 9000, "other"])
+def test_bad_data_class_is_reported_as_data_class_invalid(data):
+    assert code(go, {**GOOD, "data_class": data}) == "data_class_invalid"
+    assert untouched()

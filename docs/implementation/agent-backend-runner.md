@@ -8,7 +8,7 @@ This is code only. It is not wired into `app.py`, and no roadmap item is ticked.
 
 - `apps/api/src/super_agent_voice/runner.py`: standard library only
   (`concurrent.futures.ThreadPoolExecutor`). No model, no network, no LangGraph.
-- `apps/api/tests/test_runner.py`: 20 tests (the bad-receipt test runs 4 cases, the invalid-limits test 3).
+- `apps/api/tests/test_runner.py`: 23 tests (the bad-receipt test runs 4 cases, the invalid-limits test 3).
 - `Runner(ledger, limits, work, clock)`. `ledger` is the ledger module, `limits` a
   `policy.Limits`, `clock` a zero-argument callable returning an aware `datetime`.
   `work(job, tools, should_stop) -> dict` is the stub graph seam: trusted code
@@ -26,6 +26,7 @@ This is code only. It is not wired into `app.py`, and no roadmap item is ticked.
 | Work raises | `failed` | `work_error` | `{"error": "work_error"}` |
 | Job deadline passed when work returns | `failed` | `job_deadline` | `{"error": "job_deadline"}` |
 | Cancel requested, work saw `should_stop()` | `cancelled` | `cancel_stopped` | `{"stopped": true}` |
+| Work saw `should_stop()` true but no cancel is confirmed (failed ledger read, or state unreadable after work) | `failed` | `stop_unconfirmed` | `{"error": "stop_unconfirmed"}` |
 | Cancel requested, work never polled and returned | `succeeded` | `work_done` | the work's receipt |
 | Receipt not a dict, too large, or not JSON | `failed` | `bad_receipt` | `{"error": "bad_receipt"}` |
 | No terminal write possible | `unknown` | `terminal_write_failed` | none |
@@ -34,8 +35,12 @@ This is code only. It is not wired into `app.py`, and no roadmap item is ticked.
 | `recover` finds `running` or `cancel_requested` | `unknown` | `restart_running`, `restart_cancel_requested` | none |
 | `recover` finds `queued` | `failed` | `restart_queued` | `{"executed": false}` |
 
-Reasons and error receipts are fixed strings in code. Exception text is never
-stored, because it could carry model or personal data.
+Reasons and error receipts are fixed strings in code, and exception text is never
+stored, because it could carry model or personal data. A `succeeded` receipt is
+whatever the trusted work function returned, so once the graph replaces the stub it
+can carry model output. Once `should_stop()` has returned true for a job, `succeeded`
+is never written. A clock or any other unexpected error after work returns is treated
+as a passed deadline, and the last resort is `unknown`.
 
 ## How races resolve
 
@@ -80,6 +85,9 @@ groups set), no tier 1 tool is offered.
   are failed, not replayed, and `running` jobs become `unknown`.
 - `close()` does not wait for running work. Queued jobs dropped by `close()` stay
   `queued` in the ledger until the next `recover()`.
+- If `cancel` moves a queued job to `cancel_requested` and the follow-up write to
+  `cancelled` fails, the job stays `cancel_requested` with no worker, and `recover()`
+  later marks it `unknown` although it provably never ran.
 - `cancel` raises `LedgerError` if the job is unknown or not `queued` or
   `running` (so a `cancel_requested` job cannot be cancelled again), and
   `StaleRevision` if it loses the race twice.

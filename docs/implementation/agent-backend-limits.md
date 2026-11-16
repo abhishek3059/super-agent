@@ -8,7 +8,7 @@ This is code only. It is not wired into `app.py`, and no roadmap item is ticked.
 
 - `apps/api/src/super_agent_voice/policy.py`: standard library only. No model,
   no network, no clock of its own.
-- `apps/api/tests/test_policy.py`: 212 tests.
+- `apps/api/tests/test_policy.py`: 217 tests.
 - `Limits`: a frozen dataclass. Every field must be exactly `int` (a bool is
   refused), above 0 and at or below a hard ceiling in `CEILING`. A bad value
   raises `PolicyError("limits_invalid")`, so an invalid object cannot exist.
@@ -124,8 +124,8 @@ Command (venv built from `apps/api/requirements.lock`):
 PYTHONDONTWRITEBYTECODE=1 python -m pytest apps/api -p no:cacheprovider
 ```
 
-Real result on this host (Windows): `618 passed, 110 skipped` for
-`apps/api` (`test_policy.py` 212, `test_runner.py` 20, `test_ledger.py` 134 passed and 1 skipped). `npm run check`
+Real result on this host (Windows): `626 passed, 110 skipped` for
+`apps/api` (`test_policy.py` 217, `test_runner.py` 23, `test_ledger.py` 134 passed and 1 skipped). `npm run check`
 result is recorded in the commit report, not here.
 
 Covered: every limit breach and boundary, bool and wrong-type inputs, every
@@ -158,6 +158,8 @@ ledger untouched after any refusal, idempotent re-admission.
   change.
 - `check_job_deadline` takes only a deadline and a time, so it has no start
   time to compare and no future-start check; `check_step_deadline` does.
+- A concurrent first admission of the same key can still get a fresh, `now`-based
+  deadline for its repeat (the same non-atomic window as the queue cap).
 - The trusted flags are statements by deployment configuration. Admission
   cannot check that the folders or the memory file really hold synthetic data.
 - A model-call count and per-step state are the caller's to keep; the checks

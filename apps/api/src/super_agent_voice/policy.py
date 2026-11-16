@@ -125,6 +125,8 @@ def _spec(spec: object, limits: Limits) -> dict:
         raise PolicyError("task_type_invalid")
     if not isinstance(text, str) or not text.strip() or len(text) > limits.instruction_chars:
         raise PolicyError("instruction_invalid")
+    if not isinstance(data, str) or data not in DATA_CLASSES:
+        raise PolicyError("data_class_invalid")
     try:
         text.encode("utf-8")  # a lone surrogate is not storable
         # same encoding as ledger._json (ensure_ascii), so what passes here is storable
@@ -133,8 +135,6 @@ def _spec(spec: object, limits: Limits) -> dict:
         raise PolicyError("instruction_invalid") from None
     if len(stored.encode()) > MAX_SPEC_BYTES:
         raise PolicyError("instruction_invalid")
-    if not isinstance(data, str) or data not in DATA_CLASSES:
-        raise PolicyError("data_class_invalid")
     return spec
 
 

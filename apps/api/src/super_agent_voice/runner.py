@@ -4,7 +4,8 @@ Jobs run on a small thread pool, off the conversation event loop. The pool size 
 "concurrent jobs" limit, so a job stays queued in the ledger until a thread picks it up.
 `work` is trusted code (a stub now, the graph later). Every state change goes through the
 ledger's revision compare-and-set, so a cancel and a start race to exactly one winner.
-Receipts and reasons are fixed strings chosen here, never exception text or model output.
+Reasons and error receipts are fixed strings chosen here, never exception text. A success
+receipt is whatever the trusted work function returned.
 No model, no network, no replay.
 """
 from __future__ import annotations
@@ -82,16 +83,20 @@ class Runner:
             receipt, failed = self._work(job, self._tools(adm.tools), should_stop), False
         except Exception:
             receipt, failed = None, True
-        if failed:
-            plan = [("failed", "work_error", {"error": "work_error"})]
-        elif self._late(adm):
-            plan = [("failed", "job_deadline", {"error": "job_deadline"})]
-        else:
-            if saw_stop and self._state(job.id) == "cancel_requested":
+        try:
+            if failed:
+                plan = [("failed", "work_error", {"error": "work_error"})]
+            elif self._late(adm):
+                plan = [("failed", "job_deadline", {"error": "job_deadline"})]
+            elif not saw_stop:
+                plan = [("succeeded", "work_done", receipt),
+                        ("failed", "bad_receipt", {"error": "bad_receipt"})]
+            elif self._state(job.id) == "cancel_requested":
                 plan = [("cancelled", "cancel_stopped", {"stopped": True})]
-            else:
-                plan = [("succeeded", "work_done", receipt)]
-            plan.append(("failed", "bad_receipt", {"error": "bad_receipt"}))
+            else:  # work stopped early but no cancel is confirmed: its receipt is partial, never a success
+                plan = [("failed", "stop_unconfirmed", {"error": "stop_unconfirmed"})]
+        except Exception:
+            plan = []
         plan.append(("unknown", "terminal_write_failed", None))  # last resort, never a success
         for to, reason, body in plan:
             if self._finish(job.id, to, reason, body):
@@ -100,7 +105,7 @@ class Runner:
     def _late(self, adm: policy.Admission) -> bool:
         try:
             return not policy.check_job_deadline(adm.deadline, self._clock())
-        except policy.PolicyError:
+        except Exception:  # PolicyError, or a broken clock: fail closed
             return True
 
     def _state(self, job_id: str) -> str | None:

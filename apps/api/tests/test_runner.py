@@ -238,3 +238,73 @@ def test_runner_refuses_invalid_limits(bad):
     with pytest.raises(policy.PolicyError) as err:
         Runner(ledger, bad, lambda j, t, s: {}, lambda: NOW)
     assert err.value.code == "limits_invalid"
+
+
+class Flaky:
+    """The ledger module with one get_job call made to fail, counted from arm()."""
+
+    def __init__(self):
+        self.calls, self.fail_on = 0, None
+
+    def arm(self, n):
+        self.calls, self.fail_on = 0, n
+
+    def get_job(self, job_id):
+        self.calls += 1
+        if self.calls == self.fail_on:
+            raise ledger.LedgerError("ledger storage failed")
+        return ledger.get_job(job_id)
+
+    def __getattr__(self, name):
+        return getattr(ledger, name)
+
+
+def test_failed_poll_never_records_success(store):
+    flaky, work = Flaky(), Hold({"partial": True})
+    runner = Runner(flaky, policy.Limits(), work, lambda: NOW)
+    adm = admit()
+    try:
+        runner.submit(adm)
+        wait_state(adm.job, "running")
+        flaky.arm(1)  # the poll inside work
+        work.release.set()
+        wait_state(adm.job, "failed")
+    finally:
+        runner.close()
+    last = ledger.list_events(adm.job.id)[-1]
+    assert (last.reason, last.receipt) == ("stop_unconfirmed", {"error": "stop_unconfirmed"})
+    assert "partial" not in repr(ledger.list_events(adm.job.id))
+
+
+def test_cancel_with_unreadable_state_never_records_success(store):
+    flaky, work = Flaky(), Hold({"partial": True})
+    runner = Runner(flaky, policy.Limits(), work, lambda: NOW)
+    adm = admit()
+    try:
+        runner.submit(adm)
+        wait_state(adm.job, "running")
+        runner.cancel(adm.job.id)
+        flaky.arm(2)  # poll is call 1, the post-work state read is call 2
+        work.release.set()
+        wait_for(lambda: state(adm.job) not in {"running", "cancel_requested"})
+    finally:
+        runner.close()
+    assert state(adm.job) == "failed"
+    assert "partial" not in repr(ledger.list_events(adm.job.id))
+
+
+def test_clock_that_raises_does_not_leave_the_job_running(made):
+    broken, work = [], Hold()
+
+    def clock():
+        if broken:
+            raise RuntimeError("clock down")
+        return NOW
+
+    runner, adm = made(work, clock=clock), admit()
+    runner.submit(adm)
+    wait_state(adm.job, "running")
+    broken.append(True)
+    work.release.set()
+    wait_state(adm.job, "failed")
+    assert ledger.list_events(adm.job.id)[-1].reason == "job_deadline"
