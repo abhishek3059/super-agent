@@ -231,3 +231,10 @@ def test_recover_marks_running_unknown_and_fails_queued(made):
     last = ledger.list_events(queued.job.id)[-1]
     assert (last.reason, last.receipt) == ("restart_queued", {"executed": False})
     assert ran == []
+
+
+@pytest.mark.parametrize("bad", [None, {"concurrent_jobs": 2}, 2])
+def test_runner_refuses_invalid_limits(bad):
+    with pytest.raises(policy.PolicyError) as err:
+        Runner(ledger, bad, lambda j, t, s: {}, lambda: NOW)
+    assert err.value.code == "limits_invalid"

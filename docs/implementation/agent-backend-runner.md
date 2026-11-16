@@ -8,7 +8,7 @@ This is code only. It is not wired into `app.py`, and no roadmap item is ticked.
 
 - `apps/api/src/super_agent_voice/runner.py`: standard library only
   (`concurrent.futures.ThreadPoolExecutor`). No model, no network, no LangGraph.
-- `apps/api/tests/test_runner.py`: 17 tests (the bad-receipt test runs 4 cases).
+- `apps/api/tests/test_runner.py`: 20 tests (the bad-receipt test runs 4 cases, the invalid-limits test 3).
 - `Runner(ledger, limits, work, clock)`. `ledger` is the ledger module, `limits` a
   `policy.Limits`, `clock` a zero-argument callable returning an aware `datetime`.
   `work(job, tools, should_stop) -> dict` is the stub graph seam: trusted code
@@ -68,7 +68,7 @@ groups set), no tier 1 tool is offered.
 - A bad receipt falls back to `failed`, then `unknown`. Success is never a fallback.
 - `recover()` returns the number of jobs moved (running or cancel requested to
   `unknown`, plus queued to `failed`).
-- `Runner` accepts only a `policy.Limits`; anything else falls back to defaults.
+- `Runner` accepts only a `policy.Limits`; anything else raises `PolicyError("limits_invalid")`, never a silent fallback to defaults.
 - The per-day provider request counter is not part of this slice.
 
 ## Known limits

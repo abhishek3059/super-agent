@@ -18,7 +18,9 @@ from .ledger import TERMINAL, Job, LedgerError, StaleRevision
 class Runner:
     def __init__(self, ledger, limits, work, clock):
         self._ledger, self._work, self._clock = ledger, work, clock
-        self._limits = limits if isinstance(limits, policy.Limits) else policy.Limits()
+        if not isinstance(limits, policy.Limits):
+            raise policy.PolicyError("limits_invalid")  # never fall back to defaults on a limit
+        self._limits = limits
         self._pool = ThreadPoolExecutor(max_workers=self._limits.concurrent_jobs,
                                         thread_name_prefix="job-runner")
 
