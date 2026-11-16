@@ -113,7 +113,9 @@ encode as UTF-8),
 be read), `ledger_rejected` (ledger refused the create, for example the same
 key with a different spec), `input_invalid`, `step_limit`, `step_type_unknown`,
 `retry_not_allowed`, `retries_exhausted`, `step_deadline`, `job_deadline`,
-`model_call_limit`, `input_too_large`, `output_too_large`. The set is closed in
+`model_call_limit`, `input_too_large`, `output_too_large`, and three added by the
+[planner slice](agent-backend-planner.md): `plan_invalid`, `tool_out_of_scope`,
+`model_error`. The set is closed in
 code (`REASONS`); the error message is only the code.
 
 ## Tests and result
@@ -124,8 +126,8 @@ Command (venv built from `apps/api/requirements.lock`):
 PYTHONDONTWRITEBYTECODE=1 python -m pytest apps/api -p no:cacheprovider
 ```
 
-Real result on this host (Windows): `627 passed, 110 skipped` for
-`apps/api` (`test_policy.py` 217, `test_runner.py` 24, `test_ledger.py` 134 passed and 1 skipped). `npm run check`
+Real result on this host (Windows): `688 passed, 110 skipped` for
+`apps/api` (`test_policy.py` 217, `test_runner.py` 24, `test_planner.py` 61, `test_ledger.py` 134 passed and 1 skipped). `npm run check`
 result is recorded in the commit report, not here.
 
 Covered: every limit breach and boundary, bool and wrong-type inputs, every
@@ -167,5 +169,4 @@ ledger untouched after any refusal, idempotent re-admission.
 
 ## Not built
 
-The model seam, graph, step catalog schemas, per-day provider request
-counter, wiring into `app.py`, and any roadmap tick.
+The graph, step execution, per-day provider request counter, wiring into `app.py`, and any roadmap tick.

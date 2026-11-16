@@ -256,7 +256,8 @@ Proposed build order, each slice with its test:
    loop answers while a job runs; cancel moves to `cancel_requested`. Built:
    [implementation record](../implementation/agent-backend-runner.md).
 4. **Model seam with a scripted fake.** Test: hostile model output (unknown
-   step type, widened scope) is rejected in code.
+   step type, widened scope) is rejected in code. Built:
+   [implementation record](../implementation/agent-backend-planner.md).
 5. **Dynamic graph.** Plan validation, then a graph built from the validated
    plan: execute, verify, receipt on the fake model, then clarify. Test: each
    node edge writes one ledger transition; a plan with an unknown step type, a

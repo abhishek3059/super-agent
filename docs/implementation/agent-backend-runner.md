@@ -124,5 +124,5 @@ report; it is not copied here so this file cannot go stale.
 
 ## Not built
 
-Graph, step catalog execution, per-day provider request counter,
+Graph, step execution, per-day provider request counter,
 wiring into `app.py`, and any roadmap tick.

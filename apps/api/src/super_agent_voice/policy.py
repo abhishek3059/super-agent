@@ -22,6 +22,7 @@ REASONS = frozenset({
     "ledger_rejected", "input_invalid", "step_limit", "step_type_unknown", "retry_not_allowed",
     "retries_exhausted", "step_deadline", "job_deadline", "model_call_limit", "input_too_large",
     "output_too_large",
+    "plan_invalid", "tool_out_of_scope", "model_error",
 })
 
 
