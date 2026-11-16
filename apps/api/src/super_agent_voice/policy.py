@@ -13,7 +13,7 @@ import json
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 
-from .ledger import TERMINAL, Job, LedgerError
+from .ledger import MAX_SPEC_BYTES, TERMINAL, Job, LedgerError
 
 REASONS = frozenset({
     "limits_invalid", "clock_invalid", "idempotency_key_invalid", "planner_locality_invalid",
@@ -40,7 +40,8 @@ CEILING = {
     "steps_per_job": 32, "step_deadline_s": 600, "job_deadline_s": 3600, "retries_per_step": 2,
     "model_calls_per_job": 100, "model_input_chars": 32_000, "step_output_chars": 16_000,
     "concurrent_jobs": 8, "queued_jobs": 50,
-    # 1,500 chars is at most 6,000 UTF-8 bytes, inside the ledger's 8,000-byte spec cap.
+    # A character cap alone does not fit the ledger's byte cap (an emoji is 12 stored bytes);
+    # _spec also measures the spec the way the ledger stores it.
     "instruction_chars": 1500,
 }
 
@@ -126,9 +127,12 @@ def _spec(spec: object, limits: Limits) -> dict:
         raise PolicyError("instruction_invalid")
     try:
         text.encode("utf-8")  # a lone surrogate is not storable
-        json.dumps(spec, allow_nan=False)
+        # same encoding as ledger._json (ensure_ascii), so what passes here is storable
+        stored = json.dumps(spec, sort_keys=True, separators=(",", ":"), allow_nan=False)
     except (UnicodeError, TypeError, ValueError):
         raise PolicyError("instruction_invalid") from None
+    if len(stored.encode()) > MAX_SPEC_BYTES:
+        raise PolicyError("instruction_invalid")
     if not isinstance(data, str) or data not in DATA_CLASSES:
         raise PolicyError("data_class_invalid")
     return spec
@@ -150,9 +154,10 @@ def admit(spec: object, idempotency_key: object, planner_is_local: object, limit
         raise PolicyError("idempotency_key_invalid")
     try:
         idempotency_key.encode("utf-8")
-        deadline = now + timedelta(seconds=lim.job_deadline_s)  # before any write
     except UnicodeError:
         raise PolicyError("idempotency_key_invalid") from None
+    try:
+        deadline = now + timedelta(seconds=lim.job_deadline_s)  # before any write
     except OverflowError:
         raise PolicyError("clock_invalid") from None
     if type(planner_is_local) is not bool:
@@ -173,6 +178,13 @@ def admit(spec: object, idempotency_key: object, planner_is_local: object, limit
         job = ledger.create_job(spec, idempotency_key)
     except LedgerError:
         raise PolicyError("ledger_rejected") from None
+    if known:  # a repeat must not extend the job's deadline: budgets are not reset by a retry
+        try:
+            deadline = datetime.fromisoformat(job.created_at) + timedelta(seconds=lim.job_deadline_s)
+        except ValueError:
+            raise PolicyError("ledger_error") from None
+        except OverflowError:
+            raise PolicyError("clock_invalid") from None
     task = spec["task_type"]
     tools = TOOL_SCOPE[task]
     if planner_is_local or tier1_is_synthetic:

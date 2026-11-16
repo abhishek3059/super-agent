@@ -390,3 +390,31 @@ def test_model_call_and_size_budgets():
 def test_step_checks_reject_a_non_limits_object():
     assert code(policy.check_step_index, 0, None) == "limits_invalid"
     assert code(policy.check_retry, "read_tool", 0, {}) == "limits_invalid"
+
+
+# --- spec size as the ledger stores it, and a repeat's deadline -----------
+
+@pytest.mark.parametrize("char,count", [("\U0001F600", 700), ("é", 1400), ("中", 1400)])
+def test_instruction_too_large_as_stored_is_instruction_invalid(char, count):
+    assert code(go, {**GOOD, "instruction": char * count}, limits=Limits(instruction_chars=1500)) == "instruction_invalid"
+    assert untouched()
+
+
+def test_non_ascii_instruction_that_fits_is_admitted():
+    assert go({**GOOD, "instruction": "é" * 500}).job.state == "queued"
+
+
+def test_repeat_keeps_the_original_deadline():
+    first = go()
+    later = go(now=NOW + timedelta(hours=2))
+    assert later.job.id == first.job.id
+    # the repeat's deadline comes from the ledger's creation stamp, never from the later `now`
+    assert later.deadline == datetime.fromisoformat(first.job.created_at) + timedelta(seconds=Limits().job_deadline_s)
+    assert later.deadline != NOW + timedelta(hours=2, seconds=Limits().job_deadline_s)
+
+
+def test_repeat_with_unparseable_created_at_is_refused(monkeypatch):
+    go()
+    real = ledger.create_job
+    monkeypatch.setattr(ledger, "create_job", lambda *a: dataclasses.replace(real(*a), created_at="junk"))
+    assert code(go) == "ledger_error"

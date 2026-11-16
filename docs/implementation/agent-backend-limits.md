@@ -8,7 +8,7 @@ This is code only. It is not wired into `app.py`, and no roadmap item is ticked.
 
 - `apps/api/src/super_agent_voice/policy.py`: standard library only. No model,
   no network, no clock of its own.
-- `apps/api/tests/test_policy.py`: 206 tests.
+- `apps/api/tests/test_policy.py`: 212 tests.
 - `Limits`: a frozen dataclass. Every field must be exactly `int` (a bool is
   refused), above 0 and at or below a hard ceiling in `CEILING`. A bad value
   raises `PolicyError("limits_invalid")`, so an invalid object cannot exist.
@@ -38,8 +38,12 @@ This is code only. It is not wired into `app.py`, and no roadmap item is ticked.
 | `instruction_chars` | 1000 | 1500 |
 
 Defaults are the provisional design table (unmeasured). The retry ceiling of 2
-is the PH-00 rule. The ceilings are my choice, not measured. 1,500 characters
-is at most 6,000 UTF-8 bytes, inside the ledger's 8,000-byte spec cap.
+is the PH-00 rule. The ceilings are my choice, not measured. A character cap
+does not bound stored bytes: the ledger stores JSON with `ensure_ascii`, so a
+non-ASCII character costs 6 bytes and an emoji 12. `_spec` therefore also
+measures the whole spec exactly as the ledger stores it and refuses with
+`instruction_invalid` when it exceeds the ledger's `MAX_SPEC_BYTES`. What is
+guaranteed: a spec that passes `_spec` is within the ledger's spec cap.
 
 ## Task spec, scope, queue
 
@@ -67,6 +71,12 @@ is at most 6,000 UTF-8 bytes, inside the ledger's 8,000-byte spec cap.
   `concurrent_jobs + queued_jobs` (7 by default). A repeat of an already
   admitted key skips the cap, so a retry of a lost response still returns the
   same job. A refusal writes nothing.
+- A repeat keeps the job's original deadline: it is the ledger's `created_at`
+  plus `job_deadline_s`, so a retry cannot extend the budget. An unparseable
+  stamp is `ledger_error`, an overflow `clock_invalid`. The two deadlines come
+  from two clocks: the injected `now` for a new job, the ledger's own stamp for
+  a repeat. Tools on a repeat are recomputed from the current trusted flags
+  (deployment configuration, not spec input).
 
 ## Data-class decision table
 
@@ -114,8 +124,8 @@ Command (venv built from `apps/api/requirements.lock`):
 PYTHONDONTWRITEBYTECODE=1 python -m pytest apps/api -p no:cacheprovider
 ```
 
-Real result on this host (Windows): `592 passed, 110 skipped in 25.35s` for
-`apps/api` (`test_policy.py` 206, `test_ledger.py` 134 passed and 1 skipped). `npm run check`
+Real result on this host (Windows): `615 passed, 110 skipped in 26.56s` for
+`apps/api` (`test_policy.py` 212, `test_runner.py` 17, `test_ledger.py` 134 passed and 1 skipped). `npm run check`
 result is recorded in the commit report, not here.
 
 Covered: every limit breach and boundary, bool and wrong-type inputs, every
