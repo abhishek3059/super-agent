@@ -21,6 +21,15 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 DB_PATH = Path.home() / ".super-agent" / "ledger.db"
+DATABASE_URL: str | None = os.environ.get("SUPER_AGENT_DATABASE_URL") or os.environ.get("DATABASE_URL")
+
+try:
+    import psycopg2
+except ImportError:
+    try:
+        import psycopg as psycopg2
+    except ImportError:
+        psycopg2 = None
 
 MAX_SPEC_BYTES, MAX_RECEIPT_BYTES, MAX_KEY, MAX_REASON = 8000, 4000, 128, 64
 RETENTION = timedelta(days=14)  # DEC after 2026-11-15, see docs/design/agent-backend.md
@@ -94,7 +103,57 @@ CREATE TABLE IF NOT EXISTS events (
 CREATE INDEX IF NOT EXISTS events_job ON events (job_id, seq);
 PRAGMA user_version = 1;
 """
+
+_PG_SCHEMA = """
+CREATE TABLE IF NOT EXISTS jobs (
+  id TEXT PRIMARY KEY,
+  idempotency_key TEXT NOT NULL UNIQUE,
+  spec TEXT NOT NULL,
+  state TEXT NOT NULL,
+  revision INTEGER NOT NULL,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  terminal_at TEXT
+);
+CREATE TABLE IF NOT EXISTS events (
+  seq BIGSERIAL PRIMARY KEY,
+  job_id TEXT NOT NULL,
+  from_state TEXT,
+  to_state TEXT NOT NULL,
+  revision INTEGER NOT NULL,
+  reason TEXT NOT NULL,
+  receipt TEXT,
+  at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS events_job ON events (job_id, seq);
+"""
+
 _lock = threading.Lock()  # callers use worker threads
+_pg_initialized = False
+
+
+def _is_postgres() -> bool:
+    return bool(DATABASE_URL and DATABASE_URL.startswith(("postgres://", "postgresql://")))
+
+
+class _PgConn:
+    def __init__(self, raw):
+        self._raw = raw
+
+    def execute(self, sql: str, params=()):
+        cur = self._raw.cursor()
+        pg_sql = sql.replace("?", "%s")
+        cur.execute(pg_sql, params)
+        return cur
+
+    def commit(self):
+        self._raw.commit()
+
+    def rollback(self):
+        self._raw.rollback()
+
+    def close(self):
+        self._raw.close()
 
 
 def _stamp(when: datetime | None = None) -> str:
@@ -103,33 +162,62 @@ def _stamp(when: datetime | None = None) -> str:
 
 
 @contextmanager
-def _db() -> Iterator[sqlite3.Connection]:
-    """One connection per call under one lock. Commits on success, rolls back on any error."""
-    with _lock:
+def _db() -> Iterator[sqlite3.Connection | _PgConn]:
+    """One connection per call under lock. Commits on success, rolls back on any error."""
+    global _pg_initialized
+    if _is_postgres():
+        if psycopg2 is None:
+            raise LedgerError("PostgreSQL driver (psycopg2) not installed")
         con = None
         try:
-            DB_PATH.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
-            os.close(os.open(DB_PATH, os.O_RDWR | os.O_CREAT, 0o600))  # born 0600, no window
-            os.chmod(DB_PATH, 0o600)  # and tightened if it already existed
-            con = sqlite3.connect(DB_PATH)
-            con.executescript(_SCHEMA)
+            raw = psycopg2.connect(DATABASE_URL)
+            con = _PgConn(raw)
+            with _lock:
+                if not _pg_initialized:
+                    cur = raw.cursor()
+                    cur.execute(_PG_SCHEMA)
+                    raw.commit()
+                    cur.close()
+                    _pg_initialized = True
             yield con
             con.commit()
         except LedgerError:
             if con:
                 con.rollback()
             raise
-        except (sqlite3.Error, OSError) as err:
+        except Exception as err:
             if con:
                 con.rollback()
             raise LedgerError("ledger storage failed") from err
-        except BaseException:
-            if con:
-                con.rollback()
-            raise
         finally:
             if con:
                 con.close()
+    else:
+        with _lock:
+            con = None
+            try:
+                DB_PATH.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+                os.close(os.open(DB_PATH, os.O_RDWR | os.O_CREAT, 0o600))  # born 0600, no window
+                os.chmod(DB_PATH, 0o600)  # and tightened if it already existed
+                con = sqlite3.connect(DB_PATH)
+                con.executescript(_SCHEMA)
+                yield con
+                con.commit()
+            except LedgerError:
+                if con:
+                    con.rollback()
+                raise
+            except (sqlite3.Error, OSError) as err:
+                if con:
+                    con.rollback()
+                raise LedgerError("ledger storage failed") from err
+            except BaseException:
+                if con:
+                    con.rollback()
+                raise
+            finally:
+                if con:
+                    con.close()
 
 
 def _json(value: object, limit: int, what: str) -> str:
@@ -287,3 +375,39 @@ def purge(now: datetime) -> int:
             db.execute("DELETE FROM events WHERE job_id = ?", (job_id,))
             db.execute("DELETE FROM jobs WHERE id = ?", (job_id,))
         return len(ids)
+
+
+def claim_next_job(worker_id: str = "default", state: str = "queued") -> Job | None:
+    """Atomically claim the next queued job for a worker.
+
+    In PostgreSQL, uses SELECT ... FOR UPDATE SKIP LOCKED to prevent concurrent worker contention.
+    In SQLite, serializes under the process thread lock with compare-and-set.
+    Transitions the job to 'running', bumps revision, and records a claim event.
+    Returns None if no matching job is available.
+    """
+    if not isinstance(worker_id, str) or not 0 < len(worker_id) <= MAX_REASON:
+        raise LedgerError("worker_id must be 1 to 64 characters")
+    if not isinstance(state, str) or state not in NEXT:
+        raise LedgerError("unknown state")
+    with _db() as db:
+        if _is_postgres():
+            cur = db.execute(
+                f"SELECT {_COLS} FROM jobs WHERE state = ? ORDER BY created_at ASC LIMIT 1 FOR UPDATE SKIP LOCKED",
+                (state,),
+            )
+            row = cur.fetchone()
+            if not row:
+                return None
+            _move(db, row, "running", f"claimed_{worker_id}", None)
+            res = db.execute(f"SELECT {_COLS} FROM jobs WHERE id = ?", (row[0],)).fetchone()
+            return _job(res)
+        else:
+            row = db.execute(
+                f"SELECT {_COLS} FROM jobs WHERE state = ? ORDER BY created_at, id LIMIT 1",
+                (state,),
+            ).fetchone()
+            if not row:
+                return None
+            _move(db, row, "running", f"claimed_{worker_id}", None)
+            return _job(db.execute(f"SELECT {_COLS} FROM jobs WHERE id = ?", (row[0],)).fetchone())
+

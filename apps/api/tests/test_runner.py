@@ -6,7 +6,7 @@ from datetime import UTC, datetime, timedelta
 import pytest
 
 from super_agent_voice import ledger, policy, tier1
-from super_agent_voice.runner import Runner
+from super_agent_voice.runner import HERMES_WORKERS, Runner, get_worker, list_workers
 
 NOW = datetime(2026, 11, 16, 12, 0, tzinfo=UTC)
 SPEC = {"task_type": "answer", "instruction": "What is 2 plus 2?", "data_class": "synthetic"}
@@ -360,3 +360,41 @@ def test_deeply_nested_receipt_is_a_bad_receipt_not_a_failed_write(made):
     runner.submit(adm)
     wait_state(adm.job, "failed")
     assert ledger.list_events(adm.job.id)[-1].reason == "bad_receipt"
+
+
+def test_hermes_worker_definitions():
+    workers = list_workers()
+    assert len(workers) == 5
+    names = {w.name for w in workers}
+    assert names == {"researcher", "coder", "secretary", "librarian", "ops"}
+
+    for name in names:
+        worker = get_worker(name)
+        assert worker is not None
+        assert worker.name == name
+        assert len(worker.role) > 0
+        assert len(worker.description) > 0
+
+
+def test_claim_and_run_executes_claimed_job(made):
+    executed = []
+    def work(job, adm, should_stop):
+        executed.append((job.id, adm.tools))
+        return {"result": f"processed_{job.id}"}
+
+    runner = made(work)
+    # create a job directly in queued state
+    job = ledger.create_job({"task": "research something"}, "k-runner-claim-1")
+
+    claimed = runner.claim_and_run("researcher")
+    assert claimed is not None
+    assert claimed.id == job.id
+
+    wait_state(job, "succeeded")
+    assert len(executed) == 1
+    assert executed[0][0] == job.id
+    assert "calculate" in executed[0][1]
+
+    # Empty claim returns None
+    assert runner.claim_and_run("coder") is None
+
