@@ -1,4 +1,4 @@
-# Super-agent — decision register (requested spelling preserved: descisions.md)
+# Super-agent: decision register (requested spelling preserved: descisions.md)
 
 | Field | Value |
 | --- | --- |
@@ -290,12 +290,24 @@ An agent may approve and merge a PR on a maintainer's behalf, one PR at a time, 
 - **Source evidence:** `abhishek3059` in chat with Claude Code, 2026-11-14.
 - **Reopen:** A merged PR is found to have skipped its review, or a maintainer asks to bring back two-maintainer approval.
 
+### DEC-22
+
+Maintainer autonomy: either maintainer can independently approve and merge PRs and proceed without waiting on the other maintainer's review.
+
+- **Status:** Decided 2026-11-16 by `jeevesh2515`, who instructed that neither maintainer requires the other's review or sign-off to proceed or merge, preventing development bottlenecks and worktree accumulation. In force.
+- **Rationale:** Waiting across time zones for cross-approval between maintainers stalled parallel feature tracks, blocked automated AI developer pipelines, and led to an accumulation of waiting worktrees. With [DEC-21](#dec-21) having established that one maintainer's approval is sufficient for every change, this decision affirms that either maintainer (`jeevesh2515` or `abhishek3059`) possesses full autonomy to review, approve, and merge pull requests independently.
+- **Rules:** Either maintainer can merge or authorize an AI agent to merge pull requests on their confirmation. Required automated repository checks (`npm run check`) and the shared AI reviewer ([DEC-19](#dec-19)) continue to enforce code quality, security invariants, and test passage.
+- **Alternatives and trade-offs:** (a) Two-maintainer consensus: safest in theory, but completely paralyzed work across time zones. (b) DEC-21 alone: permitted one maintainer's approval, but still created ambiguity about whether authors could merge their own work without the other maintainer's review. (c) DEC-22 full autonomy: keeps rapid momentum while retaining automated CI and AI reviewer quality checks.
+- **Implications:** [AGENTS.md](AGENTS.md) section 3 and [README.md](README.md) point to DEC-22. Either maintainer may push, review, approve, and merge directly into `develop`. Release PRs to `main` continue to require standard maintainer review.
+- **Source evidence:** `jeevesh2515` in chat with AI Assistant, 2026-11-16 ("make sure that from now onwards we won't be requiring each other's approval or anything like that because it hinders development and the worktrees get piled up").
+- **Reopen:** A breaking regression or security incident reaches `develop` that cross-review would have prevented, or both maintainers mutually agree to reinstate cross-approval.
+
 ## Register fields
 
-Every DEC entry from [DEC-01](#dec-01) to [DEC-21](#dec-21) above carries the seven contracted fields inline: status, rationale, alternatives and trade-offs, implications, source evidence, and reopen conditions. This summary restates the register; it does not replace the individual records.
+Every DEC entry from [DEC-01](#dec-01) to [DEC-22](#dec-22) above carries the seven contracted fields inline: status, rationale, alternatives and trade-offs, implications, source evidence, and reopen conditions. This summary restates the register; it does not replace the individual records.
 
 ## Provisional and post-review status
 
-[DEC-04](#dec-04) is conditional; [DEC-06](#dec-06) records a provisional post-review Researcher follow-up candidate, not a re-voted council consensus and not a tested or approved runtime selection; [DEC-13](#dec-13), [DEC-14](#dec-14), and [DEC-15](#dec-15) are deferred; [DEC-17](#dec-17) is repository tooling only; [DEC-18](#dec-18) is approved by both maintainers but enables no tier by itself; [DEC-20](#dec-20) is approved by both maintainers and authorizes no runtime work by itself; [DEC-21](#dec-21) is a repository process rule, not a runtime approval. None of these statuses is a runtime approval, and no decision in this register claims tested access or an approved provider.
+[DEC-04](#dec-04) is conditional; [DEC-06](#dec-06) records a provisional post-review Researcher follow-up candidate, not a re-voted council consensus and not a tested or approved runtime selection; [DEC-13](#dec-13), [DEC-14](#dec-14), and [DEC-15](#dec-15) are deferred; [DEC-17](#dec-17) is repository tooling only; [DEC-18](#dec-18) is approved by both maintainers but enables no tier by itself; [DEC-20](#dec-20) is approved by both maintainers and authorizes no runtime work by itself; [DEC-21](#dec-21) and [DEC-22](#dec-22) are repository process rules, not runtime approvals. None of these statuses is a runtime approval, and no decision in this register claims tested access or an approved provider.
 
 See [Native transport research](docs/design/super-agent.md) in the signed design and the council meeting records.

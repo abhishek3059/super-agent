@@ -1,18 +1,18 @@
-# Super-agent — documentation pack
+# Super-agent: documentation pack
 
 Design and planning documentation for a Jarvis-like personal assistant with
 native voice-to-voice conversation, hands-free active-session use, and bounded
 background task delegation.
 
 > **Mostly documentation.** The runnable application code is a local voice
-> scaffold in [`apps/`](apps/voice-foundation.md). On `develop` its browser
-> console uses the fake streaming adapter by default. Two opt-ins are merged: a
-> fully local voice adapter (speech in and out and a small model on the Mac),
-> with read-only file, calendar, notes, and mail tools (T1) and local memory
-> and reminders (T2); and Gemini Live for maintainer testing only, which sends
-> microphone audio to Google ([testing exception](docs/approvals/gemini-live-testing-exception.md)).
-> There are no workers, stored audio, or complete assistant. RT-G01 and later
-> runtime gates remain open.
+> scaffold in [`apps/`](apps/voice-foundation.md). On `develop` the fake streaming
+> adapter is the default. An opt-in fully local voice adapter (speech in
+> and out and a small model on macOS) is merged (PR #36). Read-only file,
+> calendar, notes, and mail tools (T1, PR #43) and local memory and reminders
+> (T2, PR #45) are merged. An opt-in Gemini Live adapter and console testing
+> mode with calculator and clock tools exist under an exception (PR #41).
+> Nothing leaves the machine on the local path. There are no workers,
+> stored audio, or complete assistant. RT-G01 and later runtime gates remain open.
 
 ## Start here
 
@@ -24,7 +24,7 @@ background task delegation.
 | [Phases](phases.md) | Milestone plan PH-DOC–PH-07 with entry and exit gates |
 | [Progress](progress.md) | Dated documentation milestone and dispositions |
 | [Build](build.md) | Current app-specific commands and the historical repository-root command proposal |
-| [Decisions](descisions.md) | Decision register DEC-01–DEC-19 |
+| [Decisions](descisions.md) | Decision register DEC-01–DEC-22 |
 | [Flows](flow.md) | Ten numbered workflows WF-01–WF-10 |
 | [Tasks](tasks/README.md) | Twelve task records; RT-001 is complete, RT-002 and RT-003 are in progress, and RT-004 and later tasks are `not started` |
 | [Council meetings](council%20meetings/README.md) | Three archived deliberation records |

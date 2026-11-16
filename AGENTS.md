@@ -9,7 +9,8 @@ and section 11 below says how. Work that is not on the roadmap does not start.
 
 Maintainers: `abhishek3059` and `jeevesh2515`. "A maintainer" means one of
 these two people. One maintainer's approval is enough for every decision
-([DEC-21](descisions.md#dec-21)).
+([DEC-21](descisions.md#dec-21)). Either maintainer has full autonomy to review,
+approve, and merge pull requests independently ([DEC-22](descisions.md#dec-22)).
 
 ## 1. What this project is
 
@@ -64,7 +65,8 @@ npm run check
   a paid service (section 6), moving a gate or phase (section 11 rule 5), a
   roadmap `[exception: ...]` (roadmap rule 5), a change to a rule in this
   file, and a new or changed DEC entry ([DEC-21](descisions.md#dec-21)). A PR
-  author's own PR counts as that author's approval.
+  author's own PR counts as that author's approval. Neither maintainer requires
+  the other maintainer's approval or sign-off to proceed or merge ([DEC-22](descisions.md#dec-22)).
 
 ## 4. Honesty rules
 
