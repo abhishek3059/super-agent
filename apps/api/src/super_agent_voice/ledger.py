@@ -226,6 +226,23 @@ def transition(job_id: str, to_state: str, expected_revision: int, reason: str,
         return _job(db.execute(f"SELECT {_COLS} FROM jobs WHERE id = ?", (job_id,)).fetchone())
 
 
+def append_note(job_id: str, reason: str, receipt: dict) -> None:
+    """Append an event to a running job without changing its state or revision.
+
+    Workers that run in parallel write these, so they must not race the runner's revision
+    compare-and-set. The event carries the current revision and from_state equal to to_state."""
+    if not isinstance(reason, str) or not 0 < len(reason) <= MAX_REASON:
+        raise LedgerError("reason must be 1 to 64 characters")
+    text = _json(receipt, MAX_RECEIPT_BYTES, "receipt")
+    with _db() as db:
+        row = db.execute(f"SELECT {_COLS} FROM jobs WHERE id = ?", (job_id,)).fetchone()
+        if row is None:
+            raise LedgerError("no such job")
+        if row[3] not in ("running", "cancel_requested"):
+            raise LedgerError("job is not running")
+        _append_event(db, job_id, row[3], row[3], row[4], reason, text, _stamp())
+
+
 def get_job(job_id: str) -> Job | None:
     with _db() as db:
         row = db.execute(f"SELECT {_COLS} FROM jobs WHERE id = ?", (job_id,)).fetchone()

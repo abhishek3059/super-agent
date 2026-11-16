@@ -127,8 +127,8 @@ Command (venv built from `apps/api/requirements.lock`):
 PYTHONDONTWRITEBYTECODE=1 python -m pytest apps/api -p no:cacheprovider
 ```
 
-Real result on this host (Windows): `728 passed, 110 skipped` for
-`apps/api` (`test_policy.py` 217, `test_runner.py` 25, `test_planner.py` 99, `test_ledger.py` 135 passed and 1 skipped). `npm run check`
+Real result on this host (Windows): `795 passed, 110 skipped` for
+`apps/api` after slice 5 (`test_policy.py` 217, `test_runner.py` 27, `test_planner.py` 99, `test_ledger.py` 152 passed and 1 skipped, `test_graph.py` 48). `npm run check`
 result is recorded in the commit report, not here.
 
 Covered: every limit breach and boundary, bool and wrong-type inputs, every
@@ -170,4 +170,4 @@ ledger untouched after any refusal, idempotent re-admission.
 
 ## Not built
 
-The graph, step execution, per-day provider request counter, wiring into `app.py`, and any roadmap tick.
+The per-day provider request counter, wiring into `app.py`, and any roadmap tick. The graph and step execution are built in [slice 5](agent-backend-graph.md).

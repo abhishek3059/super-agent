@@ -59,8 +59,8 @@ class Hold:
         self.started, self.release, self.calls = threading.Event(), threading.Event(), []
         self.stops, self.result = [], result if result is not None else {"answer": "4"}
 
-    def __call__(self, job, tools, should_stop):
-        self.calls.append((job, tools))
+    def __call__(self, job, adm, should_stop):
+        self.calls.append((job, adm))
         self.started.set()
         assert self.release.wait(WAIT)
         self.stops.append(should_stop())
@@ -123,7 +123,7 @@ def test_cancel_queued_job_never_runs(made):
 
 def test_work_that_ignores_cancel_may_succeed(made):
     work = Hold()
-    runner, adm = made(lambda j, t, s: work(j, t, lambda: False)), admit()
+    runner, adm = made(lambda j, a, s: work(j, a, lambda: False)), admit()
     runner.submit(adm)
     wait_state(adm.job, "running")
     runner.cancel(adm.job.id)
@@ -132,7 +132,7 @@ def test_work_that_ignores_cancel_may_succeed(made):
 
 
 def test_cancel_unknown_or_terminal_job_is_refused(made):
-    runner, adm = made(lambda j, t, s: {"ok": 1}), admit()
+    runner, adm = made(lambda j, a, s: {"ok": 1}), admit()
     with pytest.raises(ledger.LedgerError):
         runner.cancel("nope")
     runner.submit(adm)
@@ -155,7 +155,7 @@ def test_concurrency_cap(made):
 
 
 def test_work_error_fails_without_leaking_text(made):
-    def boom(job, tools, should_stop):
+    def boom(job, adm, should_stop):
         raise RuntimeError("secret personal text")
 
     runner, adm = made(boom), admit()
@@ -164,6 +164,29 @@ def test_work_error_fails_without_leaking_text(made):
     events = ledger.list_events(adm.job.id)
     assert events[-1].reason == "work_error"
     assert "secret" not in repr(events)
+
+
+def test_work_receives_the_admission_with_filtered_tools(made, monkeypatch):
+    monkeypatch.setattr(tier1, "enabled_tools", lambda: [])
+    work = Hold()
+    work.release.set()
+    runner, adm = made(work), admit()
+    runner.submit(adm)
+    wait_state(adm.job, "succeeded")
+    got = work.calls[0][1]
+    assert got.deadline == adm.deadline and got.planner_is_local is adm.planner_is_local
+    assert got.tools < adm.tools and not got.tools & tier1.T1_NAMES
+
+
+def test_policy_error_code_is_recorded_as_a_fixed_code(made):
+    def refuse(job, adm, should_stop):
+        raise policy.PolicyError("plan_invalid")
+
+    runner, adm = made(refuse), admit()
+    runner.submit(adm)
+    wait_state(adm.job, "failed")
+    last = ledger.list_events(adm.job.id)[-1]
+    assert last.reason == "work_error" and last.receipt == {"error": "work_error", "code": "plan_invalid"}
 
 
 def test_deadline_passed_fails_the_job(made):
@@ -181,7 +204,7 @@ def test_deadline_passed_fails_the_job(made):
 
 @pytest.mark.parametrize("receipt", ["text", None, {"big": "x" * 5000}, {"n": float("nan")}])
 def test_bad_receipt_fails_instead_of_sticking(made, receipt):
-    runner, adm = made(lambda j, t, s: receipt), admit()
+    runner, adm = made(lambda j, a, s: receipt), admit()
     runner.submit(adm)
     wait_state(adm.job, "failed")
     assert ledger.list_events(adm.job.id)[-1].reason == "bad_receipt"
@@ -195,7 +218,7 @@ def test_disabled_tier1_tools_are_removed(made, monkeypatch):
     assert "read_file" in adm.tools and "calendar_events" in adm.tools
     runner.submit(adm)
     wait_state(adm.job, "succeeded")
-    assert work.calls[0][1] == policy.TOOL_SCOPE["answer"] | {"list_files"} | policy.MEMORY_TOOLS["answer"]
+    assert work.calls[0][1].tools == policy.TOOL_SCOPE["answer"] | {"list_files"} | policy.MEMORY_TOOLS["answer"]
 
 
 def test_tier1_config_error_removes_all_tier1_tools(made, monkeypatch):
@@ -208,11 +231,11 @@ def test_tier1_config_error_removes_all_tier1_tools(made, monkeypatch):
     runner, adm = made(work), admit()
     runner.submit(adm)
     wait_state(adm.job, "succeeded")
-    assert not work.calls[0][1] & tier1.T1_NAMES
+    assert not work.calls[0][1].tools & tier1.T1_NAMES
 
 
 def test_one_terminal_event_and_each_transition_once(made):
-    runner = made(lambda j, t, s: {"ok": 1})
+    runner = made(lambda j, a, s: {"ok": 1})
     adms = [admit(f"k{i}") for i in range(4)]
     for a in adms:
         runner.submit(a)
@@ -223,7 +246,7 @@ def test_one_terminal_event_and_each_transition_once(made):
 
 def test_recover_marks_running_unknown_and_fails_queued(made):
     ran = []
-    runner = made(lambda j, t, s: ran.append(j) or {"ok": 1})
+    runner = made(lambda j, a, s: ran.append(j) or {"ok": 1})
     running, queued = admit("a"), admit("b")
     ledger.transition(running.job.id, "running", 1, "test")
     assert runner.recover() == 2
@@ -236,7 +259,7 @@ def test_recover_marks_running_unknown_and_fails_queued(made):
 @pytest.mark.parametrize("bad", [None, {"concurrent_jobs": 2}, 2])
 def test_runner_refuses_invalid_limits(bad):
     with pytest.raises(policy.PolicyError) as err:
-        Runner(ledger, bad, lambda j, t, s: {}, lambda: NOW)
+        Runner(ledger, bad, lambda j, a, s: {}, lambda: NOW)
     assert err.value.code == "limits_invalid"
 
 
@@ -317,7 +340,7 @@ def test_refused_success_write_is_not_recorded_as_a_bad_receipt():
                 raise ledger.LedgerError("ledger storage failed")
             return ledger.transition(job_id, to_state, *a, **kw)
 
-    runner = Runner(RefuseOnce(), policy.Limits(), lambda j, t, s: {"ok": 1}, lambda: NOW)
+    runner = Runner(RefuseOnce(), policy.Limits(), lambda j, a, s: {"ok": 1}, lambda: NOW)
     adm = admit()
     try:
         runner.submit(adm)
@@ -333,7 +356,7 @@ def test_deeply_nested_receipt_is_a_bad_receipt_not_a_failed_write(made):
     deep = {}
     for _ in range(20000):
         deep = {"a": deep}
-    runner, adm = made(lambda j, t, s: deep), admit()
+    runner, adm = made(lambda j, a, s: deep), admit()
     runner.submit(adm)
     wait_state(adm.job, "failed")
     assert ledger.list_events(adm.job.id)[-1].reason == "bad_receipt"

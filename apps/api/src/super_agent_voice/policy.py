@@ -23,6 +23,8 @@ REASONS = frozenset({
     "retries_exhausted", "step_deadline", "job_deadline", "model_call_limit", "input_too_large",
     "output_too_large",
     "plan_invalid", "tool_out_of_scope", "model_error",
+    "tool_args_invalid", "clarify_unsupported", "tracing_enabled", "model_reply_invalid", "step_failed",
+    "verify_failed",
 })
 
 

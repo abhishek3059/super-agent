@@ -317,3 +317,48 @@ def test_deeply_nested_receipt_is_a_ledger_error_not_a_recursion_error():
     job = ledger.create_job({"a": 1}, "deep")
     with pytest.raises(ledger.LedgerError):
         ledger.transition(job.id, "running", job.revision, "start", deep)
+
+
+@pytest.mark.parametrize("state", ["running", "cancel_requested"])
+def test_append_note_adds_an_event_without_changing_state_or_revision(state):
+    job = mk(state)
+    before = ledger.get_job(job.id)
+    ledger.append_note(job.id, "step", {"step": 0})
+    after = ledger.get_job(job.id)
+    assert (after.state, after.revision, after.updated_at) == (before.state, before.revision, before.updated_at)
+    last = ledger.list_events(job.id)[-1]
+    assert (last.from_state, last.to_state, last.revision) == (state, state, before.revision)
+    assert (last.reason, last.receipt) == ("step", {"step": 0})
+
+
+@pytest.mark.parametrize("state", ["queued", "waiting_for_approval", "unknown", "succeeded", "failed", "cancelled"])
+def test_append_note_refused_unless_running_or_cancel_requested(state):
+    job = mk(state)
+    count = len(ledger.list_events(job.id))
+    with pytest.raises(LedgerError):
+        ledger.append_note(job.id, "step", {"step": 0})
+    assert len(ledger.list_events(job.id)) == count
+
+
+@pytest.mark.parametrize("reason,receipt", [
+    ("", {"a": 1}), ("x" * 65, {"a": 1}), (None, {"a": 1}), ("step", None), ("step", "text"),
+    ("step", {"big": "x" * 5000}), ("step", {"n": float("nan")}),
+])
+def test_append_note_validates_like_other_receipts(reason, receipt):
+    job = mk("running")
+    count = len(ledger.list_events(job.id))
+    with pytest.raises(LedgerError):
+        ledger.append_note(job.id, reason, receipt)
+    assert len(ledger.list_events(job.id)) == count
+
+
+def test_append_note_unknown_job_is_a_ledger_error():
+    with pytest.raises(LedgerError):
+        ledger.append_note("nope", "step", {"a": 1})
+
+
+def test_notes_do_not_break_a_later_transition_on_the_same_revision():
+    job = mk("running")
+    ledger.append_note(job.id, "step", {"step": 0})
+    done = ledger.transition(job.id, "succeeded", job.revision, "done", RECEIPT)
+    assert done.state == "succeeded"

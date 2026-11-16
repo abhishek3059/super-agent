@@ -3,7 +3,7 @@
 Date: 2026-11-16. Branch `feat/agent-backend`. Build step 4 of
 [agent-backend design, section 10](../design/agent-backend.md#10-mapping-and-build-order).
 This is code only. It is not wired into `app.py` or the runner, and no roadmap
-item is ticked. No real model, no network, no LangGraph.
+item is ticked. No real model, no network, no LangGraph (slice 5 adds [the graph](agent-backend-graph.md)).
 
 ## What was built
 
@@ -14,7 +14,8 @@ item is ticked. No real model, no network, no LangGraph.
   raises `ModelError`. Trusted code reads `is_local` for
   `policy.admit(planner_is_local=...)`. `ModelError` carries one code from
   `unavailable`, `timeout`, `malformed`.
-- `ScriptedModel(replies, is_local=True)`: the fake for tests and evaluation tier A.
+- `ScriptedModel(replies, is_local=True, texts=None)`: the fake for tests and evaluation tier A.
+  Slice 5 added `complete_text(prompt)` to the protocol and the `texts` queue, `text_prompts` record, for the summarize step.
   It replays queued replies in order, raises a queued `ModelError`, records every
   prompt in `prompts`, and raises `unavailable` when it runs out.
 - `request_plan(model, prompt, admission, limits, calls_used) -> Plan`: trusted
@@ -70,8 +71,7 @@ args, question, finish rules), `tool_out_of_scope` (a tool not in the admitted s
   `tool_out_of_scope`. A tool with a non-string name is also `tool_out_of_scope`.
 - Tool arguments are not validated against each tool's own schema here. `tools.py`,
   `tier1.py` and `memory.py` validate arguments when the tool runs, so this slice
-  only bounds their size and encoding. Slice 5 must validate every tool argument when it validates the whole plan, before any
-  step runs (design section 4); this slice only bounds size and encoding.
+  only bounds their size and encoding. `graph.py` (slice 5) validates every tool argument before any step runs (design section 4); this slice only bounds size and encoding.
 - The args bound (1,000 characters of escaped JSON text), the question bound (300 characters) and
   the reply bound (120,000 characters of escaped JSON text) are fixed constants in `planner.py`,
   because `Limits` has no field that fits. They are my choice. Arithmetic for the reply bound:
@@ -87,8 +87,7 @@ args, question, finish rules), `tool_out_of_scope` (a tool not in the admitted s
 
 ## Known limits
 
-- Nothing checks that a `read_tool` step's `args` fit that tool. A plan can pass here
-  and still fail at execution.
+- Nothing here checks that a `read_tool` step's `args` fit that tool; `graph.py` does that right after this check.
 - The plan is not checked for usefulness: a `summarize` may depend on an `ask_user`,
   for example. The graph slice decides what runs.
 - The prompt is only length checked. Assembling it (and keeping personal data out of
@@ -125,6 +124,6 @@ cannot go stale.
 
 ## Not built
 
-A real model (the Gemini text adapter), a response schema, prompt assembly, the graph,
-step execution and argument validation, wiring into `app.py` or the runner, the
-per-day provider request counter, and any roadmap tick.
+A real model (the Gemini text adapter), a response schema, memory context in the prompt, wiring into `app.py`, the
+per-day provider request counter, and any roadmap tick. Prompt assembly, the graph, step execution and
+argument validation are in [slice 5](agent-backend-graph.md).

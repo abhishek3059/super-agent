@@ -2,7 +2,7 @@
 
 Jobs run on a small thread pool, off the conversation event loop. The pool size is the
 "concurrent jobs" limit, so a job stays queued in the ledger until a thread picks it up.
-`work` is trusted code (a stub now, the graph later). Every state change goes through the
+`work(job, admission, should_stop)` is trusted code; its admission carries only the tools still enabled. Every state change goes through the
 ledger's revision compare-and-set, so a cancel and a start race to exactly one winner.
 Reasons and error receipts are fixed strings chosen here, never exception text. A success
 receipt is whatever the trusted work function returned.
@@ -10,6 +10,7 @@ No model, no network, no replay.
 """
 from __future__ import annotations
 
+import dataclasses
 import json
 from concurrent.futures import ThreadPoolExecutor
 
@@ -89,13 +90,16 @@ class Runner:
                 saw_stop.append(True)
             return stop
 
+        code = None  # a PolicyError code is a fixed string; any other exception contributes nothing
         try:
-            receipt, failed = self._work(job, self._tools(adm.tools), should_stop), False
-        except Exception:
+            offered = dataclasses.replace(adm, tools=self._tools(adm.tools))
+            receipt, failed = self._work(job, offered, should_stop), False
+        except Exception as err:
             receipt, failed = None, True
+            code = err.code if isinstance(err, policy.PolicyError) else None
         try:
             if failed:
-                plan = [("failed", "work_error", {"error": "work_error"})]
+                plan = [("failed", "work_error", {"error": "work_error", **({"code": code} if code else {})})]
             elif self._late(adm):
                 plan = [("failed", "job_deadline", {"error": "job_deadline"})]
             elif not saw_stop:

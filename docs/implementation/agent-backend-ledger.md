@@ -89,6 +89,5 @@ directory, installed from `apps/api/requirements.lock` with `--only-binary=:all:
 
 ## Not built yet
 
-Model seam, graph, `delegate_task`,
-Gemini text model, evaluation set. No call site uses the ledger, so
+`delegate_task`, Gemini text model, evaluation set. Slice 5 added `append_note` ([graph record](agent-backend-graph.md#step-records)). No app call site uses the ledger, so
 `recover_after_restart` and `purge` are not yet called at startup.

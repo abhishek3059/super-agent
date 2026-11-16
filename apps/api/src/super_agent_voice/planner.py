@@ -40,18 +40,31 @@ class PlannerModel(Protocol):
     def complete(self, prompt: str) -> object:
         """Return the reply as parsed JSON, or raise ModelError. No response schema yet: no consumer."""
 
+    def complete_text(self, prompt: str) -> object:
+        """Return the reply as text for a summarize step, or raise ModelError. The caller treats it as hostile."""
+
 
 class ScriptedModel:
     """Fake for tests and evaluation tier A: replays queued replies, or raises queued ModelErrors."""
 
-    def __init__(self, replies: list, is_local: bool = True):
+    def __init__(self, replies: list, is_local: bool = True, texts: list | None = None):
         self._replies, self.is_local, self.prompts = list(replies), is_local, []
+        self._texts, self.text_prompts = list(texts or []), []
 
     def complete(self, prompt: str) -> object:
         self.prompts.append(prompt)
         if not self._replies:
             raise ModelError("unavailable")
         reply = self._replies.pop(0)
+        if isinstance(reply, ModelError):
+            raise reply
+        return reply
+
+    def complete_text(self, prompt: str) -> object:
+        self.text_prompts.append(prompt)
+        if not self._texts:
+            raise ModelError("unavailable")
+        reply = self._texts.pop(0)
         if isinstance(reply, ModelError):
             raise reply
         return reply
@@ -109,7 +122,7 @@ def _step(raw: object, index: int, admission: Admission) -> Step:
         return Step(kind, after)
     tool = raw["tool"]
     if type(tool) is not str or tool not in admission.tools:
-        raise PolicyError("tool_out_of_scope")  # args are only bounded here; slice 5 validates them before any step runs
+        raise PolicyError("tool_out_of_scope")  # args are only bounded here; graph.py validates them before any step runs
     try:
         if type(raw["args"]) is not dict:
             raise _bad()

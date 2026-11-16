@@ -8,11 +8,14 @@ This is code only. It is not wired into `app.py`, and no roadmap item is ticked.
 
 - `apps/api/src/super_agent_voice/runner.py`: standard library only
   (`concurrent.futures.ThreadPoolExecutor`). No model, no network, no LangGraph.
-- `apps/api/tests/test_runner.py`: 25 tests (the bad-receipt test runs 4 cases, the invalid-limits test 3).
+- `apps/api/tests/test_runner.py`: 27 tests (the bad-receipt test runs 4 cases, the invalid-limits test 3).
 - `Runner(ledger, limits, work, clock)`. `ledger` is the ledger module, `limits` a
   `policy.Limits`, `clock` a zero-argument callable returning an aware `datetime`.
-  `work(job, tools, should_stop) -> dict` is the stub graph seam: trusted code
-  that returns a receipt and is expected to poll `should_stop()`.
+  `work(job, admission, should_stop) -> dict` is the graph seam: trusted code
+  that returns a receipt and is expected to poll `should_stop()`. The admission is
+  the one submitted, with `tools` replaced by the set the runner kept after its tier 1
+  filter (slice 5 changed this from passing the bare tool set, so the work also sees
+  the deadline and `planner_is_local`).
 - `submit(admission)` returns at once. The pool has `limits.concurrent_jobs`
   threads, so a job stays `queued` until a thread picks it up. This is the
   concurrent-jobs limit that admission left to the runner.
@@ -23,7 +26,7 @@ This is code only. It is not wired into `app.py`, and no roadmap item is ticked.
 | Situation | Ledger result | Reason | Receipt |
 | --- | --- | --- | --- |
 | Work returns a dict | `succeeded` | `work_done` | the work's receipt |
-| Work raises | `failed` | `work_error` | `{"error": "work_error"}` |
+| Work raises | `failed` | `work_error` | `{"error": "work_error"}`, plus `"code"` when it raised a `PolicyError` (a fixed code from `policy.REASONS`, slice 5) |
 | Job deadline passed when work returns | `failed` | `job_deadline` | `{"error": "job_deadline"}` |
 | Cancel requested, work saw `should_stop()` | `cancelled` | `cancel_stopped` | `{"stopped": true}` |
 | Work saw `should_stop()` true but no cancel is confirmed (failed ledger read, or state unreadable after work) | `failed` | `stop_unconfirmed` | `{"error": "stop_unconfirmed"}` |
@@ -87,7 +90,7 @@ groups set), no tier 1 tool is offered.
 
 - Threads cannot be killed. A work function that never polls `should_stop`
   holds its pool slot until it returns, and a cancel or deadline only takes
-  effect when it does. Step deadlines inside work are the graph slice's job.
+  effect when it does. Step deadlines inside work are enforced by [the graph](agent-backend-graph.md), which can only check them after a step returns.
 - `Admission` (tools, deadline) is in memory only. After a restart queued jobs
   are failed, not replayed, and `running` jobs become `unknown`.
 - `close()` does not wait for running work. Queued jobs dropped by `close()` stay
@@ -125,5 +128,5 @@ report; it is not copied here so this file cannot go stale.
 
 ## Not built
 
-Graph, step execution, per-day provider request counter,
-wiring into `app.py`, and any roadmap tick.
+Per-day provider request counter, wiring into `app.py`, and any roadmap tick. The graph is built in
+[slice 5](agent-backend-graph.md).

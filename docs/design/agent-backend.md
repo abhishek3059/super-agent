@@ -256,7 +256,7 @@ metadata and `pip-audit`; not checked by a maintainer:
   checkpointer, so the ledger stays the truth.
 - `langsmith` is a tracing client. With tracing environment variables set it sends run data to a cloud service,
   which would be an unapproved recipient ([REQ-13](../../prd.md#req-13)). The graph work refuses to run when any
-  such variable is set (built by the next commit).
+  such variable is set ([record](../implementation/agent-backend-graph.md#tracing-guard)).
 
 Still UNVERIFIED: that a SQL-injection issue was disclosed in March 2026 in the SQLite checkpointer package (not
 used here), and any claim about LangGraph not listed above.
@@ -292,7 +292,9 @@ Proposed build order, each slice with its test:
 5. **Dynamic graph.** Plan validation, then a graph built from the validated
    plan: execute, verify, receipt on the fake model, then clarify. Test: each
    node edge writes one ledger transition; a plan with an unknown step type, a
-   cycle, or too many steps is rejected before any step runs.
+   cycle, or too many steps is rejected before any step runs. Built, except
+   clarify (`ask_user` fails closed until open decision 7 is decided), and
+   without memory context in the prompt: [implementation record](../implementation/agent-backend-graph.md).
 6. **`delegate_task` wired to the conversation loop**, text first. Test: a real
    API call through the agent returns a receipt at once.
 7. **Gemini text model** behind the seam. Test: opt-in live check, synthetic
