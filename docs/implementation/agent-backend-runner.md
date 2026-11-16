@@ -62,12 +62,15 @@ groups set), no tier 1 tool is offered.
 ## Choices where the design was unclear
 
 - Reason strings (`runner_start`, `work_done`, `work_error`, `cancel_stopped`,
-  `bad_receipt`, `terminal_write_failed`, `user_cancel`, `cancelled_before_start`,
-  `restart_queued`) and the receipt shapes are my choice.
+  `bad_receipt`, `stop_unconfirmed`, `terminal_write_failed`, `user_cancel`,
+  `cancelled_before_start`, `restart_queued`) and the receipt shapes are my choice.
 - `should_stop()` is true when the job is `cancel_requested`, when the job
   deadline has passed, or when it cannot read the ledger (fail closed). A job
-  becomes `cancelled` only if work actually saw a true value while cancel was
-  requested; otherwise a returned result is `succeeded`, as the ledger allows.
+  becomes `cancelled` only if work saw a true value and the ledger still reads
+  `cancel_requested` when work returns. Work that saw a true value with no
+  confirmed cancel ends `failed` with `stop_unconfirmed`. A returned result is
+  `succeeded` only if `should_stop()` never returned true for that job; that
+  includes work that never polled while a cancel was requested, as the ledger allows.
 - A passed deadline fails the job even if work returned a result. The deadline
   is checked when work returns, not by interrupting it.
 - A bad receipt falls back to `failed`, then `unknown`. Success is never a fallback.
