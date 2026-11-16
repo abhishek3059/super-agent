@@ -6,7 +6,7 @@
 | Scope | The open decisions OD-15 to OD-18 in the [brain overview](../design/brain/overview.md#10-open-maintainer-decisions): learning from conversation, transcripts, retention, and job checkpoints. Design only. |
 | `abhishek3059` | **Approved, 2026-11-13**, in chat with Claude Code (`claude-opus-5-5`): "yes I agree with the recommendations, record my approval". |
 | `jeevesh2515` | Not needed. Under [DEC-21](../../descisions.md#dec-21) (2026-11-14), one maintainer's approval is enough. |
-| Effect | OD-15 to OD-18 are decided, as design choices only. Nothing is built, ticked, or enabled. OD-18 also needs the [PH-00 setup decisions](ph-00-setup-decisions.md) amended, because that record sets a 24-hour job-metadata purge. |
+| Effect | OD-15 to OD-18 are decided, as design choices only. Nothing is built, ticked, or enabled. OD-18 also needs the [PH-00 setup decisions](ph-00-setup-decisions.md) amended, because that record sets a 24-hour job-metadata purge (amended to 14 days on 2026-11-15; the 30 days here is not reconciled with it). |
 
 ## What was approved
 

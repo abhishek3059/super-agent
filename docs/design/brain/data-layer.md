@@ -40,7 +40,7 @@ IR-8 in the [overview](overview.md#11-interface-requests-for-the-ledger):
 
 **Tables that are separate** live in `memory.db` and are listed in section 3.
 The two files reference each other by plain ID values only. There is no
-cross-file foreign key, because the ledger purges jobs after 24 hours and a
+cross-file foreign key, because the ledger purges jobs after 14 days (24 hours before the 2026-11-15 PH-00 amendment) and a
 day-book entry must survive that.
 
 The memory service is the only writer. Connection settings:

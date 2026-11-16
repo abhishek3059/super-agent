@@ -91,11 +91,11 @@ Maps to [RT-002](tasks/002-local-scaffold-and-boundary.md), [RT-003](tasks/003-n
 
 Maps to [RT-004](tasks/004-task-ledger-and-policy.md), [RT-005](tasks/005-fixed-sample-workers.md), and RT-G02.
 
-- [ ] R-02.1 Job ledger with the eight canonical states, receipts, and application-owned truth. Evidence: none yet
-- [ ] R-02.2 Idempotency keys, task revisions, and stale-session rejection. Evidence: none yet
-- [ ] R-02.3 Policy limits enforced outside the model (schemas, sizes, deadlines, steps, retries, budget). Evidence: none yet
-- [ ] R-02.4 Two trusted read-only workers over synthetic data, with no arbitrary-code, host-shell, plugin, or external-action exposure. Evidence: none yet
-- [ ] R-02.5 Worker execution off the voice event loop; conversation continues during overlap (RT-A02, RT-A03). Evidence: none yet
+- [ ] R-02.1 [exception: [agent backend exception](docs/approvals/agent-backend-exception.md)] Job ledger with the eight canonical states, receipts, and application-owned truth. Evidence: none yet
+- [ ] R-02.2 [exception: [agent backend exception](docs/approvals/agent-backend-exception.md)] Idempotency keys, task revisions, and stale-session rejection. Evidence: none yet
+- [ ] R-02.3 [exception: [agent backend exception](docs/approvals/agent-backend-exception.md)] Policy limits enforced outside the model (schemas, sizes, deadlines, steps, retries, budget). Evidence: none yet
+- [ ] R-02.4 [exception: [agent backend exception](docs/approvals/agent-backend-exception.md)] Two trusted read-only workers over synthetic data, with no arbitrary-code, host-shell, plugin, or external-action exposure. Evidence: none yet
+- [ ] R-02.5 [exception: [agent backend exception](docs/approvals/agent-backend-exception.md)] Worker execution off the voice event loop; conversation continues during overlap (RT-A02, RT-A03). Evidence: none yet
 - [ ] R-02.6 RT-004 and RT-005 records complete and RT-G02 evidenced. Evidence: none yet
 
 ## PH-03: steering, stops, recovery, and validation
@@ -119,8 +119,8 @@ Maps to [RT-006](tasks/006-steering-and-stop-controls.md), [RT-007](tasks/007-re
 Maps to [RT-009](tasks/009-bounded-real-task-planner.md). Entry needs the approved real task pair.
 
 - [ ] R-04.1 [human] Real task pair and worker or recipient capabilities approved for the planner. Evidence: none yet
-- [ ] R-04.2 Clarifying-question flow turns a vague request into a reviewable task specification. Evidence: none yet
-- [ ] R-04.3 Typed bounded steps with checkpointed steering and verifier evidence. Evidence: none yet
+- [ ] R-04.2 [exception: [agent backend exception](docs/approvals/agent-backend-exception.md)] Clarifying-question flow turns a vague request into a reviewable task specification. Evidence: none yet
+- [ ] R-04.3 [exception: [agent backend exception](docs/approvals/agent-backend-exception.md)] Typed bounded steps with checkpointed steering and verifier evidence. Evidence: none yet
 - [ ] R-04.4 Planner shown more useful than the fixed baselines; no new authority granted by voice. Evidence: none yet
 - [ ] R-04.5 RT-009 record complete. Evidence: none yet
 

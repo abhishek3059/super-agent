@@ -73,6 +73,7 @@ _TOOLS = [
                   "unread_only": {"type": "boolean"}})),
 ]
 T1_NAMES = frozenset(schema["function"]["name"] for _, schema in _TOOLS)
+PARAMS = {schema["function"]["name"]: schema["function"]["parameters"] for _, schema in _TOOLS}
 _GROUPS = frozenset(group for group, _ in _TOOLS)
 
 

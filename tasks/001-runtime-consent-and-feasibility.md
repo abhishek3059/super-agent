@@ -49,7 +49,7 @@ The operator recorded the PH-00 setup decisions in the
 [PH-00 setup decisions](../docs/approvals/ph-00-setup-decisions.md):
 
 - First real task pair: local document summary and action-item extraction.
-- Retention: job metadata deleted 24 hours after terminal state; no raw audio,
+- Retention: job metadata deleted 14 days after terminal state (24 hours until the 2026-11-15 [amendment](../docs/approvals/ph-00-setup-decisions.md#amendments)); no raw audio,
   transcripts, or model-content logs.
 - Retries: at most 2 automatic retries for idempotent read-only steps; no retry
   after an unknown outcome.

@@ -26,6 +26,16 @@ cloud provider, and does not authorize spend.
 | R-00.6 budget | **$0 cap with no paid fallback.** | No paid service, plan, or API may be used. A free tier is not a spending approval. |
 | R-00.10 provider disclosure | Gemini terms, provider retention, and recipients are recorded in the [Gemini account verification](../implementation/gemini-account-verification.md). | The unpaid tier may use inputs for product improvement and human review. No fixed provider deletion window is stated. Synthetic data only. |
 
+## Amendments
+
+| Date | Item | Change | Decider |
+| --- | --- | --- | --- |
+| 2026-11-15 | R-00.5 retention | Job metadata is deleted **14 days** after the job reaches a terminal state, not 24 hours. Session-scoped records, and the rule that no raw audio, transcripts, or model-content logs are retained, are unchanged. | `abhishek3059`, in chat with Claude Code: "keep the history for 14 days". Context: the [agent backend design](../design/agent-backend.md). One maintainer is enough under [DEC-21](../../descisions.md#dec-21). |
+
+The 30 days approved for task specs and checkpoints in the
+[memory learning decisions](memory-learning-decisions.md) (OD-18) is not
+changed or reconciled by this amendment. Until it is reconciled, 14 days governs everything the job ledger stores. "History" is read here as job metadata in the ledger. That reading is the recording agent's; the operator was shown it in a chat summary and did not object, but did not confirm it in words.
+
 ## Task-pair detail
 
 The pair is deliberately narrow so it can be validated without new authority:
