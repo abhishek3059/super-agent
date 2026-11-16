@@ -83,6 +83,7 @@ Maps to [RT-002](tasks/002-local-scaffold-and-boundary.md), [RT-003](tasks/003-n
 - [x] R-01.F6 Require a clean SDK exit before reporting an established Gemini session closed. Evidence: [PH-01 acceptance record](docs/implementation/r01-10-acceptance.md#offline-fixes)
 - [x] R-01.F7 Refuse an unexpected or missing provider before the local echo console requests microphone capture. Evidence: [browser verification](docs/implementation/r01-10-acceptance.md#browser-verification)
 - [x] R-01.F8 Keep the synthetic Live adapter on the approved Gemini Developer API destination. Evidence: [provider destination check](docs/implementation/r01-10-acceptance.md#provider-destination)
+- [ ] R-01.F9 Verify backend identity before capture. Reject a false backend, raw bearer reuse and an authentication proof replay before entering an adapter. Qualify the opt-in OpenAI Realtime transport with generated input. Evidence: none yet
 - [ ] R-01.10 RT-002 and RT-003 records complete and RT-G01 evidenced. Evidence: none yet
 
 ## PH-02: ledger, policy, and two fixed workers
@@ -91,11 +92,11 @@ Maps to [RT-002](tasks/002-local-scaffold-and-boundary.md), [RT-003](tasks/003-n
 
 Maps to [RT-004](tasks/004-task-ledger-and-policy.md), [RT-005](tasks/005-fixed-sample-workers.md), and RT-G02.
 
-- [ ] R-02.1 Job ledger with the eight canonical states, receipts, and application-owned truth. Evidence: none yet
-- [ ] R-02.2 Idempotency keys, task revisions, and stale-session rejection. Evidence: none yet
-- [ ] R-02.3 Policy limits enforced outside the model (schemas, sizes, deadlines, steps, retries, budget). Evidence: none yet
-- [ ] R-02.4 Two trusted read-only workers over synthetic data, with no arbitrary-code, host-shell, plugin, or external-action exposure. Evidence: none yet
-- [ ] R-02.5 Worker execution off the voice event loop; conversation continues during overlap (RT-A02, RT-A03). Evidence: none yet
+- [ ] R-02.1 [exception: [Jarvis delivery scope](docs/approvals/jarvis-delivery-scope.md)] Job ledger with the eight canonical states, receipts, and application-owned truth. Evidence: none yet
+- [ ] R-02.2 [exception: [Jarvis delivery scope](docs/approvals/jarvis-delivery-scope.md)] Idempotency keys, task revisions, and stale-session rejection. Evidence: none yet
+- [ ] R-02.3 [exception: [Jarvis delivery scope](docs/approvals/jarvis-delivery-scope.md)] Policy limits enforced outside the model (schemas, sizes, deadlines, steps, retries, budget). Evidence: none yet
+- [ ] R-02.4 [exception: [Jarvis delivery scope](docs/approvals/jarvis-delivery-scope.md)] Two trusted read-only workers over synthetic data, with no arbitrary-code, host-shell, plugin, or external-action exposure. Evidence: none yet
+- [ ] R-02.5 [exception: [Jarvis delivery scope](docs/approvals/jarvis-delivery-scope.md)] Worker execution off the voice event loop; conversation continues during overlap (RT-A02, RT-A03). Evidence: none yet
 - [ ] R-02.6 RT-004 and RT-005 records complete and RT-G02 evidenced. Evidence: none yet
 
 ## PH-03: steering, stops, recovery, and validation
@@ -133,6 +134,7 @@ Maps to [RT-010](tasks/010-contained-opencode-adapter.md). Spike A2 is only prio
 - [ ] R-05.1 [human] Capability request approved and an independent security design for containment, credentials, and egress reviewed. Evidence: none yet
 - [ ] R-05.2 Adapter built with OS containment, least privilege, restricted credentials and egress, and child-scope enforcement; event gaps reconciled; version and capability tests pass. Evidence: none yet
 - [ ] R-05.3 RT-010 record complete. Evidence: none yet
+- [ ] R-05.4 [exception: [Jarvis delivery scope](docs/approvals/jarvis-delivery-scope.md)] Integrate Hermes Runs with distinct worker identities and scoped peer handoff. Verify containment, cancellation, account entitlement and job receipts for five workers with individual workspaces. Evidence: none yet
 
 ## PH-06: desktop, wake, and always-on feasibility (optional)
 
@@ -142,6 +144,7 @@ Maps to [RT-011](tasks/011-always-on-and-desktop-feasibility.md).
 
 - [ ] R-06.1 [human] Device, host, security, and power consent decision. Evidence: none yet
 - [ ] R-06.2 Feasibility and decision record written; no always-on promise made. Evidence: none yet
+- [ ] R-06.3 [exception: [Jarvis delivery scope](docs/approvals/jarvis-delivery-scope.md)] Ship a callable Jarvis workspace with keyboard-accessible skins, conversation, worker jobs and authorized view and takeover of separate worker desktops. Evidence: none yet
 
 ## PH-07: private native audio feasibility (optional)
 
