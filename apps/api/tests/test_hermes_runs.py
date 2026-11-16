@@ -12,6 +12,11 @@ import pytest
 from super_agent_voice.hermes_runs import HermesRunsClient, HermesRunsError, HermesStatus
 
 
+@pytest.fixture
+def anyio_backend():
+    return "asyncio"
+
+
 JOB = UUID("4f1539a1-b3a2-4563-a397-3d1ab2423637")
 RUN = "run_" + "a1" * 16
 OTHER_RUN = "run_" + "b2" * 16
@@ -75,7 +80,7 @@ def run_status(status: str, **extra) -> dict:
     return {"object": "hermes.run", "run_id": RUN, "status": status, **extra}
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_create_replays_an_identical_admission_and_ignores_environment_proxy(gateway, monkeypatch):
     port, replies, requests = gateway
     for name in ("HTTP_PROXY", "ALL_PROXY"):
@@ -94,7 +99,7 @@ async def test_create_replays_an_identical_admission_and_ignores_environment_pro
         assert json.loads(content) == {"input": "Summarize the synthetic fixture"}
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_poll_only_canonical_completion_exposes_output_and_runtime(gateway):
     port, replies, requests = gateway
     replies.put(Reply(200, run_status("running", output="Not done", error="Discard me")))
@@ -116,7 +121,7 @@ async def test_poll_only_canonical_completion_exposes_output_and_runtime(gateway
         assert headers.get("Idempotency-Key") is None
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_stop_acknowledgment_means_stopping_until_a_terminal_receipt(gateway):
     port, replies, requests = gateway
     replies.put(Reply(200, {"run_id": RUN, "status": "stopping"}))
@@ -129,7 +134,7 @@ async def test_stop_acknowledgment_means_stopping_until_a_terminal_receipt(gatew
     assert (receipt.status, receipt.output, receipt.terminal) == (HermesStatus.CANCELLED, None, True)
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 @pytest.mark.parametrize("status", ["waiting_for_approval", "failed", "incomplete", "interrupted", "cancelled"])
 async def test_poll_never_uses_output_from_noncompleted_runs(gateway, status):
     port, replies, _ = gateway
@@ -140,7 +145,7 @@ async def test_poll_never_uses_output_from_noncompleted_runs(gateway, status):
     assert BEARER not in repr(result)
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 @pytest.mark.parametrize("reply", [
     Reply(200, run_status("complete")),
     Reply(200, run_status("completed", output="No completion flags")),
@@ -165,7 +170,7 @@ async def test_poll_rejects_ambiguous_malformed_mismatched_or_unbounded_receipts
     assert BEARER not in repr(raised.value)
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_does_not_follow_redirect_even_to_same_gateway(gateway):
     port, replies, requests = gateway
     replies.put(Reply(307, {"error": BEARER}, {"Location": "/sensitive-redirect"}))
@@ -175,7 +180,7 @@ async def test_does_not_follow_redirect_even_to_same_gateway(gateway):
     assert requests.empty()
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_distinguishes_refused_admission_from_unknown_existing_run(gateway):
     port, replies, _ = gateway
     for status in (429, 409, 404):
@@ -192,7 +197,7 @@ async def test_distinguishes_refused_admission_from_unknown_existing_run(gateway
     assert missing.value.outcome_unknown
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_request_deadline_bounds_stream_that_keeps_sending_bytes(gateway):
     port, replies, requests = gateway
     replies.put(Reply(202, {"run_id": RUN, "status": "started", "replayed": False}, drip=True))
@@ -205,7 +210,7 @@ async def test_request_deadline_bounds_stream_that_keeps_sending_bytes(gateway):
     assert requests.empty()
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_rejects_unsafe_paths_and_oversized_inputs_before_network(gateway):
     port, _, requests = gateway
     client = HermesRunsClient(port, BEARER)
