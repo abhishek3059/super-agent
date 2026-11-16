@@ -524,3 +524,17 @@ PR [#41](https://github.com/abhishek3059/super-agent/pull/41) merged into
 testing (`SUPER_AGENT_ADAPTER=gemini`) under the testing exception, with
 calculator and clock tools, live streaming transcripts, honest cloud labels,
 and turn continuation across tool calls.
+
+## PH-01 close-out audit (2026-11-15)
+
+The [R-01.10 record](docs/implementation/r01-10-acceptance.md#criteria-and-evidence)
+now maps each RT-002 and RT-003 acceptance criterion and each RT-G01 condition
+to its evidence. The offline suites were re-run at `0638660`: 492 backend tests
+passed and 2 skipped, 112 frontend self-test cases passed, the build passed, and
+`npm audit` found nothing ([saved output](docs/implementation/evidence/r01-10-offline-suites-20261115.txt)).
+The revised synthetic live run was recorded later on 2026-11-15
+([saved output](docs/implementation/evidence/r01-10-live-check-output-20261115T172901Z.txt)).
+R-01.10 is not ticked and PH-01 stays in progress. Missing: a recorded native run through the console, and an
+independent review of the code merged after the R-01.6 review, including
+Gemini mode and finding F5. These need a person, a key, and a maintainer
+decision. No runtime gate moves.

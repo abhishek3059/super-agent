@@ -1,0 +1,54 @@
+date_utc=2026-11-15T03:57:56Z
+commit=0638660 (upstream/develop, clean worktree)
+host=macOS (Darwin 27.2.0), Python 3.14.4, node v22.22.3, npm 10.9.8
+GEMINI_API_KEY and SUPER_AGENT_ADAPTER unset for the backend run; no provider call
+note=trimmed and redacted: pytest progress lines and repeated warning text are cut, and the local checkout path is replaced with <worktree>
+
+$ python -m pytest apps/api -rs
+=============================== warnings summary ===============================
+tests/test_gemini_adapter.py::test_sdk_live_destination_stays_on_developer_api[false]
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+SKIPPED [1] apps/api/tests/test_local_adapter.py:536: could not import 'onnxruntime': No module named 'onnxruntime'
+SKIPPED [1] apps/api/tests/test_local_adapter.py:613: checks the non-macOS refusal
+492 passed, 2 skipped, 1 warning in 11.61s
+pytest exit=0
+
+$ npm run test:voice
+
+> super-agent-voice-web@0.0.0 test:voice
+> node scripts/selftest-voice-session.mjs
+
+voice-session self-test: PASS (57 cases)
+exit=0
+
+$ npm run test:ui
+
+> super-agent-voice-web@0.0.0 test:ui
+> node scripts/selftest-voice-ui.mjs
+
+voice-ui state self-test: PASS (47 cases)
+exit=0
+
+$ npm run test:epoch
+
+> super-agent-voice-web@0.0.0 test:epoch
+> node scripts/selftest-playback-epoch.mjs
+
+playback-epoch self-test: PASS (8 cases)
+exit=0
+
+$ npm run build
+styles.css          | styles        | 315 bytes |               315 bytes
+
+                    | Initial total | 168.50 kB |                47.98 kB
+
+Application bundle generation complete. [0.995 seconds] - 2026-11-15T03:58:10.567Z
+
+Output location: <worktree>/apps/web/dist/web
+
+exit=0
+
+$ npm audit
+found 0 vulnerabilities
+exit=0

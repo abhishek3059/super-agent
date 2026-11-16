@@ -12,9 +12,24 @@ venv="${SUPER_AGENT_VENV:-$HOME/.super-agent/venv}"
 # One model in memory at a time keeps the brain and the speech model inside 16 GB.
 export OLLAMA_HOST=127.0.0.1:11434 OLLAMA_MAX_LOADED_MODELS=1 OLLAMA_KEEP_ALIVE=30m
 pids=()
-cleanup() { kill "${pids[@]}" 2>/dev/null || true; }
-trap cleanup EXIT INT TERM
-listen="$(lsof -nP -iTCP:11434 -sTCP:LISTEN 2>/dev/null | awk 'NR>1 {print $9}' | sort -u)"
+cleanup() {
+  if [[ -n "${pids[0]:-}" ]]; then
+    kill "${pids[@]}" 2>/dev/null || true
+  fi
+}
+trap cleanup EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
+
+# lsof exits 1 with no output when it finds no listener.
+if listeners="$(lsof -nP -iTCP:11434 -sTCP:LISTEN 2>&1)"; then
+  listen="$(awk 'NR>1 {print $9}' <<< "$listeners" | sort -u)"
+elif [[ $? -eq 1 && -z "$listeners" ]]; then
+  listen=""
+else
+  echo "Could not check the Ollama listener on port 11434: $listeners" >&2
+  exit 1
+fi
 if [[ -z "$listen" ]]; then
   ollama serve >/dev/null 2>&1 & pids+=($!)
   sleep 2

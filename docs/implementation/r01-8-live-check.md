@@ -42,8 +42,12 @@ GEMINI_API_KEY=... python -m super_agent_voice.live_check --send-synthetic-audio
 The results below are from the original command. The revised command sends a
 second generated clip during a longer reply and distinguishes a provider
 `Interrupted` event from ordinary turn completion. It skips the second
-check with `--wav`. The revised command was tested offline; a new live run
-has not been recorded. See the [R-01.10 record](r01-10-acceptance.md).
+check with `--wav`. The revised command was tested offline, and one live run
+of it was recorded on Windows on 2026-11-15
+([saved output](evidence/r01-10-live-check-output-20261115T172901Z.txt)):
+barge-in drew a provider `Interrupted` event and both tools were called. In
+that run the key was typed at the command's hidden prompt, which it shows
+when `GEMINI_API_KEY` is unset. See the [R-01.10 record](r01-10-acceptance.md).
 
 | Step | Observed |
 | --- | --- |
