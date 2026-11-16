@@ -73,8 +73,12 @@ export function statusLabel(status: string, provider = ''): string {
 }
 
 export function pipelineSummary(status: string, provider = ''): string {
+  if (provider === 'gemini-live') {
+    if (status === 'listening') return 'Microphone streaming to Gemini';
+    if (status === 'thinking') return 'Waiting for the Gemini reply';
+    if (status === 'speaking') return 'Playing the Gemini reply';
+  }
   if (status === 'speaking' && provider === 'local') return 'Playing the local reply';
-  if (status === 'speaking' && provider === 'gemini-live') return 'Playing the Gemini reply';
   return PIPELINE_SUMMARIES[status] ?? 'Local voice path';
 }
 

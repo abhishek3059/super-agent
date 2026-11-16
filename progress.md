@@ -1,4 +1,4 @@
-# Super-agent — progress record (dated documentation-only milestone)
+# Super-agent: progress record (dated documentation-only milestone)
 
 | Field | Value |
 | --- | --- |
@@ -458,3 +458,83 @@ every change, with no exception, and that an agent may approve and merge a PR
 on a maintainer's behalf after he confirms that one PR in chat
 ([DEC-21](descisions.md#dec-21)). AGENTS.md, roadmap rule 5, and the shared
 reviewer's step 6 now say so. No runtime gate moves.
+
+## PH-01 evidence recovery and defect fixes (2026-11-13)
+
+PR [#42](https://github.com/abhishek3059/super-agent/pull/42) merged into
+`develop` as `3d00d59`. It recovered the R-01.4 operator microphone test
+evidence from the merged feature branch and closed four implementation
+defects:
+- R-01.F5: queued and late native audio is dropped upon a local interrupt.
+- R-01.F6: an established Gemini session reports closed only after a clean SDK exit.
+- R-01.F7: the browser console refuses an unexpected provider before requesting microphone capture.
+- R-01.F8: the Gemini Live adapter pins Developer API mode and base URL.
+
+R-01.10 remains open; RT-G01 is not yet claimed.
+
+## Local voice adapter and Spike A4 (2026-11-13)
+
+PR [#36](https://github.com/abhishek3059/super-agent/pull/36) merged into
+`develop` as `0a9f1b4`. It added an opt-in fully local voice adapter
+(`SUPER_AGENT_ADAPTER=local`) running entirely on-device on macOS.
+Audio is captured locally, processed with Silero VAD, transcribed with Whisper
+or LFM3, passed to an Ollama-hosted local model (`qwen3.5:4b`), and synthesized
+via macOS `say` or Kokoro TTS. Arithmetic is handled via a local calculator.
+Spike A4 benchmarks were recorded in `spikes/a4-local-voice/README.md`.
+
+## DEC-20: Local direction and Gemini testing exception (2026-11-13)
+
+Both maintainers approved [DEC-20](descisions.md#dec-20). The primary architectural
+direction shifted to a private, local-first voice assistant to prevent personal
+speech egress. Gemini Live is retained as an opt-in testing option under an
+approved exception ([record](docs/approvals/gemini-live-testing-exception.md)).
+Spike A5 was planned for evaluating open-weight native speech-to-speech models
+locally on Apple Silicon.
+
+## Brain and memory architecture designs (2026-11-14)
+
+PR [#40](https://github.com/abhishek3059/super-agent/pull/40) merged
+comprehensive brain and memory specifications under `docs/design/brain/`
+(overview, data layer, memory taxonomy, threat model, evaluation, and
+recommendations). PR [#44](https://github.com/abhishek3059/super-agent/pull/44)
+merged the Roamies design review reference under
+`docs/design/references/roamies-review.md`.
+
+## Tier 1 read-only local tools (2026-11-14)
+
+PR [#43](https://github.com/abhishek3059/super-agent/pull/43) merged into
+`develop` as `e9c56c0`. Implemented in `apps/api/src/super_agent_voice/tier1.py`
+under the approved exception ([record](docs/approvals/tier1-local-exception.md)).
+Provides strictly contained read-only tools for system time, calendar, notes,
+weather, and allowlisted directory inspection.
+
+## Tier 2 local memory and reminders (2026-11-14)
+
+PR [#45](https://github.com/abhishek3059/super-agent/pull/45) merged into
+`develop` as `8313146`. Implemented in `apps/api/src/super_agent_voice/memory.py`
+under the approved exception ([record](docs/approvals/local-memory-exception.md)).
+Provides local SQLite storage (`~/.super-agent/memory.db`), automatic fact
+extraction, scheduled reminders spoken between session turns, forget commands,
+and undo history.
+
+## Gemini Live console testing (2026-11-14)
+
+PR [#41](https://github.com/abhishek3059/super-agent/pull/41) merged into
+`develop` as `0638660`. It enabled Gemini Live in the browser console for
+testing (`SUPER_AGENT_ADAPTER=gemini`) under the testing exception, with
+calculator and clock tools, live streaming transcripts, honest cloud labels,
+and turn continuation across tool calls.
+
+## PH-01 close-out audit (2026-11-15)
+
+The [R-01.10 record](docs/implementation/r01-10-acceptance.md#criteria-and-evidence)
+now maps each RT-002 and RT-003 acceptance criterion and each RT-G01 condition
+to its evidence. The offline suites were re-run at `0638660`: 492 backend tests
+passed and 2 skipped, 112 frontend self-test cases passed, the build passed, and
+`npm audit` found nothing ([saved output](docs/implementation/evidence/r01-10-offline-suites-20261115.txt)).
+The revised synthetic live run was recorded later on 2026-11-15
+([saved output](docs/implementation/evidence/r01-10-live-check-output-20261115T172901Z.txt)).
+R-01.10 is not ticked and PH-01 stays in progress. Missing: a recorded native run through the console, and an
+independent review of the code merged after the R-01.6 review, including
+Gemini mode and finding F5. These need a person, a key, and a maintainer
+decision. No runtime gate moves.

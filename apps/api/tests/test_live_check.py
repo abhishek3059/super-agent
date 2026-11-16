@@ -102,6 +102,20 @@ def test_wav_must_be_16k_mono(tmp_path) -> None:
         live_check.load_pcm(bad)
 
 
+@pytest.mark.parametrize("speech", [live_check.speak, live_check.speak_windows])
+def test_speech_generator_does_not_inherit_voice_credentials(monkeypatch, speech) -> None:
+    monkeypatch.setenv("GEMINI_API_KEY", "test-key")
+    monkeypatch.setenv("SUPER_AGENT_LOCAL_TOKEN", "test-token")
+
+    def synthesize(_args, *, env, **_kwargs):
+        inherited = {"GEMINI_API_KEY", "SUPER_AGENT_LOCAL_TOKEN"}.intersection(env)
+        assert not inherited
+
+    monkeypatch.setattr(live_check.subprocess, "run", synthesize)
+    monkeypatch.setattr(live_check, "load_pcm", lambda _path: b"\x01\x00")
+    assert speech("Synthetic test") == b"\x01\x00"
+
+
 def test_summary_reports_tools_and_prints_no_transcript_text(capsys) -> None:
     from super_agent_voice.adapter import AudioChunk, Transcript, TurnComplete
 

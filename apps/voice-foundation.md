@@ -4,16 +4,16 @@ The browser console is a local-only scaffold. It uses a deterministic adapter
 that echoes PCM audio. It does not construct the separate Gemini adapter,
 persist audio, or provide tools or actions.
 
-## Current state (2026-11-12)
+## Current state (2026-11-16)
 
-The fake adapter is the default. A local private adapter is opt-in (see below). A Gemini Live
-adapter exists behind the same seam with offline tests
-([record](../docs/implementation/r01-7-gemini-adapter.md)), but the application
-never constructs it. An opt-in command, `live_check`, ran it once against the
-real service with synthetic speech ([record](../docs/implementation/r01-8-live-check.md)).
-You can run the local scaffold and test start, mute, barge-in, and stop. By
-default the console cannot connect to Gemini and personal microphone audio stays
-local. The opt-in Gemini mode below is a testing exception.
+The fake adapter is the default. A local private adapter is opt-in on macOS
+(`SUPER_AGENT_ADAPTER=local`, see below). A Gemini Live adapter exists behind
+the same seam with offline tests ([record](../docs/implementation/r01-7-gemini-adapter.md))
+and can be run in the browser console for testing with `SUPER_AGENT_ADAPTER=gemini`
+under an approved exception ([record](../docs/approvals/gemini-live-testing-exception.md)).
+An opt-in command, `live_check`, tests the Gemini adapter with synthetic speech
+([record](../docs/implementation/r01-8-live-check.md)). By default the console
+cannot connect to Gemini and personal microphone audio stays local.
 
 ## Local private mode (opt-in, macOS)
 

@@ -2,9 +2,9 @@
 
 | Field | Value |
 | --- | --- |
-| Date | 2026-11-12 |
+| Date | 2026-11-16 |
 | Current phase | PH-01 |
-| Current phase PR | [PR #34](https://github.com/abhishek3059/super-agent/pull/34) merged the live console, Windows launcher, and R-01.F2/F3/F4 evidence. PH-01 remains open with R-01.10 pending. Details: [phase PR log](docs/implementation/phase-prs.md). |
+| Current phase PR | [PR #42](https://github.com/abhishek3059/super-agent/pull/42) merged the R-01.4 evidence recovery and closed defects R-01.F5 through R-01.F8. PH-01 remains open with R-01.10 pending. Details: [phase PR log](docs/implementation/phase-prs.md). |
 | Gate definitions | [phases.md](phases.md) (entry prerequisites and exit gates stay defined there) |
 | Task records | [tasks/](tasks/README.md) |
 | Enforced by | `npm run check` ([scripts/check-roadmap.mjs](scripts/check-roadmap.mjs), form only), the shared reviewer ([.claude/agents/reviewer.md](.claude/agents/reviewer.md), [DEC-19](descisions.md#dec-19)), and [AGENTS.md](AGENTS.md) section 11 |

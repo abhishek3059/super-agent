@@ -56,11 +56,21 @@ def load_pcm(path: Path) -> bytes:
         return wav.readframes(wav.getnframes())
 
 
+def _speech_environment() -> dict[str, str]:
+    return {
+        name: value for name, value in os.environ.items()
+        if name.upper() not in {"GEMINI_API_KEY", "SUPER_AGENT_LOCAL_TOKEN"}
+    }
+
+
 def speak(text: str) -> bytes:
     """macOS `say` speech, written to a temporary folder that is deleted at once."""
     with tempfile.TemporaryDirectory() as folder:
         out = Path(folder) / "synthetic.wav"
-        subprocess.run(["say", "-o", str(out), "--data-format=LEI16@16000", text], check=True, timeout=30)
+        subprocess.run(
+            ["say", "-o", str(out), "--data-format=LEI16@16000", text],
+            check=True, timeout=30, env=_speech_environment(),
+        )
         return load_pcm(out)
 
 
@@ -72,7 +82,7 @@ def speak_windows(text: str) -> bytes:
             ["powershell", "-NoProfile", "-NonInteractive", "-Command", SAPI_SCRIPT],
             check=True, timeout=60,
             # The child needs no provider key.
-            env={**{k: v for k, v in os.environ.items() if k != "GEMINI_API_KEY"}, "SA_WAV": str(out), "SA_TEXT": text},
+            env={**_speech_environment(), "SA_WAV": str(out), "SA_TEXT": text},
         )
         return load_pcm(out)
 

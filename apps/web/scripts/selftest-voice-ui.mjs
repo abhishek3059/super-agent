@@ -61,6 +61,9 @@ equal(ui.spectrumBarHeight('listening', 1, 0.5), 50);
 
 equal(ui.statusLabel('speaking', 'gemini-live'), 'Speaking');
 equal(ui.pipelineSummary('speaking', 'gemini-live'), 'Playing the Gemini reply');
+equal(ui.pipelineSummary('listening', 'gemini-live'), 'Microphone streaming to Gemini');
+equal(ui.pipelineSummary('thinking', 'gemini-live'), 'Waiting for the Gemini reply');
+equal(ui.pipelineSummary('muted', 'gemini-live'), 'Microphone transmission paused');
 equal(ui.providerCopy('fake').badge, 'Fake echo adapter');
 equal(ui.providerCopy('local').privacy, 'Local model active. Microphone audio stays local.');
 equal(ui.providerCopy('gemini-live').tag, 'Cloud');

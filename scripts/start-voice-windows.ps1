@@ -34,6 +34,11 @@ foreach ($port in 8000, 4200) {
 
 Push-Location $repoRoot
 try {
+    Remove-Item Env:SUPER_AGENT_LOCAL_TOKEN -ErrorAction SilentlyContinue
+    Remove-Item Env:GEMINI_API_KEY -ErrorAction SilentlyContinue
+    # Launch the default fake adapter unless -Gemini was requested.
+    Remove-Item Env:SUPER_AGENT_ADAPTER -ErrorAction SilentlyContinue
+
     if (-not (Test-Path $voicePython)) {
         $python = (Get-Command python -ErrorAction Stop).Source
         & $python -m venv $voiceVenv
@@ -47,10 +52,10 @@ try {
     & $npm ci --ignore-scripts --prefix (Join-Path $repoRoot "apps\web")
     if ($LASTEXITCODE -ne 0) { throw "Frontend dependency installation failed." }
 
-    Remove-Item Env:SUPER_AGENT_LOCAL_TOKEN -ErrorAction SilentlyContinue
-    Remove-Item Env:GEMINI_API_KEY -ErrorAction SilentlyContinue
-    # The launcher only serves the fake or Gemini path, so an inherited adapter (such as local) is dropped.
-    Remove-Item Env:SUPER_AGENT_ADAPTER -ErrorAction SilentlyContinue
+    $env:PYTHONPATH = Join-Path $repoRoot "apps\api\src"
+    & $voicePython -m super_agent_voice.generate_token
+    if ($LASTEXITCODE -ne 0) { throw "Local token generation failed." }
+
     if ($Gemini) {
         Write-Host "WARNING: real microphone audio goes to Google's free tier, which may use inputs for training. Speak nothing personal (see docs/approvals/gemini-live-testing-exception.md)."
         $secureKey = Read-Host "Gemini API key" -AsSecureString
@@ -65,18 +70,18 @@ try {
         $plainKey = $null
         $env:SUPER_AGENT_ADAPTER = "gemini"
     }
-    $env:PYTHONPATH = Join-Path $repoRoot "apps\api\src"
-
-    & $voicePython -m super_agent_voice.generate_token
-    if ($LASTEXITCODE -ne 0) { throw "Local token generation failed." }
-
     $backendArguments = @(
         "-m", "uvicorn", "super_agent_voice.app:create_app", "--factory",
         "--host", "127.0.0.1", "--port", "8000",
         "--ws-max-size", "65600", "--ws-max-queue", "4"
     )
-    $backend = Start-Process -FilePath $voicePython -ArgumentList $backendArguments `
-        -WorkingDirectory $repoRoot -NoNewWindow -PassThru
+    try {
+        $backend = Start-Process -FilePath $voicePython -ArgumentList $backendArguments `
+            -WorkingDirectory $repoRoot -NoNewWindow -PassThru
+    } finally {
+        # The backend already has its environment. Keep the key out of npm's.
+        Remove-Item Env:GEMINI_API_KEY -ErrorAction SilentlyContinue
+    }
 
     $ready = $false
     foreach ($attempt in 1..20) {
