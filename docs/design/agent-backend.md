@@ -253,7 +253,8 @@ Proposed build order, each slice with its test:
    each limit breach fails closed. Built:
    [implementation record](../implementation/agent-backend-limits.md).
 3. **Runner.** A background runner with a stub graph. Test: the conversation
-   loop answers while a job runs; cancel moves to `cancel_requested`.
+   loop answers while a job runs; cancel moves to `cancel_requested`. Built:
+   [implementation record](../implementation/agent-backend-runner.md).
 4. **Model seam with a scripted fake.** Test: hostile model output (unknown
    step type, widened scope) is rejected in code.
 5. **Dynamic graph.** Plan validation, then a graph built from the validated

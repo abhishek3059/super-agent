@@ -88,9 +88,9 @@ data class and both flags.
 
 `Admission.tools` does not look at which `SUPER_AGENT_T1` groups are enabled.
 `tier1.run_t1` refuses a disabled group at run time, so a disabled tool in the
-admitted set fails when called, and is never made to work. The runner slice
-must intersect the admitted set with `tier1.enabled_tools()` before it offers
-tools to the planner.
+admitted set fails when called, and is never made to work. The runner
+([record](agent-backend-runner.md)) intersects the admitted set with
+`tier1.enabled_tools()` before it offers tools to the planner.
 
 ## Reason codes
 
@@ -128,8 +128,8 @@ ledger untouched after any refusal, idempotent re-admission.
 
 - Task type names and the personal-tool sets per type.
 - Section 5 lists "concurrent jobs 2" and "jobs queued 5". Admission uses
-  their sum as the cap on non-terminal jobs. The runner slice must enforce the
-  concurrent part when it picks jobs to start.
+  their sum as the cap on non-terminal jobs. The runner
+  ([record](agent-backend-runner.md)) enforces the concurrent part with its pool size.
 - "Retries per step 1" is the default; the PH-00 maximum of 2 is the ceiling.
 - Classification of tier 1 tools, from `tier1.py` groups: `files` group
   (`list_files`, `read_file`, `search_files`) are file tools; `calendar`
@@ -155,5 +155,5 @@ ledger untouched after any refusal, idempotent re-admission.
 
 ## Not built
 
-The runner, model seam, graph, step catalog schemas, per-day provider request
+The model seam, graph, step catalog schemas, per-day provider request
 counter, wiring into `app.py`, and any roadmap tick.

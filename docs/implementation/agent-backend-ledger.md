@@ -88,6 +88,6 @@ directory, installed from `apps/api/requirements.lock` with `--only-binary=:all:
 
 ## Not built yet
 
-Limits and admission (step 2), runner, model seam, graph, `delegate_task`,
+Model seam, graph, `delegate_task`,
 Gemini text model, evaluation set. No call site uses the ledger, so
 `recover_after_restart` and `purge` are not yet called at startup.
