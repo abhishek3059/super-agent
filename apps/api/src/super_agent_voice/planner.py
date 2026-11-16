@@ -106,7 +106,7 @@ def _step(raw: object, index: int, admission: Admission) -> Step:
         return Step(kind, after)
     tool = raw["tool"]
     if type(tool) is not str or tool not in admission.tools:
-        raise PolicyError("tool_out_of_scope")  # argument validation happens when the tool runs
+        raise PolicyError("tool_out_of_scope")  # args are only bounded here; slice 5 validates them before any step runs
     try:
         if type(raw["args"]) is not dict:
             raise _bad()
