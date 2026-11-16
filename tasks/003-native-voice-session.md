@@ -8,8 +8,8 @@
 
 ## Scope
 
-The Gemini Live adapter, offline tests, and one standalone synthetic real-service
-run exist. Since [PR #41](https://github.com/abhishek3059/super-agent/pull/41)
+The Gemini Live adapter, offline tests, and standalone synthetic runs against
+the real service exist. Since [PR #41](https://github.com/abhishek3059/super-agent/pull/41)
 the browser console can construct the adapter with `SUPER_AGENT_ADAPTER=gemini`,
 for maintainer testing under the
 [testing exception](../docs/approvals/gemini-live-testing-exception.md); the
@@ -50,7 +50,7 @@ No silent transport/provider fallback; no assumed native model access; no task w
 
 ## Evidence
 
-The Gemini Live adapter, offline tests, and one synthetic real-service run are
+The Gemini Live adapter, offline tests, and synthetic real-service runs are
 recorded above. The R-01.4 test covers the earlier local console at `a790530`
 with the fake adapter. The operator reported a live Gemini session through the
 console in the PR #41 description; the output was not saved, so it is not
@@ -60,7 +60,7 @@ holds the criterion-by-criterion table:
 - Met offline: no silent fallback (unknown adapter or missing key refuses to
   start), fail-closed unsupported model, provider-mismatch refusal, local stop
   and interruption ordering at the bridge.
-- Met by one standalone live run (2026-11-15): the revised synthetic live
+- Met by the standalone live run on 2026-11-15: the revised synthetic live
   run, with barge-in and tool calls.
 - Missing: native stop, interruption, and visible-state behavior measured
   through the application.

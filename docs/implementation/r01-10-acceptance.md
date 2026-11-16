@@ -38,6 +38,14 @@ describes an OpenAI candidate and a later Claude worker. It needs a provider
 decision and its own runtime evidence. The existing Gemini-specific evidence
 and blockers below record the current approved path.
 
+The [offline Realtime call probe](../../spikes/a6-openai-call/README.md)
+exercises the FastAPI voice bridge with scripted provider events. It covers
+call setup, audio and playback controls and adds no provider or microphone
+path. A separate generated-audio browser check used the fake adapter through
+the running local server and observed Listening, Mute and End. This is offline
+evidence. Native OpenAI voice, physical microphone behavior and the open
+loopback boundary finding remain outside the evidence.
+
 1. **Revised synthetic live run. Cleared 2026-11-15.** `abhishek3059` ran the
    [live command](../../apps/voice-foundation.md#synthetic-live-check-opt-in)
    on Windows at `0638660` and the

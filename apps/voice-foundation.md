@@ -8,8 +8,8 @@ deterministic adapter that echoes PCM audio and persists no audio.
 The fake adapter is the default. A local private adapter and a Gemini Live
 adapter are opt-in through `SUPER_AGENT_ADAPTER` (see below); the Gemini adapter
 has offline tests ([record](../docs/implementation/r01-7-gemini-adapter.md)).
-An opt-in command, `live_check`, ran it once against the
-real service with synthetic speech ([record](../docs/implementation/r01-8-live-check.md)).
+The opt-in `live_check` command ran against the real service with synthetic
+speech in its original and revised forms ([record](../docs/implementation/r01-8-live-check.md)).
 You can run the local scaffold and test start, mute, barge-in, and stop. By
 default the console cannot connect to Gemini and personal microphone audio stays
 local. The opt-in Gemini mode below is a testing exception.

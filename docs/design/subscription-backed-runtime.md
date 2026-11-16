@@ -12,7 +12,13 @@ and any later worker capability are tracked separately.
 | Hermes parity | Keep Hermes as a reference and optional future worker candidate. | The normal Hermes Anthropic subscription route excludes Claude Pro. The published experimental Claude provider runs the official CLI. Qualify its actual credential and egress handling before considering it. |
 
 OpenAI's [subscriber credits](https://developers.openai.com/api/docs/guides/chatgpt-api-credits)
-cover GPT-Live if eligible. [API data controls](https://developers.openai.com/api/docs/guides/your-data)
+cover GPT-Live and Realtime if eligible. Active credits can be used without
+adding an API payment method. The project still needs its own API credential
+and a spending decision. The [ChatGPT voice interface](https://help.openai.com/en/articles/20001274-chatgpt-voice)
+and [Claude voice interface](https://support.claude.com/en/articles/11101966-use-voice-mode)
+can be used in their own apps. BotHQ's separate worker sign-in does not pay for
+the call. Its backend requests a short-lived credential using the xAI API.
+[API data controls](https://developers.openai.com/api/docs/guides/your-data)
 apply at the chosen endpoint. Follow Anthropic's
 [Claude Code terms and authentication guidance](https://code.claude.com/docs/en/legal-and-compliance).
 The app must keep sign-in in Anthropic's own flow and must never collect
@@ -46,6 +52,8 @@ The normal setup can drop the Gemini and local-model requirements after the
 replacement is qualified. The fake adapter remains useful for offline tests.
 The existing [synthetic console proposal](synthetic-voice-console.md) records
 the previous Gemini design and can inform the generated-audio path.
+The [offline call spike](../../spikes/a6-openai-call/README.md) compares BotHQ's
+call flow with a scripted OpenAI Realtime session through the existing bridge.
 
 ## Workspace and later worker
 
