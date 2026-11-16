@@ -1,18 +1,22 @@
-# RT-003 — Native voice session
+# RT-003: Native voice session
 
 | Field | Value |
 | --- | --- |
 | Task ID | RT-003 |
-| Status | in progress; adapter and synthetic live check implemented, browser integration and acceptance incomplete |
-| Execution evidence | [Gemini adapter record](../docs/implementation/r01-7-gemini-adapter.md), [synthetic live-check record](../docs/implementation/r01-8-live-check.md), [local microphone test](../docs/approvals/r01-4-microphone-test.md) |
+| Status | in progress; adapter, synthetic live check, and opt-in console wiring implemented, native measurements through the application missing |
+| Execution evidence | [Gemini adapter record](../docs/implementation/r01-7-gemini-adapter.md), [synthetic live-check record](../docs/implementation/r01-8-live-check.md), [local microphone test](../docs/approvals/r01-4-microphone-test.md), [criteria table](../docs/implementation/r01-10-acceptance.md#criteria-and-evidence), [offline re-run, 2026-11-15](../docs/implementation/evidence/r01-10-offline-suites-20261115.txt) |
 
 ## Scope
 
-The Gemini Live adapter, offline tests, and one standalone synthetic real-service
-run exist. The browser console still constructs the fake adapter, so the full
-native path and its acceptance measurements are incomplete. The target remains
-a manually activated path with indicators, backend control ownership,
-mic/playback stops, and no task workers or silent fallback.
+The Gemini Live adapter, offline tests, and standalone synthetic runs against
+the real service exist. Since [PR #41](https://github.com/abhishek3059/super-agent/pull/41)
+the browser console can construct the adapter with `SUPER_AGENT_ADAPTER=gemini`,
+for maintainer testing under the
+[testing exception](../docs/approvals/gemini-live-testing-exception.md); the
+fake adapter stays the default. No saved measurement covers the native path
+through the console. The target remains a manually activated path with
+indicators, backend control ownership, mic/playback stops, and no task workers
+or silent fallback.
 
 ## Non-goals
 
@@ -46,13 +50,22 @@ No silent transport/provider fallback; no assumed native model access; no task w
 
 ## Evidence
 
-The Gemini Live adapter, offline tests, and one synthetic real-service run are
-recorded above. The application uses the fake adapter. The R-01.4 test
-covers the earlier local console at `a790530`. Native stop and interruption
-behavior through the application boundary still need live evidence. The
-[R-01.10 record](../docs/implementation/r01-10-acceptance.md) covers two
-offline fixes and the remaining acceptance checks. Task completion and
-RT-G01 remain open.
+The Gemini Live adapter, offline tests, and synthetic real-service runs are
+recorded above. The R-01.4 test covers the earlier local console at `a790530`
+with the fake adapter. The operator reported a live Gemini session through the
+console in the PR #41 description; the output was not saved, so it is not
+counted. The [R-01.10 record](../docs/implementation/r01-10-acceptance.md)
+holds the criterion-by-criterion table:
+
+- Met offline: no silent fallback (unknown adapter or missing key refuses to
+  start), fail-closed unsupported model, provider-mismatch refusal, local stop
+  and interruption ordering at the bridge.
+- Met by the standalone live run on 2026-11-15: the revised synthetic live
+  run, with barge-in and tool calls.
+- Missing: native stop, interruption, and visible-state behavior measured
+  through the application.
+
+Task completion and RT-G01 remain open.
 
 ## Navigation
 

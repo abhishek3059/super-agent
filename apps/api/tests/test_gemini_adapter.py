@@ -100,6 +100,42 @@ def run(coro):
     return asyncio.run(coro)
 
 
+def test_large_provider_audio_is_split_without_losing_samples() -> None:
+    large = b"\x01\x02" * 20_000
+
+    async def scenario():
+        adapter = make(FakeSession([[audio(large + b"\x03"), audio(b"\x04"), flag(turn_complete=True)]]))
+        await adapter.start()
+        try:
+            async for event in adapter.events():
+                if isinstance(event, TurnComplete):
+                    break
+                assert isinstance(event, AudioChunk)
+                assert 0 < len(event.data) <= 32 * 1024 and len(event.data) % 2 == 0
+                received.append(event.data)
+        finally:
+            await adapter.close()
+
+    received: list[bytes] = []
+    run(asyncio.wait_for(scenario(), 2))
+    assert b"".join(received) == large + b"\x03\x04"
+
+
+@pytest.mark.parametrize("boundary", ["interrupted", "turn_complete"])
+def test_partial_sample_does_not_cross_provider_boundaries(boundary) -> None:
+    async def scenario():
+        adapter = make(FakeSession([[audio(b"\x01"), flag(**{boundary: True})],
+                                    [audio(b"\x02\x03"), flag(turn_complete=True)]]))
+        await adapter.start()
+        try:
+            return await take(adapter, 3)
+        finally:
+            await adapter.close()
+
+    ending = Interrupted() if boundary == "interrupted" else TurnComplete()
+    assert run(scenario()) == [ending, AudioChunk(b"\x02\x03", 24000), TurnComplete()]
+
+
 @pytest.mark.parametrize("enterprise", ["false", "true"])
 def test_sdk_live_destination_stays_on_developer_api(monkeypatch, enterprise) -> None:
     from urllib.parse import urlsplit
@@ -128,18 +164,18 @@ def test_sdk_live_destination_stays_on_developer_api(monkeypatch, enterprise) ->
     )]
 
 
-def test_maps_audio_interrupt_and_turn_complete_in_order() -> None:
+def test_provider_interrupt_discards_queued_audio_before_the_next_turn() -> None:
     async def scenario():
-        session = FakeSession([[audio(b"\x01\x00"), flag(interrupted=True)], [audio(b"\x02\x00"), flag(turn_complete=True)]])
+        stale = b"\x01\x00" * 280_000
+        session = FakeSession([[audio(stale), flag(interrupted=True)], [audio(b"\x02\x00"), flag(turn_complete=True)]])
         adapter = make(session)
         await adapter.start()
-        events = await take(adapter, 4)
-        await adapter.close()
-        return events, session
+        try:
+            return await take(adapter, 3)
+        finally:
+            await adapter.close()
 
-    events, session = run(scenario())
-    assert events == [AudioChunk(b"\x01\x00", 24000), Interrupted(), AudioChunk(b"\x02\x00", 24000), TurnComplete()]
-    assert session.closed
+    assert run(scenario()) == [Interrupted(), AudioChunk(b"\x02\x00", 24000), TurnComplete()]
 
 
 def test_send_path_uses_blob_and_ends_stream_once_on_mute() -> None:

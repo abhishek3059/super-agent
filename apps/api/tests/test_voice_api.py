@@ -917,8 +917,11 @@ def test_provider_interrupt_advances_the_epoch() -> None:
         assert websocket.receive_json() == {"type": "turn.complete", "playbackEpoch": 1}
 
 
-def test_gemini_drops_old_turn_audio_between_local_interrupt_and_provider_ack() -> None:
-    first_pcm, stale_pcm, fresh_pcm = b"\x01\x00", b"\x02\x00", b"\x03\x00"
+@pytest.mark.parametrize("frame_limit", [32 * 1024, 8193])
+def test_gemini_drops_old_turn_audio_between_local_interrupt_and_provider_ack(frame_limit) -> None:
+    first_pcm, stale_pcm, next_input = b"\x01\x00", b"\x02\x00", b"\x03\x00"
+    # This one provider message produces more frames than the playback queue can hold at once.
+    fresh_pcm = next_input * (9 * frame_limit)
 
     def provider_audio(pcm: bytes) -> NS:
         return NS(server_content=NS(model_turn=NS(parts=[NS(inline_data=NS(data=pcm))])))
@@ -933,7 +936,7 @@ def test_gemini_drops_old_turn_audio_between_local_interrupt_and_provider_ack() 
         async def receive(self):
             pcm = await self.input.get()
             assert pcm is not None
-            yield provider_audio(pcm)
+            yield provider_audio(fresh_pcm if pcm == next_input else pcm)
             if pcm == first_pcm:
                 assert await self.input.get() is None
                 # The old reply may still arrive after the local epoch changes.
@@ -945,9 +948,10 @@ def test_gemini_drops_old_turn_audio_between_local_interrupt_and_provider_ack() 
         yield FakeGeminiSession()
 
     def factory() -> GeminiLiveAdapter:
-        return GeminiLiveAdapter("test-model", connect=sdk_connect, blob=bytes)
+        return GeminiLiveAdapter("test-model", connect=sdk_connect, blob=bytes, output_frame_bytes=frame_limit)
 
-    with make_client(factory=factory) as client, connect(client) as websocket:
+    config = VoiceConfig(local_token=TOKEN, max_audio_frame_bytes=frame_limit)
+    with make_client(config=config, factory=factory) as client, connect(client) as websocket:
         websocket.send_json({"type": "session.auth", "token": TOKEN})
         assert websocket.receive_json() == {**READY, "provider": "gemini-live", "outputRateHz": 24000}
         websocket.send_bytes(first_pcm)
@@ -960,11 +964,16 @@ def test_gemini_drops_old_turn_audio_between_local_interrupt_and_provider_ack() 
         }
         assert websocket.receive_json() == {"type": "turn.complete", "playbackEpoch": 1}
 
-        websocket.send_bytes(fresh_pcm)
-        assert websocket.receive_json() == {
-            "type": "audio.chunk", "playbackEpoch": 1, "rateHz": 24000, "channels": 1, "format": "pcm16",
-        }
-        assert websocket.receive_bytes() == fresh_pcm
+        websocket.send_bytes(next_input)
+        received = bytearray()
+        while len(received) < len(fresh_pcm):
+            assert websocket.receive_json() == {
+                "type": "audio.chunk", "playbackEpoch": 1, "rateHz": 24000, "channels": 1, "format": "pcm16",
+            }
+            frame = websocket.receive_bytes()
+            assert 0 < len(frame) <= frame_limit and len(frame) % 2 == 0
+            received.extend(frame)
+        assert received == fresh_pcm
         assert websocket.receive_json() == {"type": "turn.complete", "playbackEpoch": 1}
 
 

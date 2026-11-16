@@ -21,13 +21,14 @@ this file is a status pointer, not evidence and not a gate.
 | Field | Value |
 | --- | --- |
 | Phase | PH-01: local boundary and native voice connection |
-| Latest merged phase PR | [#34](https://github.com/abhishek3059/super-agent/pull/34), merged into `develop` as `3025155` on 2026-11-12 |
-| Status | PH-01 remains in progress. The [R-01.4 operator report](../approvals/r01-4-microphone-test.md) covers the revised offline scaffold before #34. |
-| Application state | The browser console is the reference-led live voice interface and uses only the offline fake adapter. The token stays in memory, the endpoint is fixed to the reviewed loopback address, and the spectrum is labeled as microphone level, not speech detection. A Gemini Live adapter exists behind the seam; the application never constructs it, but the opt-in `live_check` command ran it once against the real service with synthetic speech ([R-01.7](r01-7-gemini-adapter.md), [R-01.8 and R-01.9](r01-8-live-check.md)). Authentication, throttling, expiry, and a CSP are in place and independently reviewed ([R-01.6](../reviews/r01-6-security-review.md)). |
+| Latest merged phase PR | [#42](https://github.com/abhishek3059/super-agent/pull/42), merged into `develop` as `3d00d59` on 2026-11-13 |
+| Status | PH-01 remains in progress with R-01.10 pending. The [R-01.4 operator report](../approvals/r01-4-microphone-test.md) is recovered and evidenced. R-01.F5 through R-01.F8 are resolved and verified. |
+| Application state | The fake streaming adapter is the default. An opt-in fully local private voice adapter (speech in/out, Silero VAD, macOS say / Kokoro TTS, Ollama local model) is merged (PR #36). Tier 1 read-only tools (PR #43) and Tier 2 local memory and reminders (PR #45) are merged behind explicit flags. An opt-in Gemini Live console testing option with calculator and clock tools exists under an exception (PR #41). Loopback boundary, token authentication, throttling, expiry, and CSP are active. |
 | Merged scope (#32) | Ticks for R-01.3, R-01.5, and R-01.F1; credential findings CR-09 and CR-02; R-01.6 auth boundary; R-01.7 adapter port; locked `google-genai`; R-01.8 and R-01.9 live check |
 | Merged scope (#34) | Rebuilt voice console and UI self-test, R-01.F2 Windows-portable symlink test, R-01.F3 Origin diagnostic, and R-01.F4 Windows launcher |
-| Not in scope | Personal microphone audio to Gemini, tools, workers, external actions, paid services, or public deployment |
-| Remaining gate work | [R-01.10](r01-10-acceptance.md): complete RT-002 and RT-003 and evidence RT-G01. The standalone Gemini run does not cover the application boundary or demonstrate interruption of a long reply. |
+| Merged scope (#42) | Recovered R-01.4 operator microphone evidence; closed defects R-01.F5 (post-interrupt playback drop), R-01.F6 (clean SDK exit), R-01.F7 (unexpected provider refusal), and R-01.F8 (pinned Developer API base URL) |
+| Not in scope | Personal microphone audio to Gemini outside the testing exception, arbitrary workers, external actions, paid services, or public deployment |
+| Remaining gate work | [R-01.10](r01-10-acceptance.md): complete RT-002 and RT-003 and evidence RT-G01. |
 
 R-01.F2 identifies the Windows test portability fix. F2 in the
 [R-01.6 risk acceptance](../approvals/r01-6-f2-risk-acceptance.md) identifies
