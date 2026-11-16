@@ -24,7 +24,7 @@ application-owned ledger.
 SYSTEM 1: foreground voice companion (low-latency audio loop)
   Browser audio and control UI + native transport adapter + conversation coordinator
   Invariant: never runs heavy tools, scrapers, or shell commands on this loop
-  Tools: ledger calls only (propose_task, query_ledger, cancel_task)
+  Tools: ledger calls only (delegate_task, query_ledger, cancel_task; the entry tool was `propose_task` before 2026-11-16)
         |
         | typed task spec, < 50 ms, via the SQLite ledger
         v

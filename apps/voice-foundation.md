@@ -57,6 +57,9 @@ python3.12 -m venv ~/.super-agent/venv
 OLLAMA_HOST=127.0.0.1:11434 ollama pull qwen3.5:4b
 ```
 
+If the environment predates 2026-11-16, run the same `pip install` line again: `langgraph` joined
+`apps/api/requirements.lock` then, and the local adapter imports it even with `SUPER_AGENT_DELEGATE` off.
+
 Model files go in `~/.super-agent/models` ([spike A4](../spikes/a4-local-voice/README.md)
 for Whisper and Silero) and `~/.super-agent/models/a5` (LFM3-Audio, see the
 spike A5 record).

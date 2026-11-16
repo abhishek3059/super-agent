@@ -7,7 +7,7 @@ adds no endpoint, changes no authentication, Host, Origin or CORS handling, and 
 
 ## What was built
 
-- `apps/api/src/super_agent_voice/delegation.py` (86 lines): `Service`, `run_read_tool`, and `TOOL` (the schema).
+- `apps/api/src/super_agent_voice/delegation.py` (88 lines at the time of writing): `Service`, `run_read_tool`, and `TOOL` (the schema).
 - `apps/api/src/super_agent_voice/local_adapter.py`: `delegate_enabled()` (the `SUPER_AGENT_DELEGATE` flag), the tool
   added to `available_tools()`, a dispatch branch in `call_tool`, a one-sentence system prompt addition when on,
   and a flag check at session start. `gemini_adapter.py` is untouched.
@@ -15,7 +15,7 @@ adds no endpoint, changes no authentication, Host, Origin or CORS handling, and 
 - Follow-up commit, `fix(api): honour the memory opt-out and untrusted-text guard for delegation`: `memory.flag()` and
   `memory.enabled()`, the runner's memory filter, a memory check in `run_read_tool`, and the untrusted-text guard
   (sections below).
-- `apps/api/tests/test_delegation.py`: 71 tests (55 in the first commit, 16 in the follow-up below).
+- `apps/api/tests/test_delegation.py`: 76 tests (55 in the first commit, 16 in the memory follow-up, 5 more in the test-isolation follow-up). `apps/api/tests/test_home_guard.py`: 2 tests.
 - Decisions recorded in the [design](../design/agent-backend.md): tool name `delegate_task` (decision 5, conflict C1,
   and the brain documents now say `delegate_task`), separate `~/.super-agent/ledger.db` (decision 4), first model
   Gemini text on the free tier (decision 1, built in slice 7, not here). Decided by `abhishek3059` in chat on 2026-11-16.
@@ -138,6 +138,14 @@ never closes it: jobs are meant to outlive a session. Nothing calls `Service.clo
   wait, but it cannot stop a running job either.
 - The adapter never closes the process-wide service (nothing calls `close()` outside tests), so the pool and any held
   job live until the process exits.
+- Assistant replies from an earlier turn stay in the conversation history. They can paraphrase untrusted text, while
+  the untrusted-read flag resets each turn, so a later turn can act on a paraphrase the guard never saw.
+- A `list_memory` or `list_reminders` read does not set the flag, although memory can hold text that came from earlier
+  untrusted content (a remembered file excerpt, for example).
+- Importing `local_adapter` now imports `delegation`, `graph` and LangGraph even with `SUPER_AGENT_DELEGATE` off. A local
+  environment installed before LangGraph joined `apps/api/requirements.lock` fails to import the local adapter until it
+  is reinstalled with the same `pip install --only-binary=:all: -r apps/api/requirements.lock ...` line
+  ([setup](../../apps/voice-foundation.md)). CI installs from the lock file, so it is not affected. The import time was not measured.
 - No per-turn cap on delegations beyond the adapter's two tool calls per round, three rounds, and the queue cap
   (7 non-terminal jobs; `admit` is not atomic, so two concurrent calls can both pass it).
 - The tier 1 tools are macOS-only and are filtered by the runner while their group is disabled; this slice did not
@@ -160,9 +168,9 @@ Command:
 PYTHONDONTWRITEBYTECODE=1 python -m pytest apps/api -p no:cacheprovider
 ```
 
-Real result on this host (Windows, Python 3.14.4): `878 passed, 110 skipped` (baseline `804 passed, 110 skipped`,
-plus 71 new delegation tests and 3 new runner tests). `test_delegation.py`, `test_graph.py` and `test_runner.py`
-together, 5 runs in a row: 156 passed each time. See the commit report for the `npm run check` result.
+Real result on this host (Windows, Python 3.14.4): `885 passed, 110 skipped` twice in a row (baseline `804 passed,
+110 skipped`, plus 76 delegation tests, 3 runner tests and 2 home-guard tests). `test_delegation.py`, `test_graph.py`
+and `test_runner.py` together, 5 runs in a row: 161 passed each time. See the commit report for the `npm run check` result.
 
 `test_delegation.py` covers: a receipt returned while the job is held open and the job later `succeeded` with the
 exact receipt (real `Runner`, real ledger, real graph, real `calculate`); the conversation-loop call returning only
@@ -183,12 +191,69 @@ memory on; `run_read_tool("list_memory")` is refused unless memory is on; the ad
 `memory_context` only when memory is on; a tier 1 read followed by `delegate_task` in one turn is refused with the
 service untouched and the ledger empty; a turn with no read still delegates, and the next turn after a refused one is clean.
 
-Mutations tried on 2026-11-16 (each restored): calling `_delegate` inline instead of `to_thread` fails the
-event-loop test only; `bool(is_local)` fails the three truthy-flag cases; allowing memory writes in `READ_TOOLS`
-fails all five write cases; removing `recover()` fails the recovery test; removing `purge` fails both purge tests;
-removing the exact-keys check fails the extra-argument and missing-key cases. Follow-up: removing the runner's memory
-filter and context clearing fails 11 tests (3 runner, 8 delegation); removing the untrusted-text guard fails the
-two guard tests.
+Mutations, all re-run at the head of the test-isolation follow-up (2026-11-16), each in a copy of `apps/api`
+outside the repository with the home folder pointed at a temporary folder, never in the worktree. The unmutated copy
+passed 106 tests (`test_delegation.py` plus `test_runner.py`).
+
+| Mutation | Result |
+| --- | --- |
+| `_delegate` called inline instead of through `to_thread` | the event-loop test fails (1) |
+| `bool(is_local)` instead of `is True` | the three truthy-flag cases fail (3) |
+| `READ_TOOLS` includes every memory name (`memory.NAMES`, writes too) | the five memory-write cases with memory **on** fail; with memory off they still pass, because the memory-off check refuses first (that was the gap: since the memory follow-up the test ran with memory off, so this mutation passed everything; the test now sets memory on and off explicitly) |
+| `recover()` removed | the recovery test fails (1) |
+| `purge` removed | the recovery test and the purge test fail (2) |
+| exact-keys check removed | three argument-shape cases and eight extra-argument cases fail (11) |
+| runner memory filter and `memory_context` clearing removed | eleven tests fail (3 runner, 8 delegation) |
+| untrusted-text guard removed | the two guard tests fail (2) |
+| the memory check in `run_read_tool` removed | the three memory-off and bad-flag cases of the `run_read_tool` test fail (3) |
+
+## Tests stay out of the real home folder
+
+Found by the shared reviewer: the suite wrote to the operator's real `~/.super-agent/`. Two causes. First, a test that
+ended with a job still running left a worker thread behind; the fixture's `close()` does not wait, the test's
+monkeypatches were undone, and the worker's later ledger calls went to the default `ledger.db` in the real home folder.
+Second, `memory.AUDIT_LOG` was not redirected, so tests that ran memory tools appended lines to the real
+`tool-audit.log`. Reproduced before the fix against a throwaway home folder: running only `test_delegation.py` with
+`HOME` and `USERPROFILE` set to a temporary folder left `ledger.db` (28,672 bytes) and `tool-audit.log` in
+`<temp>/.super-agent`.
+
+What `apps/api/tests/conftest.py` does now:
+
+1. **Redirect before import.** It records the real data folder, then points `HOME` and `USERPROFILE` at a fresh temporary
+   folder before any `super_agent_voice` import. Every default path (`ledger.DB_PATH`, `memory.DB_PATH`,
+   `memory.AUDIT_LOG`, `tier1.AUDIT_LOG`, `config.TOKEN_FILE`, `local_adapter.MODEL_DIR`, and the lfm3 model path) is
+   computed from `Path.home()` (at import time, except the lfm3 path, which is computed at call time), so none of them can name the real folder. Both variables are set
+   because Python reads `USERPROFILE` on Windows and `HOME` on macOS and Linux. `test_home_guard.py` checks that none of those
+   constants points into the real folder.
+2. **Session guard.** A session fixture lists the real folder (name, size and modification time of every entry,
+   never contents) before the run and fails the suite if the listing differs afterwards. It also fails if anything
+   was written to the redirected default folder, which means a test used a default path instead of its own temporary one.
+3. **Per-test guard.** The same listing is compared around every test, so the test that touched the real folder is the one
+   that fails. `test_home_guard.py` shows the comparison notices a created, a changed and a removed file.
+4. **No worker outlives its test.** An autouse fixture records every `Runner` a test builds and, in its teardown,
+   waits for each runner's pool (`shutdown(wait=True)`). It asks for `monkeypatch`, so its teardown runs before the
+   test's monkeypatches are undone. The delegation tests' `services` fixture also releases any held model gate first, so
+   the wait ends at once instead of at the five second test timeout.
+5. `memory.AUDIT_LOG` and `tier1.AUDIT_LOG` are redirected to the test's temporary folder.
+
+Checked by removing the drain wait and the gate release in a copy outside the repo: the session guard then fails with
+"a test wrote to a default data path". With both in place it does not.
+
+`test_runner.py` and `test_graph.py`: I checked them for a worker that outlives its test by running both files in a copy outside the repo with a probe in the drain fixture that listed the ledger's non-terminal jobs at each runner's teardown (78 runners). Seventy-one had none. Seven had a row left in a non-final state, but none had a live worker: two are `unknown` (a final state in the ledger that the probe's terminal set does not include), one job was admitted and never submitted (`queued`), and four tracing tests call `work` directly with a hand-moved job and never start a runner thread (`running`). So neither file leaves a worker running, and the drain finished each pool at once (the two files took 10 seconds together). Their own fixtures already close their runners, and the drain is now the safety net for them as well.
+
+Real listing of `~/.super-agent/` (name, size, modification time; no contents) around two full suite runs
+(`885 passed, 110 skipped` each), taken with `ls` before and after, identical:
+
+```text
+before
+28672 2026-11-16 19:44:15.790812700 ledger.db
+33973 2026-11-16 19:44:15.470567900 tool-audit.log
+43 2026-11-14 00:57:31.009880800 voice-token
+after
+28672 2026-11-16 19:44:15.790812700 ledger.db
+33973 2026-11-16 19:44:15.470567900 tool-audit.log
+43 2026-11-14 00:57:31.009880800 voice-token
+```
 
 ## Not built
 

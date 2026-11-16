@@ -248,7 +248,8 @@ Schemas are shown as field lists; exact JSON Schema is implementation work.
 earlier drafts, and this section keeps the other three names. The first built slice
 ([record](../../implementation/agent-backend-delegation.md)) is narrower than the contract below: it takes only
 `task_type` and `instruction`, and returns only the job ID and state. The operation registry, slots and dispositions
-below are not built.
+below are not built. Another difference: the request ID in the next paragraph. The built slice does not derive it from a
+draft ID or a turn; it uses a fresh random key per call, so a repeated tool call is a new job.
 
 Shared rules: every mutating call carries a `request_id` derived by code,
 not by the model. For `delegate_task` it comes from the draft ID. For
@@ -425,7 +426,7 @@ decided by this document.
 | OD-7 | Which local model serves the planner and the butler. | Decided by a measurement spike on this project's schemas (the unrun spike A3c in [free-stack.md](../../free-stack.md)). | Run the spike before R-M.2. Check the model's licence under AGENTS.md section 6. |
 | OD-8 | Kokoro's GPL-3.0 dependency in PR 36's text-to-speech step. The repository is MIT. | (a) Keep Kokoro as an optional component the user installs separately. (b) Default to the operating system's built-in voice. (c) Find another permissively licensed local voice. | (b) as the default, with (a) as an opt-in, so the MIT repository ships no GPL code. The licence details were not checked in this work; the decision belongs in PR 36's review. |
 | OD-9 | Any paid tier. | Keep $0, or approve a named paid service. | Keep $0. Nothing in this design needs a paid service. |
-| OD-10 | One SQLite file or two. | (a) Memory tables inside the ledger file. (b) A separate `memory.db`. | (b). Each session owns its schema, and deleting all memory is deleting one file. |
+| OD-10 | One SQLite file or two. | (a) Memory tables inside the ledger file. (b) A separate `memory.db`. | (b). Each session owns its schema, and deleting all memory is deleting one file. **Decided 2026-11-16 by `abhishek3059` (chat)** for the job ledger: a separate `~/.super-agent/ledger.db` next to `memory.db`. |
 | OD-11 | The butler's name, tone, and default form of address. | Maintainer choice. | No name and no honorific by default. |
 | OD-12 | A second cloud recipient for `synthetic` planner calls (Groq or OpenRouter, from the completion plan). PH-00 approves Gemini only. | (a) Gemini only, then local. (b) Approve a named second recipient under [REQ-13](../../../prd.md#req-13). | (a). Synthetic work is for tests, where the local model is an adequate fallback. |
 | OD-13 | May the local cascade (speech to text, chat model, text to speech) be the private voice path? [REQ-01](../../../prd.md#req-01) rules out a mandatory chain of that kind. | (a) Approve the cascade as a labelled interim private path through an exception record. (b) Wait for a genuinely native local model (PH-07). (c) A paid native cloud tier with no training, which also needs OD-1 and OD-9. | (a), decided in PR 36's own exception record. Without it, no real personal use is possible at $0, and the per-turn design in section 5 has no adapter to run on. |

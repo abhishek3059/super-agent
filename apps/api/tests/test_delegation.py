@@ -66,6 +66,7 @@ def services():
 
     yield make
     for service in made:
+        getattr(service._model, "gate", threading.Event()).set()  # a held job must finish inside its test
         service.close()
 
 
@@ -249,8 +250,10 @@ def test_a_bad_call_key_from_code_is_refused(services):
     assert services(ScriptedModel([PLAN])).delegate("answer", "hello", "") == {"refused": "idempotency_key_invalid"}
 
 
+@pytest.mark.parametrize("setting", ["on", "off"])  # "on" is the case where only READ_TOOLS stands in the way
 @pytest.mark.parametrize("name", sorted(memory.WRITES))
-def test_the_tool_runner_refuses_every_memory_write_tool(monkeypatch, name):
+def test_the_tool_runner_refuses_every_memory_write_tool(monkeypatch, name, setting):
+    monkeypatch.setenv("SUPER_AGENT_MEMORY", setting)
     monkeypatch.setattr(memory, "run", lambda *a: pytest.fail("a memory write must never run"))
     assert delegation.run_read_tool(name, {"text": "x", "match": "abc", "when": "now"}) == "error: no such tool."
 
