@@ -107,11 +107,18 @@ What the code does, in two layers:
 2. **Disabled for the run** (`_run_graph`): compile and invoke run with `tracing_v2_callback_var` set to `None` and
    inside `tracing_context(enabled=False)`, so a missed switch still attaches no tracer to the graph.
 
-Tests (all run with every network connection blocked by an autouse fixture, which also fails the test if any
-attempt is made, so a regressed guard fails offline): six variable names (one lower case); `tracing_context(enabled=True)`;
+Tests (all run under an autouse fixture that makes `socket.connect`, `connect_ex`, `create_connection` and
+`getaddrinfo` raise and fails the test at teardown if any was called; the two defence tests also replace every
+tracer client with a `MagicMock` and point `LANGSMITH_ENDPOINT` at `127.0.0.1:9`, so a regressed defence has no real
+client to flush on a background thread after the patches are undone): six variable names (one lower case); `tracing_context(enabled=True)`;
 `tracing_v2_enabled()` with a fake client, calling `work` directly in the caller's thread, with zero model calls, zero
 tool calls and zero socket attempts; and two tests that replace `_tracing` with a function that returns False
 (the environment switch, and the LangChain context) and count tracer `on_chain_start` calls on the graph, which must be zero.
+Checked on 2026-11-16 with the defence removed in a temporary edit, under a wrapper script outside the repo whose
+`sys.addaudithook` stays active until the process exits: both defence tests failed on the tracer count (5 runs seen),
+and the hook saw 0 `socket.connect` and 0 name-lookup events. Removing only `tracing_context(enabled=False)` fails the
+environment-switch test only, and removing only `set(None)` fails the LangChain-context test only. The hook sees real
+socket calls only, not calls the fixture already refused, which the fixture's own teardown check covers.
 The `lru_cache` on `langsmith.utils.get_env_var` is cleared before and after each test, because a value cached by
 an earlier test had made the variable-name cases pass without the check.
 
@@ -123,6 +130,9 @@ them); removing `tracing_context(enabled=False)` or the `set(None)` fails the ma
 The leak path was first checked by hand with a throwaway script (not in the repo), pointed at a listener on 127.0.0.1:
 with `LANGSMITH_TRACING=true`, a dummy key and `LANGSMITH_ENDPOINT` set to the listener, an unguarded compiled
 `StateGraph` made two requests (`GET /info`, `POST /runs/multipart`). Other LangGraph variables (`LANGGRAPH_*`) are not read.
+
+Not covered by the guard: `langchain_core.globals.set_debug` and `set_verbose`, switched on in process, would print tool
+output and summary text to stdout. That is local only, not network egress.
 
 ## Reason codes
 

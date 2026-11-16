@@ -8,6 +8,7 @@ from unittest.mock import MagicMock
 
 import pytest
 from langchain_core.tracers.context import tracing_v2_enabled
+from langsmith import run_trees
 from langsmith import utils as ls_utils
 
 from super_agent_voice import graph, ledger, policy, tier1
@@ -402,6 +403,11 @@ def test_graph_runs_with_tracing_disabled_in_code_even_if_the_check_is_missed(mo
         return real(self, *args, **kwargs)
 
     monkeypatch.setattr(tracer_module.LangChainTracer, "on_chain_start", counted)
+    # If the defence regresses, a real tracer would flush on a background thread after these patches are undone.
+    # So every client it can reach is a fake, and the endpoint is a local address that nothing listens on.
+    monkeypatch.setattr(tracer_module, "get_client", MagicMock)
+    monkeypatch.setattr(run_trees, "get_cached_client", MagicMock)
+    monkeypatch.setenv("LANGSMITH_ENDPOINT", "http://127.0.0.1:9")
     monkeypatch.setattr(graph, "_tracing", lambda: False)  # as if the guard had a gap
     env = Env([GOOD])
     run = direct(env)
