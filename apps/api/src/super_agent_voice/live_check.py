@@ -20,6 +20,7 @@ import tempfile
 import time
 import wave
 from pathlib import Path
+from typing import TypedDict
 
 from .adapter import AdapterError, AudioChunk, Interrupted, TurnComplete, VoiceAdapter
 from .config import VoiceConfig
@@ -30,6 +31,24 @@ STEP_TIMEOUT_SECONDS = 40
 PHRASE = "Hello. In one short sentence, what is two plus two?"
 BARGE_IN_PROMPT = "Please count out loud from one to one hundred, one number at a time."
 BARGE_IN_PHRASE = "Stop counting. Say the word done instead."
+
+
+class StepResult(TypedDict, total=False):
+    step: str
+    connect_ms: int
+    first_audio_ms: int
+    input_done_ms: int
+    audio_bytes: int
+    ended_ms: int
+    events: list[str]
+    error: str
+    error_ms: int
+    skipped: str
+    barge_in_first_frame_ms: int
+    barge_in_input_done_ms: int
+    provider_interrupted_after_enqueue: bool
+    fails_closed: bool
+    unsupported_confirmed: bool
 
 
 def load_pcm(path: Path) -> bytes:
@@ -48,7 +67,7 @@ def speak(text: str) -> bytes:
 
 
 async def converse(
-    adapter: VoiceAdapter, pcm: bytes, result: dict, *, barge_in_pcm: bytes = b"", pace: float = 0.1
+    adapter: VoiceAdapter, pcm: bytes, result: StepResult, *, barge_in_pcm: bytes = b"", pace: float = 0.1
 ) -> None:
     """Fills `result` as it goes, so a timeout still reports how far it got."""
     started = time.monotonic()
@@ -60,10 +79,10 @@ async def converse(
         for offset in range(0, len(clip), FRAME_BYTES):
             await adapter.enqueue_audio(clip[offset : offset + FRAME_BYTES])
             if offset == 0 and first_key is not None:
-                result[first_key] = elapsed()
+                result[first_key] = elapsed()  # type: ignore[literal-required]
             await asyncio.sleep(pace)  # real-time pacing so the provider's VAD hears speech
         await adapter.end_audio_stream()
-        result[done_key] = elapsed()
+        result[done_key] = elapsed()  # type: ignore[literal-required]
 
     sender: asyncio.Task[None] | None = None
     try:
@@ -100,8 +119,8 @@ async def converse(
             await adapter.close()
 
 
-async def run_step(name: str, adapter: VoiceAdapter, pcm: bytes, *, barge_in_pcm: bytes = b"") -> dict:
-    result: dict = {"step": name}
+async def run_step(name: str, adapter: VoiceAdapter, pcm: bytes, *, barge_in_pcm: bytes = b"") -> StepResult:
+    result: StepResult = {"step": name}
     try:
         await asyncio.wait_for(converse(adapter, pcm, result, barge_in_pcm=barge_in_pcm), STEP_TIMEOUT_SECONDS)
     except AdapterError as error:
@@ -109,9 +128,11 @@ async def run_step(name: str, adapter: VoiceAdapter, pcm: bytes, *, barge_in_pcm
     except TimeoutError:
         result["error"] = "step-timeout"
     if barge_in_pcm:
+        events = result.get("events", [])
+        assert isinstance(events, list)
         result["provider_interrupted_after_enqueue"] = (
             "barge_in_first_frame_ms" in result
-            and "Interrupted" in result.get("events", [])
+            and "Interrupted" in events
             and "error" not in result
         )
     return result
@@ -122,7 +143,7 @@ async def run_all(
 ) -> None:
     print(json.dumps(await run_step("conversation", GeminiLiveAdapter(model, api_key), pcm)), flush=True)
     if barge_in is None:
-        result = {"step": "barge-in", "skipped": "requires generated clips"}
+        result: StepResult = {"step": "barge-in", "skipped": "requires generated clips"}
     else:
         prompt, interruption = barge_in
         result = await run_step("barge-in", GeminiLiveAdapter(model, api_key), prompt, barge_in_pcm=interruption)
