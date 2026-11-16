@@ -221,7 +221,7 @@ Each negative test was built from the valid plan with one defect and asserts the
 
 ## Not built
 
-`delegate_task`, wiring into `app.py`, the clarify step and its wait state (open decision 7), memory context in
-the prompt, a real model (the Gemini text adapter), the real tool runner that dispatches to `tools.py`, `tier1.py`
-and `memory.py` (the injected `run_tool` is a fake in tests), the per-day provider request counter, the evaluation
-set, and any roadmap tick.
+Wiring into `app.py`, the clarify step and its wait state (open decision 7), memory context in
+the prompt, a real model (the Gemini text adapter), the per-day provider request counter, the evaluation
+set, and any roadmap tick. Built later, in [slice 6](agent-backend-delegation.md): `delegate_task` in the local
+text adapter and the real tool runner that dispatches to `tools.py`, `tier1.py` and `memory.py`.

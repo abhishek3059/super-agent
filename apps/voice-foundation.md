@@ -40,6 +40,12 @@ local file, `~/.super-agent/memory.db`, and can forget them (tier T2,
 [design](../docs/design/local-memory-reminders.md)). Due reminders are spoken
 between turns while a session is open.
 
+`SUPER_AGENT_DELEGATE=on` (off by default; any value but `on` or `off` refuses the
+session) offers the brain one more tool, `delegate_task`, for the background job backend
+([design](../docs/design/agent-backend.md),
+[record](../docs/implementation/agent-backend-delegation.md)). No planner model exists yet,
+so with it on every delegation is answered "not available".
+
 ### Start it on a Mac
 
 One-time setup (Python 3.12, about 9 GB of models outside the repository):

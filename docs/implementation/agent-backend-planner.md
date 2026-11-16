@@ -126,4 +126,4 @@ cannot go stale.
 
 A real model (the Gemini text adapter), a response schema, memory context in the prompt, wiring into `app.py`, the
 per-day provider request counter, and any roadmap tick. Prompt assembly, the graph, step execution and
-argument validation are in [slice 5](agent-backend-graph.md).
+argument validation are in [slice 5](agent-backend-graph.md). The first non-test caller of the seam is the [delegation service](agent-backend-delegation.md) (slice 6); it is given no model in a real run, so it never calls one.

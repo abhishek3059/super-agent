@@ -170,4 +170,4 @@ ledger untouched after any refusal, idempotent re-admission.
 
 ## Not built
 
-The per-day provider request counter, wiring into `app.py`, and any roadmap tick. The graph and step execution are built in [slice 5](agent-backend-graph.md).
+The per-day provider request counter, wiring into `app.py`, and any roadmap tick. The graph and step execution are built in [slice 5](agent-backend-graph.md). `admit` now has its first caller, the [delegation service](agent-backend-delegation.md) (slice 6), which adds the reason code `delegation_unavailable`.

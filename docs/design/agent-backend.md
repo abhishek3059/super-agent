@@ -18,7 +18,7 @@ Claims about external packages are marked UNVERIFIED.
 | Fact | Source |
 | --- | --- |
 | Current phase is PH-01. R-01.10 is unticked (R-01.4 is ticked). PH-02 and PH-04 are not started. | [roadmap.md](../../roadmap.md) |
-| No ledger, planner, or worker exists. | [brain overview, section 1](brain/overview.md#1-what-exists-today) |
+| Built on this branch (slices 1 to 6, section 10): ledger, limits and admission, runner, planner seam with a scripted fake, dynamic graph, and `delegate_task` in the local text conversation loop (off by default, `SUPER_AGENT_DELEGATE`). No real planner model exists, so a real run refuses every delegation. The two fixed workers do not exist. | [records](../implementation/agent-backend-delegation.md); the older [brain overview, section 1](brain/overview.md#1-what-exists-today) predates them |
 | The voice adapter seam is `VoiceAdapter` (`start`, `enqueue_audio`, `end_audio_stream`, `interrupt`, `events`, `close`). | [adapter.py](../../apps/api/src/super_agent_voice/adapter.py) |
 | Adapters: Gemini Live and a local cascade. | [gemini_adapter.py](../../apps/api/src/super_agent_voice/gemini_adapter.py), [local_adapter.py](../../apps/api/src/super_agent_voice/local_adapter.py) |
 | Local memory (facts, reminders) lives in `~/.super-agent/memory.db`; it has a `context(query)` function and its own tool schemas. | [memory.py](../../apps/api/src/super_agent_voice/memory.py) |
@@ -94,7 +94,7 @@ Steps:
 - Retention: job history is deleted 14 days after a terminal state. The
   operator decided this on 2026-11-15, and the
   [PH-00 record](../approvals/ph-00-setup-decisions.md#amendments) is amended
-  in the same change. The ledger's purge function implements it and is tested ([ledger record](../implementation/agent-backend-ledger.md)); nothing schedules the purge yet. Until the 30 days approved under OD-18 is reconciled with this decision, 14 days governs everything the ledger stores.
+  in the same change. The ledger's purge function implements it and is tested ([ledger record](../implementation/agent-backend-ledger.md)); the delegation service calls it once at startup ([record](../implementation/agent-backend-delegation.md)), and nothing else schedules it. Until the 30 days approved under OD-18 is reconciled with this decision, 14 days governs everything the ledger stores.
 
 ## 4. "Subagent" means a bounded worker run
 
@@ -296,7 +296,9 @@ Proposed build order, each slice with its test:
    clarify (`ask_user` fails closed until open decision 7 is decided), and
    without memory context in the prompt: [implementation record](../implementation/agent-backend-graph.md).
 6. **`delegate_task` wired to the conversation loop**, text first. Test: a real
-   API call through the agent returns a receipt at once.
+   API call through the agent returns a receipt at once. Built, on the scripted
+   fake only (no real API call; that is slice 7), in the local text adapter, off
+   by default: [implementation record](../implementation/agent-backend-delegation.md).
 7. **Gemini text model** behind the seam. Test: opt-in live check, synthetic
    data, key from the environment, timing and state logged only.
 8. **Evaluation set** of about 20 tasks. Test: a deterministic run on the fake
@@ -308,7 +310,7 @@ Proposed build order, each slice with its test:
 
 | ID | Conflict | Where | Handling here |
 | --- | --- | --- | --- |
-| C1 | The brain design gives the conversation model four tools: `propose_task`, `query_ledger`, `cancel_task`, `steer_task`. This design names the entry tool `delegate_task`. | [brain overview, section 6](brain/overview.md#6-system-1-tool-contracts) | Not resolved. Proposal: `delegate_task` is the same admission step as `propose_task`, and the other three tools stay. A maintainer picks one name. |
+| C1 | The brain design gave the conversation model four tools: `propose_task`, `query_ledger`, `cancel_task`, `steer_task`. This design names the entry tool `delegate_task`. | [brain overview, section 6](brain/overview.md#6-system-1-tool-contracts) | **Resolved 2026-11-16 by `abhishek3059` (chat): the tool is `delegate_task`.** The brain documents now say `delegate_task` for the entry tool; the other three names stay. |
 | C2 | Tier 1 tools read real local data. Sending their output to a cloud planner breaks the synthetic-only boundary. [DEC-18](../../descisions.md#dec-18) also places T1 after the PH-02 policy layer, and the tier 1 design notes it is not behind that layer yet. | [tier1-read-tools.md](tier1-read-tools.md) known limits; [REQ-13](../../prd.md#req-13) | Section 7: tier 1 only with a local planner or synthetic folders, enforced at admission. This slice is the policy layer tier 1 waits for, so it must not weaken it. |
 | C3 | PH-02 means two deterministic trusted workers. A model-planned graph is PH-04 work, and PH-04 entry needs RT-G04 and an approved real task pair. | [phases.md](../../phases.md) PH-02, PH-04 | Covered by the exception for the bounded parts only. Open decision 3. |
 | C4 | [REQ-08](../../prd.md#req-08) says initial workers are small trusted fixed functions. Decided item 3 starts with model-planned tasks instead. | [prd.md](../../prd.md#req-08) | Not resolved. Every step in the catalog is still a fixed trusted function, but the requirement text and the PH-02 gate describe fixed workers. A maintainer changes that text or the workers get built. See decided item 3. |
@@ -317,9 +319,11 @@ Proposed build order, each slice with its test:
 
 ### Open decisions for a maintainer
 
-1. **First model.** Gemini text on the free tier (proposed), a local text
-   model, or a paid Haiku model (needs approval under the $0 rule; the Claude
-   Pro claim above is unverified).
+1. **First model. Decided 2026-11-16 by `abhishek3059` (chat): Gemini text on
+   the free tier, synthetic data only.** That is slice 7. Slice 6 runs on the
+   scripted fake only. Still unverified: that the free tier covers the text API
+   (section 6), until slice 7 checks it. A local text model and a paid Haiku
+   model (needs approval under the $0 rule) stay behind the same seam.
 2. **Web research provider.** A search or fetch service is a new recipient and
    egress decision under [REQ-13](../../prd.md#req-13). Keep it out of the
    first slice, or approve a named one.
@@ -330,10 +334,11 @@ Proposed build order, each slice with its test:
    ([RT-005](../../tasks/005-fixed-sample-workers.md)). This slice does not
    build them, so it cannot tick R-02.4 as written. Either they are built
    later, or the gate changes in a roadmap PR.
-4. **Ledger file location.** A separate `~/.super-agent/ledger.db` next to
-   `memory.db` matches option (b) of brain OD-10 in the
-   [overview](brain/overview.md#10-open-maintainer-decisions). Confirm.
-5. **Tool name.** `delegate_task` or `propose_task` (conflict C1).
+4. **Ledger file location. Decided 2026-11-16 by `abhishek3059` (chat):** a
+   separate `~/.super-agent/ledger.db` next to `memory.db`, option (b) of brain
+   OD-10 in the [overview](brain/overview.md#10-open-maintainer-decisions).
+5. **Tool name. Decided 2026-11-16 by `abhishek3059` (chat): `delegate_task`**
+   (conflict C1).
 6. **LangGraph checks. Decided 2026-11-16 by `abhishek3059`: add LangGraph 1.2.19** as the executor
    (chat). The orchestrator's checks are in section 9. Still open for a maintainer: the pre-existing
    `opentelemetry-api` advisory, and the one UNVERIFIED claim.

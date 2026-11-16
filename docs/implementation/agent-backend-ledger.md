@@ -89,5 +89,6 @@ directory, installed from `apps/api/requirements.lock` with `--only-binary=:all:
 
 ## Not built yet
 
-`delegate_task`, Gemini text model, evaluation set. Slice 5 added `append_note` ([graph record](agent-backend-graph.md#step-records)). No app call site uses the ledger, so
-`recover_after_restart` and `purge` are not yet called at startup.
+Gemini text model, evaluation set, and anything that schedules `purge` after startup. Slice 5 added `append_note` ([graph record](agent-backend-graph.md#step-records)).
+Slice 6 added the first call site: the [delegation service](agent-backend-delegation.md) calls `recover_after_restart` (through the runner) and
+`purge` once when it is created, and `delegate_task` creates jobs. It is off by default, so with it off nothing calls the ledger.

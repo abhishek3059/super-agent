@@ -129,4 +129,4 @@ report; it is not copied here so this file cannot go stale.
 ## Not built
 
 Per-day provider request counter, wiring into `app.py`, and any roadmap tick. The graph is built in
-[slice 5](agent-backend-graph.md).
+[slice 5](agent-backend-graph.md). `recover()` now has a caller: the [delegation service](agent-backend-delegation.md) (slice 6) calls it once at creation.

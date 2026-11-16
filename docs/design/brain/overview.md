@@ -61,7 +61,7 @@ service** and the **context assembler**.
 
 | Component | Has a model | Reads | Writes | Never |
 | --- | --- | --- | --- | --- |
-| Conversation coordinator (System 1, "the butler") | Yes, the voice model | Its assembled context only | Tool calls: `propose_task`, `query_ledger`, `cancel_task`, `steer_task` | Runs a tool, reads a file, reads the memory store directly, states an outcome without a snapshot |
+| Conversation coordinator (System 1, "the butler") | Yes, the voice model | Its assembled context only | Tool calls: `delegate_task`, `query_ledger`, `cancel_task`, `steer_task` | Runs a tool, reads a file, reads the memory store directly, states an outcome without a snapshot |
 | Context assembler | No | Ledger snapshots, memory service, session memory, task schemas | One prompt per model call, within a budget | Passes a value whose speakability or data class forbids the destination |
 | Memory service | No | Memory store | Profile content, only while executing an admitted `memory.*` job; its own bookkeeping | Accepts a write from a model, a worker, or a planner step |
 | Policy and admission broker | No | Proposals, grants, limits | Admission decisions | Trusts a prompt |
@@ -244,8 +244,14 @@ operations named in
 [architecture.md](../../../architecture.md#conceptual-records-and-interfaces).
 Schemas are shown as field lists; exact JSON Schema is implementation work.
 
+**Name (decided 2026-11-16 by `abhishek3059`, chat):** the entry tool is `delegate_task`. It was called `propose_task` in
+earlier drafts, and this section keeps the other three names. The first built slice
+([record](../../implementation/agent-backend-delegation.md)) is narrower than the contract below: it takes only
+`task_type` and `instruction`, and returns only the job ID and state. The operation registry, slots and dispositions
+below are not built.
+
 Shared rules: every mutating call carries a `request_id` derived by code,
-not by the model. For `propose_task` it comes from the draft ID. For
+not by the model. For `delegate_task` it comes from the draft ID. For
 `cancel_task` and `steer_task` it comes from the session epoch, the turn
 number, the tool name, and the job ID. A model that repeats a call within a
 turn therefore repeats the ID. The session epoch, subject, and origin are
@@ -253,7 +259,7 @@ attached by code. A call
 from a stale epoch is rejected. A repeated `request_id` returns the recorded
 disposition.
 
-### `propose_task`
+### `delegate_task`
 
 | | |
 | --- | --- |
@@ -301,7 +307,7 @@ the job belongs to the subject and is in the snapshot list given to that
 turn. If two snapshots match, the butler asks which.
 
 **Memory needs no fifth tool.** "Remember that I prefer short summaries" is
-`propose_task` with operation `memory.remember`. It gets a job ID, a receipt,
+`delegate_task` with operation `memory.remember`. It gets a job ID, a receipt,
 and the same idempotency as any job.
 
 **What the model cannot do** is absent, not forbidden by prompt: there is no
@@ -319,7 +325,7 @@ idle -> drafting -> filling -> ready -> (readback) -> locked -> proposed
                       +--+  one question per turn, three per task
 ```
 
-1. **Drafting.** The model calls `propose_task` with what it understood.
+1. **Drafting.** The model calls `delegate_task` with what it understood.
    Code validates the operation and types.
 2. **Filling.** For each missing required slot, in schema order: use a value
    stated in this session; else an active standing order with that key; else
@@ -463,7 +469,7 @@ ticked.
 | R-M.1 `[human]` | A maintainer approves the brain and memory design and record every open decision in section 10, including the persistent-memory approval under RT-G05. | Nothing |
 | R-M.2 | Local model measurement spike on the tool and step schemas; model and licence recorded. | R-M.1 |
 | R-M.3 | Context assembler and model router with data-class enforcement and session memory only, with tests. | R-02.3, R-M.2, R-A.2 |
-| R-M.4 | System 1 tools `propose_task`, `query_ledger`, and `cancel_task` wired to the ledger, tested with a scripted model. | R-02.1, R-02.2, R-M.3 |
+| R-M.4 | System 1 tools `delegate_task`, `query_ledger`, and `cancel_task` wired to the ledger, tested with a scripted model. | R-02.1, R-02.2, R-M.3 |
 | R-M.5 | `steer_task` wired to revisions. | R-03.1, R-M.4 |
 | R-M.6 | Profile store: remember, correct, and export as ledger jobs, with an inspect screen and the confirmation paths. Synthetic data only until R-M.7 is ticked. | R-02.1 to R-02.3, R-M.1, R-M.4 |
 | R-M.7 | Forgetting and retention purge, with the residue tests passing. The profile store may hold real data only after this item. | R-03.3, R-M.6 |
