@@ -11,7 +11,7 @@ roadmap item. Decided by `abhishek3059` in chat on 2026-11-16: Gemini text on th
 - `apps/api/src/super_agent_voice/gemini_planner.py`: `GeminiPlanner(api_key, model, client=None)`, which
   implements `planner.PlannerModel`.
 - `apps/api/src/super_agent_voice/planner_check.py`: `python -m super_agent_voice.planner_check --send-synthetic-task`.
-- `apps/api/tests/test_gemini_planner.py`: 23 tests, all offline, with a fake client.
+- `apps/api/tests/test_gemini_planner.py`: 26 tests, all offline, with a fake client.
 - No new dependency. `google-genai==2.33.0` is already pinned in `apps/api/requirements.in` and the lock file.
 
 ## Flow
@@ -54,10 +54,19 @@ cause and no provider text, and the graph and planner turn it into `model_error`
 - Key from `GEMINI_API_KEY` in the process environment, or a `getpass` prompt. It is never printed.
 - Model name from `SUPER_AGENT_PLANNER_MODEL`, else `DEFAULT_MODEL` in `planner_check.py`. This is a separate variable
   from `SUPER_AGENT_GEMINI_MODEL`, which names the voice (Live) model.
-- It points `ledger.DB_PATH` at a temporary folder for the run, restores it, and deletes the folder. The real
-  `~/.super-agent/ledger.db` is not opened.
+- It points `ledger.DB_PATH` at a temporary folder before the service starts, so the real
+  `~/.super-agent/ledger.db` is not opened by the command. The real path is restored, and the folder deleted, only
+  after the worker thread has exited. `Runner.close` does not wait for workers, so the command joins the runner's
+  pool (a bounded 35 seconds, `GRACE_S`, longer than the model's own 20 second timeout). It restores the path in a
+  `finally`, so a failure while starting the service restores it too.
 - It delegates one constant synthetic instruction (`INSTRUCTION`, a calculator question) and waits up to 60 seconds.
+  If the job is not terminal by then, it requests a cancel through `Runner.cancel`, reports reason `wait_timeout`
+  and a non-success state, and drains the worker as above. A blocked model call is not interrupted by the cancel;
+  the job ends when that call returns or times out.
+- If the worker has not exited within `GRACE_S`, the command fails closed: the path stays on the temporary
+  location, the temporary folder is left in place, and the state is `worker_unfinished`.
 - It prints one JSON line: `model`, `state`, `reason` (empty on success), `step_count`, `step_types`, `total_ms`.
+  Reason codes it adds itself: `wait_timeout` and `worker_unfinished`.
   It never prints the key, the prompt, the plan or the result.
 - Exit code 0 only on `succeeded`.
 - It is not collected by pytest and CI never runs it. The `--send-synthetic-task` flag is required, as in `live_check`.
@@ -90,13 +99,18 @@ Run from the repository root with the Python 3.12 test environment:
 PYTHONDONTWRITEBYTECODE=1 python -m pytest apps/api -p no:cacheprovider -o addopts=""
 ```
 
-- `test_gemini_planner.py`: 23 passed.
-- Full suite: 914 passed, 110 skipped, 1 warning (baseline before this slice: 891 passed, 110 skipped, 1 warning).
+- `test_gemini_planner.py`: 26 passed.
+- Full suite: 917 passed, 110 skipped, 1 warning (baseline before this slice: 891 passed, 110 skipped, 1 warning).
 - Covered: both methods on the happy path; each failure kind maps to its fixed code; no provider text, prompt or key
   in the exception, captured logs, stdout or stderr; oversized, blank, non-JSON and non-string replies refused;
   `is_local` is `False` and read-only; the real client uses the Developer API; the default data class refuses the
-  planner with no client call; the check prints no result text or key, restores the ledger path, leaves no
-  temporary ledger, and exits 1 with only a reason code on a model failure. A network guard like the delegation
+  planner with no client call; the check prints no result text or key, restores the ledger path and removes the
+  temporary ledger when the worker finishes, and exits 1 with only a reason code on a model failure. Review
+  fixes: a slow model with a short wait never makes the original ledger path appear and the state is not
+  `succeeded`; a worker that outlives the grace period leaves the path on the temporary ledger
+  (`worker_unfinished`); the path is restored when the service cannot start; and the Developer API host pin
+  still wins when `GOOGLE_GEMINI_BASE_URL` points elsewhere. Each of the first two and the last was shown to fail
+  against a reverted copy of the fix outside the repository. A network guard like the delegation
   tests' makes any connection attempt fail the test.
 - Live check: **not run**. No key was used and no network call was made in this slice. The operator runs
   `GEMINI_API_KEY=... python -m super_agent_voice.planner_check --send-synthetic-task` and records the output.

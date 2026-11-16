@@ -119,10 +119,13 @@ def test_a_missing_key_or_model_is_refused_without_a_client_call():
             GeminiPlanner(*args, client=FakeClient())
 
 
-def test_the_real_client_is_built_on_the_developer_api_without_a_call():
+def test_the_real_client_is_built_on_the_developer_api_without_a_call(monkeypatch):
+    # The SDK honours this variable; the pinned host must still win.
+    monkeypatch.setenv("GOOGLE_GEMINI_BASE_URL", "https://other.example")
     client = GeminiPlanner(KEY, "m")._client
     assert client._api_client.vertexai is False
     assert str(client._api_client._http_options.base_url).startswith("https://generativelanguage.googleapis.com")
+    assert "other.example" not in str(client._api_client._http_options.base_url)
 
 
 def test_conversation_data_class_refuses_the_cloud_planner_with_no_client_call():
@@ -170,3 +173,58 @@ def test_check_exits_nonzero_and_prints_only_the_code_when_the_model_fails(capsy
     out = capsys.readouterr().out
     assert done.value.code == 1 and json.loads(out)["state"] == "failed" and json.loads(out)["reason"] == "work_error"
     assert SECRET not in out and KEY not in out
+
+
+class SlowClient(FakeClient):
+    def __init__(self, release, reply):
+        super().__init__(reply)
+        self.release = release
+
+    def _generate(self, **kwargs):
+        self.release.wait(5)
+        return super()._generate(**kwargs)
+
+
+def test_a_slow_model_never_lets_the_real_ledger_path_be_opened(monkeypatch):
+    import threading
+
+    real = ledger.DB_PATH
+    release = threading.Event()
+    threading.Timer(0.5, release.set).start()
+    monkeypatch.setattr(planner_check, "WAIT_S", 0.1)
+    monkeypatch.setattr(planner_check, "GRACE_S", 10)
+    model = GeminiPlanner(KEY, "m", SlowClient(release, json.dumps(PLAN)))
+    summary = planner_check.run_check(model, "m")
+    assert summary["state"] != "succeeded" and summary["reason"] == "wait_timeout"
+    release.wait(2)
+    time.sleep(0.7)  # a worker still alive would now write to whatever path is current
+    assert ledger.DB_PATH == real and not real.exists() and not real.parent.exists()
+
+
+def test_a_worker_that_will_not_finish_leaves_the_path_on_the_temporary_ledger(monkeypatch):
+    import threading
+
+    real = ledger.DB_PATH
+    release = threading.Event()
+    monkeypatch.setattr(planner_check, "WAIT_S", 0.1)
+    monkeypatch.setattr(planner_check, "GRACE_S", 0.2)
+    model = GeminiPlanner(KEY, "m", SlowClient(release, json.dumps(PLAN)))
+    try:
+        summary = planner_check.run_check(model, "m")
+        assert summary["state"] == "worker_unfinished" and ledger.DB_PATH != real
+    finally:
+        release.set()  # let the worker end before the path is put back by the fixture
+        time.sleep(0.5)
+    assert not real.exists() and not real.parent.exists()
+
+
+def test_the_ledger_path_is_restored_when_the_service_cannot_start(monkeypatch):
+    real = ledger.DB_PATH
+
+    def boom(now):
+        raise RuntimeError("purge failed")
+
+    monkeypatch.setattr(ledger, "purge", boom)
+    with pytest.raises(RuntimeError):
+        planner_check.run_check(make("{}")[0], "m")
+    assert ledger.DB_PATH == real
