@@ -1,4 +1,4 @@
-# RT-002 — Local scaffold and boundary
+# RT-002: Local scaffold and boundary
 
 | Field | Value |
 | --- | --- |

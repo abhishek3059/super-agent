@@ -1,9 +1,9 @@
-# Super-agent — runtime task index (`tasks/`)
+# Super-agent: runtime task index (`tasks/`)
 
 | Field | Value |
 | --- | --- |
-| Date | 2026-11-12 |
-| Revision | 2 |
+| Date | 2026-11-16 |
+| Revision | 3 |
 | Status | RT-001 complete; RT-002 and RT-003 in progress; RT-004 and later tasks `not started` |
 
 This index covers runtime implementation tasks. It does not cover the authoring

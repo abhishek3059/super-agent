@@ -1,4 +1,4 @@
-# RT-003 — Native voice session
+# RT-003: Native voice session
 
 | Field | Value |
 | --- | --- |
