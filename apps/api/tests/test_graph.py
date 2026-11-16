@@ -1,12 +1,17 @@
 import json
 import os
+import socket
 import threading
 import time
 from datetime import UTC, datetime, timedelta
+from unittest.mock import MagicMock
 
 import pytest
+from langchain_core.tracers.context import tracing_v2_enabled
+from langsmith import utils as ls_utils
 
 from super_agent_voice import graph, ledger, policy, tier1
+from super_agent_voice import planner
 from super_agent_voice.planner import ModelError, ScriptedModel
 from super_agent_voice.policy import REASONS, Limits, PolicyError
 from super_agent_voice.runner import Runner
@@ -23,8 +28,28 @@ ANSWER = "The sum is 4."
 
 
 @pytest.fixture(autouse=True)
+def no_network(monkeypatch):
+    """No test here may open a connection: a regressed tracing guard must fail offline, not post run data."""
+    attempts = []
+
+    def refuse(*args, **kwargs):
+        attempts.append(1)
+        raise OSError("network blocked in tests")
+
+    monkeypatch.setattr(socket.socket, "connect", refuse)
+    monkeypatch.setattr(socket.socket, "connect_ex", refuse)
+    monkeypatch.setattr(socket, "create_connection", refuse)
+    monkeypatch.setattr(socket, "getaddrinfo", refuse)
+    yield attempts
+    assert attempts == [], "a test tried to open a network connection"
+
+
+@pytest.fixture(autouse=True)
 def store(tmp_path, monkeypatch):
     monkeypatch.setattr(ledger, "DB_PATH", tmp_path / "led" / "ledger.db")
+    ls_utils.get_env_var.cache_clear()  # lru_cache: a value cached by an earlier test must not hide a missing check
+    yield
+    ls_utils.get_env_var.cache_clear()
     for key in list(os.environ):  # a developer's shell must not trip the tracing guard
         if key.upper().startswith(("LANGSMITH_", "LANGCHAIN_")):
             monkeypatch.delenv(key)
@@ -341,13 +366,52 @@ def test_tracing_environment_refuses_to_run(monkeypatch, name):
     assert env.model.prompts == [] and env.tools.calls == []
 
 
-def test_tracing_enabled_in_process_refuses_to_run():
+def direct(env):
+    job = ledger.transition(env.adm.job.id, "running", env.adm.job.revision, "t")
+    return lambda: env.work(job, env.adm, lambda: False)
+
+
+def refused(env, no_network):
+    with pytest.raises(PolicyError) as err:
+        direct(env)()
+    assert err.value.code == "tracing_enabled"
+    assert env.model.prompts == [] and env.model.text_prompts == [] and env.tools.calls == [] and no_network == []
+
+
+def test_tracing_enabled_in_process_by_langsmith_refuses_to_run(no_network):
     from langsmith import tracing_context
     env = Env([GOOD])
-    job = ledger.transition(env.adm.job.id, "running", env.adm.job.revision, "t")
-    with tracing_context(enabled=True), pytest.raises(PolicyError) as err:
-        env.work(job, env.adm, lambda: False)
-    assert err.value.code == "tracing_enabled" and env.model.prompts == []
+    with tracing_context(enabled=True):
+        refused(env, no_network)
+
+
+def test_tracing_enabled_in_process_by_langchain_refuses_to_run(no_network):
+    env = Env([GOOD])
+    with tracing_v2_enabled(client=MagicMock()):  # a fake client: the real one calls the network on creation  # langsmith.utils.tracing_is_enabled() is False here
+        refused(env, no_network)
+
+
+@pytest.mark.parametrize("switch", ["env", "langchain"])
+def test_graph_runs_with_tracing_disabled_in_code_even_if_the_check_is_missed(monkeypatch, switch, no_network):
+    from langchain_core.tracers import langchain as tracer_module
+    made = []
+    real = tracer_module.LangChainTracer.on_chain_start  # any tracer attached to the graph is told a run began
+
+    def counted(self, *args, **kwargs):
+        made.append(1)
+        return real(self, *args, **kwargs)
+
+    monkeypatch.setattr(tracer_module.LangChainTracer, "on_chain_start", counted)
+    monkeypatch.setattr(graph, "_tracing", lambda: False)  # as if the guard had a gap
+    env = Env([GOOD])
+    run = direct(env)
+    if switch == "env":
+        monkeypatch.setenv("LANGSMITH_TRACING", "true")
+        assert run()["result"] == ANSWER
+    else:
+        with tracing_v2_enabled(client=MagicMock()):  # a fake client: the real one calls the network on creation
+            assert run()["result"] == ANSWER
+    assert made == [] and no_network == []
 
 
 def test_local_admission_with_a_cloud_model_is_refused_without_a_model_call():
@@ -372,3 +436,47 @@ def test_graph_is_compiled_without_a_checkpointer(monkeypatch):
 
 def test_tier1_parameters_are_declared_for_validation():
     assert set(tier1.PARAMS) == tier1.T1_NAMES
+
+
+def test_finish_whose_receipt_cannot_fit_fails_the_step_not_the_ledger_write():
+    reply = {"steps": [CALC, {"type": "finish", "after": [0]}]}
+    env = failing([reply], tools=Tools(calculate=lambda: "\u00e9" * 1000))  # 1,000 chars, 6,000 escaped bytes
+    assert env.failure() == "output_too_large"
+    assert [(n["step"], n["outcome"]) for n in env.notes()] == [(0, "ok"), (1, "failed")]
+
+
+class Events:
+    def __init__(self, notes):
+        self.notes = notes
+
+    def list_events(self, job_id):
+        return [type("E", (), {"reason": "step", "receipt": n})() for n in self.notes]
+
+
+def note(i, kind, tool="", chars=1, outcome="ok"):
+    return {"step": i, "type": kind, "tool": tool, "outcome": outcome, "chars": chars}
+
+
+def verify(notes):
+    plan = planner.Plan((planner.Step("read_tool", tool="calculate", args="{}"), planner.Step("summarize", (0,)),
+                         planner.Step("finish", (1,))))
+    return graph._verified(Events(notes), type("J", (), {"id": "j"})(), plan, {0: "4", 1: "s", 2: "s"})
+
+
+GOOD_NOTES = [note(0, "read_tool", "calculate"), note(1, "summarize"), note(2, "finish")]
+
+
+def test_verifier_accepts_good_records():
+    assert verify(GOOD_NOTES)["result"] == "s"
+
+
+def test_verifier_refuses_records_out_of_dependency_order():
+    with pytest.raises(PolicyError) as err:
+        verify([GOOD_NOTES[1], GOOD_NOTES[0], GOOD_NOTES[2]])  # summarize recorded before the step it reads
+    assert err.value.code == "verify_failed"
+
+
+def test_verifier_refuses_a_result_whose_length_differs_from_the_finish_record():
+    with pytest.raises(PolicyError) as err:
+        verify([*GOOD_NOTES[:2], note(2, "finish", chars=99)])
+    assert err.value.code == "verify_failed"

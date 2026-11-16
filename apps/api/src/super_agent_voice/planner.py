@@ -107,7 +107,7 @@ def _step(raw: object, index: int, admission: Admission) -> Step:
     if not _KEYS[kind] - {"after"} <= keys <= _KEYS[kind]:
         raise _bad()
     after = _after(raw.get("after", []), index)
-    if kind == "summarize" and not after:
+    if kind in ("summarize", "finish") and not after:  # finish collects the result, so it must name its inputs
         raise _bad()
     if kind == "ask_user":
         q = raw["question"]

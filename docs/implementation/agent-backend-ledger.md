@@ -7,9 +7,9 @@ This is code only. It is not wired into `app.py`, and no roadmap item is ticked.
 ## What was built
 
 - `apps/api/src/super_agent_voice/ledger.py`: standard-library `sqlite3` only.
-- `apps/api/tests/test_ledger.py`: 136 tests: 135 passed and 1 skipped on this host (the first
+- `apps/api/tests/test_ledger.py`: 153 tests: 152 passed and 1 skipped on this host (the first
   version had 122 passed and 1 skipped; slice 2 review fixes added 12, the planner
-  review fix added 1: a very deeply nested receipt is a `LedgerError`).
+  review fix added 1: a very deeply nested receipt is a `LedgerError`, and slice 5 added 17 for `append_note`).
 - Storage: `~/.super-agent/ledger.db` beside `memory.db`, directory 0700, file
   0600, same `DB_PATH` override convention as `memory.py`. No WAL (memory.py
   does not use it). Schema version is `PRAGMA user_version = 1`. Tables:
@@ -70,8 +70,8 @@ From [architecture.md](../../architecture.md#canonical-job-states).
 Run on Windows, Python 3.14.4, in a virtual environment under the system temp
 directory, installed from `apps/api/requirements.lock` with `--only-binary=:all:`.
 
-- `python -m pytest apps/api`: 374 passed, 110 skipped, 1 warning (existing).
-  `test_ledger.py` alone: 122 passed, 1 skipped.
+- `python -m pytest apps/api`: 804 passed, 110 skipped, 1 warning (existing), after slice 5.
+  `test_ledger.py` alone: 152 passed, 1 skipped.
 - The skips include the ledger file-mode test and the whole of `test_memory.py`
   (no time zone database on this host). The 0700 and 0600 mode test did not run
   here, because Windows has no POSIX modes. It is not verified.

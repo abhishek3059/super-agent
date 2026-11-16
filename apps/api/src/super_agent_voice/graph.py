@@ -15,6 +15,8 @@ import threading
 from typing import Annotated, TypedDict
 
 from langgraph.graph import END, START, StateGraph
+from langchain_core.tracers.context import tracing_v2_callback_var
+from langsmith import tracing_context
 from langsmith.utils import tracing_is_enabled
 
 from . import memory, planner, policy, tier1, tools
@@ -46,11 +48,14 @@ def _check_args(tool: str, text: str) -> None:
 
 
 def _tracing() -> bool:
-    """LangSmith would send run data to a cloud service (REQ-13). Any LANGSMITH_ or LANGCHAIN_ variable with a
-    value, or tracing switched on in process, refuses the job. Deliberately blunt: fail closed."""
+    """LangSmith would send run data to a cloud service (REQ-13). Checked once, at job start, in three places:
+    any LANGSMITH_ or LANGCHAIN_ environment variable with a value, LangSmith's own switch
+    (`tracing_is_enabled`), and LangChain's in-process tracer (`tracing_v2_callback_var`, set by
+    `tracing_v2_enabled()`, which `tracing_is_enabled` does not see). Deliberately blunt: fail closed.
+    Tracing switched on after the job starts is not seen here; `_run_graph` disables it for the run."""
     if any(k.upper().startswith(("LANGSMITH_", "LANGCHAIN_")) and v.strip() for k, v in os.environ.items()):
         return True
-    return bool(tracing_is_enabled())
+    return bool(tracing_is_enabled()) or tracing_v2_callback_var.get() is not None
 
 
 def _plan_prompt(spec: dict, admission: policy.Admission, limits: policy.Limits) -> str:
@@ -171,7 +176,7 @@ def make_work(ledger, model, run_tool, limits, clock):
                 builder.add_edge(START, f"s{i}")
         builder.add_edge(f"s{len(plan.steps) - 1}", END)
         try:
-            final = builder.compile().invoke({"outputs": {}}, {"recursion_limit": len(plan.steps) + 2})
+            final = _run_graph(builder, plan)
         except Exception:
             raise PolicyError(seen["failure"] or "step_failed") from None
         if seen["stop"]:
@@ -181,6 +186,16 @@ def make_work(ledger, model, run_tool, limits, clock):
         return _verified(ledger, job, plan, final["outputs"])
 
     return work
+
+
+def _run_graph(builder, plan):
+    """Defence in depth if `_tracing` missed a switch: no LangChain tracer, LangSmith tracing off, for this run."""
+    token = tracing_v2_callback_var.set(None)
+    try:
+        with tracing_context(enabled=False):
+            return builder.compile().invoke({"outputs": {}}, {"recursion_limit": len(plan.steps) + 2})
+    finally:
+        tracing_v2_callback_var.reset(token)
 
 
 def _verified(ledger, job, plan, outputs) -> dict:

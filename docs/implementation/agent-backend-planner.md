@@ -8,7 +8,7 @@ item is ticked. No real model, no network, no LangGraph (slice 5 adds [the graph
 ## What was built
 
 - `apps/api/src/super_agent_voice/planner.py`: standard library only.
-- `apps/api/tests/test_planner.py`: 99 tests (many are parametrized).
+- `apps/api/tests/test_planner.py`: 101 tests (many are parametrized).
 - `PlannerModel`: a `typing.Protocol` with `is_local: bool` and
   `complete(prompt: str) -> object`, which returns the reply as parsed JSON or
   raises `ModelError`. Trusted code reads `is_local` for
@@ -46,7 +46,7 @@ item is ticked. No real model, no network, no LangGraph (slice 5 adds [the graph
 | `read_tool` | `type`, `tool`, `args` | `after` | `tool` is a `str` in `admission.tools`. `args` is an object whose ensure_ascii JSON text is at most 1,000 characters (a non-BMP character counts 12), and it must encode as UTF-8. |
 | `summarize` | `type` | `after` must be present and non-empty | depends on earlier steps |
 | `ask_user` | `type`, `question` | `after` | `question` is a non-blank `str` of at most 300 characters, UTF-8 encodable |
-| `finish` | `type` | `after` | exactly one in the plan, and it is the last step |
+| `finish` | `type`, `after` | none | exactly one in the plan, the last step, and `after` must be a non-empty list (added after review: it collects the result, so it must name its inputs) |
 
 Any other key on a reply or a step is refused, so a step cannot carry `tools`,
 `limits`, `scope`, `deadline` or anything else. `after` is a list of distinct `int`
@@ -79,7 +79,7 @@ args, question, finish rules), `tool_out_of_scope` (a tool not in the admitted s
   non-BMP question (12 escaped characters each, 3,600) and an `after` naming every earlier step,
   plus `finish`. That measures 114,882 characters (a test builds it). `read_tool` steps at the args
   cap measure far less (about 35,000 for 31 of them). 120,000 is above the worst case.
-- `after` is optional on every type except `summarize`.
+- `after` is optional on every type except `summarize` and `finish`.
 - `args` is stored as canonical (escaped, sorted) JSON text, and steps hold tuples, so every field of a
   `Plan` is an immutable str, int, tuple or None.
 - A reply with the right shape but a bad `type` value reports `step_type_unknown`

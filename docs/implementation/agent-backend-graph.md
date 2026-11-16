@@ -10,7 +10,7 @@ network, and no roadmap item is ticked.
 - `apps/api/src/super_agent_voice/graph.py`: `make_work(ledger, model, run_tool, limits, clock)` returns the
   `work(job, admission, should_stop)` callable the [runner](agent-backend-runner.md) accepts. `run_tool(name, args)`
   is injected, may raise, and returns text that is treated as untrusted data.
-- `apps/api/tests/test_graph.py`: 47 tests (many parametrized). Uses `ScriptedModel`, a fake tool runner, a real
+- `apps/api/tests/test_graph.py`: 55 tests (many parametrized). Uses `ScriptedModel`, a fake tool runner, a real
   `Runner` and the real ledger on a temporary `DB_PATH`.
 - Smallest changes elsewhere, each with tests:
   - `runner.py`: the work now receives an `Admission` (built with `dataclasses.replace`, `tools` set to the
@@ -26,7 +26,7 @@ network, and no roadmap item is ticked.
 
 ## Flow
 
-1. **Tracing guard** (below). Refuse before any model call.
+1. **Tracing guard** (below). Refuse before any model call; the graph also runs with tracing disabled.
 2. **Plan.** The prompt holds the step catalog, the admitted tool names, the task type, and the instruction as a
    JSON string (escaped, so it cannot close its own delimiter) labelled untrusted. `planner.request_plan` makes
    the one planning call (it also refuses a cloud model under a local-granted admission, with no model call) and
@@ -89,15 +89,40 @@ A step record is `{"step", "type", "tool", "outcome": "ok"|"failed", "chars", "r
   can go stale inside one process.
 - Client behaviour is also set by `LANGSMITH_ENDPOINT`, `LANGSMITH_API_KEY`, `LANGSMITH_TRACING_MODE` and similar.
 
-The guard refuses the job (`tracing_enabled`, before any model call) when any environment variable starting
-`LANGSMITH_` or `LANGCHAIN_` has a non-blank value (case-insensitive, read fresh each time, so it does not use the
-cache), or when `tracing_is_enabled()` is true in process. It is deliberately blunt: it also blocks harmless
-`LANGCHAIN_*` variables. Tests cover six variable names (one lower case) and an in-process `tracing_context(enabled=True)`.
-The tests prove the refusal, not the leak, so the leak path was also checked by hand with a throwaway script (not in the repo): with
-`LANGSMITH_TRACING=true`, a dummy key and `LANGSMITH_ENDPOINT` pointing at a listener on 127.0.0.1, an unguarded
-compiled `StateGraph` made two requests to the listener (`GET /info`, `POST /runs/multipart`). So the risk is real
-and the guard is what stands in front of it. Not checked: tracing switched on after the guard ran, in the same
-process, from another thread. Other LangGraph variables (`LANGGRAPH_*`) are not read by the guard.
+- `langchain_core.tracers.context.tracing_v2_callback_var` (a `ContextVar`, public name) holds the tracer that
+  `tracing_v2_enabled()` installs. `_tracing_v2_is_enabled()` there returns True when the variable is set, but
+  `langsmith.utils.tracing_is_enabled()` does not look at it and returns False in that case. This was a gap in the
+  first version of the guard: the reviewer showed that calling `work` inside `tracing_v2_enabled()` posted tool
+  output and summary text to LangSmith.
+- `langsmith.tracing_context(enabled=False)` makes `tracing_is_enabled()` False for a block. It does not clear
+  `tracing_v2_callback_var`, so that variable is also set to `None` for the run.
+
+What the code does, in two layers:
+
+1. **Check at job start** (`_tracing`, before any model call): refuse with `tracing_enabled` when any environment
+   variable starting `LANGSMITH_` or `LANGCHAIN_` has a non-blank value (case-insensitive, read fresh), or
+   `tracing_is_enabled()` is true, or `tracing_v2_callback_var.get()` is not `None`. It is blunt on purpose: it also
+   blocks harmless `LANGCHAIN_*` variables. It runs once, at the start of a job. Tracing switched on after that, from
+   another thread or context, is not seen by it.
+2. **Disabled for the run** (`_run_graph`): compile and invoke run with `tracing_v2_callback_var` set to `None` and
+   inside `tracing_context(enabled=False)`, so a missed switch still attaches no tracer to the graph.
+
+Tests (all run with every network connection blocked by an autouse fixture, which also fails the test if any
+attempt is made, so a regressed guard fails offline): six variable names (one lower case); `tracing_context(enabled=True)`;
+`tracing_v2_enabled()` with a fake client, calling `work` directly in the caller's thread, with zero model calls, zero
+tool calls and zero socket attempts; and two tests that replace `_tracing` with a function that returns False
+(the environment switch, and the LangChain context) and count tracer `on_chain_start` calls on the graph, which must be zero.
+The `lru_cache` on `langsmith.utils.get_env_var` is cleared before and after each test, because a value cached by
+an earlier test had made the variable-name cases pass without the check.
+
+Mutations tried on 2026-11-16 (each restored): removing the `tracing_v2_callback_var` check fails the LangChain-context test; removing the
+environment check fails the `LANGSMITH_API_KEY`, `LANGCHAIN_API_KEY` and `LANGSMITH_ENDPOINT` cases, each alone and
+together (the `*_TRACING*` cases still pass through `tracing_is_enabled()`, which is the second place that catches
+them); removing `tracing_context(enabled=False)` or the `set(None)` fails the matching defence test.
+
+The leak path was first checked by hand with a throwaway script (not in the repo), pointed at a listener on 127.0.0.1:
+with `LANGSMITH_TRACING=true`, a dummy key and `LANGSMITH_ENDPOINT` set to the listener, an unguarded compiled
+`StateGraph` made two requests (`GET /info`, `POST /runs/multipart`). Other LangGraph variables (`LANGGRAPH_*`) are not read.
 
 ## Reason codes
 
@@ -123,8 +148,9 @@ comes from the runner. Messages are the code only.
 - **`ask_user` fails closed** because open decision 7 (the clarify wait state) is a maintainer decision.
 - **Seam change.** `PlannerModel.complete_text` is a second method (plain text for summarize), not a kind parameter,
   so the plan call and the text call stay separately scriptable.
-- **Result shape.** The result is the finish step's text only, and the finish step must name which steps it
-  returns in `after`. A plan whose finish names only a summary returns only the summary.
+- **Result shape.** The result is the finish step's text only. `planner` now requires `finish` to name at least one
+  step in `after` (a lone finish succeeded with an empty result while other steps ran). A plan whose finish names
+  only a summary returns only the summary.
 - **Dead-end steps.** A step that nothing depends on still runs, and the verifier still requires its record.
   It may still be running when `finish` completes; the job ends only when the graph does.
 - **Stop is not a failure.** A node that sees `should_stop()` returns without a record. The work returns `{"stopped": true}`
@@ -133,6 +159,9 @@ comes from the runner. Messages are the code only.
 
 ## Known limits
 
+- Nothing is preempted. A tool call or model call that never returns leaves the job `running` until the process
+  restarts and `recover()` marks it `unknown`: no step deadline, job deadline or cancel can end it, because they
+  are only checked when a call returns.
 - A synchronous tool call cannot be interrupted. A step that hangs holds its thread until it returns, then
   fails with `step_deadline`; the job deadline is the runner's and also only takes effect when work returns or polls.
 - The planning call and each summarize call are not preempted either; a real adapter must enforce its own timeout.
@@ -146,9 +175,12 @@ comes from the runner. Messages are the code only.
   fails with `input_too_large`.
 - The result is joined text of at most the receipt size (4,000 bytes of canonical JSON, so about 660 non-ASCII characters
   at 6 escaped bytes each). A longer result fails the finish step with `output_too_large`.
+- The lock around the model-call counter is not covered by a test: a deterministic test would need two summarize
+  steps to race at the budget edge, and thread timing cannot be forced without hooks in the code. Removing the lock
+  leaves the suite green.
 - Parallel steps run on LangGraph's thread pool; the shared state is the reducer, the counter and failure slot
   under one lock, and the ledger lock. A concurrency stress beyond the suite was not run.
-- The tracing guard reads the process environment and the in-process flag at the start of a job only.
+- The tracing check runs at the start of a job only (see Tracing guard); the run-time disable is the second layer.
 - The pre-existing `opentelemetry-api` advisory (design section 9) was not changed.
 - `recursion_limit` is set to the step count plus 2; a plan cannot loop, so it is never reached.
 
@@ -160,21 +192,21 @@ Command (venv built from `apps/api/requirements.lock` plus the new pins):
 PYTHONDONTWRITEBYTECODE=1 python -m pytest apps/api -p no:cacheprovider
 ```
 
-Real result on this host (Windows, Python 3.14.4): `795 passed, 110 skipped`; `test_graph.py` and `test_runner.py`
-together, 5 runs in a row: 75 passed each time. See the commit report for the `npm run check` result; it is not copied here
+Real result on this host (Windows, Python 3.14.4): `804 passed, 110 skipped`; `test_graph.py`, `test_runner.py` and `test_planner.py`
+together, 5 runs in a row: 183 passed each time. See the commit report for the `npm run check` result; it is not copied here
 so this file cannot go stale.
 
 Covered in `test_graph.py`: a valid plan (two independent reads that must run in the same superstep, a summarize
 over both, a finish) with the exact receipt, one record per step, and dependency order; a dead-end step; the step-record events
 (state and revision unchanged, one terminal transition); prompt delimiting of the instruction and step outputs;
-single-defect plans rejected with no tool and no further model call (unknown step type, forward reference, self
+single-defect plans rejected (a lone `finish`, or `finish` with an empty `after`, is also `plan_invalid`, in `test_planner.py`) with no tool and no further model call (unknown step type, forward reference, self
 reference, too many steps, a tool outside the admitted set, a tool the runner removed); six invalid-argument cases
 rejected while an earlier valid step must not run; an `ask_user` plan; a raising tool (retried once, then failed, no
 exception text in any event); a tool that works on retry; an `error:` result; an oversized tool output; model-call
 budget exhausted at the summarize step; a step deadline; a job deadline; cancel during a step; nine hostile
 summarize replies; the verifier refusing a missing, a duplicated and a failed record; a ledger write failure; the
 tracing guard (six environment names and in-process); a local-granted admission with a cloud model; no checkpointer.
-The `ledger` tests for `append_note` and the runner tests for the admission and the failure code are in their files.
+Verifier and receipt-size tests: a record out of dependency order, a finish record whose count differs from the result, and a finish whose receipt cannot fit (each fails alone when its check is removed). The `ledger` tests for `append_note` and the runner tests for the admission and the failure code are in their files.
 Each negative test was built from the valid plan with one defect and asserts the exact code.
 
 ## Not built

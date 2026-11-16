@@ -70,18 +70,18 @@ def test_unknown_step_type():
 
 
 def test_tool_outside_the_admitted_set():
-    assert code(steps({**READ, "tool": "rm_rf"}, {"type": "finish"})) == "tool_out_of_scope"
-    assert code(steps({**READ, "tool": 5}, {"type": "finish"})) == "tool_out_of_scope"
+    assert code(steps({**READ, "tool": "rm_rf"}, {"type": "finish", "after": [0]})) == "tool_out_of_scope"
+    assert code(steps({**READ, "tool": 5}, {"type": "finish", "after": [0]})) == "tool_out_of_scope"
 
 
 @pytest.mark.parametrize("tool", ["read_file", "recent_emails", "list_memory"])
 def test_real_tool_not_granted_to_a_cloud_planner(tool):
-    assert code(steps({**READ, "tool": tool, "args": {}}, {"type": "finish"}), local=False) == "tool_out_of_scope"
+    assert code(steps({**READ, "tool": tool, "args": {}}, {"type": "finish", "after": [0]}), local=False) == "tool_out_of_scope"
 
 
 def test_memory_write_tool_is_refused_even_for_a_local_planner():
     for tool in memory.WRITES:
-        assert code(steps({**READ, "tool": tool}, {"type": "finish"})) == "tool_out_of_scope"
+        assert code(steps({**READ, "tool": tool}, {"type": "finish", "after": [0]})) == "tool_out_of_scope"
 
 
 def bump(index, **extra):
@@ -120,22 +120,22 @@ def test_bad_after(after):
 
 
 def test_summarize_needs_a_dependency():
-    assert code(steps(READ, {"type": "summarize"}, {"type": "finish"})) == "plan_invalid"
-    assert code(steps(READ, {"type": "summarize", "after": []}, {"type": "finish"})) == "plan_invalid"
+    assert code(steps(READ, {"type": "summarize"}, {"type": "finish", "after": [0]})) == "plan_invalid"
+    assert code(steps(READ, {"type": "summarize", "after": []}, {"type": "finish", "after": [0]})) == "plan_invalid"
 
 
 def test_step_count_limits():
     assert code(steps()) == "plan_invalid"
-    many = [READ] * LIM.steps_per_job + [{"type": "finish"}]
+    many = [READ] * LIM.steps_per_job + [{"type": "finish", "after": [0]}]
     assert code({"steps": many}) == "step_limit"
-    ok = [READ] * (LIM.steps_per_job - 1) + [{"type": "finish"}]
+    ok = [READ] * (LIM.steps_per_job - 1) + [{"type": "finish", "after": [0]}]
     assert len(plan({"steps": ok}).steps) == LIM.steps_per_job
 
 
 @pytest.mark.parametrize("items", [
     [READ],
-    [READ, {"type": "finish"}, {"type": "finish"}],
-    [{"type": "finish"}, READ],
+    [READ, {"type": "finish", "after": [0]}, {"type": "finish", "after": [0]}],
+    [{"type": "finish", "after": [0]}, READ],
 ])
 def test_finish_must_be_exactly_one_and_last(items):
     assert code({"steps": items}) == "plan_invalid"
@@ -143,17 +143,17 @@ def test_finish_must_be_exactly_one_and_last(items):
 
 @pytest.mark.parametrize("args", [[], "x", 5, None, {"a": "x" * 2000}, {"a": float("nan")}, {"a": "\ud800"}])
 def test_bad_args(args):
-    assert code(steps({**READ, "args": args}, {"type": "finish"})) == "plan_invalid"
+    assert code(steps({**READ, "args": args}, {"type": "finish", "after": [0]})) == "plan_invalid"
 
 
 @pytest.mark.parametrize("question", ["", "   ", 5, None, "q" * 301, "\ud800", ["a"]])
 def test_bad_question(question):
-    assert code(steps({"type": "ask_user", "question": question}, {"type": "finish"})) == "plan_invalid"
+    assert code(steps({"type": "ask_user", "question": question}, {"type": "finish", "after": [0]})) == "plan_invalid"
 
 
 @pytest.mark.parametrize("reply", [[], "text", None, 5, {"steps": "x"}, {"steps": {"0": READ}},
                                     {"steps": [READ, "finish"]}, {"steps": float("nan")},
-                                    {"steps": [{**READ, "tool": float("nan")}, {"type": "finish"}]}])
+                                    {"steps": [{**READ, "tool": float("nan")}, {"type": "finish", "after": [0]}]}])
 def test_reply_of_the_wrong_shape(reply):
     assert code(reply) in {"plan_invalid", "tool_out_of_scope"}
 
@@ -236,17 +236,17 @@ def deep_loads(depth):
 
 
 @pytest.mark.parametrize("reply", [
-    {"steps": [{**READ, "args": {"a": nested(20000)}}, {"type": "finish"}]},
-    {"steps": [{**READ, "args": {"a": deep_loads(900)}}, {"type": "finish"}]},
+    {"steps": [{**READ, "args": {"a": nested(20000)}}, {"type": "finish", "after": [0]}]},
+    {"steps": [{**READ, "args": {"a": deep_loads(900)}}, {"type": "finish", "after": [0]}]},
     {"steps": nested(20000)},
-    {"steps": [READ, {"type": "finish"}], "x": deep_loads(900)},
+    {"steps": [READ, {"type": "finish", "after": [0]}], "x": deep_loads(900)},
     {"steps": [{"type": "finish", "after": [10 ** 5000]}]},
     {"steps": [READ, {"type": "summarize", "after": [Hostile()]}, {"type": "finish", "after": [1]}]},
-    {"steps": [{**READ, "tool": Hostile()}, {"type": "finish"}]},
-    {"steps": [{**READ, "args": {"a": Hostile()}}, {"type": "finish"}]},
-    {"steps": [{**READ, "args": {(1, 2): 3}}, {"type": "finish"}]},
+    {"steps": [{**READ, "tool": Hostile()}, {"type": "finish", "after": [0]}]},
+    {"steps": [{**READ, "args": {"a": Hostile()}}, {"type": "finish", "after": [0]}]},
+    {"steps": [{**READ, "args": {(1, 2): 3}}, {"type": "finish", "after": [0]}]},
     {1: "x", 2: "y"},
-    {"steps": [{1: "x"}, {"type": "finish"}]},
+    {"steps": [{1: "x"}, {"type": "finish", "after": [0]}]},
     {"steps": [READ, {"type": "finish", "note": "x" * 100_000}]},
 ])
 def test_hostile_replies_raise_only_a_fixed_policy_error(reply):
@@ -257,8 +257,8 @@ def test_hostile_replies_raise_only_a_fixed_policy_error(reply):
 
 
 def test_str_subclass_cannot_smuggle_a_tool():
-    assert code(steps({**READ, "tool": LyingStr("read_file")}, {"type": "finish"}), local=False) == "tool_out_of_scope"
-    got = plan(steps({**READ, "tool": LyingStr("calculate")}, {"type": "finish"}))
+    assert code(steps({**READ, "tool": LyingStr("read_file")}, {"type": "finish", "after": [0]}), local=False) == "tool_out_of_scope"
+    got = plan(steps({**READ, "tool": LyingStr("calculate")}, {"type": "finish", "after": [0]}))
     assert type(got.steps[0].tool) is str and got.steps[0].tool == "calculate"
 
 
@@ -303,7 +303,7 @@ def args_of(n):
 @pytest.mark.parametrize("size,ok", [(1000, True), (1001, False)])
 def test_args_cap_is_exact(size, ok):
     assert len(json.dumps(args_of(size))) == size
-    reply = steps({**READ, "args": args_of(size)}, {"type": "finish"})
+    reply = steps({**READ, "args": args_of(size)}, {"type": "finish", "after": [0]})
     if ok:
         assert plan(reply).steps[0].args
     else:
@@ -312,8 +312,8 @@ def test_args_cap_is_exact(size, ok):
 
 def test_non_bmp_args_count_as_escaped_text():
     emoji = {"a": "\U0001F600" * 83}  # 12 characters each once escaped: 1,005 in all
-    assert code(steps({**READ, "args": emoji}, {"type": "finish"})) == "plan_invalid"
-    assert plan(steps({**READ, "args": {"a": "\U0001F600" * 82}}, {"type": "finish"}))
+    assert code(steps({**READ, "args": emoji}, {"type": "finish", "after": [0]})) == "plan_invalid"
+    assert plan(steps({**READ, "args": {"a": "\U0001F600" * 82}}, {"type": "finish", "after": [0]}))
 
 
 def test_worst_valid_plan_at_the_ceiling_is_accepted():
@@ -325,7 +325,7 @@ def test_worst_valid_plan_at_the_ceiling_is_accepted():
     assert 100_000 < len(json.dumps(reply)) <= 120_000
     assert len(plan(reply, limits=lim).steps) == 32
     mixed = [{**READ, "tool": "calendar_events", "args": args_of(1000), "after": list(range(i))} for i in range(31)]
-    assert len(plan({"steps": mixed + [{"type": "finish"}]}, limits=lim).steps) == 32
+    assert len(plan({"steps": mixed + [{"type": "finish", "after": [0]}]}, limits=lim).steps) == 32
 
 
 # --- a broken is_local flag is "not local" -------------------------------------
@@ -363,3 +363,9 @@ def test_broken_locality_flag_with_a_cloud_admission_does_not_matter():
             pass
 
     assert len(request_plan(Cloud([GOOD]), "p", adm(local=False), LIM, 0).steps) == 3
+
+
+@pytest.mark.parametrize("finish", [{"type": "finish"}, {"type": "finish", "after": []}])
+def test_finish_must_name_the_steps_it_collects(finish):
+    assert code(steps(READ, finish)) == "plan_invalid"
+    assert plan(steps(READ, {"type": "finish", "after": [0]})).steps[-1].after == (0,)
