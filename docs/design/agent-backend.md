@@ -300,7 +300,11 @@ Proposed build order, each slice with its test:
    fake only (no real API call; that is slice 7), in the local text adapter, off
    by default: [implementation record](../implementation/agent-backend-delegation.md).
 7. **Gemini text model** behind the seam. Test: opt-in live check, synthetic
-   data, key from the environment, timing and state logged only.
+   data, key from the environment, timing and state logged only. Built, offline
+   only: the class and the opt-in `planner_check` command exist, the live check
+   is not run, and nothing in the conversation uses it (admission still
+   refuses a cloud planner for personal data):
+   [implementation record](../implementation/agent-backend-gemini-planner.md).
 8. **Evaluation set** of about 20 tasks. Test: a deterministic run on the fake
    model passes 100%; a model run reports a rate.
 
@@ -322,7 +326,7 @@ Proposed build order, each slice with its test:
 1. **First model. Decided 2026-11-16 by `abhishek3059` (chat): Gemini text on
    the free tier, synthetic data only.** That is slice 7. Slice 6 runs on the
    scripted fake only. Still unverified: that the free tier covers the text API
-   (section 6), until slice 7 checks it. A local text model and a paid Haiku
+   (section 6): slice 7 built the class, but its live check is not run. A local text model and a paid Haiku
    model (needs approval under the $0 rule) stay behind the same seam.
 2. **Web research provider.** A search or fetch service is a new recipient and
    egress decision under [REQ-13](../../prd.md#req-13). Keep it out of the

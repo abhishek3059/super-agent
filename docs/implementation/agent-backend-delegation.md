@@ -107,7 +107,7 @@ never closes it: jobs are meant to outlive a session. Nothing calls `Service.clo
   `call_tool`. So the key is a fresh `uuid4().hex` per call. A retried or repeated tool call is therefore a new job,
   not a duplicate of the first. Only the queue cap bounds repeats. `Service.delegate` takes the key as an argument,
   so a caller with a stable identifier can use it.
-- **No model configured.** The adapter builds `Service()` with no model, because no real model exists until slice 7.
+- **No model configured.** The adapter builds `Service()` with no model, because no real model is wired in. Slice 7 added `GeminiPlanner` for the opt-in check only ([record](agent-backend-gemini-planner.md)).
   In a real run with the flag on, every delegation is answered `error: not delegated (delegation_unavailable).`
   Only tests inject a `ScriptedModel` (by setting `local_adapter._SERVICE`).
 - **Where the flag is checked.** `call_tool` checks it per call, and `LocalVoiceAdapter.start()` checks it once, like
@@ -258,5 +258,5 @@ after
 ## Not built
 
 Returning job results or notifying the conversation loop, `query_ledger`, `cancel_task` and `steer_task`, any real
-planner model (slice 7), the clarify step (open decision 7), wiring into `app.py` or the Gemini adapter, the
+planner model in the conversation (slice 7 built one for the opt-in check only), the clarify step (open decision 7), wiring into `app.py` or the Gemini adapter, the
 scheduled purge, the evaluation set, and any roadmap tick. Open decisions 2, 7 and the R-02.4 consequence stay open.
