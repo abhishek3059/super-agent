@@ -52,7 +52,7 @@ def _sdk_connect(api_key: str, model: str) -> Connect:
             http_options=types.HttpOptions(base_url="https://generativelanguage.googleapis.com"),
         )
         config = types.LiveConnectConfig(
-            response_modalities=["AUDIO"],
+            response_modalities=[types.Modality.AUDIO],
             system_instruction=SYSTEM_INSTRUCTION,
         )
         return client.aio.live.connect(model=model, config=config)
