@@ -17,7 +17,7 @@ Claims about external packages are marked UNVERIFIED.
 
 | Fact | Source |
 | --- | --- |
-| Current phase is PH-01. R-01.4 and R-01.10 are unticked. PH-02 and PH-04 are not started. | [roadmap.md](../../roadmap.md) |
+| Current phase is PH-01. R-01.10 is unticked (R-01.4 is ticked). PH-02 and PH-04 are not started. | [roadmap.md](../../roadmap.md) |
 | No ledger, planner, or worker exists. | [brain overview, section 1](brain/overview.md#1-what-exists-today) |
 | The voice adapter seam is `VoiceAdapter` (`start`, `enqueue_audio`, `end_audio_stream`, `interrupt`, `events`, `close`). | [adapter.py](../../apps/api/src/super_agent_voice/adapter.py) |
 | Adapters: Gemini Live and a local cascade. | [gemini_adapter.py](../../apps/api/src/super_agent_voice/gemini_adapter.py), [local_adapter.py](../../apps/api/src/super_agent_voice/local_adapter.py) |

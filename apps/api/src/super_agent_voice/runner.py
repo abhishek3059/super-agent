@@ -10,10 +10,20 @@ No model, no network, no replay.
 """
 from __future__ import annotations
 
+import json
 from concurrent.futures import ThreadPoolExecutor
 
 from . import policy, tier1
-from .ledger import TERMINAL, Job, LedgerError, StaleRevision
+from .ledger import MAX_RECEIPT_BYTES, TERMINAL, Job, LedgerError, StaleRevision
+
+
+def _storable(receipt: object) -> bool:
+    """True if the ledger would accept this as a receipt (same rules as ledger._json)."""
+    try:
+        text = json.dumps(receipt, sort_keys=True, separators=(",", ":"), allow_nan=False)
+    except (TypeError, ValueError):
+        return False
+    return isinstance(receipt, dict) and len(text.encode()) <= MAX_RECEIPT_BYTES
 
 
 class Runner:
@@ -89,8 +99,9 @@ class Runner:
             elif self._late(adm):
                 plan = [("failed", "job_deadline", {"error": "job_deadline"})]
             elif not saw_stop:
-                plan = [("succeeded", "work_done", receipt),
-                        ("failed", "bad_receipt", {"error": "bad_receipt"})]
+                # judged from the receipt itself, so a refused write of a good one is never called bad
+                plan = ([("succeeded", "work_done", receipt)] if _storable(receipt)
+                        else [("failed", "bad_receipt", {"error": "bad_receipt"})])
             elif self._state(job.id) == "cancel_requested":
                 plan = [("cancelled", "cancel_stopped", {"stopped": True})]
             else:  # work stopped early but no cancel is confirmed: its receipt is partial, never a success

@@ -124,8 +124,8 @@ Command (venv built from `apps/api/requirements.lock`):
 PYTHONDONTWRITEBYTECODE=1 python -m pytest apps/api -p no:cacheprovider
 ```
 
-Real result on this host (Windows): `626 passed, 110 skipped` for
-`apps/api` (`test_policy.py` 217, `test_runner.py` 23, `test_ledger.py` 134 passed and 1 skipped). `npm run check`
+Real result on this host (Windows): `627 passed, 110 skipped` for
+`apps/api` (`test_policy.py` 217, `test_runner.py` 24, `test_ledger.py` 134 passed and 1 skipped). `npm run check`
 result is recorded in the commit report, not here.
 
 Covered: every limit breach and boundary, bool and wrong-type inputs, every

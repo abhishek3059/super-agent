@@ -308,3 +308,22 @@ def test_clock_that_raises_does_not_leave_the_job_running(made):
     work.release.set()
     wait_state(adm.job, "failed")
     assert ledger.list_events(adm.job.id)[-1].reason == "job_deadline"
+
+
+def test_refused_success_write_is_not_recorded_as_a_bad_receipt():
+    class RefuseOnce(Flaky):
+        def transition(self, job_id, to_state, *a, **kw):
+            if to_state == "succeeded":
+                raise ledger.LedgerError("ledger storage failed")
+            return ledger.transition(job_id, to_state, *a, **kw)
+
+    runner = Runner(RefuseOnce(), policy.Limits(), lambda j, t, s: {"ok": 1}, lambda: NOW)
+    adm = admit()
+    try:
+        runner.submit(adm)
+        wait_state(adm.job, "unknown")
+    finally:
+        runner.close()
+    last = ledger.list_events(adm.job.id)[-1]
+    assert last.reason == "terminal_write_failed"
+    assert "bad_receipt" not in repr(ledger.list_events(adm.job.id))

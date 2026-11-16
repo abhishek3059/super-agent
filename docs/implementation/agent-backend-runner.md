@@ -8,7 +8,7 @@ This is code only. It is not wired into `app.py`, and no roadmap item is ticked.
 
 - `apps/api/src/super_agent_voice/runner.py`: standard library only
   (`concurrent.futures.ThreadPoolExecutor`). No model, no network, no LangGraph.
-- `apps/api/tests/test_runner.py`: 23 tests (the bad-receipt test runs 4 cases, the invalid-limits test 3).
+- `apps/api/tests/test_runner.py`: 24 tests (the bad-receipt test runs 4 cases, the invalid-limits test 3).
 - `Runner(ledger, limits, work, clock)`. `ledger` is the ledger module, `limits` a
   `policy.Limits`, `clock` a zero-argument callable returning an aware `datetime`.
   `work(job, tools, should_stop) -> dict` is the stub graph seam: trusted code
@@ -28,7 +28,7 @@ This is code only. It is not wired into `app.py`, and no roadmap item is ticked.
 | Cancel requested, work saw `should_stop()` | `cancelled` | `cancel_stopped` | `{"stopped": true}` |
 | Work saw `should_stop()` true but no cancel is confirmed (failed ledger read, or state unreadable after work) | `failed` | `stop_unconfirmed` | `{"error": "stop_unconfirmed"}` |
 | Cancel requested, work never polled and returned | `succeeded` | `work_done` | the work's receipt |
-| Receipt not a dict, too large, or not JSON | `failed` | `bad_receipt` | `{"error": "bad_receipt"}` |
+| Receipt not a dict, too large, or not JSON (judged from the receipt itself, with the ledger's cap and encoding) | `failed` | `bad_receipt` | `{"error": "bad_receipt"}` |
 | No terminal write possible | `unknown` | `terminal_write_failed` | none |
 | `cancel` on a queued job | `cancel_requested` then `cancelled` | `user_cancel`, `cancelled_before_start` | `{"executed": false}` |
 | `cancel` on a running job | `cancel_requested` | `user_cancel` | none |
@@ -39,8 +39,11 @@ Reasons and error receipts are fixed strings in code, and exception text is neve
 stored, because it could carry model or personal data. A `succeeded` receipt is
 whatever the trusted work function returned, so once the graph replaces the stub it
 can carry model output. Once `should_stop()` has returned true for a job, `succeeded`
-is never written. A clock or any other unexpected error after work returns is treated
-as a passed deadline, and the last resort is `unknown`.
+is never written. If the clock raises any exception, the job counts as past its deadline and
+ends `failed` with `job_deadline`. If choosing the outcome itself raises, no outcome is
+planned and the runner goes straight to the `unknown` attempt. A valid receipt whose
+`succeeded` write the ledger refuses is never recorded as `bad_receipt`; it falls
+through to `unknown` with `terminal_write_failed`.
 
 ## How races resolve
 
@@ -73,7 +76,8 @@ groups set), no tier 1 tool is offered.
   includes work that never polled while a cancel was requested, as the ledger allows.
 - A passed deadline fails the job even if work returned a result. The deadline
   is checked when work returns, not by interrupting it.
-- A bad receipt falls back to `failed`, then `unknown`. Success is never a fallback.
+- A bad receipt is `failed` with `bad_receipt`, then `unknown`. A good receipt whose
+  write is refused goes to `unknown`, never to `bad_receipt`. Success is never a fallback.
 - `recover()` returns the number of jobs moved (running or cancel requested to
   `unknown`, plus queued to `failed`).
 - `Runner` accepts only a `policy.Limits`; anything else raises `PolicyError("limits_invalid")`, never a silent fallback to defaults.
@@ -95,8 +99,8 @@ groups set), no tier 1 tool is offered.
   `running` (so a `cancel_requested` job cannot be cancelled again), and
   `StaleRevision` if it loses the race twice.
 - `should_stop()` reads SQLite on each call, so work should not poll in a tight loop.
-- If the ledger itself fails during the terminal write, the job can stay
-  `running` until `recover()` marks it `unknown`.
+- If the ledger stays down during the terminal write, the job can stay `running`
+  or `cancel_requested` until `recover()` marks it `unknown`.
 - Not run: any concurrency stress beyond the test suite, and the tier 1 filter on
   a real macOS host with groups enabled (tests monkeypatch `enabled_tools`).
 
@@ -113,10 +117,12 @@ cancel of a running and of a queued job, work that ignores cancel, cancel of an
 unknown or ended job, the concurrency cap (2 running, 1 queued, third starts after
 release), a raising work function with no text leaked, a passed deadline with a
 fake clock, four bad receipts, the tier 1 filter and its fail-closed config
-error, one terminal event per job, and `recover`. Real result: see the commit
+error, one terminal event per job, `recover`, a failed poll and an unreadable
+state after cancel (neither ends `succeeded`), a raising clock, invalid limits
+(3 cases), and a refused success write that is not recorded as `bad_receipt`. Real result: see the commit
 report; it is not copied here so this file cannot go stale.
 
 ## Not built
 
-Model seam, graph, step catalog schemas, per-day provider request counter,
+Graph, step catalog execution, per-day provider request counter,
 wiring into `app.py`, and any roadmap tick.
