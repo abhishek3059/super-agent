@@ -103,6 +103,14 @@ admitted set fails when called, and is never made to work. The runner
 ([record](agent-backend-runner.md)) intersects the admitted set with
 `tier1.enabled_tools()` before it offers tools to the planner.
 
+## The memory switch is not checked here either
+
+Admission grants `MEMORY_TOOLS` and `memory_context` to a local planner whether or not `SUPER_AGENT_MEMORY` is on.
+The runner removes the memory tools and clears `memory_context` when memory is not on, and
+`delegation.run_read_tool` refuses a memory tool then too ([runner record](agent-backend-runner.md#memory-tools),
+[delegation record](agent-backend-delegation.md)). The first layer is the runner, so a direct caller of `admit`
+still sees the full grant.
+
 ## Reason codes
 
 `limits_invalid`, `clock_invalid` (clock not timezone-aware, deadline overflow, or a step

@@ -12,7 +12,10 @@ adds no endpoint, changes no authentication, Host, Origin or CORS handling, and 
   added to `available_tools()`, a dispatch branch in `call_tool`, a one-sentence system prompt addition when on,
   and a flag check at session start. `gemini_adapter.py` is untouched.
 - `policy.py`: one reason code, `delegation_unavailable`.
-- `apps/api/tests/test_delegation.py`: 55 tests.
+- Follow-up commit, `fix(api): honour the memory opt-out and untrusted-text guard for delegation`: `memory.flag()` and
+  `memory.enabled()`, the runner's memory filter, a memory check in `run_read_tool`, and the untrusted-text guard
+  (sections below).
+- `apps/api/tests/test_delegation.py`: 71 tests (55 in the first commit, 16 in the follow-up below).
 - Decisions recorded in the [design](../design/agent-backend.md): tool name `delegate_task` (decision 5, conflict C1,
   and the brain documents now say `delegate_task`), separate `~/.super-agent/ledger.db` (decision 4), first model
   Gemini text on the free tier (decision 1, built in slice 7, not here). Decided by `abhishek3059` in chat on 2026-11-16.
@@ -60,12 +63,32 @@ Existing codes pass through from `policy.admit`: `spec_invalid`, `task_type_inva
 `run_read_tool(name, args) -> str` is the `run_tool` the graph takes. It runs a name only if it is in
 `READ_TOOLS`: `calculate`, `current_time`, the tier 1 names, and `memory.NAMES - memory.WRITES`. Everything else
 (including every memory write, a non-string name, and `delegate_task` itself) returns `error: no such tool.`
+A memory read tool also needs `memory.enabled()` (fail closed: a bad `SUPER_AGENT_MEMORY` value counts as off), so a
+user who switched memory off cannot have a background job read it, even if a tool name reached this function.
 Dispatch goes to existing code: `tools.run_tool`, `tier1.run_t1`, `memory.run`. Results pass through unchanged
 (untrusted data; the graph bounds and checks them).
 
 `tier1.run_t1` is async and the graph calls tools from a LangGraph worker thread, which has no running event loop.
 The smallest bridge is `asyncio.run(tier1.run_t1(...))`, one short-lived loop per call. It is tested from a
 `ThreadPoolExecutor` thread with a fake `run_t1`; no real app or file was touched.
+
+## Memory opt-out
+
+Admission grants the memory read tools and `memory_context` to a local planner. The runner is where tools are offered,
+as for tier 1 groups, so `Runner._tools` drops every memory tool name and the admission handed to the work carries
+`memory_context=False` unless `memory.enabled()` is true ([runner record](agent-backend-runner.md#memory-tools)).
+The switch moved from `local_adapter.memory_enabled()` into `memory.flag()` so the runner can read it without an import
+cycle; `local_adapter.memory_enabled()` delegates to it and still raises on a bad value (its tests are unchanged).
+With memory off, a plan that names `list_memory` fails `tool_out_of_scope` before any step runs. Three layers hold:
+the runner filter, the planner's scope check, and `run_read_tool`.
+
+## Untrusted-text guard
+
+`call_tool` already refuses memory writes in a turn that read tier 1 content (`_READ_UNTRUSTED`). `delegate_task`
+follows the same rule: after a tier 1 read in the same turn it returns the fixed `DELEGATE_AFTER_READ` text and does
+not reach the service, so nothing is written. Text from a file, note or mail could otherwise start a background job
+over the user's data (AGENTS.md section 5). The flag is per turn (a task context variable), so the next turn starts
+clean. It is checked after the `SUPER_AGENT_DELEGATE` flag, so with the tool off the answer is still `no such tool`.
 
 ## Startup and shutdown
 
@@ -76,7 +99,7 @@ caller until now). Nothing schedules the purge after that, so a long-running pro
 does not wait for a running job. Later calls are refused `delegation_unavailable`.
 
 The adapter holds one process-wide service, created on the first `delegate_task` call (off the event loop), and
-never closes it: jobs are meant to outlive a session.
+never closes it: jobs are meant to outlive a session. Nothing calls `Service.close()` outside tests.
 
 ## Choices where the brief or the design was unclear
 
@@ -104,12 +127,17 @@ never closes it: jobs are meant to outlive a session.
 - **Obligation for the result-return slice.** Returning a job's result to the conversation loop has its own
   data-boundary question: a job that read personal data (tier 1 or memory tools, which a local planner may use)
   must not be briefed to a cloud conversation model. That slice must decide it before it returns any output.
-- The memory read tools are granted by admission to a local planner whether or not `SUPER_AGENT_MEMORY` is on, and
-  `run_read_tool` does not check the flag (that check lives in `local_adapter`, which imports this module). A local
-  planner could read an existing `memory.db` with memory off. Not fixed here; it needs a trusted flag passed into admission.
-- A turn that already read a file, note or mail (untrusted text) can still call `delegate_task`. The job is read-only
-  and its output is not returned, but injected text could cause a job to be created. No guard like the memory
-  write guard was added.
+- `admit` alone still grants memory tools to a local planner whatever the flag says; the opt-out is enforced by the
+  runner filter and `run_read_tool`, not at admission. A new caller that bypasses the runner would not get it.
+- The untrusted-text guard covers tier 1 reads only (the same set as the memory-write guard). Text from any other
+  source is not marked.
+- The runner's pool threads are not daemon threads, so a job stuck in a tool or model call can delay process exit.
+  Checked on 2026-11-16 with a throwaway script outside the repo (Python 3.14.4, Windows): a `ThreadPoolExecutor`
+  worker reported `daemon=False`, and after `shutdown(wait=False, cancel_futures=True)` the process still exited only
+  when a 4 second `time.sleep` in the worker finished (interpreter exit joins pool threads). `Service.close()` does not
+  wait, but it cannot stop a running job either.
+- The adapter never closes the process-wide service (nothing calls `close()` outside tests), so the pool and any held
+  job live until the process exits.
 - No per-turn cap on delegations beyond the adapter's two tool calls per round, three rounds, and the queue cap
   (7 non-terminal jobs; `admit` is not atomic, so two concurrent calls can both pass it).
 - The tier 1 tools are macOS-only and are filtered by the runner while their group is disabled; this slice did not
@@ -132,9 +160,9 @@ Command:
 PYTHONDONTWRITEBYTECODE=1 python -m pytest apps/api -p no:cacheprovider
 ```
 
-Real result on this host (Windows, Python 3.14.4): `859 passed, 110 skipped` (baseline `804 passed, 110 skipped`,
-plus the 55 new tests). `test_delegation.py`, `test_graph.py` and `test_runner.py` together, 5 runs in a row: 137
-passed each time. See the commit report for the `npm run check` result.
+Real result on this host (Windows, Python 3.14.4): `878 passed, 110 skipped` (baseline `804 passed, 110 skipped`,
+plus 71 new delegation tests and 3 new runner tests). `test_delegation.py`, `test_graph.py` and `test_runner.py`
+together, 5 runs in a row: 156 passed each time. See the commit report for the `npm run check` result.
 
 `test_delegation.py` covers: a receipt returned while the job is held open and the job later `succeeded` with the
 exact receipt (real `Runner`, real ledger, real graph, real `calculate`); the conversation-loop call returning only
@@ -148,11 +176,19 @@ same job without a second run; a bad call key; the tool runner refusing every me
 running `calculate` and a memory read, and running a tier 1 tool through `run_t1` from a worker thread; startup
 recovery of a running and a queued job and one `purge` call; purge deleting an old job; the event loop ticking at
 least ten times while `delegate` blocks 0.4 s in the ledger; `close()` returning in under a second with a job held open.
+Follow-up: a local planner is offered the memory tools only when `SUPER_AGENT_MEMORY` is exactly `on` (six values,
+including unset, `maybe`, `ON` and empty, read from the planner prompt), never a memory write; a plan naming
+`list_memory` with memory off fails `tool_out_of_scope` with no step record and no memory read; the same plan runs with
+memory on; `run_read_tool("list_memory")` is refused unless memory is on; the admission given to the work carries
+`memory_context` only when memory is on; a tier 1 read followed by `delegate_task` in one turn is refused with the
+service untouched and the ledger empty; a turn with no read still delegates, and the next turn after a refused one is clean.
 
 Mutations tried on 2026-11-16 (each restored): calling `_delegate` inline instead of `to_thread` fails the
 event-loop test only; `bool(is_local)` fails the three truthy-flag cases; allowing memory writes in `READ_TOOLS`
 fails all five write cases; removing `recover()` fails the recovery test; removing `purge` fails both purge tests;
-removing the exact-keys check fails the extra-argument and missing-key cases.
+removing the exact-keys check fails the extra-argument and missing-key cases. Follow-up: removing the runner's memory
+filter and context clearing fails 11 tests (3 runner, 8 delegation); removing the untrusted-text guard fails the
+two guard tests.
 
 ## Not built
 

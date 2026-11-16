@@ -14,7 +14,7 @@ import dataclasses
 import json
 from concurrent.futures import ThreadPoolExecutor
 
-from . import policy, tier1
+from . import memory, policy, tier1
 from .ledger import MAX_RECEIPT_BYTES, TERMINAL, Job, LedgerError, StaleRevision
 
 
@@ -67,12 +67,15 @@ class Runner:
         return moved
 
     def _tools(self, admitted: frozenset[str]) -> frozenset[str]:
-        """Tier 1 tools are offered only while their group is enabled; a bad config offers none."""
+        """Tier 1 tools are offered only while their group is enabled, memory tools only while memory is on;
+        a bad config offers none."""
         try:
             enabled = {schema["function"]["name"] for schema in tier1.enabled_tools()}
         except Exception:
             enabled = set()
-        return frozenset(t for t in admitted if t not in tier1.T1_NAMES or t in enabled)
+        remembering = memory.enabled()
+        return frozenset(t for t in admitted if (t not in tier1.T1_NAMES or t in enabled)
+                         and (remembering or t not in memory.NAMES))
 
     def _run(self, adm: policy.Admission) -> None:
         try:
@@ -92,7 +95,8 @@ class Runner:
 
         code = None  # a PolicyError code is a fixed string; any other exception contributes nothing
         try:
-            offered = dataclasses.replace(adm, tools=self._tools(adm.tools))
+            offered = dataclasses.replace(adm, tools=self._tools(adm.tools),
+                                          memory_context=adm.memory_context and memory.enabled())
             receipt, failed = self._work(job, offered, should_stop), False
         except Exception as err:
             receipt, failed = None, True

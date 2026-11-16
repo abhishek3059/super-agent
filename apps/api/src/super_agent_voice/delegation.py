@@ -33,6 +33,8 @@ def run_read_tool(name: object, args: object) -> str:
     """The `run_tool` the graph calls, from a worker thread. Results are untrusted data and pass unchanged."""
     if not isinstance(name, str) or name not in READ_TOOLS:
         return _NO_TOOL
+    if name in memory.NAMES and not memory.enabled():  # the user's opt-out holds for background jobs too
+        return _NO_TOOL
     if name in tier1.T1_NAMES:
         return asyncio.run(tier1.run_t1(name, args))  # no loop runs in a graph thread, so it gets its own
     return memory.run(name, args) if name in memory.NAMES else tools.run_tool(name, args)

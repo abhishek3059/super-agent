@@ -70,10 +70,7 @@ REMINDER_CHECK_SECONDS = 10.0
 
 
 def memory_enabled() -> bool:
-    choice = os.environ.get("SUPER_AGENT_MEMORY", "off")
-    if choice not in ("on", "off"):
-        raise RuntimeError("SUPER_AGENT_MEMORY must be 'on' or 'off'")
-    return choice == "on"
+    return memory.flag()
 
 
 def delegate_enabled() -> bool:
@@ -133,6 +130,8 @@ _ASKED = {
     "add_reminder": re.compile(r"remind|alarm|wake me|remember|don'?t (?:let me )?forget"),
     "forget": re.compile(r"forget|delete|remove|erase|clear|scratch"),
 }
+DELEGATE_AFTER_READ = ("error: no task can be started in a turn that read files, notes, mail or calendar. "
+                       "Tell the user to ask again in a new sentence.")
 NOT_ASKED = "error: the user did not ask for that, so nothing was changed. Do not say it was."
 # Set by a tier 1 read inside a turn. Each turn is its own task, so this starts False every turn.
 _READ_UNTRUSTED: contextvars.ContextVar[bool] = contextvars.ContextVar("read_untrusted", default=False)
@@ -145,6 +144,8 @@ async def call_tool(name: object, arguments: object) -> str:
     if name == "delegate_task":
         if not delegate_enabled():
             return "error: no such tool."
+        if _READ_UNTRUSTED.get():  # text from a file, note or mail must not start a job over the user's data
+            return DELEGATE_AFTER_READ
         return await asyncio.to_thread(_delegate, arguments)
     if name in memory.NAMES:
         if not memory_enabled():

@@ -511,6 +511,24 @@ TOOLS = [
 ]
 NAMES = frozenset(schema["function"]["name"] for schema in TOOLS)
 WRITES = NAMES - {"list_memory", "list_reminders"}
+
+
+def flag() -> bool:
+    """The SUPER_AGENT_MEMORY switch: exactly 'on' or 'off', off by default. Anything else raises."""
+    choice = os.environ.get("SUPER_AGENT_MEMORY", "off")
+    if choice not in ("on", "off"):
+        raise RuntimeError("SUPER_AGENT_MEMORY must be 'on' or 'off'")
+    return choice == "on"
+
+
+def enabled() -> bool:
+    """Fail closed: a bad setting counts as off. For code that must not raise (the runner, job tools)."""
+    try:
+        return flag()
+    except RuntimeError:
+        return False
+
+
 AFTER_READ = ("error: memory cannot change in a turn that read files, notes, mail or calendar. "
               "Tell the user to ask again in a new sentence.")
 _PARAMS = {s["function"]["name"]: s["function"]["parameters"] for s in TOOLS}
