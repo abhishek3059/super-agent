@@ -3,6 +3,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { spawnSync } from 'node:child_process';
+import { createServer } from 'node:http';
 import os from 'node:os';
 import path from 'node:path';
 import { after, test } from 'node:test';
@@ -17,7 +18,7 @@ process.env.PORT = '8787';
 process.env.XAI_API_KEY = 'x';
 process.env.COMPOSIO_API_KEY = 'y';
 const { allowedHost, allowedOrigin } = await import('../src/lib/guard.js');
-const { inputCommand, sameOrigin } = await import('../src/screen.js');
+const { attachScreenRelay, inputCommand, sameOrigin } = await import('../src/screen.js');
 const { autoReply } = await import('../src/agent/loop.js');
 const { isOwnerKey } = await import('../src/lib/auth.js');
 const { env } = await import('../src/env.js');
@@ -137,4 +138,17 @@ test('HQ refuses remote Hermes origins and symlinked data roots', () => {
   const linked = probe({ HOME: linkedHome, USERPROFILE: linkedHome, HERMES_URL: '' });
   assert.notEqual(linked.status, 0);
   assert.match(linked.stderr, /requires real data directories/);
+});
+
+test('a malformed screen cookie is refused without throwing from the upgrade event', () => {
+  const server = createServer();
+  attachScreenRelay(server);
+  const writes: string[] = [];
+  let closed = false;
+  server.emit('upgrade', {
+    url: '/api/bots/bot_missing/screen',
+    headers: { host: '127.0.0.1:8787', origin: 'http://127.0.0.1:8787', cookie: 'hq_session=%ZZ' },
+  }, { write: (data: string) => writes.push(data), destroy: () => { closed = true; } }, Buffer.alloc(0));
+  assert.deepEqual(writes, ['HTTP/1.1 403 Forbidden\r\n\r\n']);
+  assert.equal(closed, true);
 });

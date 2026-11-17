@@ -1,6 +1,7 @@
 import type { Context, MiddlewareHandler } from 'hono';
 import crypto from 'node:crypto';
 import { getCookie, setCookie, deleteCookie } from 'hono/cookie';
+import { parse } from 'hono/utils/cookie';
 import { env } from '../env.js';
 import { db, now } from '../db.js';
 import { token } from './ids.js';
@@ -32,8 +33,7 @@ export function userFromToken(t: string | undefined): User | null {
 }
 
 export function userFromCookieHeader(cookieHeader: string | undefined): User | null {
-  const m = cookieHeader?.split(/;\s*/).find((p) => p.startsWith(`${COOKIE}=`));
-  return userFromToken(m ? decodeURIComponent(m.slice(COOKIE.length + 1)) : undefined);
+  return cookieHeader ? userFromToken(parse(cookieHeader, COOKIE)[COOKIE]) : null;
 }
 
 export const requireUser: MiddlewareHandler<AuthVars> = async (c, next) => {
