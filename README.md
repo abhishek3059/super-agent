@@ -17,8 +17,8 @@ background task delegation.
 > **Jarvis HQ (experimental).** A local multi-bot workspace is in
 > [`apps/hq`](apps/hq/README.md): Jarvis plus four Hermes workers, each with
 > its own browser, chat and memory, run inside the macOS sandbox. It has had
-> no independent security review. It runs under a proposed exception,
-> [DEC-23](descisions.md#dec-23). See its [approval record](docs/approvals/jarvis-hq-local-team.md).
+> no independent security review. It runs under the approved [DEC-23](descisions.md#dec-23)
+> exception. See the [maintainer approval](docs/approvals/jarvis-hq-dec-23-approval.md).
 
 ## Start here
 

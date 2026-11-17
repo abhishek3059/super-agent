@@ -166,4 +166,4 @@ All pass 8 findings resolved. The reviewer ran `npm test` in `apps/hq` (15 of 15
 5. The startup stop runs after the server starts listening. Not changed.
 6. No CI on this head yet.
 
-What remains needs a person: the independent security review (R-H.4), the live voice run (R-H.3) and the recorded maintainer approval (R-H.1).
+Pass 9 left the independent security review (R-H.4), live voice run (R-H.3) and maintainer approval (R-H.1) open. The [later approval record](../approvals/jarvis-hq-dec-23-approval.md) closes R-H.1.
