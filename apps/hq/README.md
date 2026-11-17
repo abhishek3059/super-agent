@@ -174,8 +174,10 @@ none of the protections above apply, including the server's file handling.
 - `sandbox-exec` is a macOS tool that Apple marks as deprecated. It has had
   no independent review here.
 
-Use synthetic data until the independent security review (roadmap R-H.4)
-is done.
+Use synthetic speech and data while R-A.2 and R-H.4 are open. The
+[maintainer approval](../../docs/approvals/jarvis-hq-dec-23-approval.md)
+authorizes up to US$5 per month in OpenAI voice spend. The app does not enforce
+that account limit.
 
 ## What has been tested
 

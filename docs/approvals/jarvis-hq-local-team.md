@@ -6,7 +6,7 @@
 | Scope | Build `apps/hq`: a local multi-bot workspace adapted from Bot HQ, with Hermes workers, per-bot browsers, bot-to-bot handoff, memory, skins and OpenAI live voice. |
 | `jeevesh2515` | **Directed, 2026-11-16**, in chat with Claude Code (`claude-fable-5-2`), which recorded it at his instruction. One maintainer's approval is enough ([DEC-21](../../descisions.md#dec-21)). |
 | `abhishek3059` | Not asked. Review of the pull request is open to him. |
-| Effect | Records the direction. It is **not** by itself an approval. The rule change it needs is proposed as [DEC-23](../../descisions.md#dec-23) with an [AGENTS.md](../../AGENTS.md) section 5 edit and roadmap track H in the same pull request. Those take effect when a maintainer approves that pull request. Ticks no roadmap item, moves no gate, and closes no phase. |
+| Effect | Records the direction. It is **not** by itself an approval. See the [2026-11-17 decision](jarvis-hq-dec-23-approval.md) for the subsequent approval and its scope. |
 
 ## What the maintainer said
 
@@ -19,7 +19,7 @@ OpenAI live voice model. He asked for anything in Bot HQ that costs nothing
 to be reused, for skins, and for the work to be finished end to end. He gave
 permission to build it.
 
-## What the pull request asks a maintainer to approve
+## Scope originally submitted for approval
 
 1. **Reuse of Bot HQ code** under its MIT license, with notices kept in
    [apps/hq/THIRD_PARTY_NOTICES.md](../../apps/hq/THIRD_PARTY_NOTICES.md).
@@ -44,7 +44,7 @@ permission to build it.
   tiers enabled under [DEC-18](../../descisions.md#dec-18), and the designs
   and independent security reviews that T1 to T3 require have not been done
   for this app. The code does give the workers that capability. DEC-23
-  proposes a bounded exception for it. No tier is enabled.
+  records a bounded exception for it. No tier is enabled.
 - **Containment is new and unreviewed.** Each bot now runs inside the
   macOS sandbox and cannot read the operator's files, the session secret or
   another bot's folder ([run record](../implementation/jarvis-hq-local-run.md#containment)).

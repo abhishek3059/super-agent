@@ -70,3 +70,9 @@ screen relay in place of VNC, OpenAI Realtime in place of xAI voice.
 - Memory use with all five gateways and five Chromes running.
 - How Hermes workers behave under prompt injection from pages they read.
   They are sandboxed, but they keep their own keys and internet access.
+
+## Maintainer decision
+
+Record approval for the local exception and the US$5 monthly OpenAI cap
+in the [R-H.1 record](../approvals/jarvis-hq-dec-23-approval.md). Keep live
+voice evidence separate from approval.

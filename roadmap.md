@@ -179,9 +179,9 @@ Tiers are defined in [DEC-18](descisions.md#dec-18). R-A.1 and R-A.2 can happen 
 
 ## Parallel track H: Jarvis HQ local team (DEC-23)
 
-`apps/hq` is an experimental local multi-bot workspace built at a maintainer's direction under [DEC-23](descisions.md#dec-23). Its workers run inside the macOS sandbox, outside the capability ladder, as a bounded exception. This track gates no phase and moves no gate. Every item must be ticked before any release to `main` users or any public distribution of the app.
+`apps/hq` is an experimental local multi-bot workspace built at a maintainer's direction under [DEC-23](descisions.md#dec-23). Its workers run inside the macOS sandbox, outside the capability ladder, as a [bounded exception approved by a maintainer](docs/approvals/jarvis-hq-dec-23-approval.md). This track gates no phase and moves no gate. Every item must be ticked before any release to `main` users or any public distribution of the app.
 
-- [ ] R-H.1 [human] A maintainer approves DEC-23, the AGENTS.md section 5 exception and the OpenAI voice spend. Evidence: none yet
+- [x] R-H.1 [human] A maintainer approves DEC-23, the AGENTS.md section 5 exception and the OpenAI voice spend. Evidence: [maintainer approval in chat, 2026-11-17](docs/approvals/jarvis-hq-dec-23-approval.md)
 - [ ] R-H.2 `apps/hq` merged with its self-checks green in CI. Evidence: none yet
 - [ ] R-H.3 Live voice run recorded with synthetic speech: connect, tool call handed to a bot, spoken result, interrupt, end. Evidence: none yet
 - [ ] R-H.4 Independent security review of `apps/hq`: loopback boundary, screen relay, the sandbox profile, credentials copied into bot homes, internet egress. Evidence: none yet
