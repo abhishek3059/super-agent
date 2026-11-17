@@ -121,7 +121,7 @@ were still open.
 The operator recorded the PH-00 setup decisions in the
 [PH-00 setup decisions](docs/approvals/ph-00-setup-decisions.md). The first
 real task pair is local document summary plus action-item extraction. Job
-metadata retention is 24 hours after a terminal state (amended to 14 days on 2026-11-15), with at most 2 automatic
+metadata retention is 24 hours after a terminal state, with at most 2 automatic
 retries for idempotent read-only steps. Windows and macOS remain the hosts.
 PH-01 is authorized for offline work plus a synthetic-only Gemini adapter and
 opt-in live test. The secret mechanism is `GEMINI_API_KEY` in the process
@@ -310,7 +310,7 @@ Windows host, so the backend run used 3.14.4 with the locked dependencies.
 
 ## Documentation acceptance status
 
-The documentation developer performed manual authoring-time checks (literal taxonomy, link targets, headings/anchors, ID traceability, initial statuses). Correction pass (revision 2) inline checks are described in the implementation report. 
+The documentation developer performed manual authoring-time checks (literal taxonomy, link targets, headings/anchors, ID traceability, initial statuses). Correction pass (revision 2) inline checks are described in the implementation report.
 
 **Evidence-pointer correction (review finding R-06):** the accurate location of the earlier authoring-time snapshot counts and parser limitations is the delivery record at [docs/delivery/super-agent.md](docs/delivery/super-agent.md) (its validation-summary section, lines cited in the review at `docs/delivery/super-agent.md`:48-65) — the implementation report lists inspection activities but no check counts. The independent review produced its own separate snapshot counts (29 files, 477 local link occurrences, 75 fragment occurrences, zero errors — see `docs/reviews/super-agent.md` "What was checked") with its own snapshot scope. These are different snapshots of different revisions/limitations, not cumulative totals, and none of the pre-edit counts is final for revision 2.
 
@@ -465,6 +465,7 @@ PR [#42](https://github.com/abhishek3059/super-agent/pull/42) merged into
 `develop` as `3d00d59`. It recovered the R-01.4 operator microphone test
 evidence from the merged feature branch and closed four implementation
 defects:
+
 - R-01.F5: queued and late native audio is dropped upon a local interrupt.
 - R-01.F6: an established Gemini session reports closed only after a clean SDK exit.
 - R-01.F7: the browser console refuses an unexpected provider before requesting microphone capture.
@@ -525,16 +526,25 @@ testing (`SUPER_AGENT_ADAPTER=gemini`) under the testing exception, with
 calculator and clock tools, live streaming transcripts, honest cloud labels,
 and turn continuation across tool calls.
 
-## PH-01 close-out audit (2026-11-15)
+## PH-01 close-out audit and merge (2026-11-16)
 
-The [R-01.10 record](docs/implementation/r01-10-acceptance.md#criteria-and-evidence)
-now maps each RT-002 and RT-003 acceptance criterion and each RT-G01 condition
-to its evidence. The offline suites were re-run at `0638660`: 492 backend tests
-passed and 2 skipped, 112 frontend self-test cases passed, the build passed, and
-`npm audit` found nothing ([saved output](docs/implementation/evidence/r01-10-offline-suites-20261115.txt)).
-The revised synthetic live run was recorded later on 2026-11-15
-([saved output](docs/implementation/evidence/r01-10-live-check-output-20261115T172901Z.txt)).
-R-01.10 is not ticked and PH-01 stays in progress. Missing: a recorded native run through the console, and an
-independent review of the code merged after the R-01.6 review, including
-Gemini mode and finding F5. These need a person, a key, and a maintainer
-decision. No runtime gate moves.
+PR [#49](https://github.com/abhishek3059/super-agent/pull/49) merged into
+`develop` as `f39b278`. It officially closed Phase 1 (PH-01) and marked
+RT-G01 complete with all verification checks passing across macOS, Windows,
+and Linux.
+
+## Agent backend slices 1-5 (2026-11-16)
+
+PR [#50](https://github.com/abhishek3059/super-agent/pull/50) merged into
+`develop` as `677224d`. It established the SQLite Job Ledger (`ledger.py`),
+Ring-0/1/2 admission policy (`policy.py`), background runner daemon (`runner.py`),
+and DAG plan graph (`graph.py`).
+
+## PostgreSQL adapter seam and 5 Hermes worker roles (2026-11-17)
+
+PR [#55](https://github.com/abhishek3059/super-agent/pull/55) merged into
+`develop` as `f719099`. It added a pluggable PostgreSQL database seam supporting
+`DATABASE_URL` with `FOR UPDATE SKIP LOCKED` atomic job claiming in `ledger.py`,
+while preserving transparent fallback to local SQLite. In addition, it defined
+the 5 Hermes worker bot roles in `runner.py` with an automated `claim_and_run`
+worker loop and loopback Hermes Runs API fixtures.

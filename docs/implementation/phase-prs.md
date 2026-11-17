@@ -89,7 +89,10 @@ keep one PR per phase.
 | [#42](https://github.com/abhishek3059/super-agent/pull/42) | `fix(ph-01): recover R-01.4 evidence and close playback, close, capture and provider-destination defects (F5-F8)` | merged | Merged on 2026-11-14. Recovers the R-01.4 record and the F5 to F8 fixes. |
 | [#43](https://github.com/abhishek3059/super-agent/pull/43) | `feat(voice): tier 1 read-only tools and LFM3-Audio ears and mouth with a 4B brain` | open | Targets `develop`; needs review. Out-of-order T1 work under an [exception record](../approvals/tier1-local-exception.md) awaiting a maintainer review (DEC-21). |
 | [#44](https://github.com/abhishek3059/super-agent/pull/44) | `docs(design): add the Roamies design reference (ideas only, no code)` | merged | Merged on 2026-11-14. Design reference for PH-02, PH-05, and PH-06. Nothing built. |
-| [#45](https://github.com/abhishek3059/super-agent/pull/45) | `feat(voice): local memory and reminders (T2) with forget and undo` | open | Stacked on #43. Out-of-order T2 work under an [exception record](../approvals/local-memory-exception.md) awaiting a maintainer review (DEC-21). |
+| [#45](https://github.com/abhishek3059/super-agent/pull/45) | `feat(voice): local memory and reminders (T2) with forget and undo` | merged | Merged into `develop` as `8313146`. |
+| [#49](https://github.com/abhishek3059/super-agent/pull/49) | `docs(ph-01): close Phase 1, record RT-G01 evidence, and advance roadmap` | merged | Merged into `develop` as `f39b278`. Phase 1 officially closed. |
+| [#50](https://github.com/abhishek3059/super-agent/pull/50) | `feat(api): agent backend slices 1-5 (ledger, admission, runner, plan graph)` | merged | Merged into `develop` as `677224d`. |
+| [#55](https://github.com/abhishek3059/super-agent/pull/55) | `feat(ledger): add PostgreSQL adapter seam and wire 5 Hermes worker bot definitions` | merged | Merged into `develop` as `f719099`. |
 
 ## Next PH-01 work
 
