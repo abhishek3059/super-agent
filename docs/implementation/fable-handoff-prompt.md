@@ -75,7 +75,7 @@ IDs below were read from the pricing page on 2026-11-11.
   `gemini-3.1-flash-live-preview`. Model ID comes from config, never
   hard-coded. Enable `contextWindowCompression` and `sessionResumption`,
   handle `GoAway`, and fail closed on unsupported transport. System 1 tools
-  are ledger calls only: `propose_task`, `query_ledger`, `cancel_task`.
+  are ledger calls only: `delegate_task`, `query_ledger`, `cancel_task` (the entry tool was `propose_task` when this prompt was written; the name `delegate_task` was decided on 2026-11-16).
 - **System 2 planner and workers:** one `openai` SDK client with a small
   fallback router (a list of `(base_url, api_key_env, model)`; advance on
   429, 5xx, or timeout; count calls per provider per day in a SQLite quota

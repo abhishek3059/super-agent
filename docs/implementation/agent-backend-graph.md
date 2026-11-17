@@ -2,8 +2,8 @@
 
 Date: 2026-11-16. Branch `feat/agent-backend`. Build step 5 of
 [agent-backend design, section 10](../design/agent-backend.md#10-mapping-and-build-order).
-This is code only. It is not wired into `app.py`, it uses no real model and no
-network, and no roadmap item is ticked.
+Slice 5 added the graph without a real model or network path. The graph is still
+outside `app.py`, and no roadmap item is ticked.
 
 ## What was built
 
@@ -221,7 +221,8 @@ Each negative test was built from the valid plan with one defect and asserts the
 
 ## Not built
 
-`delegate_task`, wiring into `app.py`, the clarify step and its wait state (open decision 7), memory context in
-the prompt, a real model (the Gemini text adapter), the real tool runner that dispatches to `tools.py`, `tier1.py`
-and `memory.py` (the injected `run_tool` is a fake in tests), the per-day provider request counter, the evaluation
-set, and any roadmap tick.
+Wiring into `app.py`, the clarify step and its wait state (open decision 7), memory context in
+the prompt, the per-day provider request counter, the evaluation set, and any roadmap tick.
+[Slice 6](agent-backend-delegation.md) added `delegate_task` to the local text adapter and the tool
+runner that dispatches to `tools.py`, `tier1.py` and `memory.py`.
+[Slice 7](agent-backend-gemini-planner.md) added a Gemini text planner for an opt-in synthetic check.

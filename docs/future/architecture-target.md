@@ -59,7 +59,7 @@ flowchart TB
   EG <-->|"live speech by session consent, persona,<br/>tool schemas, job state"| GL
   CA -->|"assembled context"| SEAM
   CA -->|"assembled context"| PL
-  SEAM -->|"propose_task, query_ledger,<br/>cancel_task, steer_task"| COORD
+  SEAM -->|"delegate_task, query_ledger,<br/>cancel_task, steer_task"| COORD
   COORD -->|"typed proposal + origin"| BR
   CLS -.->|"tighten only"| BR
   BR -->|"admit"| LG
@@ -94,7 +94,7 @@ A list to apply to the operator's own drawing:
 
 1. Add the local backend boundary (127.0.0.1, token, Host, Origin).
 2. The browser never talks to a model directly.
-3. The voice model is System 1 inside the coordinator. Its tools are `propose_task`, `query_ledger`, `cancel_task`, and `steer_task`, not `delegate_task()`.
+3. The voice model is System 1 inside the coordinator. Its tools are `delegate_task`, `query_ledger`, `cancel_task`, and `steer_task`. The entry tool was called `propose_task` in earlier drafts; the maintainer decided the name `delegate_task` on 2026-11-16 (chat). The design point stands: it is a typed admission call into the ledger, not an open-ended `delegate_task()` function that hands free-form work to a model.
 4. The brain does not write memory. The memory service writes only through broker-admitted, user-origin `memory.*` jobs. Models read memory only through the context assembler.
 5. Add the egress gate and the local/cloud boundary.
 6. Internet fetch has no tier yet. It needs its own design and security review.
