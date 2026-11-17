@@ -1,10 +1,10 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 960" width="100%" height="100%" style="background:#090d16; font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1560 1120" width="100%" height="100%" style="background:#090d16; font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
   <defs>
     <!-- Gradients -->
     <linearGradient id="bgGlow" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#0d1527"/>
-      <stop offset="50%" stop-color="#090d16"/>
-      <stop offset="100%" stop-color="#06090e"/>
+      <stop offset="0%" stop-color="#0e172a"/>
+      <stop offset="45%" stop-color="#090d16"/>
+      <stop offset="100%" stop-color="#050811"/>
     </linearGradient>
 
     <linearGradient id="cyanGrad" x1="0%" y1="0%" x2="100%" y2="0%">
@@ -27,19 +27,14 @@
       <stop offset="100%" stop-color="#ea580c"/>
     </linearGradient>
 
-    <!-- Filters -->
-    <filter id="glowCyan" x="-20%" y="-20%" width="140%" height="140%">
-      <feGaussianBlur stdDeviation="6" result="blur"/>
-      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
-    </filter>
+    <linearGradient id="redGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#ef4444"/>
+      <stop offset="100%" stop-color="#b91c1c"/>
+    </linearGradient>
 
-    <filter id="glowPurple" x="-20%" y="-20%" width="140%" height="140%">
-      <feGaussianBlur stdDeviation="6" result="blur"/>
-      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
-    </filter>
-
+    <!-- Drop Shadows -->
     <filter id="cardShadow" x="-10%" y="-10%" width="120%" height="120%">
-      <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#000000" flood-opacity="0.6"/>
+      <feDropShadow dx="0" dy="8" stdDeviation="10" flood-color="#000000" flood-opacity="0.6"/>
     </filter>
 
     <!-- Markers -->
@@ -58,301 +53,372 @@
   </defs>
 
   <!-- Background Canvas -->
-  <rect width="1440" height="960" fill="url(#bgGlow)"/>
+  <rect width="1560" height="1120" fill="url(#bgGlow)"/>
 
-  <!-- Subtle Grid Overlay -->
-  <g opacity="0.05" stroke="#ffffff" stroke-width="1">
-    <line x1="0" y1="120" x2="1440" y2="120"/>
-    <line x1="0" y1="360" x2="1440" y2="360"/>
-    <line x1="0" y1="620" x2="1440" y2="620"/>
-    <line x1="0" y1="840" x2="1440" y2="840"/>
-    <line x1="280" y1="0" x2="280" y2="960"/>
-    <line x1="680" y1="0" x2="680" y2="960"/>
-    <line x1="1080" y1="0" x2="1080" y2="960"/>
+  <!-- Grid Overlay -->
+  <g opacity="0.04" stroke="#ffffff" stroke-width="1">
+    <line x1="0" y1="110" x2="1560" y2="110"/>
+    <line x1="0" y1="360" x2="1560" y2="360"/>
+    <line x1="0" y1="670" x2="1560" y2="670"/>
+    <line x1="0" y1="890" x2="1560" y2="890"/>
+    <line x1="280" y1="0" x2="280" y2="1120"/>
+    <line x1="680" y1="0" x2="680" y2="1120"/>
+    <line x1="1120" y1="0" x2="1120" y2="1120"/>
   </g>
 
-  <!-- HEADER -->
-  <g transform="translate(60, 45)">
-    <rect x="0" y="0" width="8" height="48" rx="4" fill="url(#cyanGrad)"/>
-    <text x="24" y="28" fill="#ffffff" font-size="24" font-weight="700" letter-spacing="0.5">PROJECT NAVIGATION MAP: FROM SUPER-AGENT TO JARVIS</text>
-    <text x="24" y="48" fill="#94a3b8" font-size="13">Architectural Tracing: Canonical Baseline vs. Jarvis Expansions, Divergences, and the Convergence Path</text>
+  <!-- ==================== HEADER ==================== -->
+  <g transform="translate(50, 36)">
+    <rect x="0" y="0" width="8" height="52" rx="4" fill="url(#cyanGrad)"/>
+    <text x="24" y="26" fill="#ffffff" font-size="23" font-weight="700" letter-spacing="0.5">JARVIS PROJECT PATHWAY &amp; ARCHITECTURAL MAP</text>
+    <text x="24" y="48" fill="#94a3b8" font-size="13">Visualizing the Canonical Foundation, Active Branches, Product Divergences, and the Convergence Path</text>
 
     <!-- Legend -->
-    <g transform="translate(820, 6)">
-      <rect x="0" y="0" width="480" height="40" rx="8" fill="#131d31" stroke="#1e293b" stroke-width="1"/>
-      <!-- Green Item -->
-      <circle cx="20" cy="20" r="5" fill="#10b981"/>
-      <text x="32" y="24" fill="#cbd5e1" font-size="11" font-weight="600">Foundation (Done)</text>
-      <!-- Cyan Item -->
-      <circle cx="150" cy="20" r="5" fill="#06b6d4"/>
-      <text x="162" y="24" fill="#cbd5e1" font-size="11" font-weight="600">Active (Current)</text>
-      <!-- Purple Item -->
-      <circle cx="270" cy="20" r="5" fill="#c084fc"/>
-      <text x="282" y="24" fill="#cbd5e1" font-size="11" font-weight="600">Jarvis Divergence</text>
-      <!-- Amber Item -->
-      <circle cx="395" cy="20" r="5" fill="#f59e0b"/>
-      <text x="407" y="24" fill="#cbd5e1" font-size="11" font-weight="600">Missing Bridge</text>
+    <g transform="translate(940, 8)">
+      <rect x="0" y="0" width="520" height="38" rx="8" fill="#131d31" stroke="#1e293b" stroke-width="1"/>
+      <circle cx="20" cy="19" r="5" fill="#10b981"/>
+      <text x="32" y="23" fill="#cbd5e1" font-size="11" font-weight="600">Landed / Merged</text>
+
+      <circle cx="150" cy="19" r="5" fill="#06b6d4"/>
+      <text x="162" y="23" fill="#cbd5e1" font-size="11" font-weight="600">Active / In Progress</text>
+
+      <circle cx="295" cy="19" r="5" fill="#c084fc"/>
+      <text x="307" y="23" fill="#cbd5e1" font-size="11" font-weight="600">Jarvis Divergence</text>
+
+      <circle cx="430" cy="19" r="5" fill="#f59e0b"/>
+      <text x="442" y="23" fill="#cbd5e1" font-size="11" font-weight="600">Core Engine Seam</text>
     </g>
   </g>
 
-  <!-- ==================== COLUMN 1: THE CANONICAL FOUNDATION (DONE) ==================== -->
-  <g transform="translate(60, 130)">
-    <!-- Section Title -->
-    <text x="0" y="0" fill="#64748b" font-size="11" font-weight="700" letter-spacing="1">STAGE 1: CANONICAL CORE (MERGED)</text>
+  <!-- ==================== COLUMN 1: THE CANONICAL FOUNDATION (MERGED) ==================== -->
+  <g transform="translate(50, 115)">
+    <text x="0" y="0" fill="#64748b" font-size="11" font-weight="700" letter-spacing="1">STAGE 1: CANONICAL CORE (MERGED ON DEVELOP)</text>
 
-    <!-- Card 1: PH-00 Governance & Setup -->
-    <g transform="translate(0, 18)" filter="url(#cardShadow)">
-      <rect width="250" height="110" rx="10" fill="#0f172a" stroke="#10b981" stroke-width="1.5"/>
-      <rect x="0" y="0" width="250" height="4" rx="2" fill="url(#greenGrad)"/>
-      <text x="16" y="28" fill="#10b981" font-size="11" font-weight="700">PH-00: SPEC &amp; BOUNDARIES</text>
-      <text x="16" y="48" fill="#ffffff" font-size="14" font-weight="600">Repo Rules &amp; Free Stack</text>
-      <text x="16" y="70" fill="#94a3b8" font-size="11">Architecture, PRD (REQ-01-18)</text>
-      <text x="16" y="86" fill="#94a3b8" font-size="11">Guard scripts, check-repo.mjs</text>
-      <rect x="180" y="20" width="54" height="18" rx="4" fill="#064e3b"/>
-      <text x="207" y="32" fill="#34d399" font-size="9" font-weight="700" text-anchor="middle">MERGED</text>
+    <!-- Card 1: PH-00 Spec & Boundaries -->
+    <g transform="translate(0, 15)" filter="url(#cardShadow)">
+      <rect width="255" height="115" rx="10" fill="#0f172a" stroke="#10b981" stroke-width="1.5"/>
+      <rect x="0" y="0" width="255" height="4" rx="2" fill="url(#greenGrad)"/>
+      <text x="16" y="26" fill="#10b981" font-size="11" font-weight="700">PH-00: SPEC &amp; BOUNDARIES</text>
+      <text x="16" y="46" fill="#ffffff" font-size="14" font-weight="600">Repo Rules &amp; Free Stack</text>
+      <text x="16" y="68" fill="#94a3b8" font-size="11">Architecture, PRD (REQ-01 to 18)</text>
+      <text x="16" y="84" fill="#94a3b8" font-size="11">check-repo.mjs, pre-push guards</text>
+      <text x="16" y="100" fill="#94a3b8" font-size="11">DEC-22: Autonomy (no bottlenecks)</text>
+      <rect x="185" y="18" width="56" height="18" rx="4" fill="#064e3b"/>
+      <text x="213" y="30" fill="#34d399" font-size="9" font-weight="700" text-anchor="middle">MERGED</text>
     </g>
 
-    <!-- Card 2: Voice Boundary & Seam -->
-    <g transform="translate(0, 150)" filter="url(#cardShadow)">
-      <rect width="250" height="135" rx="10" fill="#0f172a" stroke="#10b981" stroke-width="1.5"/>
-      <rect x="0" y="0" width="250" height="4" rx="2" fill="url(#greenGrad)"/>
-      <text x="16" y="28" fill="#10b981" font-size="11" font-weight="700">PH-01: VOICE BOUNDARY (PR 36,41,43,45)</text>
-      <text x="16" y="48" fill="#ffffff" font-size="14" font-weight="600">Native Audio &amp; Seam</text>
-      <text x="16" y="70" fill="#94a3b8" font-size="11">Streaming audio loop (FastAPI)</text>
-      <text x="16" y="86" fill="#94a3b8" font-size="11">Barge-in / mute controls (Angular UI)</text>
-      <text x="16" y="102" fill="#94a3b8" font-size="11">T1 safe tools + T2 local memory</text>
-      <rect x="180" y="20" width="54" height="18" rx="4" fill="#064e3b"/>
-      <text x="207" y="32" fill="#34d399" font-size="9" font-weight="700" text-anchor="middle">MERGED</text>
+    <!-- Card 2: PH-01 Voice Foundation (Closed via PR 49) -->
+    <g transform="translate(0, 145)" filter="url(#cardShadow)">
+      <rect width="255" height="135" rx="10" fill="#0f172a" stroke="#10b981" stroke-width="2"/>
+      <rect x="0" y="0" width="255" height="4" rx="2" fill="url(#greenGrad)"/>
+      <text x="16" y="26" fill="#10b981" font-size="11" font-weight="700">PH-01: VOICE SEAM (PR #49)</text>
+      <text x="16" y="46" fill="#ffffff" font-size="14" font-weight="600">Voice Foundation Closed</text>
+      <text x="16" y="68" fill="#cbd5e1" font-size="11">Streaming audio loop (FastAPI)</text>
+      <text x="16" y="84" fill="#cbd5e1" font-size="11">&lt; 50ms barge-in and audio controls</text>
+      <text x="16" y="100" fill="#cbd5e1" font-size="11">T1 safe tools + T2 memory store</text>
+      <text x="16" y="116" fill="#34d399" font-size="11">RT-G01 verified across Mac/Win/Linux</text>
+      <rect x="185" y="18" width="56" height="18" rx="4" fill="#064e3b"/>
+      <text x="213" y="30" fill="#34d399" font-size="9" font-weight="700" text-anchor="middle">MERGED</text>
     </g>
 
-    <!-- Card 3: Maintainer Autonomy DEC-22 -->
-    <g transform="translate(0, 305)" filter="url(#cardShadow)">
-      <rect width="250" height="110" rx="10" fill="#0f172a" stroke="#10b981" stroke-width="1.5"/>
-      <rect x="0" y="0" width="250" height="4" rx="2" fill="url(#greenGrad)"/>
-      <text x="16" y="28" fill="#10b981" font-size="11" font-weight="700">GOVERNANCE UPDATE (PR 52)</text>
-      <text x="16" y="48" fill="#ffffff" font-size="14" font-weight="600">DEC-22: Autonomy</text>
-      <text x="16" y="70" fill="#94a3b8" font-size="11">Zero cross-approval blocking</text>
-      <text x="16" y="86" fill="#94a3b8" font-size="11">Full maintainer merge autonomy</text>
-      <rect x="180" y="20" width="54" height="18" rx="4" fill="#064e3b"/>
-      <text x="207" y="32" fill="#34d399" font-size="9" font-weight="700" text-anchor="middle">MERGED</text>
+    <!-- Card 3: PH-02 Backend Foundation (Merged via PR 50) -->
+    <g transform="translate(0, 295)" filter="url(#cardShadow)">
+      <rect width="255" height="135" rx="10" fill="#0f172a" stroke="#10b981" stroke-width="2"/>
+      <rect x="0" y="0" width="255" height="4" rx="2" fill="url(#greenGrad)"/>
+      <text x="16" y="26" fill="#10b981" font-size="11" font-weight="700">PH-02: BACKEND ENGINE (PR #50)</text>
+      <text x="16" y="46" fill="#ffffff" font-size="14" font-weight="600">Job Ledger &amp; Background Pool</text>
+      <text x="16" y="68" fill="#cbd5e1" font-size="11">SQLite job ledger with leases</text>
+      <text x="16" y="84" fill="#cbd5e1" font-size="11">Ring-0/1/2 admission policy</text>
+      <text x="16" y="100" fill="#cbd5e1" font-size="11">Runner daemon &amp; DAG plan graph</text>
+      <text x="16" y="116" fill="#34d399" font-size="11">1,080+ tests passing 100% green</text>
+      <rect x="185" y="18" width="56" height="18" rx="4" fill="#064e3b"/>
+      <text x="213" y="30" fill="#34d399" font-size="9" font-weight="700" text-anchor="middle">MERGED</text>
+    </g>
+
+    <!-- Card 4: PR 54 Slices 6 & 7 (Gemini Planner) -->
+    <g transform="translate(0, 445)" filter="url(#cardShadow)">
+      <rect width="255" height="95" rx="10" fill="#0f172a" stroke="#06b6d4" stroke-width="1.5"/>
+      <rect x="0" y="0" width="255" height="4" rx="2" fill="url(#cyanGrad)"/>
+      <text x="16" y="24" fill="#06b6d4" font-size="11" font-weight="700">PR #54: DELEGATION &amp; PLANNER</text>
+      <text x="16" y="42" fill="#ffffff" font-size="13" font-weight="600">delegate_task &amp; Gemini Seam</text>
+      <text x="16" y="62" fill="#94a3b8" font-size="11">Wires conversation into ledger queue</text>
+      <text x="16" y="78" fill="#94a3b8" font-size="11">Gemini text planner behind seam</text>
+      <rect x="185" y="16" width="56" height="18" rx="4" fill="#083344"/>
+      <text x="213" y="28" fill="#38bdf8" font-size="9" font-weight="700" text-anchor="middle">OPEN PR</text>
     </g>
   </g>
 
   <!-- Connectors from Column 1 to Column 2 -->
-  <path d="M 310 200 L 370 200" stroke="#10b981" stroke-width="2" marker-end="url(#arrowGreen)"/>
-  <path d="M 310 250 L 340 250 L 340 375 L 370 375" stroke="#06b6d4" stroke-width="2" marker-end="url(#arrowCyan)"/>
+  <path d="M 305 210 L 375 210" stroke="#10b981" stroke-width="2" marker-end="url(#arrowGreen)"/>
+  <path d="M 305 360 L 375 360" stroke="#10b981" stroke-width="2" marker-end="url(#arrowGreen)"/>
 
-  <!-- ==================== COLUMN 2: ACTIVE REPO STATE & CLOSEOUT ==================== -->
-  <g transform="translate(380, 130)">
-    <!-- Section Title -->
-    <text x="0" y="0" fill="#06b6d4" font-size="11" font-weight="700" letter-spacing="1">STAGE 2: ACTIVE WORK &amp; PHASE 1 EXIT</text>
+  <!-- ==================== COLUMN 2: ACTIVE REPO STATE & PIVOT ==================== -->
+  <g transform="translate(385, 115)">
+    <text x="0" y="0" fill="#06b6d4" font-size="11" font-weight="700" letter-spacing="1">STAGE 2: ACTIVE CORE SEAM &amp; WORKER ENGINE</text>
 
-    <!-- Card: PR 49 Phase 1 Closeout -->
-    <g transform="translate(0, 18)" filter="url(#cardShadow)">
-      <rect width="260" height="150" rx="10" fill="#0f172a" stroke="#06b6d4" stroke-width="2"/>
-      <rect x="0" y="0" width="260" height="4" rx="2" fill="url(#cyanGrad)"/>
-      <text x="16" y="28" fill="#06b6d4" font-size="11" font-weight="700">CURRENT EXIT GATE: PR #49</text>
-      <text x="16" y="50" fill="#ffffff" font-size="15" font-weight="600">Phase 1 Closeout (RT-G01)</text>
-      <text x="16" y="74" fill="#cbd5e1" font-size="12">Maps all R-01 verification items</text>
-      <text x="16" y="92" fill="#94a3b8" font-size="11">Evidence locked: macOS, Windows, Linux</text>
-      <text x="16" y="108" fill="#94a3b8" font-size="11">Backend API tests 100% green</text>
-      <rect x="16" y="120" width="80" height="18" rx="4" fill="#083344"/>
-      <text x="56" y="132" fill="#38bdf8" font-size="9" font-weight="700" text-anchor="middle">READY TO MERGE</text>
+    <!-- Card 1: PR 55 Postgres + 5 Hermes Workers -->
+    <g transform="translate(0, 15)" filter="url(#cardShadow)">
+      <rect width="285" height="235" rx="10" fill="#0f172a" stroke="#06b6d4" stroke-width="2.5"/>
+      <rect x="0" y="0" width="285" height="4" rx="2" fill="url(#cyanGrad)"/>
+      <text x="16" y="26" fill="#06b6d4" font-size="11" font-weight="700">OUR ACTIVE PULL REQUEST: PR #55</text>
+      <text x="16" y="48" fill="#ffffff" font-size="15" font-weight="600">PostgreSQL Seam &amp; Hermes Swarm</text>
+      
+      <rect x="16" y="60" width="253" height="46" rx="6" fill="#13233c"/>
+      <text x="24" y="78" fill="#38bdf8" font-size="10" font-weight="700">POSTGRESQL SEAM (DATABASE_URL)</text>
+      <text x="24" y="94" fill="#94a3b8" font-size="10">FOR UPDATE SKIP LOCKED atomic job claiming</text>
+
+      <rect x="16" y="114" width="253" height="46" rx="6" fill="#13233c"/>
+      <text x="24" y="132" fill="#38bdf8" font-size="10" font-weight="700">SQLITE TRANSPARENT FALLBACK</text>
+      <text x="24" y="148" fill="#94a3b8" font-size="10">Defaults to local file if no database URL</text>
+
+      <rect x="16" y="168" width="253" height="46" rx="6" fill="#13233c"/>
+      <text x="24" y="186" fill="#38bdf8" font-size="10" font-weight="700">5 HERMES BOT ROLES IN RUNNER</text>
+      <text x="24" y="202" fill="#94a3b8" font-size="10">Researcher, Coder, Secretary, Librarian, Ops</text>
+
+      <rect x="215" y="18" width="56" height="18" rx="4" fill="#083344"/>
+      <text x="243" y="30" fill="#38bdf8" font-size="9" font-weight="700" text-anchor="middle">PR #55</text>
     </g>
 
-    <!-- Card: The Critical Pivot Point -->
-    <g transform="translate(0, 200)" filter="url(#cardShadow)">
-      <rect width="260" height="150" rx="10" fill="#131e36" stroke="#38bdf8" stroke-width="1.5" stroke-dasharray="4 3"/>
-      <text x="16" y="28" fill="#38bdf8" font-size="11" font-weight="700">THE DUAL-LOOP ARCHITECTURE</text>
-      <text x="16" y="50" fill="#ffffff" font-size="14" font-weight="600">Where The Roads Split</text>
-      <text x="16" y="74" fill="#cbd5e1" font-size="11">System 1 (Voice) &lt; 50ms</text>
-      <text x="16" y="92" fill="#cbd5e1" font-size="11">System 2 (Workers) in background</text>
-      <text x="16" y="112" fill="#f87171" font-size="11" font-weight="600">Divergence alert:</text>
-      <text x="16" y="128" fill="#94a3b8" font-size="10">Subagents jumped to outer shells</text>
+    <!-- Card 2: The Architectural Pivot Box -->
+    <g transform="translate(0, 265)" filter="url(#cardShadow)">
+      <rect width="285" height="165" rx="10" fill="#131e36" stroke="#38bdf8" stroke-width="1.5" stroke-dasharray="4 3"/>
+      <text x="16" y="26" fill="#38bdf8" font-size="11" font-weight="700">THE DUAL-LOOP ARCHITECTURAL PIVOT</text>
+      <text x="16" y="48" fill="#ffffff" font-size="14" font-weight="600">Why You Are Building Jarvis</text>
+      <text x="16" y="70" fill="#cbd5e1" font-size="11">• Loop 1: Voice stays sub-50ms (never lags)</text>
+      <text x="16" y="88" fill="#cbd5e1" font-size="11">• Loop 2: Workers run silently in background</text>
+      <text x="16" y="106" fill="#cbd5e1" font-size="11">• Result: Jarvis reports when finished</text>
+      <text x="16" y="128" fill="#fbbf24" font-size="11" font-weight="600">Divergence diagnosis:</text>
+      <text x="16" y="146" fill="#94a3b8" font-size="10">Subagents built outer shells before backend</text>
+    </g>
+
+    <!-- Card 3: Free PostgreSQL Database Options -->
+    <g transform="translate(0, 445)" filter="url(#cardShadow)">
+      <rect width="285" height="95" rx="10" fill="#0f172a" stroke="#10b981" stroke-width="1.5"/>
+      <rect x="0" y="0" width="285" height="4" rx="2" fill="url(#greenGrad)"/>
+      <text x="16" y="24" fill="#10b981" font-size="11" font-weight="700">POSTGRESQL $0 OPTIONS</text>
+      <text x="16" y="42" fill="#ffffff" font-size="13" font-weight="600">Neon / Supabase / Local Docker</text>
+      <text x="16" y="62" fill="#cbd5e1" font-size="11">• Neon: 0.5 GB free serverless + pgvector</text>
+      <text x="16" y="78" fill="#cbd5e1" font-size="11">• Docker: 100% private, 0ms local latency</text>
+      <rect x="215" y="16" width="56" height="18" rx="4" fill="#064e3b"/>
+      <text x="243" y="28" fill="#34d399" font-size="9" font-weight="700" text-anchor="middle">READY</text>
     </g>
   </g>
 
-  <!-- Connectors from Column 2 to Columns 3 & 4 (The Bifurcation) -->
-  <!-- Upper: The Jarvis Divergence Track -->
-  <path d="M 640 250 C 670 250, 680 180, 710 180" stroke="#c084fc" stroke-width="2.5" marker-end="url(#arrowPurple)"/>
-  <!-- Lower: The Canonical Phase 2 Ledger Track -->
-  <path d="M 640 310 C 670 310, 680 430, 710 430" stroke="#f59e0b" stroke-width="2.5" marker-end="url(#arrowAmber)"/>
+  <!-- Connectors from Column 2 to Columns 3 & 4 (Branching) -->
+  <path d="M 670 130 C 700 130, 720 180, 755 180" stroke="#c084fc" stroke-width="2.5" marker-end="url(#arrowPurple)"/>
+  <path d="M 670 340 C 700 340, 720 370, 755 370" stroke="#c084fc" stroke-width="2.5" marker-end="url(#arrowPurple)"/>
+  <path d="M 670 480 C 700 480, 720 480, 755 480" stroke="#f59e0b" stroke-width="2.5" marker-end="url(#arrowAmber)"/>
 
-  <!-- ==================== COLUMN 3: THE DIVERGENT TRACKS ==================== -->
-  <!-- Top Branch: JARVIS EXPANSION (PURPLE) -->
-  <g transform="translate(720, 110)">
-    <text x="0" y="0" fill="#c084fc" font-size="11" font-weight="700" letter-spacing="1">DIVERGENCE A: JARVIS AMBIENT EXPANSION</text>
+  <!-- ==================== COLUMN 3: THE DIVERGENT TRACKS (JARVIS EXPANSION) ==================== -->
+  <g transform="translate(765, 115)">
+    <text x="0" y="0" fill="#c084fc" font-size="11" font-weight="700" letter-spacing="1">STAGE 3: THE DIVERGENT BRANCHES (JARVIS EXPANSION)</text>
 
-    <!-- Card 1: Jarvis Scope & Hermes (PR 51) -->
+    <!-- Divergence Card 1: PR 56 Jarvis HQ (Bot HQ Adaptation) -->
     <g transform="translate(0, 15)" filter="url(#cardShadow)">
-      <rect width="280" height="125" rx="10" fill="#171026" stroke="#a855f7" stroke-width="1.5"/>
-      <rect x="0" y="0" width="280" height="4" rx="2" fill="url(#purpleGrad)"/>
-      <text x="16" y="26" fill="#c084fc" font-size="11" font-weight="700">PR #51 / APPROVAL RECORD</text>
-      <text x="16" y="46" fill="#ffffff" font-size="14" font-weight="600">Jarvis Scope &amp; Hermes Engine</text>
-      <text x="16" y="68" fill="#e9d5ff" font-size="11">OpenAI Realtime Voice (Paid Exception)</text>
-      <text x="16" y="84" fill="#cbd5e1" font-size="11">5 Bots with individual sandboxed desktops</text>
-      <text x="16" y="100" fill="#94a3b8" font-size="11">Inspired by BotHQ &amp; Grokbot clones</text>
+      <rect width="320" height="150" rx="10" fill="#171026" stroke="#a855f7" stroke-width="2"/>
+      <rect x="0" y="0" width="320" height="4" rx="2" fill="url(#purpleGrad)"/>
+      <text x="16" y="26" fill="#c084fc" font-size="11" font-weight="700">PR #56: JARVIS HQ (BOT HQ ADAPTATION)</text>
+      <text x="16" y="48" fill="#ffffff" font-size="14" font-weight="600">Local Multi-Bot Workspace &amp; Screencast</text>
+      <text x="16" y="70" fill="#e9d5ff" font-size="11">+16,012 lines in apps/hq adapted from Bot HQ</text>
+      <text x="16" y="86" fill="#cbd5e1" font-size="11">Jarvis + 4 bots (Scout, Forge, Quill, Atlas)</text>
+      <text x="16" y="102" fill="#cbd5e1" font-size="11">Each bot has local Hermes gateway + headless Chrome</text>
+      <text x="16" y="118" fill="#94a3b8" font-size="11">DevTools screencast streaming (no cloud Orgo)</text>
+      <rect x="245" y="18" width="60" height="18" rx="4" fill="#3b0764"/>
+      <text x="275" y="30" fill="#d8b4fe" font-size="9" font-weight="700" text-anchor="middle">PR #56 DRAFT</text>
     </g>
 
-    <!-- Card 2: Visual Concept Preview (Codex Worktree) -->
-    <g transform="translate(0, 155)" filter="url(#cardShadow)">
-      <rect width="280" height="110" rx="10" fill="#171026" stroke="#a855f7" stroke-width="1.5"/>
-      <rect x="0" y="0" width="280" height="4" rx="2" fill="url(#purpleGrad)"/>
+    <!-- Divergence Card 2: 3D Armor Landing Page (Codex Worktree) -->
+    <g transform="translate(0, 180)" filter="url(#cardShadow)">
+      <rect width="320" height="115" rx="10" fill="#171026" stroke="#a855f7" stroke-width="1.5"/>
+      <rect x="0" y="0" width="320" height="4" rx="2" fill="url(#purpleGrad)"/>
       <text x="16" y="26" fill="#c084fc" font-size="11" font-weight="700">WORKTREE DIVERGENCE (Codex)</text>
-      <text x="16" y="46" fill="#ffffff" font-size="14" font-weight="600">3D Armor Video &amp; Landing Page</text>
-      <text x="16" y="68" fill="#cbd5e1" font-size="11">apps/landing/media (armor-loop.mp4)</text>
-      <text x="16" y="84" fill="#cbd5e1" font-size="11">Visual frontend concept preview</text>
-      <text x="16" y="98" fill="#f43f5e" font-size="10">Note: Built ahead of backend ledger</text>
+      <text x="16" y="46" fill="#ffffff" font-size="14" font-weight="600">3D Armor Video &amp; Interactive Skins</text>
+      <text x="16" y="68" fill="#cbd5e1" font-size="11">apps/landing/media (armor-loop.mp4 showcase)</text>
+      <text x="16" y="84" fill="#cbd5e1" font-size="11">Futuristic visual skin and audio HUD overlay</text>
+      <text x="16" y="100" fill="#f43f5e" font-size="10">Status: Visual asset ready to layer on top</text>
     </g>
 
-    <!-- Card 3: Desktop Click Actions (PR 47 / 48) -->
-    <g transform="translate(0, 280)" filter="url(#cardShadow)">
-      <rect width="280" height="110" rx="10" fill="#171026" stroke="#a855f7" stroke-width="1.5"/>
-      <rect x="0" y="0" width="280" height="4" rx="2" fill="url(#purpleGrad)"/>
-      <text x="16" y="26" fill="#c084fc" font-size="11" font-weight="700">PR #47 / PR #48 (T3 ACTIONS)</text>
+    <!-- Divergence Card 3: PR 51 & Cloud Voice Exception -->
+    <g transform="translate(0, 310)" filter="url(#cardShadow)">
+      <rect width="320" height="105" rx="10" fill="#171026" stroke="#a855f7" stroke-width="1.5"/>
+      <rect x="0" y="0" width="320" height="4" rx="2" fill="url(#purpleGrad)"/>
+      <text x="16" y="26" fill="#c084fc" font-size="11" font-weight="700">PR #51: ROADMAP EXCEPTION</text>
+      <text x="16" y="46" fill="#ffffff" font-size="14" font-weight="600">OpenAI Realtime Cloud Exception</text>
+      <text x="16" y="68" fill="#cbd5e1" font-size="11">Approved in docs/approvals/jarvis-delivery-scope.md</text>
+      <text x="16" y="84" fill="#cbd5e1" font-size="11">Permits cloud voice prototyping for sub-50ms latency</text>
+    </g>
+
+    <!-- Divergence Card 4: PR 47 / PR 48 Click Actions -->
+    <g transform="translate(0, 430)" filter="url(#cardShadow)">
+      <rect width="320" height="110" rx="10" fill="#171026" stroke="#a855f7" stroke-width="1.5"/>
+      <rect x="0" y="0" width="320" height="4" rx="2" fill="url(#purpleGrad)"/>
+      <text x="16" y="26" fill="#c084fc" font-size="11" font-weight="700">PR #47 / PR #48: T3 HOST ACTIONS</text>
       <text x="16" y="46" fill="#ffffff" font-size="14" font-weight="600">Click-to-Approve Host Actions</text>
       <text x="16" y="68" fill="#cbd5e1" font-size="11">Open allowlisted Mac apps, web search</text>
-      <text x="16" y="84" fill="#cbd5e1" font-size="11">Voice cannot approve (requires click)</text>
-      <text x="16" y="98" fill="#f59e0b" font-size="10">Waiting on Windows POSIX file fix</text>
+      <text x="16" y="84" fill="#cbd5e1" font-size="11">Physical click required (voice cannot trigger)</text>
+      <text x="16" y="98" fill="#f59e0b" font-size="10">Waiting on Windows file path fix</text>
     </g>
   </g>
 
-  <!-- Bottom Branch: THE CANONICAL ROADMAP (AMBER) -->
-  <g transform="translate(720, 530)">
-    <text x="0" y="0" fill="#f59e0b" font-size="11" font-weight="700" letter-spacing="1">DIVERGENCE B: CANONICAL LEDGER TRACK (THE CORE NEED)</text>
+  <!-- Connectors to Target -->
+  <path d="M 1085 90 C 1110 90, 1120 180, 1145 180" stroke="#c084fc" stroke-width="2.5" marker-end="url(#arrowPurple)"/>
+  <path d="M 1085 240 C 1110 240, 1120 280, 1145 280" stroke="#c084fc" stroke-width="2.5" marker-end="url(#arrowPurple)"/>
+  <path d="M 1085 480 C 1110 480, 1120 400, 1145 400" stroke="#10b981" stroke-width="2.5" marker-end="url(#arrowGreen)"/>
 
-    <!-- Card 1: PH-02 SQLite Ledger & Scheduler -->
+  <!-- ==================== COLUMN 4: THE CONVERGED TARGET (PERFECT JARVIS) ==================== -->
+  <g transform="translate(1155, 115)">
+    <text x="0" y="0" fill="#10b981" font-size="11" font-weight="700" letter-spacing="1">STAGE 4: THE CONVERGED TARGET (PERFECT JARVIS)</text>
+
+    <!-- Master Architecture Box -->
     <g transform="translate(0, 15)" filter="url(#cardShadow)">
-      <rect width="280" height="135" rx="10" fill="#1e180d" stroke="#f59e0b" stroke-width="2"/>
-      <rect x="0" y="0" width="280" height="4" rx="2" fill="url(#amberGrad)"/>
-      <text x="16" y="26" fill="#f59e0b" font-size="11" font-weight="700">PH-02 / PR #50 (THE MISSING LINK)</text>
-      <text x="16" y="46" fill="#ffffff" font-size="14" font-weight="600">SQLite Job Ledger &amp; Scheduler</text>
-      <text x="16" y="68" fill="#fef3c7" font-size="11">Tiny ledger: &lt; 50ms task dispatch</text>
-      <text x="16" y="84" fill="#fef3c7" font-size="11">Job leases, idempotency keys, receipts</text>
-      <text x="16" y="100" fill="#fef3c7" font-size="11">Turn-boundary queue for silent background work</text>
-      <text x="16" y="116" fill="#38bdf8" font-size="10" font-weight="700">ESSENTIAL FOR JARVIS WORKERS</text>
-    </g>
-
-    <!-- Card 2: PH-03 Steering & Guardrails -->
-    <g transform="translate(0, 165)" filter="url(#cardShadow)">
-      <rect width="280" height="95" rx="10" fill="#1e180d" stroke="#d97706" stroke-width="1"/>
-      <rect x="0" y="0" width="280" height="4" rx="2" fill="url(#amberGrad)"/>
-      <text x="16" y="26" fill="#f59e0b" font-size="11" font-weight="700">PH-03 / PH-04 ROADMAP</text>
-      <text x="16" y="46" fill="#ffffff" font-size="14" font-weight="600">Steering, Recovery &amp; Planner</text>
-      <text x="16" y="68" fill="#cbd5e1" font-size="11">Live job cancellation &amp; crash restart</text>
-      <text x="16" y="84" fill="#cbd5e1" font-size="11">Ring-0/1/2 security admission broker</text>
-    </g>
-  </g>
-
-  <!-- ==================== COLUMN 4: CONVERGENCE & THE TRUE JARVIS ==================== -->
-  <!-- Convergence Arrows -->
-  <path d="M 1000 230 C 1030 230, 1050 330, 1080 330" stroke="#c084fc" stroke-width="2.5" marker-end="url(#arrowPurple)"/>
-  <path d="M 1000 600 C 1030 600, 1050 440, 1080 440" stroke="#f59e0b" stroke-width="2.5" marker-end="url(#arrowAmber)"/>
-
-  <g transform="translate(1090, 210)">
-    <text x="0" y="0" fill="#10b981" font-size="11" font-weight="700" letter-spacing="1">STAGE 3: THE UNIFIED TARGET (TRUE JARVIS)</text>
-
-    <!-- The Grand Convergence Container -->
-    <g transform="translate(0, 15)" filter="url(#cardShadow)">
-      <rect width="290" height="420" rx="12" fill="#0c192c" stroke="#10b981" stroke-width="2"/>
-      <rect x="0" y="0" width="290" height="6" rx="3" fill="url(#greenGrad)"/>
+      <rect width="355" height="525" rx="12" fill="#0c192c" stroke="#10b981" stroke-width="2"/>
+      <rect x="0" y="0" width="355" height="6" rx="3" fill="url(#greenGrad)"/>
 
       <text x="20" y="32" fill="#10b981" font-size="12" font-weight="700">THE CONVERGED MASTER ARCHITECTURE</text>
       <text x="20" y="56" fill="#ffffff" font-size="17" font-weight="700">The Jarvis Personal Assistant</text>
 
-      <!-- Layer 1: Voice Companion -->
+      <!-- Layer 1: System 1 Voice -->
       <g transform="translate(16, 75)">
-        <rect width="258" height="65" rx="6" fill="#13233c" stroke="#06b6d4" stroke-width="1"/>
-        <text x="12" y="20" fill="#38bdf8" font-size="10" font-weight="700">LAYER 1: SYSTEM 1 COMPANION</text>
-        <text x="12" y="36" fill="#ffffff" font-size="12" font-weight="600">OpenAI Realtime / Gemini / Local</text>
-        <text x="12" y="52" fill="#94a3b8" font-size="10">Sub-50ms natural speech, barge-in, skins</text>
+        <rect width="323" height="75" rx="6" fill="#13233c" stroke="#06b6d4" stroke-width="1.5"/>
+        <text x="14" y="20" fill="#38bdf8" font-size="10" font-weight="700">LAYER 1: SYSTEM 1 COMPANION (VOICE)</text>
+        <text x="14" y="38" fill="#ffffff" font-size="13" font-weight="600">OpenAI Realtime / Gemini Live / Local</text>
+        <text x="14" y="54" fill="#cbd5e1" font-size="10">Sub-50ms natural speech, instant barge-in</text>
+        <text x="14" y="68" fill="#94a3b8" font-size="10">HUD overlay &amp; 3D armor skin from Codex</text>
       </g>
 
-      <!-- Layer 2: The Core Bridge -->
-      <g transform="translate(16, 150)">
-        <rect width="258" height="65" rx="6" fill="#2b2010" stroke="#f59e0b" stroke-width="1.5"/>
-        <text x="12" y="20" fill="#fbbf24" font-size="10" font-weight="700">LAYER 2: ASYNC LEDGER BRIDGE (PH-02)</text>
-        <text x="12" y="36" fill="#ffffff" font-size="12" font-weight="600">SQLite Tiny Ledger &amp; Admission Broker</text>
-        <text x="12" y="52" fill="#fef3c7" font-size="10">Decouples audio from heavy worker processing</text>
+      <!-- Layer 2: Job Ledger Seam -->
+      <g transform="translate(16, 160)">
+        <rect width="323" height="85" rx="6" fill="#2b2010" stroke="#f59e0b" stroke-width="1.5"/>
+        <text x="14" y="20" fill="#fbbf24" font-size="10" font-weight="700">LAYER 2: ASYNC LEDGER BRIDGE (PH-02 / PR #55)</text>
+        <text x="14" y="38" fill="#ffffff" font-size="13" font-weight="600">PostgreSQL (SKIP LOCKED) + SQLite Fallback</text>
+        <text x="14" y="54" fill="#fef3c7" font-size="10">Decouples audio from worker processing</text>
+        <text x="14" y="68" fill="#fef3c7" font-size="10">Ring-0/1/2 admission policy prevents rogue tasks</text>
+        <text x="14" y="80" fill="#38bdf8" font-size="9">Zero database locking under 5-bot load</text>
       </g>
 
-      <!-- Layer 3: Background Worker Swarm -->
-      <g transform="translate(16, 225)">
-        <rect width="258" height="85" rx="6" fill="#241538" stroke="#a855f7" stroke-width="1"/>
-        <text x="12" y="20" fill="#c084fc" font-size="10" font-weight="700">LAYER 3: SYSTEM 2 WORKER SWARM</text>
-        <text x="12" y="36" fill="#ffffff" font-size="12" font-weight="600">Hermes Engine &amp; 5 Sandboxed Bots</text>
-        <text x="12" y="52" fill="#cbd5e1" font-size="10">Bot 1: Web Research | Bot 2: Coding</text>
-        <text x="12" y="68" fill="#cbd5e1" font-size="10">Bot 3: Calendar/Mail | Bot 4: Docs | Bot 5: Ops</text>
+      <!-- Layer 3: System 2 Worker Swarm -->
+      <g transform="translate(16, 255)">
+        <rect width="323" height="110" rx="6" fill="#241538" stroke="#a855f7" stroke-width="1.5"/>
+        <text x="14" y="20" fill="#c084fc" font-size="10" font-weight="700">LAYER 3: SYSTEM 2 WORKER SWARM (PR #55 &amp; #56)</text>
+        <text x="14" y="38" fill="#ffffff" font-size="13" font-weight="600">Jarvis HQ &amp; 5 Autonomous Bot Roles</text>
+        <text x="14" y="56" fill="#cbd5e1" font-size="10">1. Scout (Web Researcher) | 2. Forge (Code Engineer)</text>
+        <text x="14" y="72" fill="#cbd5e1" font-size="10">3. Quill (Mail/Calendar) | 4. Atlas (Documentation)</text>
+        <text x="14" y="88" fill="#cbd5e1" font-size="10">5. Ops (System Tools &amp; Environment Monitor)</text>
+        <text x="14" y="102" fill="#d8b4fe" font-size="9">Live Chrome DevTools screencast on operator screen</text>
       </g>
 
-      <!-- Layer 4: Safety & Hardware Security -->
-      <g transform="translate(16, 320)">
-        <rect width="258" height="80" rx="6" fill="#0f291e" stroke="#10b981" stroke-width="1"/>
-        <text x="12" y="20" fill="#34d399" font-size="10" font-weight="700">LAYER 4: THREE PERMISSION RINGS</text>
-        <text x="12" y="36" fill="#ffffff" font-size="12" font-weight="600">Ring 0 Read, Ring 1 Files, Ring 2 Click</text>
-        <text x="12" y="52" fill="#94a3b8" font-size="10">Voice suggests; physical screen click approves</text>
-        <text x="12" y="68" fill="#94a3b8" font-size="10">Zero arbitrary code execution or credential leak</text>
+      <!-- Layer 4: Security Invariants -->
+      <g transform="translate(16, 375)">
+        <rect width="323" height="85" rx="6" fill="#0f291e" stroke="#10b981" stroke-width="1.5"/>
+        <text x="14" y="20" fill="#34d399" font-size="10" font-weight="700">LAYER 4: THREE PERMISSION RINGS &amp; SECRETS</text>
+        <text x="14" y="38" fill="#ffffff" font-size="13" font-weight="600">Ring 0 Read, Ring 1 Files, Ring 2 Click</text>
+        <text x="14" y="54" fill="#94a3b8" font-size="10">Physical click confirms high-risk actions</text>
+        <text x="14" y="68" fill="#94a3b8" font-size="10">Zero secrets in repo (~/.super-agent/env 0600)</text>
+        <text x="14" y="80" fill="#94a3b8" font-size="10">Treat content as data, never prompt instructions</text>
+      </g>
+
+      <!-- Convergence Success Badge -->
+      <g transform="translate(16, 470)">
+        <rect width="323" height="42" rx="6" fill="#064e3b" stroke="#34d399" stroke-width="1"/>
+        <text x="161" y="26" fill="#34d399" font-size="12" font-weight="700" text-anchor="middle">THE PERFECT JARVIS: FAST, CAPABLE, SAFE</text>
       </g>
     </g>
   </g>
 
-  <!-- ==================== BOTTOM PANEL: SUMMARY OF UPDATES, DELETIONS & CHANGES ==================== -->
-  <g transform="translate(60, 680)">
-    <!-- Updates Box -->
+  <!-- ==================== BOTTOM PANELS: THE 7 COMPREHENSIVE CATEGORIES ==================== -->
+  <g transform="translate(50, 680)">
+
+    <!-- Panel 1: What Has Been Followed & What Has Diverged -->
     <g transform="translate(0, 0)">
-      <rect width="410" height="230" rx="10" fill="#0d1527" stroke="#1e293b" stroke-width="1"/>
-      <rect x="0" y="0" width="410" height="4" rx="2" fill="url(#cyanGrad)"/>
-      <text x="20" y="28" fill="#06b6d4" font-size="12" font-weight="700">RECENT UPDATES (WHAT WAS ADDED)</text>
-      
-      <text x="20" y="56" fill="#ffffff" font-size="12" font-weight="600">• Streaming Audio Seam &amp; Fast Reconnects</text>
-      <text x="32" y="72" fill="#94a3b8" font-size="11">FastAPI WebSocket voice pipeline and Angular audio signal graph.</text>
-      
-      <text x="20" y="96" fill="#ffffff" font-size="12" font-weight="600">• T1 Safe Local Tools &amp; T2 Memory Store</text>
-      <text x="32" y="112" fill="#94a3b8" font-size="11">Local time, calculator, note-taker, and disk-backed fact retention.</text>
-      
-      <text x="20" y="136" fill="#ffffff" font-size="12" font-weight="600">• DEC-22 Maintainer Autonomy Rule</text>
-      <text x="32" y="152" fill="#94a3b8" font-size="11">Either maintainer can approve and merge independently across time zones.</text>
+      <rect width="470" height="400" rx="10" fill="#0d1527" stroke="#1e293b" stroke-width="1"/>
+      <rect x="0" y="0" width="470" height="4" rx="2" fill="url(#cyanGrad)"/>
+      <text x="20" y="26" fill="#06b6d4" font-size="12" font-weight="700">1. WHAT YOU FOLLOWED vs 2. WHAT DIVERTED</text>
 
-      <text x="20" y="176" fill="#ffffff" font-size="12" font-weight="600">• Secure External Environment File (~/.super-agent/env)</text>
-      <text x="32" y="192" fill="#94a3b8" font-size="11">Zero secrets in Git tree; 0600 mode token security outside repo.</text>
+      <text x="20" y="52" fill="#34d399" font-size="12" font-weight="700">WHAT YOU HAVE BEEN FOLLOWING (THE CANONICAL PATH)</text>
+      <text x="20" y="70" fill="#cbd5e1" font-size="11">• PH-00 Governance: Spec rules, $0 budget stack, pre-push guards.</text>
+      <text x="20" y="86" fill="#cbd5e1" font-size="11">• PH-01 Voice Foundation: Merged via PR #49. &lt; 50ms audio loop,</text>
+      <text x="30" y="100" fill="#94a3b8" font-size="10">barge-in, T1 safe local tools, T2 memory fact storage.</text>
+      <text x="20" y="118" fill="#cbd5e1" font-size="11">• PH-02 Backend Engine: Merged via PR #50. Core job ledger, leases,</text>
+      <text x="30" y="132" fill="#94a3b8" font-size="10">DAG execution graph, and Ring-0/1/2 policy broker.</text>
+
+      <line x1="20" y1="148" x2="450" y2="148" stroke="#1e293b" stroke-width="1"/>
+
+      <text x="20" y="172" fill="#c084fc" font-size="12" font-weight="700">WHAT HAS BEEN DIVERTED (THE JARVIS EXPANSIONS)</text>
+      <text x="20" y="192" fill="#cbd5e1" font-size="11">• Multi-Bot Architecture (PR #56): Jumped from 1 simple assistant to</text>
+      <text x="30" y="206" fill="#e9d5ff" font-size="10">Jarvis HQ with 5 local bot workspaces (Scout, Forge, Quill, Atlas, Ops).</text>
+      <text x="20" y="226" fill="#cbd5e1" font-size="11">• Headless Chrome &amp; Screencasting: Bots automate live web apps and</text>
+      <text x="30" y="240" fill="#e9d5ff" font-size="10">stream DevTools visual frames directly to the operator screen.</text>
+      <text x="20" y="260" fill="#cbd5e1" font-size="11">• 3D Armor Visual Showcase: Codex worktree built interactive armor</text>
+      <text x="30" y="274" fill="#e9d5ff" font-size="10">video and skins (apps/landing) ahead of the core scheduler.</text>
+      <text x="20" y="294" fill="#cbd5e1" font-size="11">• OpenAI Realtime Cloud Voice: Exception approved in PR #51 to test</text>
+      <text x="30" y="308" fill="#e9d5ff" font-size="10">speech-to-speech low-latency APIs alongside $0 local models.</text>
+      <text x="20" y="328" fill="#cbd5e1" font-size="11">• PostgreSQL Seam (PR #55): Evolved SQLite into PostgreSQL with</text>
+      <text x="30" y="342" fill="#e9d5ff" font-size="10">FOR UPDATE SKIP LOCKED to prevent multi-bot concurrency locks.</text>
+      
+      <rect x="20" y="358" width="430" height="26" rx="4" fill="#1e1b4b"/>
+      <text x="235" y="375" fill="#c084fc" font-size="11" font-weight="600" text-anchor="middle">Verdict: A constructive divergence that makes Jarvis truly powerful.</text>
     </g>
 
-    <!-- Deletions & Pruning Box -->
-    <g transform="translate(440, 0)">
-      <rect width="410" height="230" rx="10" fill="#0d1527" stroke="#1e293b" stroke-width="1"/>
-      <rect x="0" y="0" width="410" height="4" rx="2" fill="url(#purpleGrad)"/>
-      <text x="20" y="28" fill="#c084fc" font-size="12" font-weight="700">DELETIONS &amp; PRUNED CRUFT (WHAT WAS CUT)</text>
+    <!-- Panel 2: The Branches & What You Are Currently Following -->
+    <g transform="translate(490, 0)">
+      <rect width="490" height="400" rx="10" fill="#0d1527" stroke="#1e293b" stroke-width="1"/>
+      <rect x="0" y="0" width="490" height="4" rx="2" fill="url(#purpleGrad)"/>
+      <text x="20" y="26" fill="#c084fc" font-size="12" font-weight="700">3. BRANCHES OF THE PATH &amp; 4. CURRENT WORK</text>
 
-      <text x="20" y="56" fill="#ffffff" font-size="12" font-weight="600">• Accidental Git Node Modules &amp; Cache Bloat</text>
-      <text x="32" y="72" fill="#94a3b8" font-size="11">Removed 2MB+ cache databases and committed symlinks.</text>
+      <text x="20" y="52" fill="#38bdf8" font-size="12" font-weight="700">THE ACTIVE BRANCHES IN FLIGHT</text>
+      <text x="20" y="70" fill="#cbd5e1" font-size="11">• develop (Trunk): Clean baseline with PR #49 (Phase 1) and PR #50 (Ledger).</text>
+      <text x="20" y="88" fill="#cbd5e1" font-size="11">• PR #55 (Our Active PR): PostgreSQL seam + 5 Hermes worker bot bindings.</text>
+      <text x="20" y="106" fill="#cbd5e1" font-size="11">• PR #54 (Abhishek): delegate_task conversation wiring + Gemini planner seam.</text>
+      <text x="20" y="124" fill="#cbd5e1" font-size="11">• PR #56 (Jarvis HQ): Local multi-bot workspace adapted from Bot HQ.</text>
+      <text x="20" y="142" fill="#cbd5e1" font-size="11">• PR #51: Jarvis delivery scope &amp; OpenAI cloud voice approval record.</text>
+      <text x="20" y="160" fill="#cbd5e1" font-size="11">• PR #47 / #48: T3 click-to-approve host actions (launching local apps).</text>
+      <text x="20" y="178" fill="#cbd5e1" font-size="11">• feat/super-agent-landing (Codex): 3D armor concept showcase.</text>
 
-      <text x="20" y="96" fill="#ffffff" font-size="12" font-weight="600">• Cross-Maintainer Approval Bottlenecks</text>
-      <text x="32" y="112" fill="#94a3b8" font-size="11">Eliminated the two-person blocking rule that caused worktrees to pile up.</text>
+      <line x1="20" y1="192" x2="470" y2="192" stroke="#1e293b" stroke-width="1"/>
 
-      <text x="20" y="136" fill="#ffffff" font-size="12" font-weight="600">• Hard Cloud Lock-in</text>
-      <text x="32" y="152" fill="#94a3b8" font-size="11">Replaced cloud-only audio dependencies with modular adapter seams.</text>
-
-      <text x="20" y="176" fill="#ffffff" font-size="12" font-weight="600">• Typographic Em Dashes (—)</text>
-      <text x="32" y="192" fill="#94a3b8" font-size="11">Cleaned from titles and headings for strict documentation consistency.</text>
+      <text x="20" y="214" fill="#10b981" font-size="12" font-weight="700">4. WHAT YOU ARE CURRENTLY FOLLOWING (CONVERGENCE)</text>
+      <text x="20" y="234" fill="#cbd5e1" font-size="11">You are currently executing the 4-step master convergence plan:</text>
+      <text x="20" y="254" fill="#ffffff" font-size="11" font-weight="600">✓ Step 1: Merge PR #49 (Close Phase 1) - COMPLETED</text>
+      <text x="20" y="272" fill="#ffffff" font-size="11" font-weight="600">✓ Step 2: Land PR #50 (Job Ledger &amp; Runner) - COMPLETED</text>
+      <text x="20" y="290" fill="#38bdf8" font-size="11" font-weight="700">▶ Step 3: Land PR #55 (Postgres Seam &amp; 5 Hermes Worker Roles)</text>
+      <text x="32" y="306" fill="#94a3b8" font-size="10">All checks pass. Connects the 5 specialized worker bots to the ledger.</text>
+      <text x="20" y="324" fill="#ffffff" font-size="11" font-weight="600">○ Step 4: Harmonize Jarvis HQ (PR #56) with the Ledger</text>
+      <text x="32" y="340" fill="#94a3b8" font-size="10">Route bot actions through the safe Ring-0/1/2 admission policy.</text>
+      <text x="20" y="358" fill="#ffffff" font-size="11" font-weight="600">○ Step 5: Mount the 3D Armor Landing Page from Codex</text>
+      <text x="32" y="374" font-size="10" fill="#94a3b8">Binds the futuristic web skin on top of the live dual-loop engine.</text>
     </g>
 
-    <!-- The 3 Action Steps to Finish Jarvis -->
-    <g transform="translate(880, 0)">
-      <rect width="500" height="230" rx="10" fill="#0f1f17" stroke="#10b981" stroke-width="1.5"/>
-      <rect x="0" y="0" width="500" height="4" rx="2" fill="url(#greenGrad)"/>
-      <text x="20" y="28" fill="#34d399" font-size="12" font-weight="700">YOUR IMMEDIATE ROADMAP TO THE PERFECT JARVIS</text>
+    <!-- Panel 3: Updates, Deletions, and Structural Changes -->
+    <g transform="translate(1000, 0)">
+      <rect width="510" height="400" rx="10" fill="#0d1527" stroke="#1e293b" stroke-width="1"/>
+      <rect x="0" y="0" width="510" height="4" rx="2" fill="url(#greenGrad)"/>
+      <text x="20" y="26" fill="#34d399" font-size="12" font-weight="700">5. UPDATES, 6. DELETIONS, &amp; 7. STRUCTURAL CHANGES</text>
 
-      <text x="20" y="56" fill="#ffffff" font-size="13" font-weight="700">STEP 1: Merge PR #49 (Close Phase 1)</text>
-      <text x="35" y="72" fill="#cbd5e1" font-size="11">All tests 100% green. Officially completes the Voice Seam baseline.</text>
+      <text x="20" y="52" fill="#38bdf8" font-size="11" font-weight="700">5. RECENT UPDATES (WHAT WAS ADDED)</text>
+      <text x="20" y="68" fill="#cbd5e1" font-size="11">• PostgreSQL Seam: DATABASE_URL support with SKIP LOCKED in ledger.py.</text>
+      <text x="20" y="84" fill="#cbd5e1" font-size="11">• 5 Hermes Bot Roles: Defined in runner.py with claim_and_run loop.</text>
+      <text x="20" y="100" fill="#cbd5e1" font-size="11">• Jarvis HQ: Complete local workspace in apps/hq (PR #56).</text>
+      <text x="20" y="116" fill="#cbd5e1" font-size="11">• Global scroll-craft skill: Installed across Claude, Gemini, Code, OpenCode.</text>
 
-      <text x="20" y="98" fill="#ffffff" font-size="13" font-weight="700">STEP 2: Review &amp; Land PR #50 (Phase 2 Ledger)</text>
-      <text x="35" y="114" fill="#cbd5e1" font-size="11">This gives Jarvis his System 2 brain to run background tasks without lag.</text>
+      <line x1="20" y1="128" x2="490" y2="128" stroke="#1e293b" stroke-width="1"/>
 
-      <text x="20" y="140" fill="#ffffff" font-size="13" font-weight="700">STEP 3: Connect Hermes &amp; The 5 Bots to the Ledger</text>
-      <text x="35" y="156" fill="#cbd5e1" font-size="11">Wire the PR #51 Hermes workers into the SQLite ledger instead of mock tools.</text>
+      <text x="20" y="148" fill="#f87171" font-size="11" font-weight="700">6. DELETIONS &amp; PRUNED CRUFT (WHAT WAS CUT)</text>
+      <text x="20" y="164" fill="#cbd5e1" font-size="11">• Orgo Cloud Computer Cut: Removed proprietary cloud VMs from Bot HQ.</text>
+      <text x="20" y="180" fill="#cbd5e1" font-size="11">• VNC Relay Cut: Replaced heavy VNC with native Chrome DevTools frames.</text>
+      <text x="20" y="196" fill="#cbd5e1" font-size="11">• Google OAuth / Cloud Auth Cut: Replaced with 100% local session tokens.</text>
+      <text x="20" y="212" fill="#cbd5e1" font-size="11">• Two-Maintainer Approval Bottleneck Cut: Adopted DEC-22 autonomy.</text>
+      <text x="20" y="228" fill="#cbd5e1" font-size="11">• Over-engineered Code: Pruned dead utilities per Ponytail pre-push review.</text>
 
-      <text x="20" y="182" fill="#ffffff" font-size="13" font-weight="700">STEP 4: Attach the Landing Page &amp; UI Skins</text>
-      <text x="35" y="198" fill="#cbd5e1" font-size="11">Deploy the Codex 3D concept preview on top of the working live engine.</text>
+      <line x1="20" y1="240" x2="490" y2="240" stroke="#1e293b" stroke-width="1"/>
+
+      <text x="20" y="260" fill="#fbbf24" font-size="11" font-weight="700">7. STRUCTURAL CHANGES (HOW THE SYSTEM EVOLVED)</text>
+      <text x="20" y="278" fill="#ffffff" font-size="11" font-weight="600">• Single Toy App → Dual-Loop Architecture</text>
+      <text x="32" y="294" fill="#94a3b8" font-size="10">Voice stays sub-50ms; heavy work is asynchronously queued to the ledger.</text>
+      <text x="20" y="312" fill="#ffffff" font-size="11" font-weight="600">• Local SQLite → Dual SQLite/PostgreSQL Engine</text>
+      <text x="32" y="328" fill="#94a3b8" font-size="10">Zero-setup SQLite for quick test runs; PostgreSQL for high-load 5-bot swarms.</text>
+      <text x="20" y="346" fill="#ffffff" font-size="11" font-weight="600">• Blind CLI → Multi-Screen Visual Screencasting</text>
+      <text x="32" y="362" fill="#94a3b8" font-size="10">Operator watches bots navigate browser tabs and build files in real time.</text>
+      <text x="20" y="380" fill="#ffffff" font-size="11" font-weight="600">• External Secrets → ~/.super-agent/env (0600)</text>
     </g>
+
   </g>
 </svg>
