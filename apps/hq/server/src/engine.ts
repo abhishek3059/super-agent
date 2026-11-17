@@ -5,7 +5,7 @@ import path from 'node:path';
 import YAML from 'yaml';
 import { cdpPortFor, cdpUrlFor } from './computer.js';
 import { confinedEnv, contained, realFolder, which } from './sandbox.js';
-import { writeOwn } from './lib/own.js';
+import { removeOwn, writeOwn } from './lib/own.js';
 import { livePid, recordPid, stopPid } from './lib/procs.js';
 import { db } from './db.js';
 import { env } from './env.js';
@@ -328,13 +328,16 @@ export async function removeEngine(botId: string): Promise<void> {
   await stopGateway(botId);
   failures.delete(botId);
   optionsCache.delete(botId);
-  if (path.resolve(home).startsWith(path.resolve(env.enginesDir) + path.sep)) fs.rmSync(home, { recursive: true, force: true });
-  fs.rmSync(bhFor(botId), { recursive: true, force: true });
+  if (path.resolve(home).startsWith(path.resolve(env.enginesDir) + path.sep)) removeOwn(home);
+  removeOwn(bhFor(botId));
 }
 
 /** On server start: give older bots an engine, then bring the managed gateways up. */
-export function initEngines() {
+export async function initEngines() {
   fs.mkdirSync(env.enginesDir, { recursive: true });
+  // A gateway left running by an earlier version of this server runs under that version's rules.
+  // Stop them all, so each starts again under the rules of this one.
+  for (const b of db.prepare("SELECT id FROM bots WHERE engine='managed'").all() as any[]) await stopGateway(b.id);
   const bots = db.prepare("SELECT id, is_primary FROM bots WHERE engine IS NULL AND COALESCE(kind,'agent') <> 'room' AND COALESCE(hidden,0)=0 ORDER BY is_primary DESC, created_at ASC").all() as any[];
   for (const b of bots) assignEngine(b.id);
   for (const b of db.prepare("SELECT id FROM bots WHERE engine='managed'").all() as any[]) provisionEngine(b.id);

@@ -209,3 +209,22 @@ test('a bot that swaps its whole folder for a link gets nothing from the server'
   assert.equal(fs.existsSync(path.join(outside, '.zshrc')), false);
   assert.throws(() => contained('/bin/true', [], { read: [], write: [root], localPorts: [] }, 'bot_swap.g'), /not a plain folder/, 'nor will it start a process there');
 });
+
+test('deleting a bot folder removes what is inside it and never what a link inside it points to', { skip: process.platform !== 'darwin' }, async () => {
+  const { removeOwn } = await import('../src/lib/own.js');
+  const root = path.join(env.dataDir, 'files', 'bot_gone');
+  fs.mkdirSync(path.join(root, 'sub'), { recursive: true });
+  fs.writeFileSync(path.join(root, 'sub', 'a.txt'), 'bot file');
+  const outside = path.join(env.dataDir, 'operator-keep');
+  fs.mkdirSync(outside, { recursive: true });
+  fs.writeFileSync(path.join(outside, 'precious.txt'), 'keep me');
+  fs.symlinkSync(outside, path.join(root, 'link-to-operator'));
+  fs.symlinkSync(path.join(outside, 'precious.txt'), path.join(root, 'sub', 'file-link'));
+  removeOwn(root);
+  assert.equal(fs.existsSync(root), false, 'the bot folder is gone');
+  assert.equal(fs.readFileSync(path.join(outside, 'precious.txt'), 'utf8'), 'keep me', 'what the links pointed to is untouched');
+  // A link left in a folder's place: only the link goes.
+  fs.symlinkSync(outside, root);
+  removeOwn(root);
+  assert.equal(fs.existsSync(path.join(outside, 'precious.txt')), true);
+});

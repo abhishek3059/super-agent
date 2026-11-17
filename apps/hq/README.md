@@ -139,8 +139,11 @@ write:
 - A process on a bot's port that the server did not start is refused, not
   adopted. The live view and screenshots connect only to the browser the
   server started, and only to a page address on that browser's own port.
-- A deleted bot's temporary and helper folders are removed, and a new bot
-  never reuses them.
+- Deleting a bot stops its gateway and browser and removes all its folders.
+  The contents are deleted from inside the bot's sandbox, so a link left in
+  them is removed, never followed. A new bot never reuses those folders.
+- When the server starts, it stops every gateway and browser an earlier run
+  left, so each starts again under the current rules.
 
 Without a sandbox the app refuses to start a bot. That means macOS only,
 unless you set `HQ_UNCONTAINED=1` and accept uncontained bots. In that mode

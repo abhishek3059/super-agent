@@ -34,7 +34,7 @@ export function livePid(name: string, marker: string): number | null {
 /** Stop the process we recorded under `name` and everything in its group. */
 export async function stopPid(name: string, marker: string): Promise<void> {
   const pid = livePid(name, marker);
-  if (!pid) return;
+  if (!pid) { fs.rmSync(fileFor(name), { force: true }); return; }
   const signal = (sig: NodeJS.Signals) => {
     try { process.kill(-pid, sig); } catch { try { process.kill(pid, sig); } catch { /* gone */ } }
   };

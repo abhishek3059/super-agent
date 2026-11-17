@@ -1,8 +1,9 @@
 import { execFileSync, spawn } from 'node:child_process';
 import crypto from 'node:crypto';
+import fs from 'node:fs';
 import type { Readable } from 'node:stream';
 import path from 'node:path';
-import { confinedEnv, contained } from '../sandbox.js';
+import { confinedEnv, contained, tmpFor } from '../sandbox.js';
 
 /**
  * Reading and writing files in a folder a bot can write (its Hermes home, its working folder).
@@ -56,8 +57,26 @@ export function streamOwn(root: string, rel: string): Readable | null {
   try { inSandbox(root, check, [relative(rel)]); } catch { return null; }
   const run = contained('/bin/sh', ['-c', `${check} && exec cat "./$1"`, 'sh', relative(rel)], { read: [], write: [root], localPorts: [] }, tmpName(root));
   const child = spawn(run.bin, run.args, { cwd: root, env: confinedEnv(tmpName(root)), stdio: ['ignore', 'pipe', 'ignore'], timeout: 60_000 });
+  // A read that was cut short ends the download with an error, not as a complete but truncated file.
+  child.once('exit', (code, signal) => { if (code || signal) child.stdout.destroy(new Error('the file could not be read in full')); });
   child.stdout.once('close', () => child.kill());
   return child.stdout;
+}
+
+/**
+ * Remove a bot folder. A process the bot left running can still swap things inside it while it goes,
+ * so the contents are deleted from inside the sandbox (where any link leads back into the folder)
+ * and the server itself only removes the folder once it is empty. Never recursive outside it.
+ */
+export function removeOwn(root: string): void {
+  let st: fs.Stats;
+  try { st = fs.lstatSync(root); } catch { return; }
+  if (!st.isDirectory()) { fs.unlinkSync(root); return; } // a link or file in a folder's place: the entry only
+  for (let i = 0; i < 5; i++) {
+    try { inSandbox(root, 'find . -mindepth 1 -delete', []); } catch { /* retry: something is still writing */ }
+    try { fs.rmdirSync(root); break; } catch (e: any) { if (e?.code !== 'ENOTEMPTY' || i === 4) throw e; }
+  }
+  fs.rmSync(tmpFor(tmpName(root)), { recursive: true, force: true }); // ours: no bot process ever writes it
 }
 
 /** The plain files and folders directly in `rel` ('' for the folder itself), listed inside the sandbox. */

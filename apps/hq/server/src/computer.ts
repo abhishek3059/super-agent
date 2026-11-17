@@ -6,6 +6,7 @@ import { db } from './db.js';
 import { env } from './env.js';
 import { confinedEnv, contained, tmpFor } from './sandbox.js';
 import { livePid, recordPid, stopPid } from './lib/procs.js';
+import { removeOwn } from './lib/own.js';
 import type { ComputerState } from './types.js';
 
 /**
@@ -141,10 +142,15 @@ export async function forgetBotFiles(botId: string): Promise<void> {
   if (!validId(botId)) return;
   for (const root of [env.profilesDir, env.filesDir]) {
     const dir = path.join(root, botId);
-    if (path.dirname(dir) === root) fs.rmSync(dir, { recursive: true, force: true });
+    if (path.dirname(dir) === root) removeOwn(dir);
   }
   // Its temporary folders too, so a later bot never inherits one (they are named from the bot id).
-  for (const name of [`${botId}.g`, `${botId}.c`]) fs.rmSync(tmpFor(name), { recursive: true, force: true });
+  for (const name of [`${botId}.g`, `${botId}.c`]) removeOwn(tmpFor(name));
+}
+
+/** On server start: stop every browser an earlier run left, so each starts again under current rules. */
+export async function stopAllBrowsers(): Promise<void> {
+  for (const b of db.prepare("SELECT id FROM bots WHERE COALESCE(kind,'agent') <> 'room'").all() as any[]) await stopChrome(b.id);
 }
 
 // ---------- DevTools helpers ----------

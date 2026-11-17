@@ -18,6 +18,7 @@ import { enqueue, expireStaleApprovals } from './agent/loop.js';
 import { configApi } from './routes-config.js';
 import { mcpApi } from './mcp.js';
 import { initEngines } from './engine.js';
+import { stopAllBrowsers } from './computer.js';
 import { allowedHost, allowedOrigin } from './lib/guard.js';
 
 initSubagents();
@@ -57,4 +58,5 @@ if (process.env.HQ_NO_SCHEDULER !== '1') {
   void initTriggers(enqueue);
 initProactive(enqueue);
 } else console.log('[hq] scheduler disabled (HQ_NO_SCHEDULER=1)');
-initEngines();
+await stopAllBrowsers();
+await initEngines();

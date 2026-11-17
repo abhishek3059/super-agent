@@ -134,3 +134,19 @@ Pass 7 confirmed the pass 6 fixes. New findings, and what was done:
 5. All bots' server-side file commands shared one temporary folder. Fixed: one per folder.
 6. Downloads promised a length the stream might not match and had no timeout. Fixed: no length promised, the read stops after a minute or when the client goes.
 7. The `npm test` description was stale. Updated.
+
+## Pass 8: REVISE (average 7.6)
+
+| Correctness | Security | Honesty | Scope | Clarity |
+| --- | --- | --- | --- | --- |
+| 8 | 6 | 8 | 8 | 8 |
+
+Pass 8 confirmed every pass 7 fix. New findings, and what was done:
+
+1. Deleting a bot ran the unsandboxed server's recursive delete in folders a leftover bot process could still change. Fixed: contents are deleted from inside the bot's sandbox and the server removes only the empty folder. Self-check and live run with planted links.
+2. A download cut short by the timeout looked complete. Fixed: it now ends with an error.
+3. Gateways and browsers left by an earlier server version kept running under older rules. Fixed: the server stops them all when it starts.
+4. A comment claimed parents were checked. Corrected.
+5. Per-folder temporary folders were left behind. Removed with the folder now.
+
+The reviewer judged that, with finding 1 fixed, what remains needs a person: the independent security review (R-H.4), the live voice run (R-H.3) and the recorded maintainer approval (R-H.1).

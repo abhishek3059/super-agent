@@ -148,8 +148,9 @@ export function contained(bin: string, args: string[], c: Confinement, name: str
 }
 
 /**
- * Refuse a folder that is a link, or that sits behind one this app does not own. A bot can write the
- * inside of its folders, so a folder handed to the sandbox must be checked as it is, not as it was.
+ * Refuse a folder that is itself a link or not a folder. A bot can write the inside of its folders,
+ * so a folder handed to the sandbox is checked as it is now. Its parents are not checked: no bot can
+ * write them.
  */
 export function realFolder(dir: string): void {
   let st: fs.Stats;

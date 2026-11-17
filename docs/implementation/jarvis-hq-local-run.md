@@ -15,7 +15,7 @@ Output below is copied from the terminal. Bot ids are omitted.
 ```text
 $ npm run typecheck        (no errors)
 $ npm test
-# pass 14
+# pass 15
 # fail 0
 $ npm run build            (no errors)
 $ npm audit
@@ -25,7 +25,7 @@ $ npm run check            (repository root)
 roadmap self-test: all checks passed
 ```
 
-The self-checks grew from 6 to 14 during review and containment work, with
+The self-checks grew from 6 to 15 during review and containment work, with
 more assertions added inside them in later rounds; the figure above is the final
 run. With `xaiKey` in `env.ts` put back to read the environment, the
 "services stay off" check failed (`# pass 8`, `# fail 1`), so it does guard
@@ -221,6 +221,27 @@ listed Forge's files and a download returned the 5-byte file.
 
 The new self-check that swaps a folder for a link failed with the
 folder-pinning rule removed (`# pass 13`, `# fail 1`).
+
+### Round after review pass 8
+
+Review pass 8 found that deleting a bot used the unsandboxed server's
+recursive delete, which a process the bot left running might redirect.
+After the fix, a temporary bot was created, its gateway and browser were
+started, and links to a folder of the operator's (`~/hq-keep-dir`, holding
+`precious.txt`) were planted in its working folder, Hermes home and browser
+profile, at the top and one level down. Then the bot was deleted from the app:
+
+```text
+DELETE /api/bots/<id>                       {"ok":true}
+its files, engines and profiles folders     No such file or directory (all three)
+~/hq-keep-dir/precious.txt                  keep   (unchanged)
+process records for the bot in <data>/run   none left
+listeners on its gateway and browser ports  none
+```
+
+The race itself, a process swapping a folder during the delete, was not
+reproduced. The delete now runs inside the sandbox, where it cannot reach
+past the folder.
 
 Not tested: a deliberate attempt to break out of `sandbox-exec` itself, and
 the memory-edit race itself (the change removes it by design: the edit runs
