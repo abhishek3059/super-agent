@@ -40,6 +40,13 @@ local file, `~/.super-agent/memory.db`, and can forget them (tier T2,
 [design](../docs/design/local-memory-reminders.md)). Due reminders are spoken
 between turns while a session is open.
 
+`SUPER_AGENT_DELEGATE=on` (off by default; any value but `on` or `off` refuses the
+session) offers the brain one more tool, `delegate_task`, for the background job backend
+([design](../docs/design/agent-backend.md),
+[record](../docs/implementation/agent-backend-delegation.md)). No planner model is wired in
+(a Gemini one exists only for the opt-in [planner check](../docs/implementation/agent-backend-gemini-planner.md)),
+so with it on every delegation is answered "not available".
+
 ### Start it on a Mac
 
 One-time setup (Python 3.12, about 9 GB of models outside the repository):
@@ -50,6 +57,9 @@ python3.12 -m venv ~/.super-agent/venv
   -r apps/api/requirements-local.lock -r apps/api/requirements-lfm3.lock
 OLLAMA_HOST=127.0.0.1:11434 ollama pull qwen3.5:4b
 ```
+
+If the environment predates 2026-11-16, run the same `pip install` line again: `langgraph` joined
+`apps/api/requirements.lock` then, and the local adapter imports it even with `SUPER_AGENT_DELEGATE` off.
 
 Model files go in `~/.super-agent/models` ([spike A4](../spikes/a4-local-voice/README.md)
 for Whisper and Silero) and `~/.super-agent/models/a5` (LFM3-Audio, see the

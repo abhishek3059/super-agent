@@ -124,6 +124,8 @@ cannot go stale.
 
 ## Not built
 
-A real model (the Gemini text adapter), a response schema, memory context in the prompt, wiring into `app.py`, the
+A response schema (the Gemini model is in [slice 7](agent-backend-gemini-planner.md)), memory context in the prompt, wiring into `app.py`, the
 per-day provider request counter, and any roadmap tick. Prompt assembly, the graph, step execution and
-argument validation are in [slice 5](agent-backend-graph.md).
+argument validation are in [slice 5](agent-backend-graph.md). The [delegation service](agent-backend-delegation.md)
+receives a model from the opt-in synthetic check in [slice 7](agent-backend-gemini-planner.md).
+The conversation adapter leaves the planner unset.
