@@ -4,6 +4,7 @@ import './db-config.js';
 import { newId } from './lib/ids.js';
 import { hub } from './lib/hub.js';
 import { requireUser, type AuthVars } from './lib/auth.js';
+import { listOwn, streamOwn } from './lib/own.js';
 import fs from 'node:fs';
 import { Readable } from 'node:stream';
 import { env } from './env.js';
@@ -133,8 +134,7 @@ configApi.patch('/bots/:id/engine', async (c) => {
 configApi.post('/bots/:id/engine/restart', async (c) => {
   const b = ownBot(c.get('user').id, c.req.param('id'));
   if (!b) return c.json({ error: 'not found' }, 404);
-  // The primary agent serves more than this app (its messaging runs through the same process), so it is never restarted from here.
-  if (engineKind(b.id) !== 'managed') return c.json({ error: `${b.name} runs on the computer's own agent, which this app does not restart.` }, 409);
+  if (engineKind(b.id) !== 'managed') return c.json({ error: `${b.name} has no agent of its own.` }, 409);
   try {
     await restartEngine(b.id);
     forgetEngineOptions(b.id);
@@ -168,20 +168,13 @@ configApi.get('/bots/:id/files', (c) => {
   if (!b) return c.json({ error: 'not found' }, 404);
   const rel = safeRel(c.req.query('path'));
   if (rel === null) return c.json({ error: 'bad path' }, 400);
-  try {
-    const root = `${LIB_ROOT}/${b.id}`;
-    fs.mkdirSync(root, { recursive: true });
-    const dir = fs.realpathSync(`${root}/${rel}`);
-    if (dir !== fs.realpathSync(root) && !dir.startsWith(fs.realpathSync(root) + '/')) return c.json({ error: 'bad path' }, 400);
-    const files: LibraryFile[] = fs.readdirSync(dir, { withFileTypes: true }).filter((e) => e.isFile() || e.isDirectory()).map((e) => {
-      const st = fs.lstatSync(`${dir}/${e.name}`);
-      return { name: e.name, size: st.size, modifiedAt: st.mtimeMs, isDir: e.isDirectory() };
-    });
-    files.sort((x, y) => Number(y.isDir) - Number(x.isDir) || y.modifiedAt - x.modifiedAt);
-    return c.json({ status: 'ok', path: rel, files });
-  } catch (e: any) {
-    return c.json({ status: 'error', path: rel, files: [], error: String(e?.message ?? e).slice(0, 300) });
-  }
+  const root = `${LIB_ROOT}/${b.id}`;
+  fs.mkdirSync(root, { recursive: true });
+  // Listed inside the bot's sandbox, like every read in its folder.
+  const files: LibraryFile[] | null = listOwn(root, rel);
+  if (!files) return c.json({ status: 'error', path: rel, files: [], error: 'That folder could not be read.' });
+  files.sort((x, y) => Number(y.isDir) - Number(x.isDir) || y.modifiedAt - x.modifiedAt);
+  return c.json({ status: 'ok', path: rel, files });
 });
 
 configApi.post('/bots/:id/files/download', async (c) => {
@@ -199,20 +192,14 @@ configApi.get('/bots/:id/files/raw', (c) => {
   if (!b) return c.json({ error: 'not found' }, 404);
   const rel = safeRel(c.req.query('path'));
   if (!rel) return c.json({ error: 'bad path' }, 400);
-  const root = `${LIB_ROOT}/${b.id}`;
-  let file: string;
-  try {
-    // Follow links before checking, so a link inside the library cannot point outside it.
-    file = fs.realpathSync(`${root}/${rel}`);
-    if (!file.startsWith(fs.realpathSync(root) + '/') || !fs.statSync(file).isFile()) throw new Error('outside');
-  } catch {
-    return c.json({ error: 'not found' }, 404);
-  }
+  // Read inside the bot's sandbox, like every file in its folder: a link it planted leads nowhere.
+  const file = streamOwn(`${LIB_ROOT}/${b.id}`, rel);
+  if (!file) return c.json({ error: 'not found' }, 404);
   const name = rel.split('/').pop()!;
-  return new Response(Readable.toWeb(fs.createReadStream(file)) as ReadableStream, {
+  return new Response(Readable.toWeb(file.body) as ReadableStream, {
     headers: {
       'content-type': 'application/octet-stream',
-      'content-length': String(fs.statSync(file).size),
+      'content-length': String(file.size),
       'content-disposition': `attachment; filename*=UTF-8''${encodeURIComponent(name)}`,
       'x-content-type-options': 'nosniff',
     },

@@ -98,3 +98,23 @@ The sandbox rule order was correct, but the unsandboxed server could be used to 
 ## Not verified by the reviewer
 
 The reviewer could not run the `apps/hq` commands. The typecheck, self-check, build, audit and local run results come from the author's [run record](../implementation/jarvis-hq-local-run.md). Dependency release ages against the 14-day rule, the upstream license and the OpenAI model names were not checked.
+
+## Pass 6: REVISE (average 6.0)
+
+| Correctness | Security | Honesty | Scope | Clarity |
+| --- | --- | --- | --- | --- |
+| 6 | 5 | 6 | 6 | 7 |
+
+Pass 6 reviewed the containment work before it was pushed, while the pull request branch had moved on with a different design from another session. The maintainer chose this design. Findings, and what was done:
+
+1. The staged work was not what the pull request contained. This branch now carries the latest `develop` and replaces the other design; that design is kept on a backup branch.
+2. A bot could listen on another bot's port before that bot started. Fixed: listening is denied except on the process's own port and in its own folders. Tried live: refused.
+3. A race let a bot redirect the server's memory edit to another bot's or the operator's memory file. Fixed by design: every read, write, listing and download in a bot's folders now runs inside a sandbox that can reach only that folder.
+4. The live view and screenshots trusted whatever answered on the port. Fixed: only the browser the server started, and only page addresses on its own port. The view's refresh timer now starts after the browser is up.
+5. A deleted bot's helper folder could be reused by the next bot on that port. Fixed: helper and temporary folders are named from the bot id and removed on delete.
+6. The README understated the temp-folder opening for Chrome's lock. Corrected: it includes the operator's own Chrome lock folder if the same browser is used.
+7. The download route followed links. Fixed with the sandboxed read in 3.
+8. `delete_routine` acted before checking the owner. Fixed.
+9. One self-check could not fail. Replaced; it now fails with the validation removed.
+10. Dead code from the removed primary engine and sign-in. Removed.
+11. The R-H.5 tick. Findings 2 and 3 are fixed and the evidence is in this branch.

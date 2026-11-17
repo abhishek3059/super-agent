@@ -2,7 +2,7 @@ import crypto from 'node:crypto';
 import { Hono } from 'hono';
 import { getBotRow } from './store.js';
 import { composioTools } from './composio.js';
-import { mcpToken, primaryBotId } from './engine.js';
+import { mcpToken } from './engine.js';
 import { claimToolRow, enqueueBotMessage, markSilent, noteToolOutcome, requestApproval, turnDepth } from './agent/loop.js';
 import { policyFor, runComposioTool, toolMap, TOOLS, type ToolCtx } from './agent/tools.js';
 
@@ -10,8 +10,6 @@ import { policyFor, runComposioTool, toolMap, TOOLS, type ToolCtx } from './agen
  * The app's tools, served to the Hermes engines over MCP (streamable HTTP, JSON answers only).
  *
  *   POST /mcp/<botId>     one bot's engine; the bearer token is derived from the bot id
- *   POST /mcp/primary     the primary engine, whichever bot it is bound to (so that agent's config
- *                         can be written before the bot exists)
  *
  * Every call is stateless: the URL says which bot is calling. Besides the app's own tools the list
  * carries the user's Composio tools, so connected apps (and the approvals around them) work the
@@ -32,11 +30,10 @@ function sameToken(a: string, b: string) {
   return x.length === y.length && crypto.timingSafeEqual(x, y);
 }
 
-/** Which bot a request is for, or null when the token does not fit the URL. `botId` is null for /mcp/primary before a bot is bound to it. */
+/** Which bot a request is for, or null when the token does not fit the URL. */
 function caller(slug: string, auth: string | undefined): { botId: string | null } | null {
   const given = (auth ?? '').replace(/^Bearer\s+/i, '').trim();
   if (!given || !sameToken(given, mcpToken(slug))) return null;
-  if (slug === 'primary') return { botId: primaryBotId() };
   return getBotRow(slug) ? { botId: slug } : null;
 }
 

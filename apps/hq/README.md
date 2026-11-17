@@ -119,20 +119,26 @@ Each bot's Hermes gateway and its browser run inside the macOS sandbox
 - can reach the internet, this server's tool endpoint and its own browser,
   and no other local port or local socket (so not another bot, and not your
   `ssh-agent`);
+- can listen only on its own port and in its own folders, so it cannot take
+  another bot's port before that bot starts;
 - cannot open apps, send Apple events, start launchd jobs, read the Keychain
   or the clipboard, or see or signal other processes.
 
 The server itself is not sandboxed, so it does not trust anything a bot can
 write:
 
-- Files it writes into a bot's folders (the bot's settings, persona and
-  sign-ins on each start, files saved with `save_file`, memory edits) are
-  written fresh. A link a bot planted there is replaced, never followed.
-  Files it reads there are read the same way.
+- Every file it writes, reads, lists or sends you from a bot's folders (the
+  bot's settings, persona and sign-ins on each start, files saved with
+  `save_file`, memory, the Library) goes through a short shell command inside
+  a sandbox that can reach only that folder. A link or folder a bot swaps in
+  can only lead back into the bot's own folder.
 - The ids of the processes it started are kept in its own folder, so a bot
   cannot point the server at another process to stop.
 - A process on a bot's port that the server did not start is refused, not
-  adopted.
+  adopted. The live view and screenshots connect only to the browser the
+  server started, and only to a page address on that browser's own port.
+- A deleted bot's temporary and helper folders are removed, and a new bot
+  never reuses them.
 
 Without a sandbox the app refuses to start a bot. That means macOS only,
 unless you set `HQ_UNCONTAINED=1` and accept uncontained bots.
@@ -147,8 +153,13 @@ unless you set `HQ_UNCONTAINED=1` and accept uncontained bots.
   approval.
 - A bot can read system files outside the closed folders.
 - Chrome makes its profile lock in the system's per-user temporary folder,
-  whatever the settings say. The browser's sandbox opens only folders there
-  named after the browser, which every bot's browser shares.
+  whatever the settings say. The browser's sandbox opens folders there named
+  after the browser (`com.google.Chrome.*`). Every bot's browser shares them,
+  and so does your own Chrome if you use the same browser: a bot's browser
+  could disturb your Chrome's lock. Using a different browser for the bots
+  (`CHROME_BIN`) avoids that.
+- A process a bot detaches from its gateway's process group keeps running in
+  that bot's sandbox after the bot is stopped or deleted.
 - Chrome's own inner sandbox cannot run inside ours, so it is off. Pages in
   one bot's browser are less isolated from each other. They are still inside
   that bot's sandbox.

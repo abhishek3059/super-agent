@@ -25,7 +25,8 @@ $ npm run check            (repository root)
 roadmap self-test: all checks passed
 ```
 
-The self-checks grew from 6 to 13 during review and containment work; the figure above is the final
+The self-checks grew from 6 to 13 during review and containment work, with
+more assertions added inside them in later rounds; the figure above is the final
 run. With `xaiKey` in `env.ts` put back to read the environment, the
 "services stay off" check failed (`# pass 8`, `# fail 1`), so it does guard
 that setting.
@@ -171,7 +172,37 @@ folder.
 The self-check for planted links was run against the old write code and
 failed (`# pass 12`, `# fail 1`), so it guards that behaviour.
 
-Not tested: a deliberate attempt to break out of `sandbox-exec` itself.
+### Round after review pass 6
+
+Review pass 6 found that a bot could listen on another bot's browser port,
+that the server's own memory edit could be raced, and that the live view
+trusted whatever answered on the port. After the fixes, on 2026-11-17, with
+the latest `develop` merged in:
+
+```text
+Jarvis -> Scout: open https://www.iana.org/help/example-domains, report heading
+  Scout replied "Example Domains"; Jarvis reported it.  Screenshot of Scout: 200, 59343 bytes.
+
+Scout's browser stopped, then Forge asked to listen in its own shell:
+  bind 127.0.0.1:9302 (Scout's browser port)   PermissionError: Operation not permitted
+  bind 127.0.0.1:0    (any port)               PermissionError: Operation not permitted
+lsof on 9302 afterwards (from outside)         nothing listening
+Scout's browser reset from the app             ok; screenshot 200
+
+Sandboxed shell, final profile:
+  bind its own port                            ok
+  bind ::1:9302                                Operation not permitted
+  connect [::ffff:127.0.0.1]:8650, [::1]:8650  refused (000)
+  https://example.com                          200
+Sandboxed Chrome with its own port allowed     up in 1 s, loaded example.com
+```
+
+The self-check that guards the bundle-id validation was run with the
+validation removed and failed (`# pass 12`, `# fail 1`).
+
+Not tested: a deliberate attempt to break out of `sandbox-exec` itself, and
+the memory-edit race itself (the change removes it by design: the edit runs
+inside the bot's sandbox).
 
 ## Not run
 

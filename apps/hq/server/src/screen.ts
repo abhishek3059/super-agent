@@ -107,7 +107,7 @@ async function relay(client: WebSocket, userId: string, botId: string, mode: 'wa
     up.on('error', () => { /* close follows */ });
   }
 
-  const timer = setInterval(() => void attach(), 1500);
+  let timer: ReturnType<typeof setInterval> | undefined;
   client.on('message', (data) => {
     if (mode !== 'control') return;
     let cmd: ReturnType<typeof inputCommand> = null;
@@ -122,8 +122,11 @@ async function relay(client: WebSocket, userId: string, botId: string, mode: 'wa
 
   try {
     await readyScreen(userId, botId);
+    if (closed) return;
     client.send(JSON.stringify({ t: 'size', ...SCREEN }));
     await attach();
+    // Follow the bot to a new tab, only once its own browser is known to be up.
+    timer = setInterval(() => void attach(), 1500);
   } catch (e: any) {
     client.close(1011, String(e?.message ?? e).slice(0, 120));
   }

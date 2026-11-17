@@ -63,9 +63,7 @@ export const configApi = {
 
   engine: (botId: string) => req<{ engine: EngineInfo }>('GET', `/bots/${botId}/engine`),
   setEngine: (botId: string, p: { provider?: string | null; model?: string | null }) => req<{ engine: EngineInfo }>('PATCH', `/bots/${botId}/engine`, p),
-  /** Opens the provider's sign-in flow in a terminal on the bot's screen. */
   restartEngine: (botId: string) => req<{ engine: EngineInfo }>('POST', `/bots/${botId}/engine/restart`),
-  /** Stops the private screen the agent runs for itself, so its computer work shows on the screen in the app. */
 
   policies: () => req<{ policies: { tool: string; mode: string }[] }>('GET', '/policies'),
   deletePolicy: (tool: string) => req<{ ok: true }>('DELETE', `/policies/${encodeURIComponent(tool)}`),

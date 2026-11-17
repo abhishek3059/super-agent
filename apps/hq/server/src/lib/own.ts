@@ -1,42 +1,68 @@
-import fs, { constants as C } from 'node:fs';
+import { execFileSync, spawn } from 'node:child_process';
+import type { Readable } from 'node:stream';
 import path from 'node:path';
+import { confinedEnv, contained } from '../sandbox.js';
 
 /**
  * Reading and writing files in a folder a bot can write (its Hermes home, its working folder).
- * The server is not sandboxed, so it must never be led out of that folder: a bot can plant a link
- * there, and a plain read or write would follow it to the operator's files.
- *
- * `root` is the bot's folder itself, which the bot cannot replace (it cannot write the parent).
+ * The server is not sandboxed, and a bot can plant links or swap sub-folders there at any moment,
+ * so the server never touches those files itself. A short shell command does it, inside a sandbox
+ * that can write only that folder: whatever the bot swaps in, the command cannot reach past it.
  */
 
-/** The file's path, after checking that the folder it sits in really is inside `root`. */
-function inside(root: string, rel: string): string {
-  const base = fs.realpathSync(root);
-  const file = path.join(base, rel);
-  const dir = fs.realpathSync(path.dirname(file));
-  if (dir !== base && !dir.startsWith(base + path.sep)) throw new Error('outside the bot folder');
-  // shortcut: a bot could swap a sub-folder for a link between this check and the open below (Node
-  // has no openat). The open still refuses a link at the last step and never replaces an existing
-  // file, so the most it gains is a new file of this name elsewhere. Upgrade if that ever matters.
-  return path.join(dir, path.basename(file));
+/** A path inside the folder: relative, with no `..`, nothing hidden from the check above. */
+function relative(rel: string): string {
+  const parts = rel.split('/');
+  if (path.isAbsolute(rel) || !rel || parts.some((p) => !p || p === '.' || p === '..') || /[\0\n\r]/.test(rel)) {
+    throw new Error('outside the bot folder');
+  }
+  return rel;
+}
+
+function inSandbox(root: string, script: string, args: string[], input?: string | Buffer, maxBuffer = 1 << 20): string {
+  const run = contained('/bin/sh', ['-c', script, 'sh', ...args], { read: [], write: [root], localPorts: [] }, 'own');
+  return execFileSync(run.bin, run.args, { cwd: root, input, env: confinedEnv('own'), timeout: 10_000, maxBuffer, encoding: 'utf8' });
 }
 
 /** Replace the file with `content`. Whatever was there (a link, a folder) is removed, never written through. */
 export function writeOwn(root: string, rel: string, content: string | Buffer, mode = 0o600): void {
-  fs.mkdirSync(path.dirname(path.join(root, rel)), { recursive: true });
-  const file = inside(root, rel);
-  fs.rmSync(file, { force: true, recursive: true });
-  const fd = fs.openSync(file, C.O_WRONLY | C.O_CREAT | C.O_EXCL | C.O_NOFOLLOW, mode);
-  try { fs.writeFileSync(fd, content); } finally { fs.closeSync(fd); }
+  // `./` keeps a name that starts with `-` from being read as an option.
+  inSandbox(root, 'mkdir -p "$(dirname "./$1")" && rm -rf "./$1" && (umask 077; cat > "./$1") && chmod "$2" "./$1"',
+    [relative(rel), (mode & 0o777).toString(8)], content);
 }
 
-/** The file's text and time, or null if it is missing, is a link, or is not a plain file. */
+/** The file's text and time, or null if it is missing, is a link, is not a plain file, or is too big. */
 export function readOwn(root: string, rel: string, maxBytes = 1 << 20): { text: string; mtimeMs: number } | null {
-  let fd: number | null = null;
   try {
-    fd = fs.openSync(inside(root, rel), C.O_RDONLY | C.O_NOFOLLOW);
-    const st = fs.fstatSync(fd);
-    if (!st.isFile() || st.size > maxBytes) return null;
-    return { text: fs.readFileSync(fd, 'utf8'), mtimeMs: st.mtimeMs };
-  } catch { return null; } finally { if (fd !== null) fs.closeSync(fd); }
+    const out = inSandbox(root, '[ -f "./$1" ] && [ ! -L "./$1" ] && stat -f %m "./$1" && head -c "$2" "./$1"',
+      [relative(rel), String(maxBytes + 1)], undefined, maxBytes + 64);
+    const nl = out.indexOf('\n');
+    const text = out.slice(nl + 1);
+    if (nl < 0 || Buffer.byteLength(text) > maxBytes) return null;
+    return { text, mtimeMs: Number(out.slice(0, nl)) * 1000 };
+  } catch { return null; }
+}
+
+/** A file to send to the operator: its size and a stream of it, read inside the sandbox too. Null if it is not a plain file. */
+export function streamOwn(root: string, rel: string): { size: number; body: Readable } | null {
+  const check = '[ -f "./$1" ] && [ ! -L "./$1" ]';
+  let size: number;
+  try { size = Number(inSandbox(root, `${check} && stat -f %z "./$1"`, [relative(rel)]).trim()); } catch { return null; }
+  if (!Number.isFinite(size)) return null;
+  const run = contained('/bin/sh', ['-c', `${check} && exec cat "./$1"`, 'sh', relative(rel)], { read: [], write: [root], localPorts: [] }, 'own');
+  const child = spawn(run.bin, run.args, { cwd: root, env: confinedEnv('own'), stdio: ['ignore', 'pipe', 'ignore'] });
+  return { size, body: child.stdout };
+}
+
+/** The plain files and folders directly in `rel` ('' for the folder itself), listed inside the sandbox. */
+export function listOwn(root: string, rel: string): { name: string; size: number; modifiedAt: number; isDir: boolean }[] | null {
+  const dir = rel ? relative(rel) : '.';
+  try {
+    const out = inSandbox(root, '[ -d "./$1" ] && [ ! -L "./$1" ] && find "./$1" -mindepth 1 -maxdepth 1 \\( -type f -o -type d \\) -exec stat -f "%HT\t%z\t%m\t%N" {} +',
+      [dir], undefined, 4 << 20);
+    return out.split('\n').filter(Boolean).map((line) => {
+      const [type, size, mtime, ...name] = line.split('\t');
+      return { name: path.basename(name.join('\t')), size: Number(size), modifiedAt: Number(mtime) * 1000, isDir: type === 'Directory' };
+    });
+  } catch { return null; }
 }

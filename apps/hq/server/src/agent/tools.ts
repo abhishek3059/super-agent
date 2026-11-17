@@ -222,6 +222,8 @@ const ALL_TOOLS: ToolDef[] = [
     activity: 'working',
     label: 'Removing a routine',
     impl: async (a, ctx) => {
+      // Only its own: nothing is stopped or removed before the owner is checked.
+      if (!db.prepare('SELECT 1 FROM routines WHERE id=? AND bot_id=?').get(a.routine_id, ctx.botId)) return { output: 'No routine of yours has that id.' };
       unscheduleRoutine(a.routine_id);
       await deleteEventTrigger(a.routine_id);
       db.prepare('DELETE FROM routines WHERE id=? AND bot_id=?').run(a.routine_id, ctx.botId);

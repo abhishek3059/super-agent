@@ -1,4 +1,4 @@
-import { execFile, spawn } from 'node:child_process';
+import { spawn } from 'node:child_process';
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -12,17 +12,12 @@ import { env } from './env.js';
 import type { EngineInfo, EngineProvider } from './types.js';
 
 /**
- * Every bot is run by a Hermes agent.
- *
- * - The 'primary' engine is a Hermes gateway that already runs on the computer (HERMES_URL, home
- *   HERMES_HOME_PRIMARY). It has its own life: messaging, memory, model. We only talk to its API
- *   server; we never write its config, restart it or stop it.
- * - A 'managed' engine is a Hermes home of our own under ENGINES_DIR/<botId> with its own
- *   `hermes gateway run`, started here and left running when this server exits. Its home sits
- *   outside ~/.hermes, so Hermes treats it as a separate tenant beside the primary gateway.
+ * Every bot is run by a Hermes agent of its own: a Hermes home under ENGINES_DIR/<botId> with its own
+ * `hermes gateway run`, started here inside the bot's sandbox and left running when this server exits.
+ * Its home sits outside ~/.hermes, so Hermes treats it as a separate tenant.
  */
 
-export type EngineKind = 'primary' | 'managed';
+export type EngineKind = 'managed';
 export interface Engine { kind: EngineKind; url: string; key: string; home: string }
 
 const botRow = (botId: string) => db.prepare('SELECT * FROM bots WHERE id=?').get(botId) as any;
@@ -50,28 +45,17 @@ function readYaml(file: string): any {
 
 // ---------- identity ----------
 
-/** Token a bot's Hermes agent presents to this server's MCP endpoint. `primary` names the primary bot. */
+/** Token a bot's Hermes agent presents to this server's MCP endpoint. */
 export function mcpToken(botId: string): string {
   return crypto.createHmac('sha256', env.sessionSecret).update(`mcp:${botId}`).digest('hex');
 }
 
-export function primaryBotId(): string | null {
-  return (db.prepare("SELECT id FROM bots WHERE engine='primary' LIMIT 1").get() as any)?.id ?? null;
-}
-
 export function engineKind(botId: string): EngineKind | null {
   const e = botRow(botId)?.engine;
-  return e === 'primary' || e === 'managed' ? e : null;
+  return e === 'managed' ? e : null;
 }
 
 const homeFor = (botId: string) => path.join(env.enginesDir, botId);
-
-let cachedPrimaryKey: string | null = null;
-function primaryKey(): string {
-  if (env.hermesKey) return env.hermesKey;
-  if (cachedPrimaryKey === null) cachedPrimaryKey = readDotenv(path.join(env.hermesHome, '.env')).API_SERVER_KEY ?? '';
-  return cachedPrimaryKey;
-}
 
 // ---------- assignment ----------
 
@@ -82,29 +66,25 @@ function freePort(): number {
   return p;
 }
 
-/** Give a new agent bot its engine: the existing agent if nobody has it yet, otherwise one of our own. */
+/** Give a new agent bot its engine: a gateway of its own, on a port of its own. */
 export function assignEngine(botId: string): EngineKind {
   const b = botRow(botId);
   if (!b) throw new Error('bot not found');
-  if (b.engine === 'primary' || b.engine === 'managed') return b.engine;
-  if (env.hermesUrl && !primaryBotId()) {
-    db.prepare("UPDATE bots SET engine='primary', engine_port=NULL WHERE id=?").run(botId);
-    return 'primary';
-  }
+  if (b.engine === 'managed') return b.engine;
   db.prepare("UPDATE bots SET engine='managed', engine_port=? WHERE id=?").run(freePort(), botId);
   return 'managed';
 }
 
 // ---------- a managed bot's Hermes home ----------
 
-/** Model credentials a managed agent may inherit from the primary agent. Never messaging tokens. */
+/** Model credentials a bot's agent may inherit from the operator's Hermes. Never messaging tokens. */
 const SHARED_ENV = [
   'ANTHROPIC_API_KEY', 'ANTHROPIC_BASE_URL', 'ANTHROPIC_TOKEN', 'CLAUDE_CODE_OAUTH_TOKEN',
   'OPENAI_API_KEY', 'OPENAI_BASE_URL', 'OPENROUTER_API_KEY', 'XAI_API_KEY', 'GEMINI_API_KEY', 'GOOGLE_API_KEY', 'NOUS_API_KEY',
   'FIRECRAWL_API_KEY', 'TAVILY_API_KEY', 'EXA_API_KEY', 'PARALLEL_API_KEY',
 ];
 
-/** Parts of the primary agent's config a managed agent starts from, so it reaches the same models. */
+/** Parts of the operator's Hermes config a bot's agent starts from, so it reaches the same models. */
 const SHARED_CONFIG = ['model', 'providers', 'custom_providers', 'auxiliary', 'fallback_model', 'fallback_providers'];
 
 function soul(b: any): string {
@@ -118,7 +98,7 @@ function soul(b: any): string {
   ].join('\n');
 }
 
-/** Rewrite the persona file after a rename or a new description. The primary agent keeps its own. */
+/** Rewrite the persona file after a rename or a new description. */
 export function syncPersona(botId: string) {
   const b = botRow(botId);
   if (!b || b.engine !== 'managed' || !fs.existsSync(homeFor(botId))) return;
@@ -198,8 +178,11 @@ async function keyAccepted(url: string, key: string): Promise<boolean> {
 const GATEWAY = 'gateway run';
 const gatewayPid = (botId: string) => livePid(`${botId}.gateway`, GATEWAY);
 
-/** Kept short: the browser helper listens on a Unix socket under it, and socket paths are limited to about 100 bytes. */
-const bhFor = (botId: string) => path.join(env.dataDir, 'bh', String(botRow(botId).engine_port));
+/**
+ * Where Hermes' browser helper keeps its socket. Named from the bot id, so a bot that reuses a deleted
+ * bot's port never inherits its folder, and kept short: socket paths stop at 104 bytes.
+ */
+const bhFor = (botId: string) => path.join(env.dataDir, 'bh', crypto.createHash('sha256').update(botId).digest('hex').slice(0, 8));
 
 /**
  * A Hermes command for this bot, inside its sandbox. Anything that runs Hermes on a bot's home goes
@@ -211,6 +194,7 @@ function hermesContained(botId: string, args: string[]) {
     read: [hermes, path.join(env.hermesHome, 'hermes-agent'), path.join(env.hermesHome, 'tools')],
     write: [homeFor(botId), path.join(env.filesDir, botId), bhFor(botId)],
     localPorts: [env.port, botRow(botId).engine_port, cdpPortFor(botId)],
+    listen: botRow(botId).engine_port,
   }, `${botId}.g`);
 }
 
@@ -312,7 +296,6 @@ export async function engineFor(botId: string): Promise<Engine> {
     if (b.kind === 'room') throw new Error('A group chat has no agent of its own.');
     kind = assignEngine(botId);
   }
-  if (kind === 'primary') return { kind, url: env.hermesUrl, key: primaryKey(), home: env.hermesHome };
   const url = managedUrl(botId);
   if (!(await healthy(url, 1500)) || !gatewayPid(botId)) await ensureManaged(botId);
   return { kind, url, key: managedKey(botId), home: homeFor(botId) };
@@ -321,7 +304,7 @@ export async function engineFor(botId: string): Promise<Engine> {
 /** The bot's Hermes home, without starting anything (memory files, sign-in commands). */
 export function engineHome(botId: string): string | null {
   const kind = engineKind(botId);
-  return kind === 'primary' ? env.hermesHome : kind === 'managed' ? homeFor(botId) : null;
+  return kind ? homeFor(botId) : null;
 }
 
 /** Start the gateway in the background (after creating a bot, or on server start). */
@@ -337,7 +320,7 @@ export async function restartEngine(botId: string): Promise<void> {
   provisionEngine(botId);
 }
 
-/** The bot is gone: stop its gateway and delete its home. The primary agent is left alone. */
+/** The bot is gone: stop its gateway and delete its home. */
 export async function removeEngine(botId: string): Promise<void> {
   const home = homeFor(botId);
   if (!fs.existsSync(home)) return;
@@ -346,6 +329,7 @@ export async function removeEngine(botId: string): Promise<void> {
   failures.delete(botId);
   optionsCache.delete(botId);
   if (path.resolve(home).startsWith(path.resolve(env.enginesDir) + path.sep)) fs.rmSync(home, { recursive: true, force: true });
+  fs.rmSync(bhFor(botId), { recursive: true, force: true });
 }
 
 /** On server start: give older bots an engine, then bring the managed gateways up. */
@@ -398,26 +382,21 @@ export async function engineInfo(botId: string): Promise<EngineInfo> {
   const b = botRow(botId);
   if (!b) throw new Error('bot not found');
   const kind = engineKind(botId);
-  const base: EngineInfo = { botId, profile: kind === 'primary' ? 'default' : botId, status: 'stopped', error: null, model: b.model ?? null, provider: b.provider ?? null, version: null, providers: [] };
+  const base: EngineInfo = { botId, profile: botId, status: 'stopped', error: null, model: b.model ?? null, provider: b.provider ?? null, version: null, providers: [] };
   if (!kind) return { ...base, status: 'error', error: 'This bot has no agent.' };
 
-  let e: { url: string; key: string };
-  if (kind === 'primary') e = { url: env.hermesUrl, key: primaryKey() };
-  else {
-    if (!b.engine_port) return { ...base, status: 'error', error: 'No port assigned.' };
-    e = { url: managedUrl(botId), key: managedKey(botId) };
-  }
+  if (!b.engine_port) return { ...base, status: 'error', error: 'No port assigned.' };
+  const e = { url: managedUrl(botId), key: managedKey(botId) };
 
   const health = await healthy(e.url);
   if (!health) {
-    if (kind === 'primary') return { ...base, status: 'error', error: `The agent at ${env.hermesUrl} is not answering.` };
     if (starting.has(botId)) return { ...base, status: 'starting' };
     const failed = failures.get(botId);
     if (failed) return { ...base, status: 'error', error: failed };
     provisionEngine(botId);
     return { ...base, status: 'starting' };
   }
-  if (kind === 'managed' && starting.has(botId)) return { ...base, status: 'starting' };
+  if (starting.has(botId)) return { ...base, status: 'starting' };
 
   const data = await modelOptions(botId, e);
   return {

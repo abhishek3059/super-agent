@@ -205,7 +205,6 @@ export interface EngineInfo {
   provider: string | null;
   version: string | null;
   providers: EngineProvider[];
-
 }
 
 export interface Toolkit {

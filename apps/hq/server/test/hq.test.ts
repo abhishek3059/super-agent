@@ -111,7 +111,14 @@ test('a bot sandbox closes reads, writes and local sockets outside what it is gi
   assert.ok(at('(deny network-outbound (remote ip "localhost:*"))') < at('(allow network-outbound (remote ip "localhost:8787"))'));
   for (const rule of ['(deny lsopen)', '(deny appleevent-send)', '(deny job-creation)', '(deny process-info* (target others))', 'com.apple.SecurityServer']) at(rule);
   assert.ok(!sandboxProfile({ read: [], write: ['/tmp/a"b'], localPorts: [] }).includes('a"b'), 'quotes in a path cannot end the string');
-  assert.ok(!sandboxProfile({ read: [], write: [], localPorts: [], tempPrefix: 'x")) (allow default' }).includes('allow default'.repeat(2)), 'a bad bundle id is ignored');
+  const bad = sandboxProfile({ read: [], write: [], localPorts: [], tempPrefix: 'x")) (allow default' });
+  assert.ok(!bad.includes('/private/var/folders"))') && !bad.includes('x"))'), 'a bad bundle id adds no rule');
+  const good = sandboxProfile({ read: [], write: [], localPorts: [], tempPrefix: 'com.google.Chrome' });
+  assert.ok(good.includes('T/com\\.google\\.Chrome\\.'), 'a good one opens only folders of that name');
+  // Listening: nowhere but its own port.
+  const listen = sandboxProfile({ read: [], write: [own], localPorts: [], listen: 9301 });
+  assert.ok(listen.indexOf('(deny network-bind)') < listen.indexOf('(allow network-bind (local ip "localhost:9301"))'));
+  assert.ok(!listen.includes('localhost:9302'));
   if (!canContain()) assert.throws(() => contained('/bin/echo', [], { read: [], write: [], localPorts: [] }, 't'), /contained on macOS/, 'no sandbox, no bot');
 });
 
@@ -145,7 +152,7 @@ test('inside the sandbox a process cannot read the session secret or a neighbour
 });
 
 test('the server never writes or reads through a link a bot planted in its own folder', async () => {
-  const { writeOwn, readOwn } = await import('../src/lib/own.js');
+  const { writeOwn, readOwn, listOwn, streamOwn } = await import('../src/lib/own.js');
   const root = fs.mkdtempSync(path.join(env.dataDir, 'own-'));
   const outside = path.join(env.dataDir, 'operator-file');
   fs.writeFileSync(outside, 'original');
@@ -156,9 +163,22 @@ test('the server never writes or reads through a link a bot planted in its own f
   fs.symlinkSync(outside, path.join(root, 'read.txt'));
   assert.equal(readOwn(root, 'read.txt'), null, 'a link is not read');
   fs.symlinkSync(env.dataDir, path.join(root, 'dir'));
-  assert.throws(() => writeOwn(root, 'dir/session-secret', 'x'), /outside the bot folder/);
+  const secret = fs.readFileSync(path.join(env.dataDir, 'session-secret'), 'utf8');
+  assert.throws(() => writeOwn(root, 'dir/session-secret', 'x'), 'a linked sub-folder leads outside, so the sandboxed write fails');
+  assert.equal(fs.readFileSync(path.join(env.dataDir, 'session-secret'), 'utf8'), secret);
+  assert.equal(readOwn(root, 'dir/session-secret'), null, 'nor can it be read through the link');
   assert.throws(() => writeOwn(root, '../escape.txt', 'x'), /outside the bot folder/);
   assert.equal(fs.existsSync(path.join(env.dataDir, 'escape.txt')), false);
+  const listed = listOwn(root, '')!.map((f) => f.name).sort();
+  assert.ok(listed.includes('planted.txt') && !listed.includes('read.txt'), 'links are not listed');
+  assert.equal(listOwn(root, 'dir'), null, 'a linked folder is not listed');
+  const stream = streamOwn(root, 'planted.txt')!;
+  assert.equal(stream.size, 5);
+  let got = ''; for await (const chunk of stream.body) got += chunk;
+  assert.equal(got, 'PWNED');
+  assert.equal(streamOwn(root, 'read.txt'), null, 'a link is not sent');
+  writeOwn(root, '-n', 'dash');
+  assert.equal(readOwn(root, '-n')?.text, 'dash', 'a name starting with - is a file, not an option');
   writeOwn(root, 'sub/ok.txt', 'fine');
   assert.equal(readOwn(root, 'sub/ok.txt')?.text, 'fine');
 });

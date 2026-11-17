@@ -4,7 +4,7 @@ import path from 'node:path';
 import { WebSocket } from 'ws';
 import { db } from './db.js';
 import { env } from './env.js';
-import { confinedEnv, contained } from './sandbox.js';
+import { confinedEnv, contained, tmpFor } from './sandbox.js';
 import { livePid, recordPid, stopPid } from './lib/procs.js';
 import type { ComputerState } from './types.js';
 
@@ -96,7 +96,7 @@ async function startChrome(botId: string): Promise<void> {
     '--headless=new', '--no-sandbox', '--use-mock-keychain', `--remote-debugging-port=${cdpPortFor(botId)}`, '--remote-debugging-address=127.0.0.1',
     `--user-data-dir=${profileDir(botId)}`, `--window-size=${SCREEN.width},${SCREEN.height + CHROME_UI}`,
     '--no-first-run', '--no-default-browser-check', '--disable-background-networking', '--hide-scrollbars', home,
-  ], { read: [], write: [profileDir(botId), path.join(env.filesDir, botId)], localPorts: [], tempPrefix: bundleId(bin) }, `${botId}.c`);
+  ], { read: [], write: [profileDir(botId), path.join(env.filesDir, botId)], localPorts: [], listen: cdpPortFor(botId), tempPrefix: bundleId(bin) }, `${botId}.c`);
   // Nothing of this server's environment (the voice key lives there) reaches the browser.
   const child = spawn(run.bin, run.args, { detached: true, stdio: 'ignore', env: confinedEnv(`${botId}.c`) });
   let failed = '';
@@ -143,6 +143,8 @@ export async function forgetBotFiles(botId: string): Promise<void> {
     const dir = path.join(root, botId);
     if (path.dirname(dir) === root) fs.rmSync(dir, { recursive: true, force: true });
   }
+  // Its temporary folders too, so a later bot never inherits one (they are named from the bot id).
+  for (const name of [`${botId}.g`, `${botId}.c`]) fs.rmSync(tmpFor(name), { recursive: true, force: true });
 }
 
 // ---------- DevTools helpers ----------
@@ -151,9 +153,15 @@ export interface PageTarget { id: string; webSocketDebuggerUrl: string; url: str
 
 /** The tab the bot is on: Chrome lists the most recently used page first. */
 export async function activePage(botId: string): Promise<PageTarget | null> {
+  // Only the browser this server started for the bot, and only a page address on that same port:
+  // a bot that closed its browser and answered on the port itself could otherwise send the server
+  // (which is not sandboxed) to any address it likes.
+  if (!chromePid(botId)) return null;
+  const prefix = `ws://127.0.0.1:${cdpPortFor(botId)}/devtools/page/`;
   try {
     const list = (await (await fetch(`${cdpUrlFor(botId)}/json/list`, { signal: AbortSignal.timeout(2000) })).json()) as any[];
-    return list.find((t) => t.type === 'page' && t.webSocketDebuggerUrl) ?? null;
+    return list.find((t) => t.type === 'page' && typeof t.webSocketDebuggerUrl === 'string' && t.webSocketDebuggerUrl.startsWith(prefix)
+      && /^[A-Za-z0-9_-]+$/.test(t.webSocketDebuggerUrl.slice(prefix.length))) ?? null;
   } catch { return null; }
 }
 

@@ -20,6 +20,8 @@ export interface Confinement {
   write: string[];
   /** Loopback TCP ports it may connect to. The internet stays reachable. */
   localPorts: number[];
+  /** The one loopback TCP port it may listen on (its own API or debugging port), if any. */
+  listen?: number;
   /**
    * An app's bundle id, for a browser: Chromium ignores TMPDIR for its profile lock and makes it in
    * the system's per-user temp folder as `<bundle id>.XXXXXX`. Only folders of that name are opened.
@@ -82,6 +84,11 @@ export function sandboxProfile(c: Confinement): string {
     walk.length ? `(allow file-read-metadata ${walk.map((d) => `(literal ${q(d)})`).join(' ')})` : '',
     read.length ? `(allow file-read* ${read.map((d) => `(subpath ${q(d)})`).join(' ')})` : '',
     write.length ? `(allow file-read* file-write* ${write.map((d) => `(subpath ${q(d)})`).join(' ')})` : '',
+    // Listening: only on its own port and in its own folders. Otherwise a bot could take another
+    // bot's port before that bot starts, and answer in its place.
+    '(deny network-bind)',
+    c.listen ? `(allow network-bind (local ip "localhost:${Math.trunc(c.listen)}"))` : '',
+    write.length ? `(allow network-bind ${write.map((d) => `(local unix-socket (subpath ${q(d)}))`).join(' ')})` : '',
     // Local network: only its own ports. Another bot's browser and gateway listen on loopback too.
     '(deny network-outbound (remote ip "localhost:*"))',
     // Local sockets: only its own (the browser helper's, Chrome's lock) and the system's name lookup
@@ -94,6 +101,7 @@ export function sandboxProfile(c: Confinement): string {
       '(allow file-read-metadata (regex #"^/private/var/folders"))',
       '(allow file-read* (regex #"^/private/var/folders/[^/]+/[^/]+/T/?$"))',
       `(allow file-read* file-write* (regex #"^/private/var/folders/[^/]+/[^/]+/T/${c.tempPrefix.replace(/\./g, '\\.')}\\."))`,
+      `(allow network-bind (local unix-socket (regex #"^/private/var/folders/[^/]+/[^/]+/T/${c.tempPrefix.replace(/\./g, '\\.')}\\.")))`,
     ] : []),
   ].filter(Boolean).join('\n');
 }
