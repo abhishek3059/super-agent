@@ -1,0 +1,21 @@
+{
+  "name": "jarvis-hq",
+  "private": true,
+  "description": "Jarvis HQ: a local team of Hermes agents, each with its own browser and workspace, with OpenAI live voice.",
+  "workspaces": [
+    "server",
+    "web"
+  ],
+  "scripts": {
+    "dev": "npm run dev -w server & npm run dev -w web",
+    "build": "npm run build -w web && npm run build -w server",
+    "start": "npm run start -w server",
+    "jarvis": "node scripts/jarvis.mjs",
+    "open": "node scripts/jarvis.mjs --open-only",
+    "typecheck": "npm run typecheck -w server && npm run typecheck -w web",
+    "test": "npm run test -w server"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

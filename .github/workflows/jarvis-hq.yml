@@ -1,0 +1,36 @@
+name: Jarvis HQ
+
+on:
+  pull_request:
+    branches: [develop, main]
+    paths: ['apps/hq/**', '.github/workflows/jarvis-hq.yml']
+  push:
+    branches: [develop, main]
+    paths: ['apps/hq/**']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    name: Typecheck, self-checks and build
+    runs-on: macos-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: apps/hq
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.22.3
+          cache: npm
+          cache-dependency-path: apps/hq/package-lock.json
+      # better-sqlite3 fetches its prebuilt binary in an install script, so scripts stay on here.
+      - run: npm ci
+        env:
+          HUSKY: 0
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build

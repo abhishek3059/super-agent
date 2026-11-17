@@ -14,6 +14,12 @@ background task delegation.
 > Nothing leaves the machine on the local path. There are no workers,
 > stored audio, or complete assistant. RT-G01 and later runtime gates remain open.
 
+> **Jarvis HQ (experimental).** A local multi-bot workspace is in
+> [`apps/hq`](apps/hq/README.md): Jarvis plus four Hermes workers, each with
+> its own browser, chat and memory. It is not contained and has had no
+> security review. It runs under a proposed exception,
+> [DEC-23](descisions.md#dec-23). See its [approval record](docs/approvals/jarvis-hq-local-team.md).
+
 ## Start here
 
 | Document | Purpose |
