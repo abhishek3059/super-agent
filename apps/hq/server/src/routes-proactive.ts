@@ -1,4 +1,6 @@
 import { Hono } from 'hono';
+import { z } from 'zod';
+import { readJson } from './lib/request.js';
 import { requireUser, type AuthVars } from './lib/auth.js';
 import { fireCheckin, getCheckins, setCheckins } from './proactive.js';
 
@@ -9,7 +11,9 @@ checkinsApi.use('*', requireUser);
 checkinsApi.get('/', (c) => c.json(getCheckins(c.get('user').id)));
 
 checkinsApi.put('/', async (c) => {
-  const body = await c.req.json<{ enabled?: boolean; times?: string[]; timezone?: string }>();
+  const body = await readJson(c, z.strictObject({
+    enabled: z.boolean().optional(), times: z.array(z.string()).optional(), timezone: z.string().optional(),
+  }));
   try {
     return c.json(setCheckins(c.get('user').id, body));
   } catch (e: any) {

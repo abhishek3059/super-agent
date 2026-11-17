@@ -2,11 +2,16 @@
 // to a bot's browser, and that a handoff between bots always comes back.
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import { spawnSync } from 'node:child_process';
 import os from 'node:os';
 import path from 'node:path';
-import { test } from 'node:test';
+import { after, test } from 'node:test';
 
-process.env.HQ_DATA_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'hq-test-'));
+const home = fs.mkdtempSync(path.join(os.tmpdir(), 'hq-test-'));
+process.env.HOME = process.env.USERPROFILE = home;
+process.env.HQ_DATA_DIR = process.env.ENGINES_DIR = process.env.DB_PATH = path.join(home, 'ignored');
+delete process.env.SESSION_SECRET;
+after(() => fs.rmSync(home, { recursive: true, force: true }));
 process.env.PORT = '8787';
 // Set before anything loads env.ts: these must not switch the unapproved services on.
 process.env.XAI_API_KEY = 'x';
@@ -67,6 +72,10 @@ test('the owner key is derived from the session secret and nothing else passes',
   for (const k of ['', 'abc', '00'.repeat(32), crypto.createHmac('sha256', 'other').update('owner-login').digest('hex')]) assert.equal(isOwnerKey(k), false);
   assert.equal(fs.statSync(path.join(env.dataDir, 'session-secret')).mode & 0o777, 0o600);
   assert.equal(fs.statSync(env.dataDir).mode & 0o777, 0o700);
+  assert.equal(env.dataDir, path.join(fs.realpathSync(home), '.super-agent', 'hq'));
+  for (const name of ['dbPath', 'enginesDir', 'filesDir', 'profilesDir'] as const) {
+    assert.equal(path.dirname(env[name]), env.dataDir);
+  }
 });
 
 test('an approval card accepts only its three answers', async () => {
@@ -93,5 +102,39 @@ test('the approval route refuses anything but a real answer', async () => {
     assert.equal((await post(body)).status, 400, body);
   }
   assert.equal((await post('{"decision":"allow"}')).status, 404, 'a real answer for an unknown card is not found');
-  assert.equal((await api.request('/approvals/ap_none', { method: 'POST', body: '{"decision":"allow"}' })).status, 401, 'no session');
+  assert.equal((await api.request('/approvals/ap_none', { method: 'POST', body: '{"decision":"allow"}' })).status, 403, 'no session');
+});
+
+test('bot creation rejects malformed JSON and invalid fields before creating a bot', async () => {
+  const { api } = await import('../src/routes.js');
+  const { db } = await import('../src/db.js');
+  const { initSubagents } = await import('../src/agent/subagents.js');
+  const { initRooms } = await import('../src/agent/rooms.js');
+  initSubagents();
+  initRooms();
+  db.prepare('INSERT INTO users(id,email,name,created_at) VALUES (?,?,?,?)').run('usr_b', 'b@localhost', 'B', Date.now());
+  db.prepare('INSERT INTO auth_sessions(token,user_id,created_at,expires_at) VALUES (?,?,?,?)').run('tok_b', 'usr_b', Date.now(), Date.now() + 60_000);
+  const post = (body: string) => api.request('/bots', { method: 'POST', headers: {
+    cookie: 'hq_session=tok_b', 'content-type': 'application/json',
+  }, body });
+  for (const body of ['not json', 'null', '[]', '{}', '{"name":42}', '{"name":"Agent","delegate":true}']) {
+    assert.equal((await post(body)).status, 400, body);
+  }
+  assert.deepEqual(db.prepare('SELECT id FROM bots WHERE user_id=?').all('usr_b'), []);
+  assert.equal((await post('{"name":"Agent","mode":"teammate"}')).status, 200);
+});
+
+test('HQ refuses remote Hermes origins and symlinked data roots', () => {
+  const script = ['--import', 'tsx', '--input-type=module', '-e', "await import('./src/env.ts')"];
+  const probe = (settings: NodeJS.ProcessEnv) => spawnSync(process.execPath, script, {
+    cwd: new URL('../', import.meta.url), env: { ...process.env, ...settings }, encoding: 'utf8',
+  });
+  const remote = probe({ HERMES_URL: 'http://192.0.2.10:8650' });
+  assert.notEqual(remote.status, 0);
+  assert.match(remote.stderr, /requires a loopback HTTP origin/);
+  const linkedHome = fs.mkdtempSync(path.join(home, 'link-'));
+  fs.symlinkSync(path.dirname(env.dataDir), path.join(linkedHome, '.super-agent'), 'junction');
+  const linked = probe({ HOME: linkedHome, USERPROFILE: linkedHome, HERMES_URL: '' });
+  assert.notEqual(linked.status, 0);
+  assert.match(linked.stderr, /requires real data directories/);
 });

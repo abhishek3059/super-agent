@@ -30,7 +30,6 @@ CREATE TABLE IF NOT EXISTS login_attempts (
 );
 CREATE TABLE IF NOT EXISTS computers (
   user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
-  orgo_id TEXT,
   status TEXT NOT NULL DEFAULT 'absent',
   error TEXT,
   updated_at INTEGER NOT NULL

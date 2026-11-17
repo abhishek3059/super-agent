@@ -66,17 +66,16 @@ All optional, read from the environment or from `~/.super-agent/hq/.env`.
 | Variable | Default | Meaning |
 | --- | --- | --- |
 | `PORT` | `8787` | Server port on 127.0.0.1 |
-| `HQ_DATA_DIR` | `~/.super-agent/hq` | Database, bot homes, browser profiles, files |
 | `OPENAI_API_KEY` | none | Turns on voice, dictation and voice preview |
 | `OPENAI_VOICE_MODEL` | `gpt-realtime-2.1` | Realtime model |
 | `HERMES_BIN` | `hermes` | The Hermes command |
-| `HERMES_URL` | none | Hand the first bot to a Hermes gateway that already runs |
+| `HERMES_URL` | none | Hand the first bot to an existing HTTP gateway on `127.0.0.1` |
 | `CHROME_BIN` | auto | Chrome to use for the bots' browsers |
 | `MAX_BOTS` | `8` | Team size limit |
 
 ## Where things live
 
-Nothing is written into the repository. Under `~/.super-agent/hq` (mode 0700):
+Jarvis HQ keeps its data under `~/.super-agent/hq` (mode 0700). The launcher and server use the same directory. Existing data in a previously configured location stays there. The fixed location contains:
 `hq.db`, `session-secret`, `engines/<bot>` (each bot's Hermes home),
 `profiles/<bot>` (its Chrome profile), `files/<bot>` (its working folder and
 Library) and `server.log`.

@@ -3,6 +3,8 @@
 // This module mints the ephemeral secret, builds the voice agent's prompt and tools, serves the relay
 // tools, records call start/end rows, and proxies TTS (voice preview) and STT (composer dictation).
 import { Hono } from 'hono';
+import { z } from 'zod';
+import { readJson } from './lib/request.js';
 import { db, now } from './db.js';
 import { env } from './env.js';
 import { newId } from './lib/ids.js';
@@ -219,7 +221,7 @@ voiceApi.get('/options', (c) => c.json({ voices: VOICES, enabled: !!env.openaiKe
 
 voiceApi.post('/session', async (c) => {
   const user = c.get('user');
-  const { botId } = await c.req.json<{ botId: string }>().catch(() => ({ botId: '' }));
+  const { botId } = await readJson(c, z.strictObject({ botId: z.string().min(1) }));
   const bot = ownBot(user.id, botId);
   if (!bot) return c.json({ error: 'not found' }, 404);
   if (!env.openaiKey) return c.json({ error: NO_KEY }, 409);
@@ -278,16 +280,23 @@ voiceApi.post('/session', async (c) => {
 
 voiceApi.post('/tool', async (c) => {
   const user = c.get('user');
-  const { botId, callId, name, args } = await c.req.json<{ botId: string; callId?: string; name: string; args?: any }>();
+  const { botId, callId, name, args } = await readJson(c, z.strictObject({
+    botId: z.string().min(1), callId: z.string().optional(), name: z.string().min(1),
+    args: z.record(z.string(), z.unknown()).optional(),
+  }));
   const bot = ownBot(user.id, botId);
   if (!bot) return c.json({ error: 'not found' }, 404);
-  const a = args && typeof args === 'object' ? args : {};
+  const a = args ?? {};
   const call = callId ? calls.get(callId) : undefined;
+  if (callId && (!call || call.botId !== bot.id)) return c.json({ error: 'forbidden' }, 403);
 
   switch (name) {
     case 'send_task': {
-      const request = String(a.request ?? '').trim();
-      if (!request) return c.json({ output: 'Error: request is empty. Ask the user what they want done.' });
+      const parsed = z.strictObject({
+        request: z.string().trim().min(1), already_announced: z.boolean().optional(),
+      }).safeParse(a);
+      if (!parsed.success) return c.json({ error: 'invalid task request' }, 400);
+      const { request } = parsed.data;
       const from: MessageBody['from'] = { kind: 'voice', id: callId ?? 'call', name: 'Voice call' };
       const row = appendRow(bot.id, 'message', { type: 'message', role: 'user', text: request, from });
       enqueue(bot.id, {
@@ -298,14 +307,18 @@ voiceApi.post('/tool', async (c) => {
       return c.json({ output: 'Handed off. You are working on it now; the result will arrive as a [work_landed] note. Tell the user briefly that you are on it (unless you already did), then wait.', taskSeq: row.seq });
     }
     case 'recall_text_messages': {
-      const count = Math.min(30, Math.max(1, Number(a.count) || 10));
+      const parsed = z.strictObject({ count: z.int().min(1).max(30).optional() }).safeParse(a);
+      if (!parsed.success) return c.json({ error: 'invalid recall request' }, 400);
+      const count = parsed.data.count ?? 10;
       const msgs = recentMessages(bot.id, count);
       return c.json({ output: msgs.length ? msgs.map((m) => `[${ago(m.at)}] ${m.who}: ${clip(m.text, 800)}`).join('\n') : 'No messages yet.' });
     }
     case 'search_conversations': {
-      const q = String(a.query ?? '').trim();
-      if (!q) return c.json({ output: 'Error: query is empty.' });
-      const scope = ['this_chat', 'earlier', 'everything'].includes(a.scope) ? a.scope : 'this_chat';
+      const parsed = z.strictObject({
+        query: z.string().trim().min(1), scope: z.enum(['this_chat', 'earlier', 'everything']).optional(),
+      }).safeParse(a);
+      if (!parsed.success) return c.json({ error: 'invalid search request' }, 400);
+      const { query: q, scope = 'this_chat' } = parsed.data;
       const like = `%${q.replace(/[%_]/g, (m) => `\\${m}`)}%`;
       const rows = (scope === 'everything'
         ? db.prepare("SELECT r.*, b.name bot_name FROM rows r JOIN bots b ON b.id=r.bot_id WHERE b.user_id=? AND r.kind IN ('message','event') AND r.body LIKE ? ESCAPE '\\' ORDER BY r.created_at DESC LIMIT 40").all(user.id, like)
@@ -336,13 +349,17 @@ voiceApi.post('/tool', async (c) => {
     case 'end_the_call':
       return c.json({ output: 'Hanging up after your goodbye.' });
     default:
-      return c.json({ output: `Unknown tool ${name}.` });
+      return c.json({ error: 'unknown voice tool' }, 400);
   }
 });
 
 voiceApi.post('/end', async (c) => {
   const user = c.get('user');
-  const { botId, callId, transcript, error } = await c.req.json<{ botId: string; callId: string; transcript?: { role: string; text: string }[]; error?: string }>();
+  const { botId, callId, transcript, error } = await readJson(c, z.strictObject({
+    botId: z.string().min(1), callId: z.string().min(1),
+    transcript: z.array(z.strictObject({ role: z.enum(['user', 'assistant']), text: z.string() })).optional(),
+    error: z.string().optional(),
+  }));
   const bot = ownBot(user.id, botId);
   if (!bot) return c.json({ error: 'not found' }, 404);
   const call = calls.get(callId);
@@ -375,7 +392,10 @@ setInterval(() => {
 
 voiceApi.post('/preview', async (c) => {
   const user = c.get('user');
-  const p = await c.req.json<{ botId?: string; voice?: string; speed?: number; language?: string; text?: string; codec?: 'mp3' | 'pcm' }>().catch(() => ({} as any));
+  const p = await readJson(c, z.strictObject({
+    botId: z.string().optional(), voice: z.string().optional(), speed: z.number().optional(),
+    language: z.string().optional(), text: z.string().optional(), codec: z.enum(['mp3', 'pcm']).optional(),
+  }));
   const bot = ownBot(user.id, p.botId);
   const s = bot ? settingsOf(bot) : { voice: 'cedar', speed: 1, language: 'auto' };
   const voice = String(p.voice || s.voice).slice(0, 80);

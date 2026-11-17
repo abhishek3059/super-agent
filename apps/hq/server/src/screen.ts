@@ -62,7 +62,7 @@ export function attachScreenRelay(server: Server) {
     const user = allowedHost(req.headers.host) && sameOrigin(req) ? userFromCookieHeader(req.headers.cookie) : null;
     const bot = user ? (db.prepare('SELECT id FROM bots WHERE id=? AND user_id=?').get(m[1], user.id) as any) : null;
     if (!user || !bot) {
-      socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
+      socket.write('HTTP/1.1 403 Forbidden\r\n\r\n');
       socket.destroy();
       return;
     }

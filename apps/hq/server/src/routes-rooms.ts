@@ -1,4 +1,6 @@
 import { Hono } from 'hono';
+import { z } from 'zod';
+import { readJson } from './lib/request.js';
 import { db, now } from './db.js';
 import { hub } from './lib/hub.js';
 import { requireUser, type AuthVars } from './lib/auth.js';
@@ -25,7 +27,7 @@ roomsApi.get('/:id/members', (c) => {
 /** Create a group from the UI: { name, botIds[] }. */
 roomsApi.post('/', async (c) => {
   const user = c.get('user');
-  const { name, botIds } = await c.req.json<{ name: string; botIds: string[] }>();
+  const { name, botIds } = await readJson(c, z.strictObject({ name: z.string(), botIds: z.array(z.string()) }));
   const valid = (botIds ?? []).filter((id) => db.prepare("SELECT 1 FROM bots WHERE id=? AND user_id=? AND COALESCE(kind,'agent')<>'room' AND COALESCE(hidden,0)=0").get(id, user.id));
   if (!name?.trim() || valid.length < 2) return c.json({ error: 'A group needs a name and at least 2 Bots.' }, 400);
   const { createRoom } = await import('./agent/rooms.js');
@@ -37,7 +39,7 @@ roomsApi.put('/:id/members', async (c) => {
   const user = c.get('user');
   const room = ownRoom(user.id, c.req.param('id'));
   if (!room) return c.json({ error: 'not found' }, 404);
-  const { botIds } = await c.req.json<{ botIds: string[] }>();
+  const { botIds } = await readJson(c, z.strictObject({ botIds: z.array(z.string()) }));
   const before = new Set(roomMembers(room.id).map((m) => m.id));
   const next = [...new Set((botIds ?? []).filter((id) => db.prepare("SELECT 1 FROM bots WHERE id=? AND user_id=? AND COALESCE(kind,'agent')<>'room'").get(id, user.id)))];
   db.prepare('UPDATE bots SET members=?, description=?, updated_at=? WHERE id=?').run(JSON.stringify(next), `Group chat with ${next.length} Bots`, now(), room.id);

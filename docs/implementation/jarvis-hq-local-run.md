@@ -32,6 +32,12 @@ that setting.
 
 ## Boundary probes
 
+The following output is from the original draft. The follow-up boundary checks
+expect HTTP 403 for missing sessions and HTTP 400 for malformed bot creation
+bodies. They also reject a remote Hermes URL and a symlinked data parent.
+Those checks run with a temporary home and SQLite database. They do not start
+Hermes or Chrome, exercise live voice, or connect HQ to the shared job ledger.
+
 ```text
 GET /api/health                                   200
 GET /api/health   with Host: evil.example         403

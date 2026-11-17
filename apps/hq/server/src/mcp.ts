@@ -134,7 +134,7 @@ export const mcpApi = new Hono();
 
 mcpApi.post('/:bot', async (c) => {
   const who = caller(c.req.param('bot'), c.req.header('authorization'));
-  if (!who) return c.json(rpcError(null, -32001, 'Unauthorized'), 401);
+  if (!who) return c.json(rpcError(null, -32001, 'Forbidden'), 403);
   let body: any;
   try { body = await c.req.json(); } catch { return c.json(rpcError(null, -32700, 'Parse error'), 400); }
   if (Array.isArray(body)) {

@@ -14,7 +14,7 @@ import type { EngineInfo, EngineProvider } from './types.js';
  * - The 'primary' engine is a Hermes gateway that already runs on the computer (HERMES_URL, home
  *   HERMES_HOME_PRIMARY). It has its own life: messaging, memory, model. We only talk to its API
  *   server; we never write its config, restart it or stop it.
- * - A 'managed' engine is a Hermes home of our own under ENGINES_DIR/<botId> with its own
+ * - A 'managed' engine is a Hermes home of our own under ~/.super-agent/hq/engines/<botId> with its own
  *   `hermes gateway run`, started here and left running when this server exits. Its home sits
  *   outside ~/.hermes, so Hermes treats it as a separate tenant beside the primary gateway.
  */
@@ -130,17 +130,6 @@ export function syncPersona(botId: string) {
   fs.writeFileSync(path.join(home, 'SOUL.md'), soul(b));
 }
 
-function extraMcpServers(): Record<string, any> {
-  if (!env.extraMcpServers) return {};
-  try {
-    const v = JSON.parse(env.extraMcpServers);
-    return v && typeof v === 'object' && !Array.isArray(v) ? v : {};
-  } catch {
-    console.warn('[engine] EXTRA_MCP_SERVERS is not valid JSON; ignored');
-    return {};
-  }
-}
-
 /** Create or refresh the home. config.yaml is created once; after that only the keys we own are patched. */
 async function writeHome(botId: string): Promise<{ home: string; key: string }> {
   const b = botRow(botId);
@@ -168,8 +157,6 @@ async function writeHome(botId: string): Promise<{ home: string; key: string }> 
   cfg.terminal = { ...(cfg.terminal ?? {}), cwd };
   if (cdp) cfg.browser = { ...(cfg.browser ?? {}), cdp_url: cdp };
   cfg.mcp_servers = {
-    ...(cfg.mcp_servers ?? {}),
-    ...extraMcpServers(),
     hq: { url: `${env.mcpBaseUrl}/mcp/${botId}`, headers: { Authorization: `Bearer ${mcpToken(botId)}` }, timeout: 1800, connect_timeout: 30 },
   };
   writePrivate(cfgFile, YAML.stringify(cfg));

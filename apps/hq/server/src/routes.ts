@@ -1,5 +1,7 @@
 import crypto from 'node:crypto';
 import { Hono } from 'hono';
+import { z } from 'zod';
+import { readJson } from './lib/request.js';
 import { streamSSE } from 'hono/streaming';
 import { db, now } from './db.js';
 import { env } from './env.js';
@@ -7,7 +9,7 @@ import { newId } from './lib/ids.js';
 import { hub } from './lib/hub.js';
 import { createSession, destroySession, isOwnerKey, requireUser, userFromCookieHeader, type AuthVars } from './lib/auth.js';
 import { allLive, appendRow, clearConversation, emitBot, getBot, getBotRow, getRow, listBots, listRoutines, listRows, listTasks, toRoutine, updateRow } from './store.js';
-import { enqueue, interrupt, isDecision, resolveApproval } from './agent/loop.js';
+import { enqueue, interrupt, resolveApproval } from './agent/loop.js';
 import { computerState, forgetBotFiles, readyScreen, releaseScreen, screenshot } from './computer.js';
 import { assignEngine, provisionEngine, removeEngine, syncPersona } from './engine.js';
 import { deleteMemory, listMemories, memoryBot } from './engine-memory.js';
@@ -22,6 +24,21 @@ export const api = new Hono<AuthVars>();
 
 const SHAPES: AvatarShape[] = ['blob', 'pebble', 'bean', 'egg', 'squircle', 'tablet', 'capsule', 'cylinder', 'hex', 'gem', 'crystal', 'wedge', 'shield', 'dome', 'arch', 'cloud', 'teardrop', 'leaf', 'square', 'sparkle', 'clover', 'flower', 'heart', 'house', 'star'];
 const COLORS: AvatarColor[] = ['black', 'brown', 'red', 'orange', 'yellow', 'green', 'cyan', 'blue', 'violet', 'magenta', 'gray'];
+
+const botFields = z.strictObject({
+  name: z.string().trim().min(1).max(60).optional(),
+  label: z.string().optional(),
+  description: z.string().optional(),
+  instructions: z.string().optional(),
+  avatarShape: z.enum(SHAPES).optional(),
+  avatarColor: z.enum(COLORS).optional(),
+  mode: z.enum(['personal', 'teammate']).optional(),
+  effort: z.enum(['low', 'medium', 'high', 'xhigh']).optional(),
+  pinned: z.boolean().optional(),
+  voice: z.string().optional(),
+  voiceSpeed: z.number().optional(),
+  voiceLanguage: z.string().optional(),
+});
 
 function hashPick<T>(id: string, list: T[]): T {
   let h = 0x811c9dc5;
@@ -135,7 +152,7 @@ const ownBot = (userId: string, id: string) => {
 api.get('/bots', (c) => c.json({ bots: listBots(c.get('user').id), live: allLive(c.get('user').id) }));
 
 api.post('/bots', async (c) => {
-  const body = await c.req.json();
+  const body = await readJson(c, botFields.extend({ name: z.string().trim().min(1).max(60) }));
   try {
     return c.json({ bot: createBot(c.get('user').id, body) });
   } catch (e: any) {
@@ -147,13 +164,16 @@ api.post('/bots', async (c) => {
 api.patch('/bots/:id', async (c) => {
   const b = ownBot(c.get('user').id, c.req.param('id'));
   if (!b) return c.json({ error: 'not found' }, 404);
-  const p = await c.req.json();
-  const cols: Record<string, string> = { name: 'name', label: 'label', description: 'description', instructions: 'instructions', avatarShape: 'avatar_shape', avatarColor: 'avatar_color', mode: 'mode', effort: 'effort', pinned: 'pinned', voice: 'voice', voiceSpeed: 'voice_speed', voiceLanguage: 'voice_language' };
-  for (const [k, col] of Object.entries(cols)) {
-    if (p[k] !== undefined) db.prepare(`UPDATE bots SET ${col}=?, updated_at=? WHERE id=?`).run(typeof p[k] === 'boolean' ? (p[k] ? 1 : 0) : p[k], now(), b.id);
+  const p = await readJson(c, botFields);
+  const cols: Record<keyof typeof p, string> = { name: 'name', label: 'label', description: 'description', instructions: 'instructions', avatarShape: 'avatar_shape', avatarColor: 'avatar_color', mode: 'mode', effort: 'effort', pinned: 'pinned', voice: 'voice', voiceSpeed: 'voice_speed', voiceLanguage: 'voice_language' };
+  for (const key of Object.keys(p) as (keyof typeof p)[]) {
+    const value = p[key];
+    db.prepare(`UPDATE bots SET ${cols[key]}=?, updated_at=? WHERE id=?`).run(
+      key === 'pinned' ? Number(value) : value, now(), b.id,
+    );
   }
   if (b.kind !== 'room') {
-    if (['name', 'label', 'description'].some((k) => p[k] !== undefined)) syncPersona(b.id);
+    if (p.name !== undefined || p.label !== undefined || p.description !== undefined) syncPersona(b.id);
   }
   emitBot(b.id);
   return c.json({ bot: getBot(b.id) });
@@ -207,8 +227,7 @@ api.get('/bots/:id/rows', (c) => {
 api.post('/bots/:id/messages', async (c) => {
   const b = ownBot(c.get('user').id, c.req.param('id'));
   if (!b) return c.json({ error: 'not found' }, 404);
-  const { text } = await c.req.json<{ text: string }>();
-  if (!text?.trim()) return c.json({ error: 'empty' }, 400);
+  const { text } = await readJson(c, z.strictObject({ text: z.string().trim().min(1) }));
   const row = appendRow(b.id, 'message', { type: 'message', role: 'user', text: text.trim() });
   // Group chats dispatch to their member Bots instead of running their own loop.
   if (b.kind === 'room') dispatchRoomMessage(b.id, text.trim(), enqueue);
@@ -234,8 +253,7 @@ api.post('/bots/:id/fresh', (c) => {
 });
 
 api.post('/approvals/:id', async (c) => {
-  const { decision } = await c.req.json<{ decision: 'allow' | 'always' | 'deny' }>().catch(() => ({ decision: undefined }));
-  if (!isDecision(decision)) return c.json({ error: 'decision must be allow, always or deny' }, 400);
+  const { decision } = await readJson(c, z.strictObject({ decision: z.enum(['allow', 'always', 'deny']) }));
   try { resolveApproval(c.get('user').id, c.req.param('id'), decision); } catch { return c.json({ error: 'not found' }, 404); }
   return c.json({ ok: true });
 });
@@ -244,7 +262,7 @@ api.post('/bots/:id/cards/:seq/answer', async (c) => {
   const b = ownBot(c.get('user').id, c.req.param('id'));
   if (!b) return c.json({ error: 'not found' }, 404);
   const row = getRow(b.id, Number(c.req.param('seq')));
-  const { answer } = await c.req.json<{ answer: string }>();
+  const { answer } = await readJson(c, z.strictObject({ answer: z.string().trim().min(1) }));
   if (!row || row.body.type !== 'card' || row.body.card !== 'question') return c.json({ error: 'not a question' }, 400);
   updateRow(b.id, row.seq, { ...row.body, status: 'answered', answer });
   appendRow(b.id, 'message', { type: 'message', role: 'user', text: answer });
@@ -273,7 +291,7 @@ api.get('/bots/:id/routines', (c) => {
 api.patch('/routines/:id', async (c) => {
   const r = db.prepare('SELECT r.* FROM routines r JOIN bots b ON b.id=r.bot_id WHERE r.id=? AND b.user_id=?').get(c.req.param('id'), c.get('user').id) as any;
   if (!r) return c.json({ error: 'not found' }, 404);
-  const { enabled } = await c.req.json<{ enabled: boolean }>();
+  const { enabled } = await readJson(c, z.strictObject({ enabled: z.boolean() }));
   db.prepare('UPDATE routines SET enabled=? WHERE id=?').run(enabled ? 1 : 0, r.id);
   const next = toRoutine(db.prepare('SELECT * FROM routines WHERE id=?').get(r.id));
   enabled ? scheduleRoutine(next) : unscheduleRoutine(r.id);
@@ -352,7 +370,7 @@ api.get('/apps', async (c) => {
 api.post('/apps/:slug/connect', async (c) => {
   const user = c.get('user');
   const slug = c.req.param('slug');
-  const { botId, seq } = await c.req.json<{ botId?: string; seq?: number }>().catch(() => ({} as any));
+  const { botId, seq } = await readJson(c, z.strictObject({ botId: z.string().optional(), seq: z.int().positive().optional() }));
   const cb = new URL(`${env.appUrl}/api/apps/callback`);
   cb.searchParams.set('slug', slug);
   if (botId) cb.searchParams.set('bot', botId);

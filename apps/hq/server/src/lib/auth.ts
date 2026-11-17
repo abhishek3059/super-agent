@@ -38,7 +38,7 @@ export function userFromCookieHeader(cookieHeader: string | undefined): User | n
 
 export const requireUser: MiddlewareHandler<AuthVars> = async (c, next) => {
   const u = userFromToken(getCookie(c, COOKIE));
-  if (!u) return c.json({ error: 'unauthenticated' }, 401);
+  if (!u) return c.json({ error: 'forbidden' }, 403);
   c.set('user', u);
   await next();
 };

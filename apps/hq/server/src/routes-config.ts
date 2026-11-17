@@ -1,4 +1,6 @@
 import { Hono } from 'hono';
+import { z } from 'zod';
+import { readJson } from './lib/request.js';
 import { db, now } from './db.js';
 import './db-config.js';
 import { newId } from './lib/ids.js';
@@ -47,6 +49,10 @@ configApi.get('/bots/:id/settings', (c) => {
 
 // ---------- skills ----------
 
+const skillFields = z.strictObject({
+  name: z.string().optional(), description: z.string().optional(), body: z.string().optional(),
+});
+
 function cleanSkill(p: any, partial = false): { name?: string; description?: string; body?: string } | string {
   const out: { name?: string; description?: string; body?: string } = {};
   if (p.name !== undefined || !partial) {
@@ -71,7 +77,7 @@ configApi.get('/bots/:id/skills', (c) => {
 configApi.post('/bots/:id/skills', async (c) => {
   const b = ownBot(c.get('user').id, c.req.param('id'));
   if (!b) return c.json({ error: 'not found' }, 404);
-  const s = cleanSkill(await c.req.json().catch(() => ({})));
+  const s = cleanSkill(await readJson(c, skillFields));
   if (typeof s === 'string') return c.json({ error: s }, 400);
   const id = newId('skl');
   db.prepare('INSERT INTO skills(id,bot_id,name,body,description,created_at,updated_at) VALUES (?,?,?,?,?,?,?)').run(id, b.id, s.name, s.body, s.description ?? '', now(), now());
@@ -84,7 +90,7 @@ const ownSkill = (userId: string, id: string) =>
 configApi.patch('/skills/:id', async (c) => {
   const cur = ownSkill(c.get('user').id, c.req.param('id'));
   if (!cur) return c.json({ error: 'not found' }, 404);
-  const s = cleanSkill(await c.req.json().catch(() => ({})), true);
+  const s = cleanSkill(await readJson(c, skillFields), true);
   if (typeof s === 'string') return c.json({ error: s }, 400);
   db.prepare('UPDATE skills SET name=?, body=?, description=?, updated_at=? WHERE id=?').run(s.name ?? cur.name, s.body ?? cur.body, s.description ?? cur.description ?? '', now(), cur.id);
   return c.json({ skill: toSkill(db.prepare('SELECT * FROM skills WHERE id=?').get(cur.id)) });
@@ -123,7 +129,9 @@ configApi.get('/bots/:id/engine', async (c) => {
 configApi.patch('/bots/:id/engine', async (c) => {
   const b = ownBot(c.get('user').id, c.req.param('id'));
   if (!b) return c.json({ error: 'not found' }, 404);
-  const p = await c.req.json<{ provider?: string | null; model?: string | null }>().catch(() => ({} as { provider?: string | null; model?: string | null }));
+  const p = await readJson(c, z.strictObject({
+    provider: z.string().nullish(), model: z.string().nullish(),
+  }));
   const clean = (v: unknown) => (typeof v === 'string' && v.trim() ? v.trim().slice(0, 120) : null);
   if (p.provider !== undefined) db.prepare('UPDATE bots SET provider=?, updated_at=? WHERE id=?').run(clean(p.provider), now(), b.id);
   if (p.model !== undefined) db.prepare('UPDATE bots SET model=?, updated_at=? WHERE id=?').run(clean(p.model), now(), b.id);
@@ -142,7 +150,7 @@ configApi.post('/bots/:id/engine/login', async (c) => {
   if (!b) return c.json({ error: 'not found' }, 404);
   const home = engineHome(b.id);
   if (!home) return c.json({ error: 'This bot has no agent.' }, 409);
-  const { provider } = await c.req.json<{ provider?: string }>().catch(() => ({} as { provider?: string }));
+  const { provider } = await readJson(c, z.strictObject({ provider: z.string().optional() }));
   if (provider !== undefined && !/^[a-z0-9][a-z0-9._-]{0,40}$/.test(provider)) return c.json({ error: 'bad provider' }, 400);
   const hermes = `HERMES_HOME=${box.quote(home)} ${box.quote(env.hermesBin)}`;
   // Claude subscriptions sign in with OAuth; without the flag Hermes asks for an API key.
@@ -226,7 +234,7 @@ configApi.post('/bots/:id/files/download', async (c) => {
   const user = c.get('user');
   const b = ownBot(user.id, c.req.param('id'));
   if (!b) return c.json({ error: 'not found' }, 404);
-  const { path } = await c.req.json<{ path: string }>().catch(() => ({ path: '' }));
+  const { path } = await readJson(c, z.strictObject({ path: z.string() }));
   const rel = safeRel(path);
   if (!rel) return c.json({ error: 'bad path' }, 400);
   return c.json({ url: `/api/bots/${b.id}/files/raw?path=${encodeURIComponent(rel)}` });
