@@ -175,7 +175,18 @@ def test_a_model_whose_flag_raises_is_cloud(services):
 
 def test_no_model_configured_is_refused_and_nothing_is_written(services):
     assert services().delegate("answer", "hello", "k1") == {"refused": "delegation_unavailable"}
+    assert not ledger.DB_PATH.exists()
     assert ledger.list_jobs() == []
+
+
+def test_conversation_without_a_planner_does_not_recover_queued_jobs(monkeypatch):
+    monkeypatch.setenv("SUPER_AGENT_DELEGATE", "on")
+    monkeypatch.setattr(local_adapter, "_SERVICE", None)
+    spec = {"task_type": "answer", "instruction": "What is 2 plus 2?", "data_class": "synthetic"}
+    job = policy.admit(spec, "other-worker", True, policy.Limits(), ledger, datetime.now(UTC)).job
+
+    assert run(local_adapter.call_tool("delegate_task", dict(ARGS))) == refusal("delegation_unavailable")
+    assert ledger.get_job(job.id).state == "queued"
 
 
 @pytest.mark.parametrize("arguments, code", [

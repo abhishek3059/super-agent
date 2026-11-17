@@ -62,13 +62,13 @@ cause and no provider text, and the graph and planner turn it into `model_error`
   pool (a bounded 35 seconds, `GRACE_S`, longer than the model's own 20 second timeout). It restores the path in a
   `finally`, so a failure while starting the service restores it too.
 - It delegates one constant synthetic instruction (`INSTRUCTION`, a calculator question) and waits up to 60 seconds.
-  If the job is not terminal by then, it requests a cancel through `Runner.cancel`, reports reason `wait_timeout`
-  and a non-success state, and drains the worker as above. A blocked model call is not interrupted by the cancel;
+  If the job is not terminal by then, it requests a cancel through `Runner.cancel`, reports state `timed_out`
+  and reason `wait_timeout`, and drains the worker as above. A blocked model call is not interrupted by the cancel;
   the job ends when that call returns or times out.
 - If the worker has not exited within `GRACE_S`, the command fails closed: the path stays on the temporary
   location, the temporary folder is left in place, and the state is `worker_unfinished`.
 - It prints one JSON line: `model`, `state`, `reason` (empty on success), `step_count`, `step_types`, `total_ms`.
-  Reason codes it adds itself: `wait_timeout` and `worker_unfinished`.
+  Reason codes it adds itself: `postgres_configured`, `wait_timeout` and `worker_unfinished`.
   It never prints the key, the prompt, the plan or the result.
 - Exit code 0 only on `succeeded`.
 - It is not collected by pytest and CI never runs it. The `--send-synthetic-task` flag is required, as in `live_check`.

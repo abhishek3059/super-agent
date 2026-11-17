@@ -211,10 +211,33 @@ def test_a_slow_model_never_lets_the_real_ledger_path_be_opened(monkeypatch):
     monkeypatch.setattr(planner_check, "GRACE_S", 10)
     model = GeminiPlanner(KEY, "m", SlowClient(release, json.dumps(PLAN)))
     summary = planner_check.run_check(model, "m")
-    assert summary["state"] != "succeeded" and summary["reason"] == "wait_timeout"
+    assert summary["state"] == "timed_out" and summary["reason"] == "wait_timeout"
     release.wait(2)
     time.sleep(0.7)  # a worker still alive would now write to whatever path is current
     assert ledger.DB_PATH == real and not real.exists() and not real.parent.exists()
+
+
+def test_completion_after_wait_deadline_cannot_turn_timeout_into_success(capsys, monkeypatch):
+    job = SimpleNamespace(id="job", state="queued")
+    service = SimpleNamespace(
+        delegate=lambda *args: {"job_id": job.id, "state": job.state},
+        _runner=SimpleNamespace(cancel=lambda job_id: setattr(job, "state", "succeeded")),
+    )
+    monkeypatch.setenv("GEMINI_API_KEY", KEY)
+    monkeypatch.setattr(planner_check, "GeminiPlanner", lambda *args: None)
+    monkeypatch.setattr(planner_check, "WAIT_S", 0)
+    monkeypatch.setattr(planner_check, "_drained", lambda instance: True)
+    monkeypatch.setattr(delegation, "Service", lambda *args, **kwargs: service)
+    monkeypatch.setattr(ledger, "get_job", lambda job_id: job)
+    monkeypatch.setattr(ledger, "list_events", lambda job_id: [])
+
+    with pytest.raises(SystemExit) as done:
+        planner_check.main(["--send-synthetic-task"])
+
+    summary = json.loads(capsys.readouterr().out)
+    assert job.state == "succeeded"
+    assert done.value.code == 1
+    assert (summary["state"], summary["reason"]) == ("timed_out", "wait_timeout")
 
 
 def test_a_worker_that_will_not_finish_leaves_the_path_on_the_temporary_ledger(monkeypatch):

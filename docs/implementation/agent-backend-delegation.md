@@ -92,14 +92,15 @@ clean. It is checked after the `SUPER_AGENT_DELEGATE` flag, so with the tool off
 
 ## Startup and shutdown
 
-Creating a `Service` calls `Runner.recover()` once (a `running` or `cancel_requested` job becomes `unknown`, queued
+Creating a `Service` with a planner calls `Runner.recover()` once (a `running` or `cancel_requested` job becomes `unknown`, queued
 jobs are failed `restart_queued`, nothing is replayed) and `ledger.purge(now)` once (the 14-day retention had no
 caller until now). Nothing schedules the purge after that, so a long-running process purges only at its start.
 `close()` marks the service closed and calls `Runner.close()` (`shutdown(wait=False, cancel_futures=True)`), so it
 does not wait for a running job. Later calls are refused `delegation_unavailable`.
 
 The adapter holds one process-wide service, created on the first `delegate_task` call (off the event loop), and
-never closes it: jobs are meant to outlive a session. Nothing calls `Service.close()` outside tests.
+never closes it because jobs are meant to outlive a session. The adapter currently supplies no planner, so its
+service refuses delegation without opening the ledger or running recovery or retention.
 
 ## Choices where the brief or the design was unclear
 
@@ -152,8 +153,8 @@ never closes it: jobs are meant to outlive a session. Nothing calls `Service.clo
   run a tier 1 tool end to end. Only the dispatch (fake `run_t1`, worker thread) is tested.
 - `recover()` fails every queued job in the ledger. Two server processes sharing one `ledger.db` would fail each
   other's jobs at startup. Two-process behaviour was not tested.
-- The service is created on the first call, so the first call pays for `recover` and `purge` on the real ledger.
-  If creation fails, the call returns the fixed refusal and creation is retried on the next call.
+- A service with a planner issues recovery and retention when it starts. It needs exclusive ownership of the
+  ledger when doing so. The conversation adapter currently starts without a planner and leaves the ledger alone.
 - A job admitted but not submitted (the service closed in between) stays `queued` until the next startup fails it.
 - The tool schema and the added prompt sentence were not tried with a real Ollama model.
 - The Gemini Live adapter does not offer `delegate_task`.

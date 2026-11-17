@@ -67,7 +67,7 @@ def run_check(model, model_name: str) -> dict:
                     service._runner.cancel(job.id)
             events = ledger.list_events(job.id)
             steps = [e.receipt for e in events if e.reason == "step"]
-            summary.update(state=ledger.get_job(job.id).state,
+            summary.update(state="timed_out" if waited_out else job.state,
                            reason="wait_timeout" if waited_out else "" if job.state == "succeeded" else events[-1].reason,
                            step_count=len(steps), step_types=[s["type"] for s in steps])
     finally:

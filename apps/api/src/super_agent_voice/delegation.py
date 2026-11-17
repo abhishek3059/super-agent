@@ -49,6 +49,8 @@ class Service:
         self._clock = lambda: datetime.now(UTC)
         self._runner = Runner(ledger, self._limits,
                               graph.make_work(ledger, model, run_read_tool, self._limits, self._clock), self._clock)
+        if model is None:  # disabled delegation must leave jobs owned by other workers alone
+            return
         try:  # nothing schedules the purge after this
             self._runner.recover()
             ledger.purge(self._clock())

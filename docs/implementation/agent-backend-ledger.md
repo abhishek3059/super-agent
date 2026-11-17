@@ -89,6 +89,8 @@ directory, installed from `apps/api/requirements.lock` with `--only-binary=:all:
 
 ## Not built yet
 
-Gemini text model, evaluation set, and anything that schedules `purge` after startup. Slice 5 added `append_note` ([graph record](agent-backend-graph.md#step-records)).
-Slice 6 added the first call site: the [delegation service](agent-backend-delegation.md) calls `recover_after_restart` (through the runner) and
-`purge` once when it is created, and `delegate_task` creates jobs. It is off by default, so with it off nothing calls the ledger.
+A real conversation planner, an evaluation set, and scheduled `purge` after startup remain open.
+Slice 5 added `append_note` ([graph record](agent-backend-graph.md#step-records)).
+The [delegation service](agent-backend-delegation.md) calls `recover_after_restart` (through the runner) and
+`purge` at startup only when supplied with a planner. The [Gemini text check](agent-backend-gemini-planner.md)
+uses that service on temporary SQLite. Conversation delegation is off by default and has no planner wired in.
