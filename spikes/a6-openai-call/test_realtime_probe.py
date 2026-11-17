@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import asyncio
 import base64
+import hmac
 import json
+import secrets
 import struct
 from copy import deepcopy
 from threading import Event
@@ -14,7 +16,7 @@ from starlette.websockets import WebSocketDisconnect
 from super_agent_voice.app import create_app
 from super_agent_voice.config import VoiceConfig
 
-from realtime_probe import OpenAIRealtimeProbe, Pcm16kTo24k
+from super_agent_voice.openai_realtime import OpenAIRealtimeAdapter, Pcm16kTo24k
 
 TOKEN = "scripted-call-fixture-token-0123456789"
 ORIGIN = "http://127.0.0.1:4200"
@@ -23,7 +25,7 @@ CAPTURE_PCM = struct.pack("<5h", 0, 300, 600, 900, 1200)
 UPLINK_PCM = struct.pack("<7h", 0, 200, 400, 600, 800, 1000, 1200)
 BURST_FRAME_BYTES = 8192
 BURST = [bytes([index]) * BURST_FRAME_BYTES for index in range(1, 19)]
-READY = {"type": "session.ready", "provider": "openai-realtime-probe", "playbackEpoch": 0, "outputRateHz": 24000}
+READY = {"type": "session.ready", "provider": "openai-realtime", "playbackEpoch": 0, "outputRateHz": 24000}
 SESSION = {
     "type": "realtime", "output_modalities": ["audio"], "tools": [], "tool_choice": "none",
     "audio": {
@@ -131,7 +133,7 @@ class ScriptedTransport:
 
 def make_client(transport, frame_bytes=32 * 1024):
     cfg = VoiceConfig(local_token=TOKEN, max_session_seconds=3, max_audio_frame_bytes=frame_bytes)
-    return TestClient(create_app(cfg, lambda: OpenAIRealtimeProbe(transport, frame_bytes)), base_url=ORIGIN)
+    return TestClient(create_app(cfg, lambda: OpenAIRealtimeAdapter(transport, frame_bytes)), base_url=ORIGIN)
 
 
 def connect(client):
@@ -139,7 +141,12 @@ def connect(client):
 
 
 def auth(socket, token=TOKEN):
-    socket.send_json({"type": "session.auth", "token": token})
+    nonce = secrets.token_hex(32)
+    socket.send_json({"type": "session.hello", "clientNonce": nonce})
+    challenge = socket.receive_json()
+    transcript = f"{nonce}/{challenge['serverNonce']}"
+    proof = hmac.digest(token.encode(), f"super-agent.voice.v1/client/{transcript}".encode(), "sha256")
+    socket.send_json({"type": "session.auth", "proof": proof.hex()})
 
 
 def read_audio(socket, epoch, pcm=PCM):
@@ -272,7 +279,8 @@ def test_a_cancel_error_after_the_matching_terminal_event_keeps_the_call_open():
     ("limit", "provider-limits"), ("unsupported", "provider-unsupported"), ("unexpected-tools", "provider-unsupported"),
     ("vad-disabled", "provider-unsupported"), ("startup-timeout", "provider-unavailable"),
 ])
-def test_startup_refuses_unusable_session_without_capture(scenario, category):
+def test_startup_refuses_unusable_session_without_capture(scenario, category, monkeypatch):
+    monkeypatch.setattr("super_agent_voice.openai_realtime.SESSION_UPDATE_TIMEOUT_SECONDS", 0.05)
     transport = ScriptedTransport(scenario)
     with make_client(transport) as client, connect(client) as socket:
         auth(socket)

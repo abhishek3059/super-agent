@@ -1,8 +1,11 @@
 # A6. OpenAI call controls through the local voice bridge
 
-Offline PH-01 spike. The injected transport processes scripted events in memory.
-The production launcher has no new provider setting. The spike opens no
-provider socket, reads no key and captures no microphone.
+The offline PH-01 tests inject a scripted transport into the shared
+[OpenAI adapter](../../apps/api/src/super_agent_voice/openai_realtime.py).
+They open no provider socket, read no key and capture no microphone. The
+[standalone OpenAI check](../../docs/implementation/jarvis-operator-preview.md#openai-synthetic-tool-check)
+uses the same adapter with a pinned live transport. The browser launcher has
+no OpenAI provider setting in this work bundle.
 
 ## What the reference apps do
 
@@ -49,7 +52,7 @@ Python command. Use the backend environment from the
 
 The spike uses OpenAI Realtime's explicit response IDs and cancellation
 events to test the same control scenario as BotHQ. The conversion tested here
-runs inside the isolated probe. A live Realtime integration needs capture
+runs inside the shared adapter. A browser Realtime integration needs capture
 format validation and timing measurements with the browser. For its WebSocket
 transport it also needs item IDs and played milliseconds
 from the browser so interrupted audio can be truncated in model context.

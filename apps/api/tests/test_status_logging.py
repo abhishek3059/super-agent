@@ -44,6 +44,7 @@ def test_status_lines_appear_and_carry_no_content(caplog) -> None:
 
 def test_session_lines_for_start_failure_and_close(caplog) -> None:
     from fastapi.testclient import TestClient
+    from voice_auth_helpers import send_auth
 
     from super_agent_voice.adapter import AdapterError, FakeVoiceAdapter
     from super_agent_voice.app import create_app
@@ -60,7 +61,7 @@ def test_session_lines_for_start_failure_and_close(caplog) -> None:
             with client.websocket_connect(
                 "/ws/voice", headers={"host": "127.0.0.1:8000", "origin": origin}
             ) as websocket:
-                websocket.send_json({"type": "session.auth", "token": token})
+                send_auth(websocket, token)
                 websocket.receive_json()
     text = "\n".join(record.getMessage() for record in caplog.records)
     assert "voice: adapter=fake connected in " in text

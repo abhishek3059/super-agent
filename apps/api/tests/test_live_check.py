@@ -105,10 +105,11 @@ def test_wav_must_be_16k_mono(tmp_path) -> None:
 @pytest.mark.parametrize("speech", [live_check.speak, live_check.speak_windows])
 def test_speech_generator_does_not_inherit_voice_credentials(monkeypatch, speech) -> None:
     monkeypatch.setenv("GEMINI_API_KEY", "test-key")
+    monkeypatch.setenv("OPENAI_API_KEY", "synthetic-fixture-value")
     monkeypatch.setenv("SUPER_AGENT_LOCAL_TOKEN", "test-token")
 
     def synthesize(_args, *, env, **_kwargs):
-        inherited = {"GEMINI_API_KEY", "SUPER_AGENT_LOCAL_TOKEN"}.intersection(env)
+        inherited = {"GEMINI_API_KEY", "OPENAI_API_KEY", "SUPER_AGENT_LOCAL_TOKEN"}.intersection(env)
         assert not inherited
 
     monkeypatch.setattr(live_check.subprocess, "run", synthesize)
