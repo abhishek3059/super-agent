@@ -79,3 +79,9 @@ the executor, and its checkpointer is not the source of truth.
    first ("model planned dynamic tasks which creates a dynamic graph").
 4. Open: the first model, the research provider, and the other items in the
    design's "Open decisions" section.
+
+## Amendments
+
+| Date | Item | Change | Decider |
+| --- | --- | --- | --- |
+| 2026-11-16 | Open item 4, the first model | Decided: Gemini text on the free tier, synthetic data only. Built in slice 7. The research provider and the other open items stay open. Also decided the same day: the entry tool is named `delegate_task`, and the ledger is a separate `~/.super-agent/ledger.db`. | `abhishek3059`, in chat. One maintainer is enough under [DEC-21](../../descisions.md#dec-21). See the [design, open decisions](../design/agent-backend.md#11-conflicts-and-open-decisions). |

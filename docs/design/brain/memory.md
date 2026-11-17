@@ -212,7 +212,7 @@ user turn -> candidate -> readback -> yes -> active -> superseded
 
 **Proposed.** A candidate comes from one of three places:
 
-1. The user says "remember that...". The voice model calls `propose_task`
+1. The user says "remember that...". The voice model calls `delegate_task`
    with operation `memory.remember`, a registry key, and a value.
 2. The user answers a clarifying question for a slot that has a profile key.
    Code already holds the key and the value; no model is involved. At the

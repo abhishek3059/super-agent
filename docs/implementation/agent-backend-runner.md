@@ -8,7 +8,7 @@ This is code only. It is not wired into `app.py`, and no roadmap item is ticked.
 
 - `apps/api/src/super_agent_voice/runner.py`: standard library only
   (`concurrent.futures.ThreadPoolExecutor`). No model, no network, no LangGraph.
-- `apps/api/tests/test_runner.py`: 27 tests (the bad-receipt test runs 4 cases, the invalid-limits test 3).
+- `apps/api/tests/test_runner.py`: 30 tests (the bad-receipt test runs 4 cases, the invalid-limits test 3, the memory filter 3).
 - `Runner(ledger, limits, work, clock)`. `ledger` is the ledger module, `limits` a
   `policy.Limits`, `clock` a zero-argument callable returning an aware `datetime`.
   `work(job, admission, should_stop) -> dict` is the graph seam: trusted code
@@ -64,6 +64,14 @@ The runner removes any tier 1 tool (`tier1.T1_NAMES`) that is not in
 `tier1.enabled_tools()` from what `work` receives. Other tools pass through. If
 `enabled_tools()` raises (bad `SUPER_AGENT_T1` setting, or a non macOS host with
 groups set), no tier 1 tool is offered.
+
+## Memory tools
+
+Added after slice 6. The runner also removes every memory tool name (`memory.NAMES`) unless `memory.enabled()` is
+true, and sets `memory_context=False` on the admission it hands to `work` in the same case. `memory.enabled()` is the
+`SUPER_AGENT_MEMORY` switch (`memory.flag()`: exactly `on` or `off`, off by default) with a bad value counted as off.
+`local_adapter.memory_enabled()` still raises on a bad value, by delegating to `memory.flag()`. Tests: off, unset and
+a bad value remove the tools and the context.
 
 ## Choices where the design was unclear
 
@@ -129,4 +137,4 @@ report; it is not copied here so this file cannot go stale.
 ## Not built
 
 Per-day provider request counter, wiring into `app.py`, and any roadmap tick. The graph is built in
-[slice 5](agent-backend-graph.md).
+[slice 5](agent-backend-graph.md). `recover()` now has a caller: the [delegation service](agent-backend-delegation.md) (slice 6) calls it once at creation.
