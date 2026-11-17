@@ -210,6 +210,8 @@ test('a bot that swaps its whole folder for a link gets nothing from the server'
   assert.throws(() => contained('/bin/true', [], { read: [], write: [root], localPorts: [] }, 'bot_swap.g'), /not a plain folder/, 'nor will it start a process there');
 });
 
+// shortcut: this checks planted links, which the old recursive delete also left alone; the race it
+// guards (a folder swapped mid-delete) is not reproduced here. Covered by review, not by this test.
 test('deleting a bot folder removes what is inside it and never what a link inside it points to', { skip: process.platform !== 'darwin' }, async () => {
   const { removeOwn } = await import('../src/lib/own.js');
   const root = path.join(env.dataDir, 'files', 'bot_gone');

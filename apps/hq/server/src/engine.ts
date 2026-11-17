@@ -328,8 +328,11 @@ export async function removeEngine(botId: string): Promise<void> {
   await stopGateway(botId);
   failures.delete(botId);
   optionsCache.delete(botId);
-  if (path.resolve(home).startsWith(path.resolve(env.enginesDir) + path.sep)) removeOwn(home);
-  removeOwn(bhFor(botId));
+  try {
+    if (path.resolve(home).startsWith(path.resolve(env.enginesDir) + path.sep)) removeOwn(home);
+  } finally {
+    removeOwn(bhFor(botId)); // even when a bot locked its home against the delete
+  }
 }
 
 /** On server start: give older bots an engine, then bring the managed gateways up. */

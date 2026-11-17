@@ -150,3 +150,20 @@ Pass 8 confirmed every pass 7 fix. New findings, and what was done:
 5. Per-folder temporary folders were left behind. Removed with the folder now.
 
 The reviewer judged that, with finding 1 fixed, what remains needs a person: the independent security review (R-H.4), the live voice run (R-H.3) and the recorded maintainer approval (R-H.1).
+
+## Pass 9: PASS (average 8.6)
+
+| Correctness | Security | Honesty | Scope | Clarity |
+| --- | --- | --- | --- | --- |
+| 9 | 8 | 9 | 8 | 9 |
+
+All pass 8 findings resolved. The reviewer ran `npm test` in `apps/hq` (15 of 15 on macOS) and the typecheck. Low findings, none blocking:
+
+1. The delete self-check also passes against the old delete, so it does not guard the race. Noted in the test.
+2. A bot can lock files in its folder so the delete fails and folders are left behind. The README now says so, and the helper folder is removed even then.
+3. A delete can block the server for up to about 50 seconds. Not changed.
+4. A failed `ps` makes a live process look gone. Fails closed at the next start. Not changed.
+5. The startup stop runs after the server starts listening. Not changed.
+6. No CI on this head yet.
+
+What remains needs a person: the independent security review (R-H.4), the live voice run (R-H.3) and the recorded maintainer approval (R-H.1).

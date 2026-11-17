@@ -139,9 +139,11 @@ write:
 - A process on a bot's port that the server did not start is refused, not
   adopted. The live view and screenshots connect only to the browser the
   server started, and only to a page address on that browser's own port.
-- Deleting a bot stops its gateway and browser and removes all its folders.
-  The contents are deleted from inside the bot's sandbox, so a link left in
-  them is removed, never followed. A new bot never reuses those folders.
+- Deleting a bot stops its gateway and browser and removes its folders. The
+  contents are deleted from inside the bot's sandbox, so a link left in them
+  is removed, never followed. A bot that locked files in its own folder
+  (`chmod`, `chflags`) can stop that delete; the folder is then left behind
+  and the server logs it. A new bot never reuses those folders.
 - When the server starts, it stops every gateway and browser an earlier run
   left, so each starts again under the current rules.
 
