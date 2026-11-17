@@ -108,8 +108,9 @@ sign out your own Hermes when a copy refreshes.
 Each bot's Hermes gateway and its browser run inside the macOS sandbox
 (`sandbox-exec`), and so does everything they start. Inside it a bot:
 
-- can write only its own Hermes home, its working folder, its browser
-  profile and its own temporary folder. Nothing else on the disk is
+- can write only inside its own Hermes home, its working folder, its browser
+  profile and its own temporary folder, and cannot remove or rename those
+  folders themselves. Nothing else on the disk is
   writable, so it cannot replace a program you run later (Homebrew,
   `/usr/local`, `/Applications`);
 - can read the Hermes program and system files, and nothing in your home
@@ -131,7 +132,8 @@ write:
   bot's settings, persona and sign-ins on each start, files saved with
   `save_file`, memory, the Library) goes through a short shell command inside
   a sandbox that can reach only that folder. A link or folder a bot swaps in
-  can only lead back into the bot's own folder.
+  inside it can only lead back into that folder, and the server refuses to
+  use a bot folder that is itself a link.
 - The ids of the processes it started are kept in its own folder, so a bot
   cannot point the server at another process to stop.
 - A process on a bot's port that the server did not start is refused, not
@@ -141,7 +143,8 @@ write:
   never reuses them.
 
 Without a sandbox the app refuses to start a bot. That means macOS only,
-unless you set `HQ_UNCONTAINED=1` and accept uncontained bots.
+unless you set `HQ_UNCONTAINED=1` and accept uncontained bots. In that mode
+none of the protections above apply, including the server's file handling.
 
 **What containment does not cover.**
 
@@ -184,5 +187,8 @@ npm test
 npm run build
 ```
 
-`npm run dev` runs the server and Vite on port 5173. `npm test` runs the self-checks for the request guards, the viewer input
-filter, the handoff reply rule and the owner key.
+`npm run dev` runs the server and Vite on port 5173. `npm test` runs the
+self-checks: the request guards, the viewer input filter, the handoff reply
+rule, the owner key and approvals, the services that stay off, the sandbox
+profile, live escape attempts inside the sandbox (macOS only), planted and
+swapped links, and process-id checks.

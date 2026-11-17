@@ -1,4 +1,5 @@
 import { execFileSync, spawn } from 'node:child_process';
+import crypto from 'node:crypto';
 import type { Readable } from 'node:stream';
 import path from 'node:path';
 import { confinedEnv, contained } from '../sandbox.js';
@@ -19,9 +20,12 @@ function relative(rel: string): string {
   return rel;
 }
 
+/** Each folder's commands get a temporary folder of their own, so one bot's never meets another's. */
+const tmpName = (root: string) => `own-${crypto.createHash('sha256').update(root).digest('hex').slice(0, 12)}`;
+
 function inSandbox(root: string, script: string, args: string[], input?: string | Buffer, maxBuffer = 1 << 20): string {
-  const run = contained('/bin/sh', ['-c', script, 'sh', ...args], { read: [], write: [root], localPorts: [] }, 'own');
-  return execFileSync(run.bin, run.args, { cwd: root, input, env: confinedEnv('own'), timeout: 10_000, maxBuffer, encoding: 'utf8' });
+  const run = contained('/bin/sh', ['-c', script, 'sh', ...args], { read: [], write: [root], localPorts: [] }, tmpName(root));
+  return execFileSync(run.bin, run.args, { cwd: root, input, env: confinedEnv(tmpName(root)), timeout: 10_000, maxBuffer, encoding: 'utf8' });
 }
 
 /** Replace the file with `content`. Whatever was there (a link, a folder) is removed, never written through. */
@@ -43,15 +47,17 @@ export function readOwn(root: string, rel: string, maxBytes = 1 << 20): { text: 
   } catch { return null; }
 }
 
-/** A file to send to the operator: its size and a stream of it, read inside the sandbox too. Null if it is not a plain file. */
-export function streamOwn(root: string, rel: string): { size: number; body: Readable } | null {
+/**
+ * A file to send to the operator, read inside the sandbox too. Null if it is not a plain file. The
+ * check and the read are two commands, so no length is promised; the read stops after a minute.
+ */
+export function streamOwn(root: string, rel: string): Readable | null {
   const check = '[ -f "./$1" ] && [ ! -L "./$1" ]';
-  let size: number;
-  try { size = Number(inSandbox(root, `${check} && stat -f %z "./$1"`, [relative(rel)]).trim()); } catch { return null; }
-  if (!Number.isFinite(size)) return null;
-  const run = contained('/bin/sh', ['-c', `${check} && exec cat "./$1"`, 'sh', relative(rel)], { read: [], write: [root], localPorts: [] }, 'own');
-  const child = spawn(run.bin, run.args, { cwd: root, env: confinedEnv('own'), stdio: ['ignore', 'pipe', 'ignore'] });
-  return { size, body: child.stdout };
+  try { inSandbox(root, check, [relative(rel)]); } catch { return null; }
+  const run = contained('/bin/sh', ['-c', `${check} && exec cat "./$1"`, 'sh', relative(rel)], { read: [], write: [root], localPorts: [] }, tmpName(root));
+  const child = spawn(run.bin, run.args, { cwd: root, env: confinedEnv(tmpName(root)), stdio: ['ignore', 'pipe', 'ignore'], timeout: 60_000 });
+  child.stdout.once('close', () => child.kill());
+  return child.stdout;
 }
 
 /** The plain files and folders directly in `rel` ('' for the folder itself), listed inside the sandbox. */

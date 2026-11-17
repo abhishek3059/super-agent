@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import YAML from 'yaml';
 import { cdpPortFor, cdpUrlFor } from './computer.js';
-import { confinedEnv, contained, which } from './sandbox.js';
+import { confinedEnv, contained, realFolder, which } from './sandbox.js';
 import { writeOwn } from './lib/own.js';
 import { livePid, recordPid, stopPid } from './lib/procs.js';
 import { db } from './db.js';
@@ -124,8 +124,8 @@ function extraMcpServers(): Record<string, any> {
 function writeHome(botId: string): string {
   const b = botRow(botId);
   const home = homeFor(botId);
-  fs.mkdirSync(home, { recursive: true });
-  fs.chmodSync(home, 0o700);
+  fs.mkdirSync(home, { recursive: true, mode: 0o700 });
+  realFolder(home); // a bot that replaced its home with a link does not get it back
   // The bot's working folder is its Library, so what it writes there shows up in the app.
   const cwd = path.join(env.filesDir, botId);
   fs.mkdirSync(cwd, { recursive: true });
@@ -322,8 +322,8 @@ export async function restartEngine(botId: string): Promise<void> {
 
 /** The bot is gone: stop its gateway and delete its home. */
 export async function removeEngine(botId: string): Promise<void> {
+  // Even if the bot deleted its own home: its gateway and helper folder still have to go.
   const home = homeFor(botId);
-  if (!fs.existsSync(home)) return;
   await starting.get(botId)?.catch(() => {});
   await stopGateway(botId);
   failures.delete(botId);

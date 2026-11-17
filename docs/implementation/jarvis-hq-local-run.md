@@ -15,7 +15,7 @@ Output below is copied from the terminal. Bot ids are omitted.
 ```text
 $ npm run typecheck        (no errors)
 $ npm test
-# pass 13
+# pass 14
 # fail 0
 $ npm run build            (no errors)
 $ npm audit
@@ -25,7 +25,7 @@ $ npm run check            (repository root)
 roadmap self-test: all checks passed
 ```
 
-The self-checks grew from 6 to 13 during review and containment work, with
+The self-checks grew from 6 to 14 during review and containment work, with
 more assertions added inside them in later rounds; the figure above is the final
 run. With `xaiKey` in `env.ts` put back to read the environment, the
 "services stay off" check failed (`# pass 8`, `# fail 1`), so it does guard
@@ -199,6 +199,28 @@ Sandboxed Chrome with its own port allowed     up in 1 s, loaded example.com
 
 The self-check that guards the bundle-id validation was run with the
 validation removed and failed (`# pass 12`, `# fail 1`).
+
+### Round after review pass 7
+
+Review pass 7 found that a bot could remove its own folder and put a link in
+its place, so the server would build the next sandbox around wherever the
+link pointed. After the fix, Forge was asked to try it:
+
+```text
+rm -rf <files>/<forge>            the folder itself: Operation not permitted
+mv <files>/<forge> <...>.x         Operation not permitted
+ln -s $HOME <files>/<forge>.y      Operation not permitted (outside its folders)
+rm -rf <engines>/<forge>           the folder itself: Operation not permitted
+save_file hq-swap-probe.txt        saved inside <files>/<forge>
+```
+
+Checked from outside: both folders are still plain folders, nothing was
+written to the home folder, and `~/.zshrc` matched its earlier checksum.
+Afterwards Scout's browser restarted, browsed example.com, the Library
+listed Forge's files and a download returned the 5-byte file.
+
+The new self-check that swaps a folder for a link failed with the
+folder-pinning rule removed (`# pass 13`, `# fail 1`).
 
 Not tested: a deliberate attempt to break out of `sandbox-exec` itself, and
 the memory-edit race itself (the change removes it by design: the edit runs

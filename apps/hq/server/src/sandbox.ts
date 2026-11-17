@@ -84,6 +84,9 @@ export function sandboxProfile(c: Confinement): string {
     walk.length ? `(allow file-read-metadata ${walk.map((d) => `(literal ${q(d)})`).join(' ')})` : '',
     read.length ? `(allow file-read* ${read.map((d) => `(subpath ${q(d)})`).join(' ')})` : '',
     write.length ? `(allow file-read* file-write* ${write.map((d) => `(subpath ${q(d)})`).join(' ')})` : '',
+    // The folders themselves stay put: a bot that could remove or rename one could put a link in its
+    // place, and the next profile built for it would open wherever the link points.
+    write.length ? `(deny file-write* ${write.map((d) => `(literal ${q(d)})`).join(' ')})` : '',
     // Listening: only on its own port and in its own folders. Otherwise a bot could take another
     // bot's port before that bot starts, and answer in its place.
     '(deny network-bind)',
@@ -138,9 +141,20 @@ export const canContain = () => process.platform === 'darwin' && fs.existsSync(S
 export function contained(bin: string, args: string[], c: Confinement, name: string): { bin: string; args: string[] } {
   fs.mkdirSync(tmpFor(name), { recursive: true, mode: 0o700 });
   const confinement = { ...c, write: [...c.write, tmpFor(name)] };
+  for (const dir of confinement.write) realFolder(dir);
   if (canContain()) return { bin: SANDBOX_EXEC, args: ['-p', sandboxProfile(confinement), bin, ...args] };
   if (process.env.HQ_UNCONTAINED === '1') return { bin, args };
   throw new Error('Bots can only be contained on macOS. Set HQ_UNCONTAINED=1 to run them uncontained at your own risk.');
+}
+
+/**
+ * Refuse a folder that is a link, or that sits behind one this app does not own. A bot can write the
+ * inside of its folders, so a folder handed to the sandbox must be checked as it is, not as it was.
+ */
+export function realFolder(dir: string): void {
+  let st: fs.Stats;
+  try { st = fs.lstatSync(dir); } catch { return; } // made later by the confined process itself
+  if (st.isSymbolicLink() || !st.isDirectory()) throw new Error(`Refusing ${dir}: it is not a plain folder.`);
 }
 
 /** Full path of a command on PATH (the sandbox needs to be told which file it may read). */

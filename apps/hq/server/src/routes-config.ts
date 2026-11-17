@@ -196,10 +196,9 @@ configApi.get('/bots/:id/files/raw', (c) => {
   const file = streamOwn(`${LIB_ROOT}/${b.id}`, rel);
   if (!file) return c.json({ error: 'not found' }, 404);
   const name = rel.split('/').pop()!;
-  return new Response(Readable.toWeb(file.body) as ReadableStream, {
+  return new Response(Readable.toWeb(file) as ReadableStream, {
     headers: {
       'content-type': 'application/octet-stream',
-      'content-length': String(file.size),
       'content-disposition': `attachment; filename*=UTF-8''${encodeURIComponent(name)}`,
       'x-content-type-options': 'nosniff',
     },

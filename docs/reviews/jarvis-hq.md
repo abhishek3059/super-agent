@@ -118,3 +118,19 @@ Pass 6 reviewed the containment work before it was pushed, while the pull reques
 9. One self-check could not fail. Replaced; it now fails with the validation removed.
 10. Dead code from the removed primary engine and sign-in. Removed.
 11. The R-H.5 tick. Findings 2 and 3 are fixed and the evidence is in this branch.
+
+## Pass 7: REVISE (average 6.6)
+
+| Correctness | Security | Honesty | Scope | Clarity |
+| --- | --- | --- | --- | --- |
+| 7 | 4 | 6 | 8 | 8 |
+
+Pass 7 confirmed the pass 6 fixes. New findings, and what was done:
+
+1. A bot could remove its own folder and put a link to anywhere in its place; the server then built the next sandbox around the link target. Fixed: the sandbox denies writes to each folder itself (so it cannot be removed or renamed), and the server refuses a bot folder that is a link. Tried live and in a self-check.
+2. The R-H.5 tick rested on finding 1. The evidence now includes that attempt.
+3. The README overstated the folder protection and said nothing of what `HQ_UNCONTAINED=1` gives up. Corrected.
+4. A bot that deleted its own home kept its gateway running after the bot was deleted. Fixed: removal no longer stops early.
+5. All bots' server-side file commands shared one temporary folder. Fixed: one per folder.
+6. Downloads promised a length the stream might not match and had no timeout. Fixed: no length promised, the read stops after a minute or when the client goes.
+7. The `npm test` description was stale. Updated.

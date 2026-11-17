@@ -172,9 +172,7 @@ test('the server never writes or reads through a link a bot planted in its own f
   const listed = listOwn(root, '')!.map((f) => f.name).sort();
   assert.ok(listed.includes('planted.txt') && !listed.includes('read.txt'), 'links are not listed');
   assert.equal(listOwn(root, 'dir'), null, 'a linked folder is not listed');
-  const stream = streamOwn(root, 'planted.txt')!;
-  assert.equal(stream.size, 5);
-  let got = ''; for await (const chunk of stream.body) got += chunk;
+  let got = ''; for await (const chunk of streamOwn(root, 'planted.txt')!) got += chunk;
   assert.equal(got, 'PWNED');
   assert.equal(streamOwn(root, 'read.txt'), null, 'a link is not sent');
   writeOwn(root, '-n', 'dash');
@@ -190,4 +188,24 @@ test('a process id is only ever taken from the server\'s own folder and must mat
   assert.equal(livePid('bot_unknown.test', 'node'), null);
   await stopPid('bot_a.test', 'no such marker in this command');
   assert.ok(process.pid > 0, 'this process was not signalled');
+});
+
+test('a bot that swaps its whole folder for a link gets nothing from the server', { skip: process.platform !== 'darwin' }, async () => {
+  const { writeOwn } = await import('../src/lib/own.js');
+  const { contained, confinedEnv } = await import('../src/sandbox.js');
+  const { execFileSync } = await import('node:child_process');
+  const root = path.join(env.dataDir, 'files', 'bot_swap');
+  fs.mkdirSync(root, { recursive: true });
+  // Inside its sandbox the bot cannot remove or rename its own folder.
+  const run = contained('/bin/sh', ['-c', `rm -rf '${root}' || mv '${root}' '${root}.x'; echo $?`], { read: [], write: [root], localPorts: [] }, 'bot_swap.t');
+  execFileSync(run.bin, run.args, { env: confinedEnv('bot_swap.t'), stdio: 'ignore' });
+  assert.ok(fs.lstatSync(root).isDirectory(), 'the folder is still there and still a folder');
+  // And if it were a link anyway (say, made before this rule), the server refuses it.
+  const outside = path.join(env.dataDir, 'operator-home');
+  fs.mkdirSync(outside, { recursive: true });
+  fs.rmSync(root, { recursive: true, force: true });
+  fs.symlinkSync(outside, root);
+  assert.throws(() => writeOwn(root, '.zshrc', 'evil'), /not a plain folder/);
+  assert.equal(fs.existsSync(path.join(outside, '.zshrc')), false);
+  assert.throws(() => contained('/bin/true', [], { read: [], write: [root], localPorts: [] }, 'bot_swap.g'), /not a plain folder/, 'nor will it start a process there');
 });
