@@ -304,15 +304,16 @@ Maintainer autonomy: either maintainer can independently approve and merge PRs a
 
 ### DEC-23
 
-Experimental local exception for Jarvis HQ: uncontained Hermes workers in `apps/hq`, on the operator's own machine, outside the capability ladder.
+Experimental local exception for the Jarvis HQ workspace and its shared-ledger bridge.
 
-- **Status:** Proposed 2026-11-17 in the pull request that adds `apps/hq`. It takes effect only when a maintainer approves that pull request ([DEC-21](#dec-21)); at that point this status becomes `Decided` and roadmap item R-H.1 is ticked with the approval as evidence. Directed by `jeevesh2515` in chat on 2026-11-16 ([record](docs/approvals/jarvis-hq-local-team.md)).
-- **Rationale:** The maintainer asked for a working multi-bot assistant like Bot HQ now, built on Hermes. A Hermes worker has a shell and a browser by design. The ladder in [DEC-18](#dec-18) would require designs, security reviews and containment before any of that runs. This decision lets the app exist and be tested while that work is still owed, and says so plainly instead of pretending a tier is satisfied.
-- **Rules:** (1) The exception covers `apps/hq` only. `apps/api` and `apps/web` stay under every existing rule. (2) It runs on the operator's own machine, bound to 127.0.0.1, with synthetic data. No real personal data until roadmap item R-A.2 is decided. (3) No tier of DEC-18 is enabled by this. The workers are uncontained and the documents must say so. (4) T4 stays out: the app adds no tool for purchases, money movement, credentials or permanent deletion. (5) One paid service is approved: OpenAI voice on the operator's key. (6) The exception ends, and the app must be contained or removed, if the items in roadmap track H are not closed before any release to `main` users or any public distribution.
-- **Alternatives and trade-offs:** (a) Wait for PH-02 to PH-05: keeps every invariant, but delivers no working product for months. (b) Build it outside the repository: avoids the rule conflict, but hides the risk from review. (c) This exception: visible and bounded, at the cost of running uncontained agents on one machine.
-- **Implications:** [AGENTS.md](AGENTS.md) section 5 names this exception. [roadmap.md](roadmap.md) gains parallel track H. The shared reviewer still scores every change to `apps/hq`.
-- **Source evidence:** `jeevesh2515` in chat with Claude Code, 2026-11-16, recorded in [the approval record](docs/approvals/jarvis-hq-local-team.md). The [review record](docs/reviews/jarvis-hq.md), whose first pass found that a chat message alone cannot suspend a section 5 invariant.
-- **Reopen:** A worker acts outside its request in a harmful way, real personal data is put through the app before R-A.2, or the containment review in track H finds the risk unacceptable.
+- **Status:** Approved for local synthetic development on 2026-11-17 by `jeevesh2515` under [DEC-22](#dec-22). See the [scope record](docs/approvals/jarvis-hq-local-team.md).
+- **Rationale:** Verify that each specialist can claim an eligible job and return a durable receipt while the operator watches the worker.
+- **Rules:** The Python ledger owns admission, claims, revisions and receipts. HQ and its private ledger client use loopback. Managed workers require the macOS sandbox and a trusted local inference endpoint. Work files stay in the individual workspace. The operator's provider credentials, owner credentials and ledger bearer are unavailable to the workers. Real personal data, uncontained execution, remote browsers, and T4 actions are outside this scope.
+- **Alternatives and trade-offs:** The shared ledger gives one job history. The local sandbox and inference requirement limit host compatibility and available models.
+- **Implications:** [AGENTS.md](AGENTS.md) section 5 and [roadmap track H](roadmap.md#parallel-track-h-jarvis-hq-local-team-dec-23) record the scope and gates. Independent review, runtime evidence and required CI still apply before release.
+- **Source evidence:** `jeevesh2515` asked Codex in chat on 2026-11-17 to formalize the local workspace approval and implement the contained ledger handoff in [PR #56](https://github.com/abhishek3059/super-agent/pull/56).
+- **Reopen:** A containment failure, a change to allowed egress, or a request to process personal data.
+
 
 ## Register fields
 

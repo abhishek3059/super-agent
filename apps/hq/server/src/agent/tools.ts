@@ -2,7 +2,7 @@ import { db, now } from '../db.js';
 import { newId } from '../lib/ids.js';
 import { hub } from '../lib/hub.js';
 import { box } from '../box.js';
-import { env } from '../env.js';
+import { env, workspaceFor } from '../env.js';
 import { appendRow, getBotRow, listRoutines, toRoutine, describeCron } from '../store.js';
 import { executeComposio, innerToolSlugs, isReadOnlySlug, toolkitInfo } from '../composio.js';
 import { scheduleRoutine, unscheduleRoutine } from '../routines.js';
@@ -87,7 +87,6 @@ async function xSearch(a: any): Promise<string> {
 }
 
 /** Where each bot's Library lives on the shared computer. */
-export const LIBRARY_ROOT = env.filesDir;
 
 const ALL_TOOLS: ToolDef[] = [
   {
@@ -98,7 +97,7 @@ const ALL_TOOLS: ToolDef[] = [
     label: 'Saving a file',
     impl: async (a, ctx) => {
       const name = String(a.filename).replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 120) || 'file.txt';
-      const file = `${LIBRARY_ROOT}/${ctx.botId}/${name}`;
+      const file = `${workspaceFor(ctx.botId)}/${name}`;
       await box.writeFile(file, String(a.content ?? ''));
       return { output: JSON.stringify({ ok: true, path: file }), summary: `Saved ${name}` };
     },

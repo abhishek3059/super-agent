@@ -93,3 +93,23 @@ Jarvis (row 11), which is the behaviour the handoff rule exists for.
 - All five gateways and browsers at once. Four ran together.
 - Windows and Linux.
 - The CI workflow. It runs when the pull request opens.
+
+## Shared ledger revision
+
+The earlier manual run above describes the original draft. This revision
+adds the private jobs endpoint, role-filtered claim, receipt writeback and
+macOS profile. An expired claim becomes unknown and is never replayed.
+Test output covers the SQLite job lifecycle, cross-role refusals, retrying a
+receipt, the Node client's contract, and a benign macOS child process allowed
+to write its temporary workspace and refused access to a sibling fixture.
+A separate macOS smoke used a temporary home, the real Python HTTP API
+and SQLite, an installed Hermes virtual environment, contained Chrome, and
+a local inference stub. Observed: DevTools HTTP 200 and a JPEG frame,
+admission queued, Scout claimed the job, and HQ wrote a succeeded receipt.
+The persisted event reasons were `created`, `claimed_hq_scout`, and
+`hq_finished`. The test checked the synthetic output summary after opening
+the SQLite ledger again.
+
+The default Hermes launcher attempted dependency repair while sandboxed.
+Using a preinstalled entry point in the Hermes virtual environment resolved
+that setup issue. A real PostgreSQL server and live OpenAI voice were not run.

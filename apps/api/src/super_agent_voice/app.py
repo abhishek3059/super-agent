@@ -209,6 +209,11 @@ def create_app(
     async def voice_socket(websocket: WebSocket) -> None:
         await _voice_socket(websocket, settings, adapter_factory, gate, supervisors, auth)
 
+    hq_token = os.environ.get("SUPER_AGENT_HQ_LEDGER_TOKEN")
+    if hq_token:
+        from .hq_jobs import mount
+        mount(app, settings.allowed_host, hq_token)
+
     return app
 
 

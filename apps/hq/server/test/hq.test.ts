@@ -152,3 +152,37 @@ test('a malformed screen cookie is refused without throwing from the upgrade eve
   assert.deepEqual(writes, ['HTTP/1.1 403 Forbidden\r\n\r\n']);
   assert.equal(closed, true);
 });
+
+test('ledger client sends the scoped job revision and refuses invalid claims', async () => {
+  const { ledgerClient } = await import('../src/ledger-client.js');
+  const requests: [string, RequestInit | undefined][] = [];
+  const ident = 'a'.repeat(32);
+  const client = ledgerClient('b'.repeat(43), async (input, init) => {
+    requests.push([String(input), init]);
+    return Response.json(requests.length === 1 ? { job: { id: ident, revision: 2, instruction: 'synthetic' } }
+      : requests.length === 2 ? { id: ident, state: 'succeeded' } : { job: { id: '../invalid', revision: 0 } });
+  });
+  const claim = await client.claim('forge');
+  assert.ok(claim);
+  await client.finish('forge', claim, { state: 'succeeded', summary: 'Done', artifacts: ['report.txt'] });
+  assert.equal(requests[1][0], 'http://127.0.0.1:8000/api/jobs/forge/finish');
+  assert.equal(requests[1][1]?.redirect, 'error');
+  assert.deepEqual(JSON.parse(String(requests[1][1]?.body)), {
+    id: ident, revision: 2, state: 'succeeded', summary: 'Done', artifacts: ['report.txt'],
+  });
+  await assert.rejects(client.claim('forge'));
+});
+
+test('macOS worker profile permits workspace writes and blocks sibling data', async (ctx) => {
+  const { canContain, contained } = await import('../src/sandbox.js');
+  if (!canContain()) return ctx.skip('requires macOS sandbox-exec');
+  const workspace = fs.mkdtempSync(path.join(fs.realpathSync(home), 'worker-'));
+  const sibling = path.join(fs.realpathSync(home), 'fixture.txt');
+  fs.writeFileSync(sibling, 'synthetic fixture');
+  const run = contained('/bin/sh', ['-c', 'printf ok > result && ! read ignored < "$1" && ! (printf changed > "$1")', 'sh', sibling],
+    [], [workspace], [], 34001);
+  const result = spawnSync(run.bin, run.args, { cwd: workspace, encoding: 'utf8' });
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(fs.readFileSync(path.join(workspace, 'result'), 'utf8'), 'ok');
+  assert.equal(fs.readFileSync(sibling, 'utf8'), 'synthetic fixture');
+});

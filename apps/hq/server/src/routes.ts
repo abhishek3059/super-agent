@@ -73,6 +73,7 @@ const TEAM = [
   { name: 'Forge', label: 'Engineering', avatarShape: 'square', avatarColor: 'orange', description: 'You write, run and fix code in your workspace and report exactly what you changed and tested.' },
   { name: 'Quill', label: 'Writing', avatarShape: 'teardrop', avatarColor: 'violet', description: 'You draft and edit documents, emails and posts, and save finished pieces to your Library.' },
   { name: 'Atlas', label: 'Operations', avatarShape: 'house', avatarColor: 'green', description: 'You plan, track tasks and routines, and keep recurring work on schedule.' },
+  { name: 'Ops', label: 'Diagnostics', avatarShape: 'squircle', avatarColor: 'gray', description: 'Investigate synthetic operational tasks inside your workspace.' },
 ];
 
 /** The one person this install belongs to. Created, with the team, the first time they sign in. */

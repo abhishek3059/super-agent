@@ -130,4 +130,3 @@ export function innerToolSlugs(name: string, args: any): string[] {
 
 const READ_RE = /_(GET|LIST|SEARCH|FETCH|FIND|READ|RETRIEVE|QUERY|LOOKUP|CHECK|DESCRIBE|VIEW|COUNT)(_|$)/;
 export const isReadOnlySlug = (slug: string) => READ_RE.test(slug.toUpperCase());
-

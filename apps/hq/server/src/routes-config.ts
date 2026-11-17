@@ -8,11 +8,10 @@ import { hub } from './lib/hub.js';
 import { requireUser, type AuthVars } from './lib/auth.js';
 import fs from 'node:fs';
 import { Readable } from 'node:stream';
-import { env } from './env.js';
+import { env, workspaceFor } from './env.js';
 import { emitBot, getBotRow, listRoutines, listTasks } from './store.js';
 import { computerState, resetBotScreen } from './computer.js';
-import { box } from './box.js';
-import { engineHome, engineInfo, engineKind, forgetEngineOptions, restartEngine, stopOwnScreen } from './engine.js';
+import { engineInfo, engineKind, restartEngine } from './engine.js';
 import { listMemories } from './engine-memory.js';
 import type { LibraryFile, Skill } from './types.js';
 
@@ -144,25 +143,7 @@ configApi.patch('/bots/:id/engine', async (c) => {
  * the sign-in itself; we open its command in a Terminal window on the operator's desktop, where
  * they finish it.
  */
-configApi.post('/bots/:id/engine/login', async (c) => {
-  const user = c.get('user');
-  const b = ownBot(user.id, c.req.param('id'));
-  if (!b) return c.json({ error: 'not found' }, 404);
-  const home = engineHome(b.id);
-  if (!home) return c.json({ error: 'This bot has no agent.' }, 409);
-  const { provider } = await readJson(c, z.strictObject({ provider: z.string().optional() }));
-  if (provider !== undefined && !/^[a-z0-9][a-z0-9._-]{0,40}$/.test(provider)) return c.json({ error: 'bad provider' }, 400);
-  const hermes = `HERMES_HOME=${box.quote(home)} ${box.quote(env.hermesBin)}`;
-  // Claude subscriptions sign in with OAuth; without the flag Hermes asks for an API key.
-  const cmd = !provider ? `${hermes} model` : `${hermes} auth add ${provider}${provider === 'anthropic' ? ' --type oauth' : ''}`;
-  try {
-    await box.openTerminal(cmd);
-    forgetEngineOptions(b.id);
-    return c.json({ ok: true });
-  } catch (e: any) {
-    return c.json({ error: String(e?.message ?? e).slice(0, 300) }, 502);
-  }
-});
+configApi.post('/bots/:id/engine/login', (c) => c.json({ error: 'Worker provider sign-in is disabled' }, 403));
 
 configApi.post('/bots/:id/engine/restart', async (c) => {
   const b = ownBot(c.get('user').id, c.req.param('id'));
@@ -171,7 +152,6 @@ configApi.post('/bots/:id/engine/restart', async (c) => {
   if (engineKind(b.id) !== 'managed') return c.json({ error: `${b.name} runs on the computer's own agent, which this app does not restart.` }, 409);
   try {
     await restartEngine(b.id);
-    forgetEngineOptions(b.id);
     return c.json({ engine: await engineInfo(b.id) });
   } catch (e: any) {
     return c.json({ error: String(e?.message ?? e).slice(0, 300) }, 502);
@@ -183,7 +163,6 @@ configApi.post('/bots/:id/engine/screen/stop', async (c) => {
   const b = ownBot(c.get('user').id, c.req.param('id'));
   if (!b) return c.json({ error: 'not found' }, 404);
   try {
-    await stopOwnScreen(b.id);
     return c.json({ engine: await engineInfo(b.id) });
   } catch (e: any) {
     return c.json({ error: String(e?.message ?? e).slice(0, 300) }, 409);
@@ -200,7 +179,6 @@ configApi.post('/bots/:id/handback', (c) => {
 
 // ---------- library: each bot's files folder ----------
 
-const LIB_ROOT = env.filesDir;
 
 function safeRel(p: string | undefined): string | null {
   const rel = (p ?? '').replace(/^\/+|\/+$/g, '');
@@ -215,7 +193,7 @@ configApi.get('/bots/:id/files', (c) => {
   const rel = safeRel(c.req.query('path'));
   if (rel === null) return c.json({ error: 'bad path' }, 400);
   try {
-    const root = `${LIB_ROOT}/${b.id}`;
+    const root = workspaceFor(b.id);
     fs.mkdirSync(root, { recursive: true });
     const dir = fs.realpathSync(`${root}/${rel}`);
     if (dir !== fs.realpathSync(root) && !dir.startsWith(fs.realpathSync(root) + '/')) return c.json({ error: 'bad path' }, 400);
@@ -245,7 +223,7 @@ configApi.get('/bots/:id/files/raw', (c) => {
   if (!b) return c.json({ error: 'not found' }, 404);
   const rel = safeRel(c.req.query('path'));
   if (!rel) return c.json({ error: 'bad path' }, 400);
-  const root = `${LIB_ROOT}/${b.id}`;
+  const root = workspaceFor(b.id);
   let file: string;
   try {
     // Follow links before checking, so a link inside the library cannot point outside it.

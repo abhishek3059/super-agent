@@ -279,17 +279,17 @@ class VoiceCall {
       // Show "working" right away; replaced by the real task once the server answers.
       const placeholder = { seq: -1, request: String(args.request ?? '') };
       const dropOptimistic = () => setV({ working: useVoice.getState().working.filter((x) => x !== placeholder) });
-      if (name === 'send_task') setV({ working: [...useVoice.getState().working, placeholder] });
-      promise = voiceApi.tool(this.botId, this.sess!.callId, name, args)
+      if (name === 'delegate_task') setV({ working: [...useVoice.getState().working, placeholder] });
+      promise = voiceApi.tool(this.botId, this.sess!.callId, name, args, callId)
         .then((r) => {
-          if (name === 'send_task') {
+          if (name === 'delegate_task') {
             dropOptimistic();
             if (r.taskSeq) this.addTask(r.taskSeq, String(args.request ?? ''));
           }
           return r.output;
         })
         .catch((e) => {
-          if (name === 'send_task') dropOptimistic();
+          if (name === 'delegate_task') dropOptimistic();
           return `Tool error: ${(e as Error).message}. Tell the user it didn't go through.`;
         });
     }
@@ -309,7 +309,7 @@ class VoiceCall {
       return;
     }
     // A hand-off the bot already announced needs no follow-up turn; read tools do.
-    const needsReply = !spoke || batch.some(([, b]) => b.name !== 'send_task');
+    const needsReply = !spoke || batch.some(([, b]) => b.name !== 'delegate_task');
     if (needsReply) {
       await this.player.whenIdle(8000); // don't talk over the current sentence
       if (!this.ended && !this.responseActive && !this.inflight.size) this.send({ type: 'response.create' });

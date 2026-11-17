@@ -1,11 +1,12 @@
-import { execFile, execFileSync, spawn } from 'node:child_process';
+import { spawn } from 'node:child_process';
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import YAML from 'yaml';
-import { cdpUrlFor } from './computer.js';
+import { cdpPortFor, cdpUrlFor } from './computer.js';
 import { db } from './db.js';
-import { env } from './env.js';
+import { env, workspaceFor } from './env.js';
+import { contained, workspaceDirectory } from './sandbox.js';
 import type { EngineInfo, EngineProvider } from './types.js';
 
 /**
@@ -26,29 +27,10 @@ const botRow = (botId: string) => db.prepare('SELECT * FROM bots WHERE id=?').ge
 
 // ---------- small file helpers ----------
 
-/** KEY=value lines of a dotenv file (quotes stripped). Missing file = {}. */
-function readDotenv(file: string): Record<string, string> {
-  const out: Record<string, string> = {};
-  let text = '';
-  try { text = fs.readFileSync(file, 'utf8'); } catch { return out; }
-  for (const line of text.split('\n')) {
-    const m = /^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)$/.exec(line);
-    if (!m) continue;
-    let v = m[2].trim();
-    if ((v.startsWith('"') && v.endsWith('"')) || (v.startsWith("'") && v.endsWith("'"))) v = v.slice(1, -1);
-    out[m[1]] = v;
-  }
-  return out;
-}
-
-function readYaml(file: string): any {
-  try { return YAML.parse(fs.readFileSync(file, 'utf8')) ?? {}; } catch { return {}; }
-}
-
 function writePrivate(file: string, content: string) {
-  fs.mkdirSync(path.dirname(file), { recursive: true });
-  fs.writeFileSync(file, content, { mode: 0o600 });
-  fs.chmodSync(file, 0o600);
+  const temporary = `${file}.${crypto.randomUUID()}`;
+  fs.writeFileSync(temporary, content, { mode: 0o600, flag: 'wx' });
+  try { fs.renameSync(temporary, file); } finally { fs.rmSync(temporary, { force: true }); }
 }
 
 // ---------- identity ----------
@@ -67,14 +49,7 @@ export function engineKind(botId: string): EngineKind | null {
   return e === 'primary' || e === 'managed' ? e : null;
 }
 
-const homeFor = (botId: string) => path.join(env.enginesDir, botId);
-
-let cachedPrimaryKey: string | null = null;
-function primaryKey(): string {
-  if (env.hermesKey) return env.hermesKey;
-  if (cachedPrimaryKey === null) cachedPrimaryKey = readDotenv(path.join(env.hermesHome, '.env')).API_SERVER_KEY ?? '';
-  return cachedPrimaryKey;
-}
+const homeFor = (botId: string) => path.join(env.enginesDir, botId, 'runtime');
 
 // ---------- assignment ----------
 
@@ -89,26 +64,12 @@ function freePort(): number {
 export function assignEngine(botId: string): EngineKind {
   const b = botRow(botId);
   if (!b) throw new Error('bot not found');
-  if (b.engine === 'primary' || b.engine === 'managed') return b.engine;
-  if (env.hermesUrl && !primaryBotId()) {
-    db.prepare("UPDATE bots SET engine='primary', engine_port=NULL WHERE id=?").run(botId);
-    return 'primary';
-  }
+  if (b.engine === 'managed' && b.engine_port) return 'managed';
   db.prepare("UPDATE bots SET engine='managed', engine_port=? WHERE id=?").run(freePort(), botId);
   return 'managed';
 }
 
 // ---------- a managed bot's Hermes home ----------
-
-/** Model credentials a managed agent may inherit from the primary agent. Never messaging tokens. */
-const SHARED_ENV = [
-  'ANTHROPIC_API_KEY', 'ANTHROPIC_BASE_URL', 'ANTHROPIC_TOKEN', 'CLAUDE_CODE_OAUTH_TOKEN',
-  'OPENAI_API_KEY', 'OPENAI_BASE_URL', 'OPENROUTER_API_KEY', 'XAI_API_KEY', 'GEMINI_API_KEY', 'GOOGLE_API_KEY', 'NOUS_API_KEY',
-  'FIRECRAWL_API_KEY', 'TAVILY_API_KEY', 'EXA_API_KEY', 'PARALLEL_API_KEY',
-];
-
-/** Parts of the primary agent's config a managed agent starts from, so it reaches the same models. */
-const SHARED_CONFIG = ['model', 'providers', 'custom_providers', 'auxiliary', 'fallback_model', 'fallback_providers'];
 
 function soul(b: any): string {
   const owner = (db.prepare('SELECT name FROM users WHERE id=?').get(b.user_id) as any)?.name ?? 'the user';
@@ -127,66 +88,29 @@ export function syncPersona(botId: string) {
   if (!b || b.engine !== 'managed') return;
   const home = homeFor(botId);
   if (!fs.existsSync(home)) return;
-  fs.writeFileSync(path.join(home, 'SOUL.md'), soul(b));
+  workspaceDirectory(home);
+  writePrivate(path.join(home, 'SOUL.md'), soul(b));
 }
 
-/** Create or refresh the home. config.yaml is created once; after that only the keys we own are patched. */
-async function writeHome(botId: string): Promise<{ home: string; key: string }> {
-  const b = botRow(botId);
+/** Build a worker config without importing the operator's Hermes configuration or keys. */
+function writeHome(botId: string, key: string): string {
   const home = homeFor(botId);
-  fs.mkdirSync(path.join(home, 'logs'), { recursive: true });
-  fs.mkdirSync(path.join(home, 'locks'), { recursive: true });
-  fs.chmodSync(home, 0o700);
-
+  const cwd = workspaceFor(botId);
+  for (const dir of [path.dirname(home), home, cwd, path.join(home, 'tmp')]) workspaceDirectory(dir);
+  if (!env.localModel || !Number.isInteger(env.modelPort) || env.modelPort < 1024 || env.modelPort > 65535
+      || env.modelPort === env.port || env.modelPort === 8000) throw new Error('Local worker model is not configured');
   const cdp = cdpUrlFor(botId);
-
-  // The bot's working folder is its Library, so what it writes there shows up in the app.
-  const cwd = path.join(env.filesDir, botId);
-  fs.mkdirSync(cwd, { recursive: true });
-
-  const cfgFile = path.join(home, 'config.yaml');
-  const fresh = !fs.existsSync(cfgFile);
-  const cfg = fresh ? {} : readYaml(cfgFile);
-  if (fresh) {
-    const primary = readYaml(path.join(env.hermesHome, 'config.yaml'));
-    for (const k of SHARED_CONFIG) if (primary[k] !== undefined) cfg[k] = primary[k];
-    cfg.agent = { reasoning_effort: 'medium' };
-  }
-  // No computer_use: on this machine it would drive the operator's own desktop.
-  cfg.platform_toolsets = { ...(cfg.platform_toolsets ?? {}), api_server: ['hermes-api-server'] };
-  cfg.terminal = { ...(cfg.terminal ?? {}), cwd };
-  if (cdp) cfg.browser = { ...(cfg.browser ?? {}), cdp_url: cdp };
-  cfg.mcp_servers = {
-    hq: { url: `${env.mcpBaseUrl}/mcp/${botId}`, headers: { Authorization: `Bearer ${mcpToken(botId)}` }, timeout: 1800, connect_timeout: 30 },
-  };
-  writePrivate(cfgFile, YAML.stringify(cfg));
-
-  if (!fs.existsSync(path.join(home, 'SOUL.md'))) fs.writeFileSync(path.join(home, 'SOUL.md'), soul(b));
-
-  // Subscription sign-ins live in auth.json. Start from the primary agent's; later sign-ins are this bot's own.
-  const auth = path.join(home, 'auth.json');
-  if (!fs.existsSync(auth)) {
-    try { writePrivate(auth, fs.readFileSync(path.join(env.hermesHome, 'auth.json'), 'utf8')); } catch { /* the primary agent has none */ }
-  }
-
-  // .env is ours entirely: the API server plus inherited model keys. Keys the user added by hand are kept.
-  const envFile = path.join(home, '.env');
-  const mine = readDotenv(envFile);
-  const key = mine.API_SERVER_KEY || crypto.randomBytes(24).toString('hex');
-  const primaryEnv = readDotenv(path.join(env.hermesHome, '.env'));
-  const vars: Record<string, string> = { ...mine };
-  for (const k of SHARED_ENV) {
-    // From the operator's Hermes home only. This server's own keys (the voice key) are never handed to a bot.
-    const v = primaryEnv[k];
-    if (v && !vars[k]) vars[k] = v;
-  }
-  // Whatever other model provider the operator set up (NVIDIA, Cloudflare and so on). Messaging tokens never match.
-  for (const [k, v] of Object.entries(primaryEnv)) if (v && !vars[k] && /_API_KEY$|_BASE_URL$|^CLOUDFLARE_ACCOUNT_ID$/.test(k)) vars[k] = v;
-  Object.assign(vars, { API_SERVER_ENABLED: 'true', API_SERVER_KEY: key, API_SERVER_PORT: String(b.engine_port), API_SERVER_HOST: '127.0.0.1' });
-  if (cdp) vars.BROWSER_CDP_URL = cdp; else delete vars.BROWSER_CDP_URL;
-  writePrivate(envFile, Object.entries(vars).map(([k, v]) => `${k}=${v}`).join('\n') + '\n');
-
-  return { home, key };
+  writePrivate(path.join(home, 'config.yaml'), YAML.stringify({
+    model: { default: env.localModel, provider: 'custom', base_url: `http://127.0.0.1:${env.modelPort}/v1` },
+    platform_toolsets: { api_server: ['file', 'terminal', 'browser'] },
+    terminal: { cwd }, browser: { cdp_url: cdp },
+  }));
+  writePrivate(path.join(home, 'SOUL.md'), soul(botRow(botId)));
+  writePrivate(path.join(home, '.env'), [
+    'API_SERVER_ENABLED=true', `API_SERVER_KEY=${key}`,
+    `API_SERVER_PORT=${botRow(botId).engine_port}`, 'API_SERVER_HOST=127.0.0.1',
+  ].join('\n') + '\n');
+  return home;
 }
 
 // ---------- a managed bot's gateway ----------
@@ -206,44 +130,19 @@ async function keyAccepted(url: string, key: string): Promise<boolean> {
 }
 
 /** The gateway's pid, but only if the pid file belongs to this home and the process is alive. */
-function gatewayPid(home: string): number | null {
-  let raw = '';
-  try { raw = fs.readFileSync(path.join(home, 'gateway.pid'), 'utf8').trim(); } catch { return null; }
-  let pid = NaN;
-  try {
-    const j = JSON.parse(raw);
-    if (typeof j === 'number') pid = j;
-    else {
-      if (j?.hermes_home && path.resolve(j.hermes_home) !== path.resolve(home)) return null;
-      pid = Number(j?.pid);
-    }
-  } catch { pid = Number(raw); }
-  if (!Number.isInteger(pid) || pid <= 1) return null;
-  try { process.kill(pid, 0); } catch { return null; }
-  // A pid file can outlive its process and the number can be reused: only a process that is a gateway counts.
-  try {
-    if (!execFileSync('ps', ['-p', String(pid), '-o', 'command='], { encoding: 'utf8', timeout: 3000 }).includes('gateway')) return null;
-  } catch { return null; }
-  return pid;
-}
-
+const children = new Map<string, ReturnType<typeof spawn>>();
 async function stopGateway(botId: string) {
-  const home = homeFor(botId);
-  const pid = gatewayPid(home);
-  if (!pid) return;
-  const signal = (sig: NodeJS.Signals) => {
-    try { process.kill(-pid, sig); } catch { try { process.kill(pid, sig); } catch { /* gone */ } }
-  };
-  signal('SIGTERM');
-  for (let i = 0; i < 40; i++) {
-    await new Promise((r) => setTimeout(r, 250));
-    try { process.kill(pid, 0); } catch { return; }
+  const child = children.get(botId);
+  if (!child?.pid) return;
+  const stopped = new Promise<void>((resolve) => child.once('exit', () => resolve()));
+  try { process.kill(-child.pid, 'SIGTERM'); } catch { return; }
+  await Promise.race([stopped, new Promise<void>((resolve) => setTimeout(resolve, 1000))]);
+  if (children.get(botId) === child) {
+    try { process.kill(-child.pid, 'SIGKILL'); } catch { /* already gone */ }
+    await stopped;
   }
-  signal('SIGKILL');
-  await new Promise((r) => setTimeout(r, 300));
 }
 
-/** What a Hermes process gets from this server's environment: nothing that holds a key. */
 const agentEnv = (): NodeJS.ProcessEnv => ({
   PATH: process.env.PATH ?? '/usr/local/bin:/usr/bin:/bin',
   HOME: process.env.HOME ?? '',
@@ -262,8 +161,8 @@ function managedUrl(botId: string): string {
 function managedKey(botId: string): string {
   let k = keys.get(botId);
   if (!k) {
-    k = readDotenv(path.join(homeFor(botId), '.env')).API_SERVER_KEY ?? '';
-    if (k) keys.set(botId, k);
+    k = crypto.randomBytes(32).toString('hex');
+    keys.set(botId, k);
   }
   return k;
 }
@@ -271,50 +170,40 @@ function managedKey(botId: string): string {
 async function startGateway(botId: string): Promise<void> {
   const b = botRow(botId);
   if (!b || b.engine !== 'managed') throw new Error('not a managed engine');
-  if (!b.engine_port) db.prepare('UPDATE bots SET engine_port=? WHERE id=?').run(freePort(), botId);
+  if (!b.engine_port) b.engine_port = freePort();
+  db.prepare('UPDATE bots SET engine_port=? WHERE id=?').run(b.engine_port, botId);
   const url = managedUrl(botId);
 
-  // A gateway from an earlier run of this server is still good: use it as it is.
-  if ((await healthy(url)) && managedKey(botId) && (await keyAccepted(url, managedKey(botId)))) return;
-  if (await healthy(url)) {
-    if (gatewayPid(homeFor(botId))) await stopGateway(botId);
-    else throw new Error(`Port ${botRow(botId).engine_port} is taken by something else.`);
-  }
-
-  const { home, key } = await writeHome(botId);
-  keys.set(botId, key);
-  if (gatewayPid(home)) await stopGateway(botId);
-
-  const log = fs.openSync(path.join(home, 'logs', 'gateway.out.log'), 'a');
-  const child = spawn(env.hermesBin, ['gateway', 'run', '--no-supervise'], {
-    cwd: home,
-    detached: true,
-    stdio: ['ignore', log, log],
-    // Only what the agent needs: nothing from this server's environment, and no messaging tokens.
-    env: {
-      ...agentEnv(),
-      HERMES_HOME: home,
-      HERMES_GATEWAY_LOCK_DIR: path.join(home, 'locks'),
-      // Hermes' browser tool talks to a helper process it finds under this folder. With the default
-      // (one folder per HOME) every agent on the computer would end up driving the same browser.
-      // Kept short: the helper listens on a Unix socket under it, and socket paths are limited to about 100 bytes.
-      BH_HOME: path.join(env.dataDir, 'bh', String(b.engine_port)),
-    },
+  if (children.has(botId) && await healthy(url) && await keyAccepted(url, managedKey(botId))) return;
+  if (await healthy(url)) throw new Error('Worker port already occupied');
+  const home = writeHome(botId, managedKey(botId));
+  const cwd = workspaceFor(botId);
+  const runtime = path.join(env.hermesHome, 'hermes-agent');
+  const run = contained(env.hermesBin, ['gateway', 'run', '--no-supervise'], [runtime, path.join(env.hermesHome, 'tools')], [home, cwd],
+    [env.modelPort, cdpPortFor(botId)], b.engine_port);
+  const child = spawn(run.bin, run.args, {
+    cwd, detached: true, stdio: 'ignore',
+    env: { ...agentEnv(), HOME: home, TMPDIR: path.join(home, 'tmp'), HERMES_HOME: home },
   });
-  fs.closeSync(log);
+  children.set(botId, child);
+  const clear = () => { if (children.get(botId) === child) children.delete(botId); };
+  child.once('exit', clear);
+  child.once('error', clear);
   let exited: string | null = null;
   child.once('error', (e) => { exited = `could not run ${env.hermesBin}: ${e.message}`; });
-  child.once('exit', (code) => { exited = `the agent stopped while starting (exit ${code}). See ${path.join(home, 'logs', 'gateway.out.log')}`; });
+  child.once('exit', (code) => { exited = `the agent stopped while starting (exit ${code}). The worker did not open its loopback gateway.`; });
   child.unref();
 
-  for (let i = 0; i < 90; i++) {
+  const startupDeadline = Date.now() + 90_000;
+  while (Date.now() < startupDeadline) {
     await new Promise((r) => setTimeout(r, 1000));
     if (exited) throw new Error(exited);
-    if (await healthy(url, 1500)) {
+    if (children.get(botId) === child && await healthy(url, 1500) && await keyAccepted(url, managedKey(botId))) {
       console.log(`[engine] ${b.name}: gateway up on ${url}`);
       return;
     }
   }
+  await stopGateway(botId);
   throw new Error('The agent did not come up within 90 seconds.');
 }
 
@@ -345,55 +234,20 @@ export async function engineFor(botId: string): Promise<Engine> {
     if (b.kind === 'room') throw new Error('A group chat has no agent of its own.');
     kind = assignEngine(botId);
   }
-  if (kind === 'primary') return { kind, url: env.hermesUrl, key: primaryKey(), home: env.hermesHome };
+  if (kind === 'primary') throw new Error('External Hermes workers are disabled');
   const url = managedUrl(botId);
-  if (!(await healthy(url, 1500)) || !managedKey(botId)) await ensureManaged(botId);
+  if (!children.has(botId) || !(await healthy(url, 1500))) await ensureManaged(botId);
   return { kind, url, key: managedKey(botId), home: homeFor(botId) };
 }
 
 /** The bot's Hermes home, without starting anything (memory files, sign-in commands). */
 export function engineHome(botId: string): string | null {
   const kind = engineKind(botId);
-  return kind === 'primary' ? env.hermesHome : kind === 'managed' ? homeFor(botId) : null;
+  return kind === 'managed' ? homeFor(botId) : null;
 }
 
-/**
- * Hermes can run a private screen of its own for a profile (its "Bot Desktop": an Xvnc display with
- * state in <home>/bot-desktop). While that screen is up, the agent's computer-use tool acts there and
- * not on the screen this app shows (so does its browser tool, unless the config pins it to a Chrome
- * with `browser.cdp_url`), so the user could be watching an idle desktop.
- */
-export function ownScreenOn(botId: string): boolean {
-  const home = engineHome(botId);
-  if (!home) return false;
-  const dir = path.join(home, 'bot-desktop');
-  try {
-    // launcher.pid holds "<pid> <create time>"; the env file appears once the screen is usable.
-    const pid = Number(fs.readFileSync(path.join(dir, 'launcher.pid'), 'utf8').trim().split(/\s+/)[0]);
-    if (!Number.isInteger(pid) || pid <= 1 || !fs.existsSync(path.join(dir, 'env'))) return false;
-    process.kill(pid, 0);
-    return true;
-  } catch (e: any) {
-    return e?.code === 'EPERM';
-  }
-}
-
-/** Ask Hermes to stop that private screen. Hermes refuses while a person is using it; the refusal is passed on. */
-export function stopOwnScreen(botId: string): Promise<void> {
-  const home = engineHome(botId);
-  if (!home) return Promise.reject(new Error('This bot has no agent.'));
-  return new Promise((resolve, reject) => {
-    execFile(env.hermesBin, ['computer-use', 'screen', 'stop'], { env: { ...agentEnv(), HERMES_HOME: home }, timeout: 60_000 }, (err, stdout, stderr) => {
-      if (!ownScreenOn(botId)) return resolve();
-      const said = `${stderr || ''}\n${stdout || ''}`.trim().split('\n').filter(Boolean).pop();
-      reject(new Error(said || (err ? String(err.message) : 'The screen is still running.')));
-    });
-  });
-}
-
-/** Start the gateway in the background (after creating a bot, or on server start). */
 export function provisionEngine(botId: string) {
-  if (engineKind(botId) === 'managed') ensureManaged(botId).catch(() => {});
+  if (env.localModel && engineKind(botId) === 'managed') void ensureManaged(botId).catch(() => {});
 }
 
 export async function restartEngine(botId: string): Promise<void> {
@@ -419,9 +273,8 @@ export async function removeEngine(botId: string): Promise<void> {
 /** On server start: give older bots an engine, then bring the managed gateways up. */
 export function initEngines() {
   fs.mkdirSync(env.enginesDir, { recursive: true });
-  const bots = db.prepare("SELECT id, is_primary FROM bots WHERE engine IS NULL AND COALESCE(kind,'agent') <> 'room' AND COALESCE(hidden,0)=0 ORDER BY is_primary DESC, created_at ASC").all() as any[];
+  const bots = db.prepare("SELECT id, is_primary FROM bots WHERE (engine IS NULL OR engine = 'primary') AND COALESCE(kind,'agent') <> 'room' AND COALESCE(hidden,0)=0 ORDER BY is_primary DESC, created_at ASC").all() as any[];
   for (const b of bots) assignEngine(b.id);
-  for (const b of db.prepare("SELECT id FROM bots WHERE engine='managed'").all() as any[]) provisionEngine(b.id);
 }
 
 // ---------- what the settings panel shows ----------
@@ -466,11 +319,11 @@ export async function engineInfo(botId: string): Promise<EngineInfo> {
   const b = botRow(botId);
   if (!b) throw new Error('bot not found');
   const kind = engineKind(botId);
-  const base: EngineInfo = { botId, profile: kind === 'primary' ? 'default' : botId, status: 'stopped', error: null, model: b.model ?? null, provider: b.provider ?? null, version: null, providers: [], ownScreen: kind ? ownScreenOn(botId) : false };
+  const base: EngineInfo = { botId, profile: kind === 'primary' ? 'default' : botId, status: 'stopped', error: null, model: b.model ?? null, provider: b.provider ?? null, version: null, providers: [], ownScreen: false };
   if (!kind) return { ...base, status: 'error', error: 'This bot has no agent.' };
 
   let e: { url: string; key: string };
-  if (kind === 'primary') e = { url: env.hermesUrl, key: primaryKey() };
+  if (kind === 'primary') return { ...base, status: 'error', error: 'External workers are disabled' };
   else {
     if (!b.engine_port) return { ...base, status: 'error', error: 'No port assigned.' };
     e = { url: managedUrl(botId), key: managedKey(botId) };
@@ -478,7 +331,6 @@ export async function engineInfo(botId: string): Promise<EngineInfo> {
 
   const health = await healthy(e.url);
   if (!health) {
-    if (kind === 'primary') return { ...base, status: 'error', error: `The agent at ${env.hermesUrl} is not answering.` };
     if (starting.has(botId)) return { ...base, status: 'starting' };
     const failed = failures.get(botId);
     if (failed) return { ...base, status: 'error', error: failed };
@@ -499,4 +351,3 @@ export async function engineInfo(botId: string): Promise<EngineInfo> {
 }
 
 /** After a sign-in the provider list changes; drop what we remembered. */
-export function forgetEngineOptions(botId: string) { optionsCache.delete(botId); }

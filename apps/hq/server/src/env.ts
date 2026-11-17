@@ -58,6 +58,7 @@ export const env = {
   host: '127.0.0.1',
   appUrl: loopbackUrl(process.env.APP_URL ?? `http://127.0.0.1:${port}`, true),
   dataDir,
+  ledgerToken: process.env.SUPER_AGENT_HQ_LEDGER_TOKEN ?? '',
   sessionSecret: sessionSecret(),
   dbPath: path.join(dataDir, 'hq.db'),
   ownerName: process.env.HQ_OWNER_NAME ?? os.userInfo().username,
@@ -85,6 +86,9 @@ export const env = {
    */
   hermesUrl: hermesUrl ? loopbackUrl(hermesUrl) : '',
   hermesKey: process.env.HERMES_KEY ?? '',
+  modelPort: Number(process.env.HQ_LOCAL_MODEL_PORT ?? 0),
+  localModel: process.env.HQ_LOCAL_MODEL ?? '',
+  syntheticVoice: process.env.HQ_SYNTHETIC_VOICE === '1',
   /** Where each bot's own Hermes home lives. Outside ~/.hermes so it is a separate tenant. */
   enginesDir: path.join(dataDir, 'engines'),
   enginePortBase: Number(process.env.ENGINE_PORT_BASE ?? 8650),
@@ -98,3 +102,5 @@ export const env = {
   filesDir: path.join(dataDir, 'files'),
   maxBots: Number(process.env.MAX_BOTS ?? 8),
 };
+
+export const workspaceFor = (botId: string) => path.join(env.enginesDir, botId, 'workspace');

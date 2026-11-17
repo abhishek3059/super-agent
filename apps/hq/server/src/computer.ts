@@ -3,7 +3,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { WebSocket } from 'ws';
 import { db } from './db.js';
-import { env } from './env.js';
+import { env, workspaceFor } from './env.js';
+import { contained, workspaceDirectory } from './sandbox.js';
 import type { ComputerState } from './types.js';
 
 /**
@@ -53,9 +54,13 @@ export function computerState(userId: string): ComputerState {
 }
 
 const starting = new Map<string, Promise<void>>();
+const children = new Map<string, ReturnType<typeof spawn>>();
 
 async function startChrome(botId: string): Promise<void> {
-  if (await alive(botId)) return;
+  if (await alive(botId)) {
+    if (children.has(botId)) return;
+    throw new Error('Browser port already occupied');
+  }
   const bin = chromeBin();
   if (!bin) throw new Error('No Chrome found. Install Google Chrome or set CHROME_BIN.');
   if (!validId(botId)) throw new Error('bad bot id');
@@ -64,21 +69,33 @@ async function startChrome(botId: string): Promise<void> {
   const home = `data:text/html,${encodeURIComponent(
     `<title>${esc(bot?.name)}</title><body style="margin:0;height:100vh;display:grid;place-items:center;background:#0b0f14;color:#cfe8ff;font:500 28px system-ui"><div style="text-align:center">${esc(bot?.name)}<div style="font-size:14px;opacity:.6;margin-top:8px">${esc(bot?.label)}</div></div>`,
   )}`;
-  fs.mkdirSync(profileDir(botId), { recursive: true, mode: 0o700 });
-  const child = spawn(bin, [
-    '--headless=new', `--remote-debugging-port=${cdpPortFor(botId)}`, '--remote-debugging-address=127.0.0.1',
+  const profile = profileDir(botId);
+  const workspace = workspaceFor(botId);
+  for (const dir of [profile, workspace, path.join(profile, 'tmp')]) workspaceDirectory(dir);
+  // Chrome's nested sandbox cannot start under this profile. The outer sandbox blocks Internet access.
+  const run = contained(bin, [
+    '--headless=new', '--no-sandbox', '--use-mock-keychain', `--remote-debugging-port=${cdpPortFor(botId)}`, '--remote-debugging-address=127.0.0.1',
     `--user-data-dir=${profileDir(botId)}`, `--window-size=${SCREEN.width},${SCREEN.height + CHROME_UI}`,
     '--no-first-run', '--no-default-browser-check', '--disable-background-networking', '--hide-scrollbars', home,
-  ], { detached: true, stdio: 'ignore' });
+  ], [bin.slice(0, bin.indexOf('.app/') + 4)].filter((p) => p.endsWith('.app')), [profile, workspace], [], cdpPortFor(botId));
+  const child = spawn(run.bin, run.args, {
+    cwd: workspace, detached: true, stdio: 'ignore',
+    env: { HOME: profile, TMPDIR: path.join(profile, 'tmp'), MAC_CHROMIUM_TMPDIR: path.join(profile, 'tmp'), PATH: '/usr/bin:/bin' },
+  });
+  children.set(botId, child);
+  const clear = () => { if (children.get(botId) === child) children.delete(botId); };
+  child.once('exit', clear);
+  child.once('error', clear);
   let failed = '';
   child.once('error', (e) => { failed = e.message; });
+  child.once('exit', (code, signal) => { failed = `contained Chrome exited (${code ?? signal})`; });
   child.unref();
-  if (child.pid) fs.writeFileSync(path.join(profileDir(botId), 'hq-chrome.pid'), String(child.pid));
   for (let i = 0; i < 40; i++) {
     await new Promise((r) => setTimeout(r, 250));
     if (failed) throw new Error(`could not start Chrome: ${failed}`);
-    if (await alive(botId)) return;
+    if (children.get(botId) === child && await alive(botId)) return;
   }
+  await stopChrome(botId);
   throw new Error('Chrome did not come up within 10 seconds.');
 }
 
@@ -96,13 +113,13 @@ export function readyScreen(_userId: string, botId: string): Promise<void> {
 export const screenForWork = readyScreen;
 
 async function stopChrome(botId: string) {
-  let pid = NaN;
-  try { pid = Number(fs.readFileSync(path.join(profileDir(botId), 'hq-chrome.pid'), 'utf8')); } catch { return; }
-  if (!Number.isInteger(pid) || pid <= 1) return;
-  // The pid file can outlive its process; only signal it while the port it served still answers.
-  if (!(await alive(botId))) return;
-  try { process.kill(pid, 'SIGTERM'); } catch { /* gone */ }
-  for (let i = 0; i < 20 && (await alive(botId)); i++) await new Promise((r) => setTimeout(r, 250));
+  const pid = children.get(botId)?.pid;
+  if (!pid) return;
+  try { process.kill(-pid, 'SIGTERM'); } catch { return; }
+  for (let i = 0; i < 20 && children.has(botId); i++) await new Promise((r) => setTimeout(r, 250));
+  if (children.has(botId)) {
+    try { process.kill(-pid, 'SIGKILL'); } catch { /* already stopped */ }
+  }
 }
 
 /** Close everything in the bot's browser and bring it back to its start page. Logins stay. */

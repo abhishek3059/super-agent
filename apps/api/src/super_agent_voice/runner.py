@@ -169,6 +169,8 @@ class Runner:
         """Startup. The Admission (tools, deadline) did not survive, so queued jobs are failed, not replayed."""
         moved = self._ledger.recover_after_restart()
         for job in self._ledger.list_jobs("queued"):
+            if "hq_role" in job.spec:
+                continue
             self._ledger.transition(job.id, "failed", job.revision, "restart_queued", {"executed": False})
             moved += 1
         return moved

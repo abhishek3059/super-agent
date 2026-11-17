@@ -32,6 +32,7 @@ except ImportError:
         psycopg2 = None
 
 MAX_SPEC_BYTES, MAX_RECEIPT_BYTES, MAX_KEY, MAX_REASON = 8000, 4000, 128, 64
+HQ_ROLES = frozenset({"scout", "forge", "quill", "atlas", "ops"})
 RETENTION = timedelta(days=14)  # DEC after 2026-11-15, see docs/design/agent-backend.md
 
 # architecture.md "Canonical job states". `unknown -> queued` needs a journaled
@@ -256,7 +257,7 @@ def _append_event(db, job_id, from_state, to_state, revision, reason, receipt_te
                (job_id, from_state, to_state, revision, reason, receipt_text, at))
 
 
-def create_job(spec: dict, idempotency_key: str) -> Job:
+def create_job(spec: dict, idempotency_key: str, *, pending_limit: int | None = None) -> Job:
     if not isinstance(idempotency_key, str) or not 0 < len(idempotency_key) <= MAX_KEY:
         raise LedgerError("idempotency key must be 1 to 128 characters")
     try:
@@ -265,11 +266,17 @@ def create_job(spec: dict, idempotency_key: str) -> Job:
         raise LedgerError("idempotency key must be valid text") from None
     text = _json(spec, MAX_SPEC_BYTES, "task spec")
     with _db() as db:
+        if pending_limit is not None:
+            db.execute("LOCK TABLE jobs IN SHARE ROW EXCLUSIVE MODE" if _is_postgres() else "BEGIN IMMEDIATE")
         row = db.execute(f"SELECT {_COLS} FROM jobs WHERE idempotency_key = ?", (idempotency_key,)).fetchone()
         if row:
             if row[2] != text:
                 raise LedgerError("idempotency key already used with a different task spec")
             return _job(row)
+        if pending_limit is not None:
+            pending = db.execute("SELECT COUNT(*) FROM jobs WHERE state IN ('queued','running','waiting_for_approval','cancel_requested')").fetchone()[0]
+            if pending >= pending_limit:
+                raise LedgerError("queue full")
         job_id, now = uuid.uuid4().hex, _stamp()
         db.execute(f"INSERT INTO jobs ({_COLS}) VALUES (?, ?, ?, 'queued', 1, ?, ?, NULL)",
                    (job_id, idempotency_key, text, now, now))
@@ -357,7 +364,8 @@ def recover_after_restart() -> int:
     """Startup: no worker survived, so no running or cancel_requested job has proof of stop.
     Both become unknown. Nothing is replayed. Returns how many jobs moved."""
     with _db() as db:
-        rows = db.execute(f"SELECT {_COLS} FROM jobs WHERE state IN ('running', 'cancel_requested')").fetchall()
+        rows = db.execute(f"SELECT {_COLS} FROM jobs WHERE state IN ('running', 'cancel_requested') "
+                          f"AND {_spec_field('hq_role')} IS NULL").fetchall()
         for row in rows:
             _move(db, row, "unknown", f"restart_{row[3]}", None)
         return len(rows)
@@ -377,37 +385,39 @@ def purge(now: datetime) -> int:
         return len(ids)
 
 
-def claim_next_job(worker_id: str = "default", state: str = "queued") -> Job | None:
-    """Atomically claim the next queued job for a worker.
+def _spec_field(field: str) -> str:
+    # Field names are fixed by callers, never supplied by an API request.
+    return f"spec::jsonb ->> '{field}'" if _is_postgres() else f"json_extract(spec, '$.{field}')"
 
-    In PostgreSQL, uses SELECT ... FOR UPDATE SKIP LOCKED to prevent concurrent worker contention.
-    In SQLite, serializes under the process thread lock with compare-and-set.
-    Transitions the job to 'running', bumps revision, and records a claim event.
-    Returns None if no matching job is available.
-    """
-    if not isinstance(worker_id, str) or not 0 < len(worker_id) <= MAX_REASON:
-        raise LedgerError("worker_id must be 1 to 64 characters")
-    if not isinstance(state, str) or state not in NEXT:
-        raise LedgerError("unknown state")
+
+def claim_next_job(worker_id: str = "default", state: str = "queued", *,
+                   hq_role: str | None = None) -> Job | None:
+    """Claim eligible work atomically. Generic runners cannot claim reserved HQ jobs."""
+    if not isinstance(worker_id, str) or not 0 < len(worker_id) <= MAX_REASON - len("claimed_"):
+        raise LedgerError("invalid worker identifier")
+    if not isinstance(state, str) or state != "queued":
+        raise LedgerError("only queued jobs can be claimed")
+    if hq_role is not None and (not isinstance(hq_role, str) or hq_role not in HQ_ROLES):
+        raise LedgerError("unknown HQ worker role")
+    role = _spec_field("hq_role")
+    if hq_role is None:
+        eligibility, params = f"{role} IS NULL", (state,)
+    else:
+        eligibility = f"{role} = ? AND {_spec_field('data_class')} = 'synthetic'"
+        params = (state, hq_role)
     with _db() as db:
-        if _is_postgres():
-            cur = db.execute(
-                f"SELECT {_COLS} FROM jobs WHERE state = ? ORDER BY created_at ASC LIMIT 1 FOR UPDATE SKIP LOCKED",
-                (state,),
-            )
-            row = cur.fetchone()
-            if not row:
+        lock = " FOR UPDATE SKIP LOCKED" if _is_postgres() else ""
+        if not lock:
+            db.execute("BEGIN IMMEDIATE")
+        if hq_role is not None:
+            if lock:
+                db.execute("SELECT pg_advisory_xact_lock(?)", (80450 + sorted(HQ_ROLES).index(hq_role),))
+            if db.execute(f"SELECT 1 FROM jobs WHERE state = 'running' AND {role} = ? LIMIT 1",
+                          (hq_role,)).fetchone():
                 return None
-            _move(db, row, "running", f"claimed_{worker_id}", None)
-            res = db.execute(f"SELECT {_COLS} FROM jobs WHERE id = ?", (row[0],)).fetchone()
-            return _job(res)
-        else:
-            row = db.execute(
-                f"SELECT {_COLS} FROM jobs WHERE state = ? ORDER BY created_at, id LIMIT 1",
-                (state,),
-            ).fetchone()
-            if not row:
-                return None
-            _move(db, row, "running", f"claimed_{worker_id}", None)
-            return _job(db.execute(f"SELECT {_COLS} FROM jobs WHERE id = ?", (row[0],)).fetchone())
-
+        row = db.execute(f"SELECT {_COLS} FROM jobs WHERE state = ? AND {eligibility} "
+                         f"ORDER BY created_at, id LIMIT 1{lock}", params).fetchone()
+        if not row:
+            return None
+        _move(db, row, "running", f"claimed_{worker_id}", None)
+        return _job(db.execute(f"SELECT {_COLS} FROM jobs WHERE id = ?", (row[0],)).fetchone())

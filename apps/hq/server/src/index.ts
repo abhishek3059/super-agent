@@ -16,7 +16,7 @@ import { checkinsApi } from './routes-proactive.js';
 import { roomsApi } from './routes-rooms.js';
 import { enqueue, expireStaleApprovals } from './agent/loop.js';
 import { configApi } from './routes-config.js';
-import { mcpApi } from './mcp.js';
+import { startLedgerWorkers } from './ledger-worker.js';
 import { initEngines } from './engine.js';
 import { allowedHost, allowedOrigin } from './lib/guard.js';
 
@@ -33,8 +33,6 @@ app.use('*', async (c, next) => {
   await next();
 });
 app.get('/api/health', (c) => c.json({ ok: true, engine: 'hermes' }));
-// The app's tools for the agent engines (MCP).
-app.route('/mcp', mcpApi);
 app.route('/api/checkins', checkinsApi);
 app.route('/api/rooms', roomsApi);
 app.route('/api', api);
@@ -58,3 +56,5 @@ if (process.env.HQ_NO_SCHEDULER !== '1') {
 initProactive(enqueue);
 } else console.log('[hq] scheduler disabled (HQ_NO_SCHEDULER=1)');
 initEngines();
+const stopLedgerWorkers = startLedgerWorkers();
+server.on('close', () => { void stopLedgerWorkers(); });

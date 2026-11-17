@@ -121,7 +121,7 @@ def _count(value: object, low: int = 0) -> int:
     return value
 
 
-def _spec(spec: object, limits: Limits) -> dict:
+def validate_spec(spec: object, limits: Limits) -> dict:
     if not isinstance(spec, dict) or set(spec) != SPEC_KEYS:
         raise PolicyError("spec_invalid")
     task, text, data = spec["task_type"], spec["instruction"], spec["data_class"]
@@ -168,7 +168,7 @@ def admit(spec: object, idempotency_key: object, planner_is_local: object, limit
         raise PolicyError("planner_locality_invalid")
     if type(memory_is_synthetic) is not bool or type(tier1_is_synthetic) is not bool:
         raise PolicyError("memory_flag_invalid")
-    spec = _spec(spec, lim)
+    spec = validate_spec(spec, lim)
     if not planner_is_local and spec["data_class"] == "personal":
         raise PolicyError("personal_data_cloud_planner")
     try:

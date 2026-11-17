@@ -18,8 +18,14 @@ const FILES = [
 
 function read(file: string): { entries: string[]; mtime: number } {
   try {
-    const raw = fs.readFileSync(file, 'utf8');
-    return { entries: raw.split(SEP).map((e) => e.trim()).filter(Boolean), mtime: fs.statSync(file).mtimeMs };
+    if (fs.realpathSync(path.dirname(file)) !== path.dirname(file)) return { entries: [], mtime: 0 };
+    const fd = fs.openSync(file, fs.constants.O_RDONLY | fs.constants.O_NOFOLLOW | fs.constants.O_NONBLOCK);
+    try {
+      const status = fs.fstatSync(fd);
+      if (!status.isFile() || status.size > 256 * 1024 || status.nlink !== 1) return { entries: [], mtime: 0 };
+      const raw = fs.readFileSync(fd, 'utf8');
+      return { entries: raw.split(SEP).map((e) => e.trim()).filter(Boolean), mtime: status.mtimeMs };
+    } finally { fs.closeSync(fd); }
   } catch {
     return { entries: [], mtime: 0 };
   }
@@ -55,6 +61,12 @@ export function deleteMemory(id: string): boolean {
   const { entries } = read(file);
   const keep = entries.filter((text) => idFor(botId, f.key, text) !== id);
   if (keep.length === entries.length) return false;
-  fs.writeFileSync(file, keep.join(SEP) + (keep.length ? '\n' : ''));
+  const fd = fs.openSync(file, fs.constants.O_WRONLY | fs.constants.O_NOFOLLOW | fs.constants.O_NONBLOCK);
+  try {
+    const status = fs.fstatSync(fd);
+    if (!status.isFile() || status.nlink !== 1 || fs.realpathSync(path.dirname(file)) !== path.dirname(file)) return false;
+    fs.ftruncateSync(fd, 0);
+    fs.writeFileSync(fd, keep.join(SEP) + (keep.length ? '\n' : ''));
+  } finally { fs.closeSync(fd); }
   return true;
 }

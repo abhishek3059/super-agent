@@ -22,6 +22,7 @@ import { activityFor, appToolName, humanizeSlug, policyFor } from './tools.js';
 
 export type Trigger =
   | { type: 'user'; text: string }
+  | { type: 'ledger'; id: string; text: string }
   | { type: 'routine'; routineId: string; name: string; prompt: string }
   | { type: 'bot'; fromBotId: string; fromName: string; text: string; depth: number; reply?: boolean }
   | { type: 'system'; text: string };
@@ -35,7 +36,7 @@ export function enqueue(botId: string, trigger: Trigger) {
   // A new message from the user supersedes whatever is waiting for their approval.
   if (trigger.type === 'user') expireApprovals(botId);
   const prev = queues.get(botId) ?? Promise.resolve();
-  const next = prev.then(() => runTurn(botId, trigger)).catch((e) => console.error('[agent] turn failed', botId, e));
+  const next = prev.then(async () => { await runTurn(botId, trigger); }).catch((e) => console.error('[agent] turn failed', botId, e));
   queues.set(botId, next);
   next.finally(() => { if (queues.get(botId) === next) queues.delete(botId); });
 }
@@ -77,6 +78,7 @@ export function autoReply(trigger: Trigger, t: { messaged: Set<string>; lastText
 
 function triggerText(t: Trigger): string {
   switch (t.type) {
+    case 'ledger':
     case 'user': return t.text;
     case 'routine': return `[Routine "${t.name}" is running now. Do this:]\n${t.prompt}`;
     case 'bot': return t.reply
@@ -321,6 +323,11 @@ function captionFrom(reasoning: string): string | null {
 /** Hermes' own tool lookup (it loads rarely used tools on demand). */
 const TOOLBOX = new Set(['tool_search', 'tool_describe']);
 
+export async function runLedgerTurn(botId: string, id: string, text: string) {
+  const result = await runTurn(botId, { type: 'ledger', id, text });
+  return result ?? { state: 'failed' as const, summary: 'worker unavailable' };
+}
+
 async function runTurn(botId: string, trigger: Trigger) {
   const bot = getBotRow(botId);
   if (!bot || bot.kind === 'room') return;
@@ -371,12 +378,16 @@ async function runTurn(botId: string, trigger: Trigger) {
   };
   const outputsSeen = new Set<string>();
   let steps = 0;
+  let completed = false;
+  let terminalFailure = false;
+  let dispatched = false;
   let failed = false;
   let failure: string | null = null;
 
   try {
     // The screen first: the engine's browser and computer tools point at it.
-    await screenForWork(userId, botId).catch((e) => console.warn(`[computer] screen not ready for ${botId}: ${e?.message ?? e}`));
+    if (trigger.type === 'ledger') await screenForWork(userId, botId);
+    else await screenForWork(userId, botId).catch((e) => console.warn(`[computer] screen not ready for ${botId}: ${e?.message ?? e}`));
     const engine = await engineFor(botId);
     if (ctrl.signal.aborted) throw new Error('interrupted');
 
@@ -386,17 +397,19 @@ async function runTurn(botId: string, trigger: Trigger) {
       db.prepare('UPDATE bots SET handback_at=NULL WHERE id=?').run(botId);
     }
 
+    dispatched = true;
     const res = await fetch(`${engine.url}/v1/responses`, {
       method: 'POST',
-      signal: ctrl.signal,
+      signal: trigger.type === 'ledger' ? AbortSignal.any([ctrl.signal, AbortSignal.timeout(120_000)]) : ctrl.signal,
+      redirect: 'error',
       headers: { 'content-type': 'application/json', accept: 'text/event-stream', ...(engine.key ? { authorization: `Bearer ${engine.key}` } : {}) },
       body: JSON.stringify({
-        model: bot.model || 'hermes-agent',
-        ...(bot.provider ? { provider: bot.provider } : {}),
+        model: trigger.type === 'ledger' ? 'hermes-agent' : bot.model || 'hermes-agent',
+        ...(bot.provider && trigger.type !== 'ledger' ? { provider: bot.provider } : {}),
         input,
-        instructions: await instructionsFor(userId, botId),
+        instructions: trigger.type === 'ledger' ? 'Execute the synthetic task in your workspace. Summarize the result.' : await instructionsFor(userId, botId),
         // One engine-side thread per conversation; "New chat" bumps the generation and starts another.
-        conversation: `hq-${botId}-g${bot.generation}`,
+        conversation: trigger.type === 'ledger' ? `hq-job-${trigger.id}` : `hq-${botId}-g${bot.generation}`,
         stream: true,
         store: true,
         model_options: { reasoning_effort: bot.effort ?? 'medium' },
@@ -484,7 +497,12 @@ async function runTurn(botId: string, trigger: Trigger) {
           break;
         }
 
+        case 'response.completed':
+          completed = d?.response?.status === 'completed';
+          break;
         case 'response.failed':
+          terminalFailure = true;
+          throw new Error('worker reported failure');
         case 'error':
           throw new Error(d?.response?.error?.message ?? d?.error?.message ?? d?.message ?? 'the agent run failed');
       }
@@ -508,8 +526,9 @@ async function runTurn(botId: string, trigger: Trigger) {
     const stopped = ctrl.signal.aborted;
     failure = stopped ? 'the work was stopped' : 'the run failed';
     closeMessage();
-    appendRow(botId, 'notice', { type: 'notice', text: stopped ? 'Stopped.' : `Something went wrong: ${e?.message ?? e}`, tone: stopped ? 'info' : 'error' });
-    if (!stopped) console.error('[agent]', botId, e);
+    if (trigger.type === 'ledger') appendRow(botId, 'notice', { type: 'notice', text: 'Ledger worker did not finish.', tone: 'error' });
+    else appendRow(botId, 'notice', { type: 'notice', text: stopped ? 'Stopped.' : `Something went wrong: ${e?.message ?? e}`, tone: stopped ? 'info' : 'error' });
+    if (!stopped && trigger.type !== 'ledger') console.error('[agent]', botId, e);
   } finally {
     closeMessage();
     for (const ref of turn.tools) {
@@ -526,5 +545,14 @@ async function runTurn(botId: string, trigger: Trigger) {
     if (!pendingApprovals(botId).length) setLive(botId, { isRunning: false, activity: null, awaiting: null, startedAt: null, caption: null });
     else setLive(botId, { isRunning: false, caption: null });
     emitBot(botId);
+  }
+  if (trigger.type === 'ledger') {
+    if (!failed && completed && turn.lastText.trim()) {
+      return { state: 'succeeded' as const, summary: Array.from(turn.lastText.trim()).slice(0, 200).join('') };
+    }
+    if (terminalFailure) return { state: 'failed' as const, summary: 'worker reported failure' };
+    return dispatched
+      ? { state: 'unknown' as const, summary: 'worker completion unconfirmed' }
+      : { state: 'failed' as const, summary: 'worker did not start' };
   }
 }
