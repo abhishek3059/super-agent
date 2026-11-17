@@ -95,3 +95,79 @@ test('the approval route refuses anything but a real answer', async () => {
   assert.equal((await post('{"decision":"allow"}')).status, 404, 'a real answer for an unknown card is not found');
   assert.equal((await api.request('/approvals/ap_none', { method: 'POST', body: '{"decision":"allow"}' })).status, 401, 'no session');
 });
+
+test('a bot sandbox closes reads, writes and local sockets outside what it is given', async () => {
+  const { sandboxProfile, contained, canContain } = await import('../src/sandbox.js');
+  const own = path.join(env.dataDir, 'files', 'bot_a');
+  fs.mkdirSync(own, { recursive: true });
+  const real = fs.realpathSync(env.dataDir);
+  const p = sandboxProfile({ read: [], write: [own], localPorts: [8787] });
+  const at = (rule: string) => { const i = p.indexOf(rule); assert.ok(i >= 0, rule); return i; };
+  // Later rules win, so every allow must come after the deny it narrows.
+  assert.ok(at('(deny file-write* (subpath "/"))') < at(`(allow file-read* file-write* (subpath "${real}/files/bot_a"))`));
+  const reads = p.split('\n').find((l) => l.startsWith('(deny file-read*'))!;
+  for (const d of [os.homedir(), real, '/private/tmp', '/private/var/folders', '/Volumes']) assert.ok(reads.includes(`(subpath "${fs.realpathSync(d)}")`), d);
+  assert.ok(at('(deny network-outbound (remote unix-socket))') < at(`(remote unix-socket (subpath "${real}/files/bot_a"))`));
+  assert.ok(at('(deny network-outbound (remote ip "localhost:*"))') < at('(allow network-outbound (remote ip "localhost:8787"))'));
+  for (const rule of ['(deny lsopen)', '(deny appleevent-send)', '(deny job-creation)', '(deny process-info* (target others))', 'com.apple.SecurityServer']) at(rule);
+  assert.ok(!sandboxProfile({ read: [], write: ['/tmp/a"b'], localPorts: [] }).includes('a"b'), 'quotes in a path cannot end the string');
+  assert.ok(!sandboxProfile({ read: [], write: [], localPorts: [], tempPrefix: 'x")) (allow default' }).includes('allow default'.repeat(2)), 'a bad bundle id is ignored');
+  if (!canContain()) assert.throws(() => contained('/bin/echo', [], { read: [], write: [], localPorts: [] }, 't'), /contained on macOS/, 'no sandbox, no bot');
+});
+
+test('inside the sandbox a process cannot read the session secret or a neighbour, and can use its own folder', { skip: process.platform !== 'darwin' }, async () => {
+  const { contained } = await import('../src/sandbox.js');
+  const { execFileSync } = await import('node:child_process');
+  const own = path.join(env.dataDir, 'files', 'bot_a');
+  const other = path.join(env.dataDir, 'files', 'bot_b');
+  for (const d of [own, other]) fs.mkdirSync(d, { recursive: true });
+  fs.writeFileSync(path.join(other, 'private.txt'), 'neighbour');
+  const sh = (cmd: string) => {
+    const run = contained('/bin/sh', ['-c', cmd], { read: [], write: [own], localPorts: [] }, 'bot_a.t');
+    try { return { ok: true, out: execFileSync(run.bin, run.args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }) }; } catch (e: any) { return { ok: false, out: String(e.stderr ?? '') }; }
+  };
+  assert.deepEqual(sh(`echo hi > '${own}/x' && cat '${own}/x'`), { ok: true, out: 'hi\n' });
+  for (const target of [path.join(env.dataDir, 'session-secret'), path.join(other, 'private.txt'), path.join(os.homedir(), '.ssh')]) {
+    const r = sh(`cat '${target}' || ls '${target}'`);
+    assert.equal(r.ok, false, target);
+    assert.match(r.out, /Operation not permitted/, target);
+  }
+  assert.equal(sh(`touch '${os.homedir()}/hq-sandbox-selfcheck'`).ok, false);
+  assert.equal(fs.existsSync(path.join(os.homedir(), 'hq-sandbox-selfcheck')), false);
+  // Nowhere outside its folders is writable, including the shared temp folder.
+  assert.equal(sh('touch /private/tmp/hq-sandbox-selfcheck').ok, false);
+  assert.equal(fs.existsSync('/private/tmp/hq-sandbox-selfcheck'), false);
+  // It cannot hand a command to launchd, which would run it outside the sandbox.
+  const job = sh(`launchctl submit -l hq.selfcheck -- /usr/bin/touch '${own}/via-launchd'; echo $?`);
+  assert.match(job.out, /\b1\s*$/);
+  await new Promise((r) => setTimeout(r, 500));
+  assert.equal(fs.existsSync(path.join(own, 'via-launchd')), false);
+});
+
+test('the server never writes or reads through a link a bot planted in its own folder', async () => {
+  const { writeOwn, readOwn } = await import('../src/lib/own.js');
+  const root = fs.mkdtempSync(path.join(env.dataDir, 'own-'));
+  const outside = path.join(env.dataDir, 'operator-file');
+  fs.writeFileSync(outside, 'original');
+  fs.symlinkSync(outside, path.join(root, 'planted.txt'));
+  writeOwn(root, 'planted.txt', 'PWNED');
+  assert.equal(fs.readFileSync(outside, 'utf8'), 'original', 'the target is untouched');
+  assert.equal(fs.lstatSync(path.join(root, 'planted.txt')).isSymbolicLink(), false, 'the link was replaced by a file');
+  fs.symlinkSync(outside, path.join(root, 'read.txt'));
+  assert.equal(readOwn(root, 'read.txt'), null, 'a link is not read');
+  fs.symlinkSync(env.dataDir, path.join(root, 'dir'));
+  assert.throws(() => writeOwn(root, 'dir/session-secret', 'x'), /outside the bot folder/);
+  assert.throws(() => writeOwn(root, '../escape.txt', 'x'), /outside the bot folder/);
+  assert.equal(fs.existsSync(path.join(env.dataDir, 'escape.txt')), false);
+  writeOwn(root, 'sub/ok.txt', 'fine');
+  assert.equal(readOwn(root, 'sub/ok.txt')?.text, 'fine');
+});
+
+test('a process id is only ever taken from the server\'s own folder and must match its command', async () => {
+  const { recordPid, livePid, stopPid } = await import('../src/lib/procs.js');
+  recordPid('bot_a.test', process.pid);
+  assert.equal(livePid('bot_a.test', 'no such marker in this command'), null, 'a live pid that is not ours is refused');
+  assert.equal(livePid('bot_unknown.test', 'node'), null);
+  await stopPid('bot_a.test', 'no such marker in this command');
+  assert.ok(process.pid > 0, 'this process was not signalled');
+});

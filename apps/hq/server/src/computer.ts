@@ -1,9 +1,11 @@
-import { spawn } from 'node:child_process';
+import { execFileSync, spawn } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { WebSocket } from 'ws';
 import { db } from './db.js';
 import { env } from './env.js';
+import { confinedEnv, contained } from './sandbox.js';
+import { livePid, recordPid, stopPid } from './lib/procs.js';
 import type { ComputerState } from './types.js';
 
 /**
@@ -21,10 +23,18 @@ const CHROMES = [
   '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
   '/Applications/Chromium.app/Contents/MacOS/Chromium',
   '/Applications/Brave Browser.app/Contents/MacOS/Brave Browser',
+  '/Applications/ego lite.app/Contents/MacOS/ego lite',
   '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge',
   '/usr/bin/google-chrome', '/usr/bin/chromium', '/usr/bin/chromium-browser',
 ];
 const chromeBin = () => env.chromeBin || CHROMES.find((p) => fs.existsSync(p)) || '';
+
+/** The browser app's bundle id (see Confinement.tempPrefix), read from the app around the binary. */
+function bundleId(bin: string): string | undefined {
+  const plist = bin.match(/^(.*\.app)\/Contents\/MacOS\//)?.[1];
+  if (!plist) return undefined;
+  try { return execFileSync('plutil', ['-extract', 'CFBundleIdentifier', 'raw', `${plist}/Contents/Info.plist`], { encoding: 'utf8', timeout: 3000 }).trim(); } catch { return undefined; }
+}
 
 const validId = (botId: string) => /^bot_[\w-]+$/.test(botId);
 const profileDir = (botId: string) => path.join(env.profilesDir, botId);
@@ -54,8 +64,16 @@ export function computerState(userId: string): ComputerState {
 
 const starting = new Map<string, Promise<void>>();
 
+/** The browser we started for this bot: its command line names its own debugging port. */
+const chromeMarker = (botId: string) => `--remote-debugging-port=${cdpPortFor(botId)} `;
+const chromePid = (botId: string) => livePid(`${botId}.chrome`, chromeMarker(botId));
+
 async function startChrome(botId: string): Promise<void> {
-  if (await alive(botId)) return;
+  // Only a browser this server started (always inside the sandbox) is used. Anything else on the port is refused.
+  if (await alive(botId)) {
+    if (chromePid(botId)) return;
+    throw new Error(`Port ${cdpPortFor(botId)} is taken by a browser this app did not start. Close it and try again.`);
+  }
   const bin = chromeBin();
   if (!bin) throw new Error('No Chrome found. Install Google Chrome or set CHROME_BIN.');
   if (!validId(botId)) throw new Error('bad bot id');
@@ -65,20 +83,33 @@ async function startChrome(botId: string): Promise<void> {
     `<title>${esc(bot?.name)}</title><body style="margin:0;height:100vh;display:grid;place-items:center;background:#0b0f14;color:#cfe8ff;font:500 28px system-ui"><div style="text-align:center">${esc(bot?.name)}<div style="font-size:14px;opacity:.6;margin-top:8px">${esc(bot?.label)}</div></div>`,
   )}`;
   fs.mkdirSync(profileDir(botId), { recursive: true, mode: 0o700 });
-  const child = spawn(bin, [
-    '--headless=new', `--remote-debugging-port=${cdpPortFor(botId)}`, '--remote-debugging-address=127.0.0.1',
+  fs.mkdirSync(path.join(env.filesDir, botId), { recursive: true });
+  // Lock links from an earlier run point into the system temp folder; a new start makes its own.
+  for (const f of ['SingletonLock', 'SingletonSocket', 'SingletonCookie']) fs.rmSync(path.join(profileDir(botId), f), { force: true });
+  // The bot drives this browser freely (file:// pages, uploads, downloads), so the browser itself is
+  // confined: its own profile and the bot's working folder, the internet, and no local ports.
+  // Chrome cannot start its own inner sandbox inside ours, hence --no-sandbox; ours covers every
+  // process it starts. The Keychain is closed to it, hence the mock one.
+  // shortcut: pages lose Chrome's per-site process isolation from each other; upgrade when Chrome
+  // can nest inside an outer sandbox.
+  const run = contained(bin, [
+    '--headless=new', '--no-sandbox', '--use-mock-keychain', `--remote-debugging-port=${cdpPortFor(botId)}`, '--remote-debugging-address=127.0.0.1',
     `--user-data-dir=${profileDir(botId)}`, `--window-size=${SCREEN.width},${SCREEN.height + CHROME_UI}`,
     '--no-first-run', '--no-default-browser-check', '--disable-background-networking', '--hide-scrollbars', home,
-  ], { detached: true, stdio: 'ignore' });
+  ], { read: [], write: [profileDir(botId), path.join(env.filesDir, botId)], localPorts: [], tempPrefix: bundleId(bin) }, `${botId}.c`);
+  // Nothing of this server's environment (the voice key lives there) reaches the browser.
+  const child = spawn(run.bin, run.args, { detached: true, stdio: 'ignore', env: confinedEnv(`${botId}.c`) });
   let failed = '';
   child.once('error', (e) => { failed = e.message; });
   child.unref();
-  if (child.pid) fs.writeFileSync(path.join(profileDir(botId), 'hq-chrome.pid'), String(child.pid));
+  recordPid(`${botId}.chrome`, child.pid);
   for (let i = 0; i < 40; i++) {
     await new Promise((r) => setTimeout(r, 250));
     if (failed) throw new Error(`could not start Chrome: ${failed}`);
     if (await alive(botId)) return;
   }
+  // Do not leave a half-started browser holding the profile's lock.
+  if (child.pid) try { process.kill(-child.pid, 'SIGKILL'); } catch { /* gone */ }
   throw new Error('Chrome did not come up within 10 seconds.');
 }
 
@@ -95,15 +126,7 @@ export function readyScreen(_userId: string, botId: string): Promise<void> {
 /** Called before a bot starts working, so its first turn finds its own browser and starts no other. */
 export const screenForWork = readyScreen;
 
-async function stopChrome(botId: string) {
-  let pid = NaN;
-  try { pid = Number(fs.readFileSync(path.join(profileDir(botId), 'hq-chrome.pid'), 'utf8')); } catch { return; }
-  if (!Number.isInteger(pid) || pid <= 1) return;
-  // The pid file can outlive its process; only signal it while the port it served still answers.
-  if (!(await alive(botId))) return;
-  try { process.kill(pid, 'SIGTERM'); } catch { /* gone */ }
-  for (let i = 0; i < 20 && (await alive(botId)); i++) await new Promise((r) => setTimeout(r, 250));
-}
+const stopChrome = (botId: string) => stopPid(`${botId}.chrome`, chromeMarker(botId));
 
 /** Close everything in the bot's browser and bring it back to its start page. Logins stay. */
 export async function resetBotScreen(userId: string, botId: string): Promise<void> {

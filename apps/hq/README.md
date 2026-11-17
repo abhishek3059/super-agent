@@ -7,7 +7,8 @@ its own memory, working folder and browser.
 
 This app is adapted from [Bot HQ](https://github.com/nickvasilescu/bot-hq)
 (MIT). See [third-party notices](THIRD_PARTY_NOTICES.md). It is experimental
-and has had no independent security review. It runs under a bounded
+and has had no independent security review. Bots run inside the macOS
+sandbox. It runs under a bounded
 exception, [DEC-23](../../descisions.md#dec-23). The maintainer's direction is
 [recorded here](../../docs/approvals/jarvis-hq-local-team.md).
 
@@ -27,8 +28,9 @@ exception, [DEC-23](../../descisions.md#dec-23). The maintainer's direction is
 
 ## Run it
 
-You need Node.js 22 or newer, Google Chrome, and a working `hermes` command
-with at least one model provider set up in `~/.hermes`.
+You need macOS, Node.js 22 or newer, Google Chrome (or Chromium, Brave or
+Ego Browser), and a working `hermes` command with at least one model
+provider set up in `~/.hermes`.
 
 ```bash
 cd apps/hq
@@ -70,8 +72,7 @@ All optional, read from the environment or from `~/.super-agent/hq/.env`.
 | `OPENAI_API_KEY` | none | Turns on voice, dictation and voice preview |
 | `OPENAI_VOICE_MODEL` | `gpt-realtime-2.1` | Realtime model |
 | `HERMES_BIN` | `hermes` | The Hermes command |
-| `HERMES_URL` | none | Hand the first bot to a Hermes gateway that already runs |
-| `CHROME_BIN` | auto | Chrome to use for the bots' browsers |
+| `CHROME_BIN` | auto | Browser for the bots: Chrome, Chromium, Brave or Ego Browser, first found |
 | `MAX_BOTS` | `8` | Team size limit |
 
 ## Where things live
@@ -85,7 +86,9 @@ A new bot's Hermes home starts from your own `~/.hermes`: the model settings,
 `auth.json`, and the provider keys in `.env` (names ending `_API_KEY` or
 `_BASE_URL`). Messaging tokens are not copied. The voice key in the data
 folder is not handed to bots. Your own Hermes gateway and its files are
-never changed. Unverified risk: a provider that rotates sign-in tokens may
+never changed. To add a sign-in, run `hermes auth add <provider>` in your own
+terminal and restart the bot; the in-app sign-in button is off because it
+would run outside the bot's sandbox. Unverified risk: a provider that rotates sign-in tokens may
 sign out your own Hermes when a copy refreshes.
 
 ## Security boundary
@@ -95,17 +98,65 @@ sign out your own Hermes when a copy refreshes.
 - Sign-in is a one-time link. Only someone who can read `session-secret` in
   the data folder can mint one. The session cookie is `HttpOnly` and
   `SameSite=Strict`.
-- A watch-mode viewer cannot send input. A control-mode viewer can send only mouse and key events.
-- Hermes' desktop-control toolset is not enabled. It would drive your own
-  desktop.
+- A watch-mode viewer cannot send input. A control-mode viewer can send only
+  mouse and key events.
+- Approval cards accept only an explicit allow. Anything else is refused.
+- Hermes' desktop-control toolset is not enabled.
 
-**Not contained.** The bots run as your user. A bot can run shell commands
-and read or write any file you can, including another bot's folder. Web
-pages and files a bot reads can try to steer it. Nothing a bot does in its
-shell or browser asks for approval. A bot can also read
-`session-secret`, and with it sign in as you, answer its own approval cards
-and act as another bot. Use
-synthetic data until the containment work in the project roadmap is done.
+### Containment
+
+Each bot's Hermes gateway and its browser run inside the macOS sandbox
+(`sandbox-exec`), and so does everything they start. Inside it a bot:
+
+- can write only its own Hermes home, its working folder, its browser
+  profile and its own temporary folder. Nothing else on the disk is
+  writable, so it cannot replace a program you run later (Homebrew,
+  `/usr/local`, `/Applications`);
+- can read the Hermes program and system files, and nothing in your home
+  folder, the app's data folder (session secret, database, other bots'
+  folders), the shared temporary folders, other users' folders or other
+  disks;
+- can reach the internet, this server's tool endpoint and its own browser,
+  and no other local port or local socket (so not another bot, and not your
+  `ssh-agent`);
+- cannot open apps, send Apple events, start launchd jobs, read the Keychain
+  or the clipboard, or see or signal other processes.
+
+The server itself is not sandboxed, so it does not trust anything a bot can
+write:
+
+- Files it writes into a bot's folders (the bot's settings, persona and
+  sign-ins on each start, files saved with `save_file`, memory edits) are
+  written fresh. A link a bot planted there is replaced, never followed.
+  Files it reads there are read the same way.
+- The ids of the processes it started are kept in its own folder, so a bot
+  cannot point the server at another process to stop.
+- A process on a bot's port that the server did not start is refused, not
+  adopted.
+
+Without a sandbox the app refuses to start a bot. That means macOS only,
+unless you set `HQ_UNCONTAINED=1` and accept uncontained bots.
+
+**What containment does not cover.**
+
+- A bot holds the model keys and sign-ins copied into its own home, and it
+  can reach the internet. A steered bot can spend those keys or send them,
+  and anything else in its own folder, somewhere else.
+- Web pages and files a bot reads can still try to steer it, and one bot can
+  message another. Nothing a bot does in its own shell or browser asks for
+  approval.
+- A bot can read system files outside the closed folders.
+- Chrome makes its profile lock in the system's per-user temporary folder,
+  whatever the settings say. The browser's sandbox opens only folders there
+  named after the browser, which every bot's browser shares.
+- Chrome's own inner sandbox cannot run inside ours, so it is off. Pages in
+  one bot's browser are less isolated from each other. They are still inside
+  that bot's sandbox.
+- `sandbox-exec` is a macOS tool that Apple marks as deprecated. It has had
+  no independent review here.
+
+Use synthetic data until the independent security review (roadmap R-H.4)
+is done.
 
 ## What has been tested
 

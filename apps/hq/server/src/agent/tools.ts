@@ -1,7 +1,7 @@
 import { db, now } from '../db.js';
 import { newId } from '../lib/ids.js';
 import { hub } from '../lib/hub.js';
-import { box } from '../box.js';
+import { writeOwn } from '../lib/own.js';
 import { env } from '../env.js';
 import { appendRow, getBotRow, listRoutines, toRoutine, describeCron } from '../store.js';
 import { executeComposio, innerToolSlugs, isReadOnlySlug, toolkitInfo } from '../composio.js';
@@ -99,7 +99,8 @@ const ALL_TOOLS: ToolDef[] = [
     impl: async (a, ctx) => {
       const name = String(a.filename).replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 120) || 'file.txt';
       const file = `${LIBRARY_ROOT}/${ctx.botId}/${name}`;
-      await box.writeFile(file, String(a.content ?? ''));
+      // The folder is the bot's own and it can plant links in it: never write through one.
+      writeOwn(`${LIBRARY_ROOT}/${ctx.botId}`, name, String(a.content ?? ''), 0o644);
       return { output: JSON.stringify({ ok: true, path: file }), summary: `Saved ${name}` };
     },
   },

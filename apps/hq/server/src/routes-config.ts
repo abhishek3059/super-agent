@@ -9,8 +9,7 @@ import { Readable } from 'node:stream';
 import { env } from './env.js';
 import { emitBot, getBotRow, listRoutines, listTasks } from './store.js';
 import { computerState, resetBotScreen } from './computer.js';
-import { box } from './box.js';
-import { engineHome, engineInfo, engineKind, forgetEngineOptions, restartEngine, stopOwnScreen } from './engine.js';
+import { engineInfo, engineKind, forgetEngineOptions, restartEngine } from './engine.js';
 import { listMemories } from './engine-memory.js';
 import type { LibraryFile, Skill } from './types.js';
 
@@ -131,31 +130,6 @@ configApi.patch('/bots/:id/engine', async (c) => {
   return c.json({ engine: await engineInfo(b.id) });
 });
 
-/**
- * Sign in to a model provider (a Claude, ChatGPT or Grok subscription, or an API key). Hermes does
- * the sign-in itself; we open its command in a Terminal window on the operator's desktop, where
- * they finish it.
- */
-configApi.post('/bots/:id/engine/login', async (c) => {
-  const user = c.get('user');
-  const b = ownBot(user.id, c.req.param('id'));
-  if (!b) return c.json({ error: 'not found' }, 404);
-  const home = engineHome(b.id);
-  if (!home) return c.json({ error: 'This bot has no agent.' }, 409);
-  const { provider } = await c.req.json<{ provider?: string }>().catch(() => ({} as { provider?: string }));
-  if (provider !== undefined && !/^[a-z0-9][a-z0-9._-]{0,40}$/.test(provider)) return c.json({ error: 'bad provider' }, 400);
-  const hermes = `HERMES_HOME=${box.quote(home)} ${box.quote(env.hermesBin)}`;
-  // Claude subscriptions sign in with OAuth; without the flag Hermes asks for an API key.
-  const cmd = !provider ? `${hermes} model` : `${hermes} auth add ${provider}${provider === 'anthropic' ? ' --type oauth' : ''}`;
-  try {
-    await box.openTerminal(cmd);
-    forgetEngineOptions(b.id);
-    return c.json({ ok: true });
-  } catch (e: any) {
-    return c.json({ error: String(e?.message ?? e).slice(0, 300) }, 502);
-  }
-});
-
 configApi.post('/bots/:id/engine/restart', async (c) => {
   const b = ownBot(c.get('user').id, c.req.param('id'));
   if (!b) return c.json({ error: 'not found' }, 404);
@@ -167,18 +141,6 @@ configApi.post('/bots/:id/engine/restart', async (c) => {
     return c.json({ engine: await engineInfo(b.id) });
   } catch (e: any) {
     return c.json({ error: String(e?.message ?? e).slice(0, 300) }, 502);
-  }
-});
-
-/** Stop the private screen Hermes runs for this agent, so its computer work comes back to the screen shown here. */
-configApi.post('/bots/:id/engine/screen/stop', async (c) => {
-  const b = ownBot(c.get('user').id, c.req.param('id'));
-  if (!b) return c.json({ error: 'not found' }, 404);
-  try {
-    await stopOwnScreen(b.id);
-    return c.json({ engine: await engineInfo(b.id) });
-  } catch (e: any) {
-    return c.json({ error: String(e?.message ?? e).slice(0, 300) }, 409);
   }
 });
 
@@ -212,7 +174,7 @@ configApi.get('/bots/:id/files', (c) => {
     const dir = fs.realpathSync(`${root}/${rel}`);
     if (dir !== fs.realpathSync(root) && !dir.startsWith(fs.realpathSync(root) + '/')) return c.json({ error: 'bad path' }, 400);
     const files: LibraryFile[] = fs.readdirSync(dir, { withFileTypes: true }).filter((e) => e.isFile() || e.isDirectory()).map((e) => {
-      const st = fs.statSync(`${dir}/${e.name}`);
+      const st = fs.lstatSync(`${dir}/${e.name}`);
       return { name: e.name, size: st.size, modifiedAt: st.mtimeMs, isDir: e.isDirectory() };
     });
     files.sort((x, y) => Number(y.isDir) - Number(x.isDir) || y.modifiedAt - x.modifiedAt);

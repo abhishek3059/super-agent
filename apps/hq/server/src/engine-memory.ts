@@ -1,4 +1,4 @@
-import fs from 'node:fs';
+import { readOwn, writeOwn } from './lib/own.js';
 import path from 'node:path';
 import { sha256 } from './lib/ids.js';
 import { engineHome } from './engine.js';
@@ -16,13 +16,10 @@ const FILES = [
   { key: 'u', file: 'USER.md', source: 'chat' as const },
 ];
 
-function read(file: string): { entries: string[]; mtime: number } {
-  try {
-    const raw = fs.readFileSync(file, 'utf8');
-    return { entries: raw.split(SEP).map((e) => e.trim()).filter(Boolean), mtime: fs.statSync(file).mtimeMs };
-  } catch {
-    return { entries: [], mtime: 0 };
-  }
+/** Entries of one memory file in the bot's home, read without following a link the bot planted there. */
+function read(home: string, rel: string): { entries: string[]; mtime: number } {
+  const f = readOwn(home, rel);
+  return f ? { entries: f.text.split(SEP).map((e) => e.trim()).filter(Boolean), mtime: f.mtimeMs } : { entries: [], mtime: 0 };
 }
 
 // Bot ids never contain a dot, so it separates the parts of a memory id.
@@ -33,7 +30,7 @@ export function listMemories(botId: string): Memory[] {
   if (!home) return [];
   const out: Memory[] = [];
   for (const f of FILES) {
-    const { entries, mtime } = read(path.join(home, 'memories', f.file));
+    const { entries, mtime } = read(home, path.join('memories', f.file));
     for (const text of entries) out.push({ id: idFor(botId, f.key, text), botId, text, createdAt: Math.round(mtime), source: f.source });
   }
   return out;
@@ -51,10 +48,10 @@ export function deleteMemory(id: string): boolean {
   if (!botId || !home) return false;
   const f = FILES.find((x) => x.key === id.split('.')[2]);
   if (!f) return false;
-  const file = path.join(home, 'memories', f.file);
-  const { entries } = read(file);
+  const rel = path.join('memories', f.file);
+  const { entries } = read(home, rel);
   const keep = entries.filter((text) => idFor(botId, f.key, text) !== id);
   if (keep.length === entries.length) return false;
-  fs.writeFileSync(file, keep.join(SEP) + (keep.length ? '\n' : ''));
+  writeOwn(home, rel, keep.join(SEP) + (keep.length ? '\n' : ''), 0o644);
   return true;
 }

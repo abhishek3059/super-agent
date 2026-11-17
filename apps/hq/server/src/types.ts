@@ -205,8 +205,7 @@ export interface EngineInfo {
   provider: string | null;
   version: string | null;
   providers: EngineProvider[];
-  /** Hermes is running a private screen of its own for this agent, so its computer work is not on the screen the app shows. */
-  ownScreen: boolean;
+
 }
 
 export interface Toolkit {

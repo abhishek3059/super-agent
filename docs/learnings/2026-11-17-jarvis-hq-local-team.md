@@ -38,6 +38,26 @@ screen relay in place of VNC, OpenAI Realtime in place of xAI voice.
 - A chat message cannot suspend a security invariant. It needs a decision
   entry and a rule edit, which became DEC-23.
 
+- Containment on macOS did not need a second user account. `sandbox-exec`
+  with a deny rule on the home folder and narrow allows was enough to keep a
+  bot's shell and browser out of the operator's files.
+- Chrome will not start if Launch Services is closed to it, and it cannot
+  start its own inner sandbox inside an outer one. It needs `--no-sandbox`
+  there, and the outer profile then covers its child processes.
+- A self-check that used a data folder outside the home folder showed the
+  session secret was readable there. Closing "the home folder" was the wrong
+  rule; the data folder has to be closed by name.
+- Anything that runs Hermes on a bot's home must run inside that bot's
+  sandbox, because the bot can write the home. The in-app sign-in was
+  removed for that reason.
+
+- Sandboxing the agent was not enough. The server that works for it is
+  outside the sandbox, so every file it reads or writes in the agent's folder
+  and every pid it takes from there is a way out. The fix is to treat those
+  folders as hostile: write fresh, never follow links, keep state elsewhere.
+- Chromium ignores `TMPDIR` for its profile lock on macOS and puts it in the
+  per-user temporary folder, with a socket path limit of 104 bytes.
+
 ## What to do differently
 
 - Check for an existing licensed implementation before building in parallel
@@ -49,4 +69,4 @@ screen relay in place of VNC, OpenAI Realtime in place of xAI voice.
 - Whether the OpenAI Realtime call works end to end. It has not been run.
 - Memory use with all five gateways and five Chromes running.
 - How Hermes workers behave under prompt injection from pages they read.
-  They are not contained.
+  They are sandboxed, but they keep their own keys and internet access.

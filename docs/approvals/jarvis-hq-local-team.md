@@ -45,9 +45,10 @@ permission to build it.
   and independent security reviews that T1 to T3 require have not been done
   for this app. The code does give the workers that capability. DEC-23
   proposes a bounded exception for it. No tier is enabled.
-- **No containment.** A bot can reach the operator's files, other bots'
-  folders and the app's own session secret, so a steered bot could sign in
-  as the operator and answer its own approval cards. [PH-05](../../phases.md) containment work still applies.
+- **Containment is new and unreviewed.** Each bot now runs inside the
+  macOS sandbox and cannot read the operator's files, the session secret or
+  another bot's folder ([run record](../implementation/jarvis-hq-local-run.md#containment)).
+  A bot still holds its own copied model keys and can reach the internet.
 - **No independent security review** of `apps/hq` has happened.
 - **Data boundary.** The [PH-00 boundary](ph-00-setup-decisions.md) kept
   personal microphone audio local, and roadmap item R-A.2 (real voice and

@@ -69,7 +69,31 @@ What keeps the verdict at REVISE:
 
 The reviewer's reading of the rules: a maintainer cannot simply declare the risk accepted and merge. Either the risk is reduced in code (containment, or keeping the session secret and approval answers out of a worker's reach), or the gate itself is changed by a reviewed rule change with its own decision entry.
 
-This change has not passed the shared reviewer.
+This change had not passed the shared reviewer at that point.
+
+## After pass 4: containment
+
+The maintainer chose containment. Each bot's gateway and browser now run inside the macOS sandbox. The in-app sign-in, which ran Hermes outside it, was removed. Evidence is in the [run record](../implementation/jarvis-hq-local-run.md#containment).
+
+## Pass 5: REVISE (average 5.6)
+
+| Correctness | Security | Honesty | Scope | Clarity |
+| --- | --- | --- | --- | --- |
+| 6 | 3 | 4 | 7 | 8 |
+
+The sandbox rule order was correct, but the unsandboxed server could be used to get out. Findings, and what was done:
+
+1. `save_file` wrote through a link the bot planted, so a bot could write any of the operator's files. Fixed: writes in a bot's folders replace links instead of following them, and the parent folder must be inside the bot's own.
+2. The server rewrote a bot's settings, persona and memory through planted links on each start. Fixed the same way. The bot's home is now written fresh and never read back.
+3. The server signalled a pid read from the bot's home. Fixed: pids are kept in the server's own folder and must match the process's command line.
+4. The profile allowed writes anywhere outside a few folders (Homebrew, `/usr/local`, `/Applications`, `/tmp`). Fixed: writes are denied everywhere except the bot's own folders and devices.
+5. Local sockets were open (for example an ssh agent). Fixed: only the bot's own sockets and the system's name lookup and log.
+6. Folders moved by settings (`ENGINES_DIR`, `DB_PATH`, the operator's Hermes home) were not closed. Fixed: closed by name.
+7. `HERMES_URL` handed the first bot to the operator's own, unsandboxed Hermes. Switched off in code.
+8. The R-H.5 tick was unsupported. The evidence now includes the attacks through the server, checked from outside, and self-checks that plant links.
+9. Ego Browser support was out of scope. The maintainer asked for it in chat on 2026-11-17 as the fallback browser.
+10. The UI still offered the removed sign-in. It now shows the terminal command instead; the private-desktop switch was removed too.
+11. `launchctl submit` was untested. A self-check now tries it inside the sandbox.
 
 ## Not verified by the reviewer
 

@@ -52,11 +52,11 @@ export const env = {
   /** The operator's own Hermes home: bots start from its model settings and sign-ins. Never written to. */
   hermesHome,
   /**
-   * Set HERMES_URL to hand the first bot to a Hermes gateway that already runs. Unset (the default),
-   * every bot gets a gateway of its own and the operator's gateway is left alone.
+   * Upstream could hand the first bot to a Hermes gateway the operator already runs. That gateway is
+   * not sandboxed, so this build never does: every bot gets a contained gateway of its own.
    */
-  hermesUrl: (process.env.HERMES_URL ?? '').replace(/\/+$/, ''),
-  hermesKey: process.env.HERMES_KEY ?? '',
+  hermesUrl: '',
+  hermesKey: '',
   /** Where each bot's own Hermes home lives. Outside ~/.hermes so it is a separate tenant. */
   enginesDir: process.env.ENGINES_DIR ?? path.join(dataDir, 'engines'),
   enginePortBase: Number(process.env.ENGINE_PORT_BASE ?? 8650),
