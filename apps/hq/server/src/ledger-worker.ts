@@ -4,6 +4,7 @@ import { db } from './db.js';
 import { env, workspaceFor } from './env.js';
 import { canContain } from './sandbox.js';
 import { isBotBusy, runInBotQueue, runLedgerTurn } from './agent/loop.js';
+import { stopGateway } from './engine.js';
 import { jobs, roles, type Role } from './ledger-client.js';
 
 function worker(role: Role) {
@@ -26,6 +27,7 @@ async function artifacts(botId: string) {
 }
 
 export function startLedgerWorkers(): () => Promise<void> {
+  const quarantined = new Set<string>();
   const running = new Map<Role, Promise<void>>();
   const timers: NodeJS.Timeout[] = [];
   if (env.ledgerToken && env.localModel && canContain()) {
@@ -34,12 +36,20 @@ export function startLedgerWorkers(): () => Promise<void> {
         if (running.has(role)) return;
         const tick = (async () => {
           const bot = worker(role);
-          if (!bot || isBotBusy(bot.id)) return;
+          if (!bot || quarantined.has(bot.id) || isBotBusy(bot.id)) return;
           await runInBotQueue(bot.id, async () => {
             const claim = await jobs.claim(role);
             if (!claim) return;
             const before = await artifacts(bot.id);
-            const result = await runLedgerTurn(bot.id, claim.id, claim.instruction);
+            const result = await runLedgerTurn(bot.id, claim.id, claim.instruction).catch(() => ({
+              state: 'unknown' as const, summary: 'worker completion unconfirmed',
+            }));
+            if (result.state === 'unknown') {
+              // A cancelled HTTP stream cannot prove the worker stopped. Kill the owned process
+              // group before making this role available again. Quarantine on ambiguous shutdown.
+              quarantined.add(bot.id);
+              if (await stopGateway(bot.id)) quarantined.delete(bot.id);
+            }
             const after = await artifacts(bot.id);
             const paths = [...after].filter(([name, stamp]) => before.get(name) !== stamp)
               .map(([name]) => name).slice(0, 8);

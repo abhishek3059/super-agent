@@ -172,7 +172,7 @@ def admit(spec: object, idempotency_key: object, planner_is_local: object, limit
     if not planner_is_local and spec["data_class"] == "personal":
         raise PolicyError("personal_data_cloud_planner")
     try:
-        jobs = ledger.list_jobs()
+        jobs = [job for job in ledger.list_jobs() if "hq_role" not in job.spec]
         known = any(j.idempotency_key == idempotency_key for j in jobs)  # a repeat is not new load
         if not known and sum(j.state not in TERMINAL for j in jobs) >= lim.concurrent_jobs + lim.queued_jobs:
             raise PolicyError("queue_full")

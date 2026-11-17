@@ -18,10 +18,9 @@ export const voiceApi = new Hono<AuthVars>();
 
 const OPENAI = 'https://api.openai.com/v1';
 const STT_MODEL = process.env.OPENAI_STT_MODEL ?? 'gpt-transcribe';
-const TTS_MODEL = process.env.OPENAI_TTS_MODEL ?? 'gpt-4o-mini-tts';
 const SAMPLE_RATE = 24000;
 const headers = () => ({ Authorization: `Bearer ${env.openaiKey}` });
-const NO_KEY = 'Synthetic voice requires HQ_SYNTHETIC_VOICE=1, a ledger token, an API key and macOS containment.';
+const NO_KEY = 'OpenAI Realtime is disabled pending the synthetic voice spend approval.';
 
 // ---------- voices / languages ----------
 
@@ -213,52 +212,6 @@ setInterval(() => {
   }
 }, 10 * 60_000).unref();
 
-// ---------- TTS preview & STT dictation ----------
-
-voiceApi.post('/preview', async (c) => {
-  const user = c.get('user');
-  const p = await readJson(c, z.strictObject({
-    botId: z.string().optional(), voice: z.string().optional(), speed: z.number().optional(),
-    language: z.string().optional(), text: z.string().optional(), codec: z.enum(['mp3', 'pcm']).optional(),
-  }));
-  const bot = ownBot(user.id, p.botId);
-  const s = bot ? settingsOf(bot) : { voice: 'cedar', speed: 1, language: 'auto' };
-  const voice = String(p.voice || s.voice).slice(0, 80);
-  const language = p.language && langName(p.language) ? p.language : s.language;
-  const text = String(p.text || `Hi, I'm ${bot?.name ?? 'your Bot'}. This is how I'll sound when we talk.`).slice(0, 400);
-  const codec = p.codec === 'pcm' ? 'pcm' : 'mp3';
-  if (!voiceEnabled()) return c.json({ error: NO_KEY }, 403);
-  const r = await fetch(`${OPENAI}/audio/speech`, {
-    method: 'POST',
-    headers: { ...headers(), 'Content-Type': 'application/json' },
-    body: JSON.stringify({ model: TTS_MODEL, input: text, voice: VOICES.some((v) => v.id === voice) ? voice : 'cedar', response_format: codec }),
-    signal: AbortSignal.timeout(30_000),
-  }).catch(() => null);
-  if (!r?.ok) {
-    console.warn('[voice] tts failed', r?.status);
-    return c.json({ error: 'Preview unavailable' }, 502);
-  }
-  return c.body(Buffer.from(await r.arrayBuffer()), 200, {
-    'Content-Type': codec === 'pcm' ? `audio/pcm;rate=${SAMPLE_RATE}` : 'audio/mpeg',
-    'Cache-Control': 'no-store',
-  });
-});
-
-voiceApi.post('/stt', async (c) => {
-  const form = await c.req.formData().catch(() => null);
-  const file = form?.get('file');
-  if (!file || typeof file === 'string') return c.json({ error: 'file required' }, 400);
-  if (file.size > 25 * 1024 * 1024) return c.json({ error: 'recording too long' }, 413);
-  if (file.size < 200) return c.json({ text: '' });
-  const out = new FormData();
-  out.append('model', STT_MODEL);
-  out.append('file', file, file.name || 'dictation.webm'); // must be last
-  if (!voiceEnabled()) return c.json({ error: NO_KEY }, 403);
-  const r = await fetch(`${OPENAI}/audio/transcriptions`, { method: 'POST', headers: headers(), body: out, signal: AbortSignal.timeout(60_000) }).catch(() => null);
-  if (!r?.ok) {
-    console.warn('[voice] stt failed', r?.status);
-    return c.json({ error: 'Transcription failed' }, 502);
-  }
-  const j = (await r.json()) as { text?: string };
-  return c.json({ text: (j.text ?? '').trim() });
-});
+// Separate paid preview and dictation routes are outside this prototype.
+voiceApi.post('/preview', (c) => c.json({ error: 'Voice preview is disabled' }, 403));
+voiceApi.post('/stt', (c) => c.json({ error: 'Dictation is disabled' }, 403));

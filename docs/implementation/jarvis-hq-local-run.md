@@ -105,7 +105,8 @@ to write its temporary workspace and refused access to a sibling fixture.
 A separate macOS smoke used a temporary home, the real Python HTTP API
 and SQLite, an installed Hermes virtual environment, contained Chrome, and
 a local inference stub. Observed: DevTools HTTP 200 and a JPEG frame,
-admission queued, Scout claimed the job, and HQ wrote a succeeded receipt.
+an authenticated HQ WebSocket relay received a JPEG, admission queued,
+Scout claimed the job, and HQ wrote a succeeded receipt.
 The persisted event reasons were `created`, `claimed_hq_scout`, and
 `hq_finished`. The test checked the synthetic output summary after opening
 the SQLite ledger again.
@@ -113,3 +114,9 @@ the SQLite ledger again.
 The default Hermes launcher attempted dependency repair while sandboxed.
 Using a preinstalled entry point in the Hermes virtual environment resolved
 that setup issue. A real PostgreSQL server and live OpenAI voice were not run.
+
+A follow-up fixture stopped a run during inference. HQ wrote an unknown
+receipt, stopped the owned Hermes process group and accepted the next job
+on a newly started gateway. The second job persisted a succeeded receipt.
+The API test also rejects a late receipt before a later poll reaps the claim,
+while preserving retries of receipts already written.

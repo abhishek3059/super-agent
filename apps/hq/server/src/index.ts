@@ -58,3 +58,9 @@ initProactive(enqueue);
 initEngines();
 const stopLedgerWorkers = startLedgerWorkers();
 server.on('close', () => { void stopLedgerWorkers(); });
+for (const signal of ['SIGINT', 'SIGTERM'] as const) {
+  process.once(signal, () => {
+    server.close();
+    process.exit(0);
+  });
+}

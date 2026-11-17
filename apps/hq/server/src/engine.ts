@@ -35,15 +35,6 @@ function writePrivate(file: string, content: string) {
 
 // ---------- identity ----------
 
-/** Token a bot's Hermes agent presents to this server's MCP endpoint. `primary` names the primary bot. */
-export function mcpToken(botId: string): string {
-  return crypto.createHmac('sha256', env.sessionSecret).update(`mcp:${botId}`).digest('hex');
-}
-
-export function primaryBotId(): string | null {
-  return (db.prepare("SELECT id FROM bots WHERE engine='primary' LIMIT 1").get() as any)?.id ?? null;
-}
-
 export function engineKind(botId: string): EngineKind | null {
   const e = botRow(botId)?.engine;
   return e === 'primary' || e === 'managed' ? e : null;
@@ -96,12 +87,13 @@ export function syncPersona(botId: string) {
 function writeHome(botId: string, key: string): string {
   const home = homeFor(botId);
   const cwd = workspaceFor(botId);
-  for (const dir of [path.dirname(home), home, cwd, path.join(home, 'tmp')]) workspaceDirectory(dir);
+  for (const dir of [path.dirname(home), home, cwd, path.join(home, 'tmp'), path.join(home, 'locks')]) workspaceDirectory(dir);
   if (!env.localModel || !Number.isInteger(env.modelPort) || env.modelPort < 1024 || env.modelPort > 65535
       || env.modelPort === env.port || env.modelPort === 8000) throw new Error('Local worker model is not configured');
   const cdp = cdpUrlFor(botId);
   writePrivate(path.join(home, 'config.yaml'), YAML.stringify({
     model: { default: env.localModel, provider: 'custom', base_url: `http://127.0.0.1:${env.modelPort}/v1` },
+    gateway: { standalone: true },
     platform_toolsets: { api_server: ['file', 'terminal', 'browser'] },
     terminal: { cwd }, browser: { cdp_url: cdp },
   }));
@@ -131,17 +123,30 @@ async function keyAccepted(url: string, key: string): Promise<boolean> {
 
 /** The gateway's pid, but only if the pid file belongs to this home and the process is alive. */
 const children = new Map<string, ReturnType<typeof spawn>>();
-async function stopGateway(botId: string) {
+export async function stopGateway(botId: string): Promise<boolean> {
   const child = children.get(botId);
-  if (!child?.pid) return;
-  const stopped = new Promise<void>((resolve) => child.once('exit', () => resolve()));
-  try { process.kill(-child.pid, 'SIGTERM'); } catch { return; }
-  await Promise.race([stopped, new Promise<void>((resolve) => setTimeout(resolve, 1000))]);
-  if (children.get(botId) === child) {
-    try { process.kill(-child.pid, 'SIGKILL'); } catch { /* already gone */ }
-    await stopped;
+  if (child?.pid) {
+    const stopped = new Promise<void>((resolve) => child.once('exit', () => resolve()));
+    try { process.kill(-child.pid, 'SIGTERM'); } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'ESRCH') return false;
+    }
+    await Promise.race([stopped, new Promise<void>((resolve) => setTimeout(resolve, 5000))]);
+    if (children.get(botId) === child) {
+      try { process.kill(-child.pid, 'SIGKILL'); } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== 'ESRCH') return false;
+      }
+      await Promise.race([stopped, new Promise<void>((resolve) => setTimeout(resolve, 2000))]);
+    }
+    if (children.get(botId) === child) return false;
   }
+  return !(await healthy(managedUrl(botId), 500));
 }
+
+process.once('exit', () => {
+  for (const child of children.values()) {
+    if (child.pid) try { process.kill(-child.pid, 'SIGKILL'); } catch { /* already gone */ }
+  }
+});
 
 const agentEnv = (): NodeJS.ProcessEnv => ({
   PATH: process.env.PATH ?? '/usr/local/bin:/usr/bin:/bin',
@@ -183,7 +188,7 @@ async function startGateway(botId: string): Promise<void> {
     [env.modelPort, cdpPortFor(botId)], b.engine_port);
   const child = spawn(run.bin, run.args, {
     cwd, detached: true, stdio: 'ignore',
-    env: { ...agentEnv(), HOME: home, TMPDIR: path.join(home, 'tmp'), HERMES_HOME: home },
+    env: { ...agentEnv(), HOME: home, TMPDIR: path.join(home, 'tmp'), HERMES_HOME: home, HERMES_GATEWAY_LOCK_DIR: path.join(home, 'locks') },
   });
   children.set(botId, child);
   const clear = () => { if (children.get(botId) === child) children.delete(botId); };
@@ -253,7 +258,7 @@ export function provisionEngine(botId: string) {
 export async function restartEngine(botId: string): Promise<void> {
   if (engineKind(botId) !== 'managed') return;
   await starting.get(botId)?.catch(() => {});
-  await stopGateway(botId);
+  if (!await stopGateway(botId)) throw new Error('Previous worker could not be stopped');
   optionsCache.delete(botId);
   provisionEngine(botId);
 }

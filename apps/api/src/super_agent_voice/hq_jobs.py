@@ -3,9 +3,11 @@ from __future__ import annotations
 
 import hmac
 import json
+import os
 import re
 from datetime import UTC, datetime, timedelta
 from pathlib import PurePosixPath
+from urllib.parse import urlsplit
 
 from fastapi import FastAPI, HTTPException, Request
 from starlette.concurrency import run_in_threadpool
@@ -34,7 +36,23 @@ def _receipt(body: dict) -> dict:
     return {"summary": summary, "artifacts": artifacts}
 
 
+def _expire(job: ledger.Job) -> None:
+    try:
+        ledger.transition(job.id, "unknown", job.revision, "hq_claim_expired")
+    except ledger.StaleRevision:
+        pass
+
+
 def _operate(role: str, operation: str, body: dict) -> dict:
+    if ledger.DATABASE_URL:
+        try:
+            dsn = urlsplit(ledger.DATABASE_URL)
+            hostname = dsn.hostname
+        except ValueError:
+            raise HTTPException(403, "HQ requires local ledger storage") from None
+        if (dsn.scheme not in {"postgresql", "postgres"} or hostname != "127.0.0.1"
+                or dsn.query or dsn.fragment or os.environ.get("PGHOSTADDR") or os.environ.get("PGSERVICE")):
+            raise HTTPException(403, "HQ requires local ledger storage")
     if operation == "submit":
         if set(body) != {"key", "instruction"} or not isinstance(body["key"], str) or not KEY.fullmatch(body["key"]):
             _invalid()
@@ -50,10 +68,7 @@ def _operate(role: str, operation: str, body: dict) -> dict:
         for pending in ledger.list_jobs("running"):
             if pending.spec.get("hq_role") != role or datetime.fromisoformat(pending.updated_at) >= cutoff:
                 continue
-            try:
-                ledger.transition(pending.id, "unknown", pending.revision, "hq_claim_expired")
-            except ledger.StaleRevision:
-                pass
+            _expire(pending)
         job = ledger.claim_next_job(f"hq_{role}", hq_role=role)
         return {"job": None if job is None else {
             "id": job.id, "revision": job.revision, "instruction": job.spec["instruction"],
@@ -75,7 +90,12 @@ def _operate(role: str, operation: str, body: dict) -> dict:
             return {"id": ident, "state": state}
     if job.state != "running" or job.revision != revision:
         _invalid()
-    ledger.transition(ident, state, revision, "hq_finished", receipt)
+    expiry = datetime.fromisoformat(job.updated_at) + CLAIM_LIFETIME
+    try:
+        ledger.transition(ident, state, revision, "hq_finished", receipt, expires_at=expiry)
+    except ledger.LeaseExpired:
+        _expire(job)
+        _invalid()
     return {"id": ident, "state": state}
 
 

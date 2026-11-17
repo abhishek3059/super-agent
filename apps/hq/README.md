@@ -34,13 +34,10 @@ need a managed bot with the corresponding specialist name for each role.
 
 ## Voice
 
-The voice path requires `HQ_SYNTHETIC_VOICE=1` and `OPENAI_API_KEY` in
-the HQ server environment or its private `.env`. Enable it only for a
-synthetic session. The browser sends audio to OpenAI when voice is enabled.
-The assistant asks the ledger to queue work through `delegate_task`, and
-the selected specialist shows its execution in the dashboard. Voice confirms
-admission. The worker writes a receipt and its status appears in the
-specialist's dashboard.
+The voice tool's `delegate_task` handler is wired to enqueue jobs in the
+ledger. OpenAI Realtime, dictation, and previews stay disabled pending a
+separate spend approval. The local smoke drives the same ledger client with a
+synthetic prompt and requires no cloud key.
 
 ## Where things live
 
@@ -48,7 +45,9 @@ HQ state lives under `~/.super-agent/hq` in a directory with mode 0700.
 Each worker has `engines/<botId>/workspace` for deliverables and
 `engines/<botId>/runtime` for its Hermes state. Profiles are under
 `profiles/<botId>`. Legacy paths stay in place. The shared job ledger is
-owned by the Python backend.
+owned by the Python backend. HQ accepts SQLite or a PostgreSQL URL using
+the exact address `127.0.0.1` without URL overrides. The SQLite path was
+tested end to end.
 
 ## Security boundary
 
@@ -66,6 +65,10 @@ The default experiment uses synthetic input. The synthetic local fixture verifie
 Live OpenAI voice and production model use need separate evidence before the
 roadmap runtime items can close. See the
 [local run record](../../docs/implementation/jarvis-hq-local-run.md).
+
+A normal HQ shutdown stops its owned process groups. After an abrupt kill,
+an occupied worker port is refused. Stop the known previous instance or
+release its ports before restarting HQ.
 
 ## Develop
 

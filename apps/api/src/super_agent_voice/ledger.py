@@ -53,6 +53,10 @@ class LedgerError(Exception):
     """Any validation or database failure. Messages never echo caller data."""
 
 
+class LeaseExpired(LedgerError):
+    """The worker no longer has authority to write a receipt."""
+
+
 class StaleRevision(LedgerError):
     """The caller acted on an old revision of the job."""
 
@@ -274,7 +278,10 @@ def create_job(spec: dict, idempotency_key: str, *, pending_limit: int | None = 
                 raise LedgerError("idempotency key already used with a different task spec")
             return _job(row)
         if pending_limit is not None:
-            pending = db.execute("SELECT COUNT(*) FROM jobs WHERE state IN ('queued','running','waiting_for_approval','cancel_requested')").fetchone()[0]
+            pending = db.execute(
+                "SELECT COUNT(*) FROM jobs WHERE state IN ('queued','running','waiting_for_approval','cancel_requested') "
+                f"AND {_spec_field('hq_role')} IS NOT NULL"
+            ).fetchone()[0]
             if pending >= pending_limit:
                 raise LedgerError("queue full")
         job_id, now = uuid.uuid4().hex, _stamp()
@@ -298,7 +305,7 @@ def _move(db, row, to_state: str, reason: str, receipt: dict | None) -> None:
 
 
 def transition(job_id: str, to_state: str, expected_revision: int, reason: str,
-               receipt: dict | None = None) -> Job:
+               receipt: dict | None = None, *, expires_at: datetime | None = None) -> Job:
     if not isinstance(reason, str) or not 0 < len(reason) <= MAX_REASON:
         raise LedgerError("reason must be 1 to 64 characters")
     if not isinstance(to_state, str) or to_state not in NEXT:
@@ -310,11 +317,19 @@ def transition(job_id: str, to_state: str, expected_revision: int, reason: str,
     if receipt is not None:
         _json(receipt, MAX_RECEIPT_BYTES, "receipt")
     with _db() as db:
-        row = db.execute(f"SELECT {_COLS} FROM jobs WHERE id = ?", (job_id,)).fetchone()
+        row_lock = ""
+        if expires_at is not None:
+            if _is_postgres():
+                row_lock = " FOR UPDATE"
+            else:
+                db.execute("BEGIN IMMEDIATE")
+        row = db.execute(f"SELECT {_COLS} FROM jobs WHERE id = ?{row_lock}", (job_id,)).fetchone()
         if row is None:
             raise LedgerError("no such job")
         if row[4] != expected_revision:
             raise StaleRevision("stale revision")
+        if expires_at is not None and datetime.now(UTC) >= expires_at:
+            raise LeaseExpired("claim expired")
         if to_state not in NEXT[row[3]]:
             raise LedgerError("transition not allowed")
         _move(db, row, to_state, reason, receipt)

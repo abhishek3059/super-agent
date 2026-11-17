@@ -85,15 +85,13 @@ export const env = {
    * every bot gets a gateway of its own and the operator's gateway is left alone.
    */
   hermesUrl: hermesUrl ? loopbackUrl(hermesUrl) : '',
-  hermesKey: process.env.HERMES_KEY ?? '',
   modelPort: Number(process.env.HQ_LOCAL_MODEL_PORT ?? 0),
   localModel: process.env.HQ_LOCAL_MODEL ?? '',
-  syntheticVoice: process.env.HQ_SYNTHETIC_VOICE === '1',
+  // Paid Realtime stays off until the operator records the separate spend approval.
+  syntheticVoice: false,
   /** Where each bot's own Hermes home lives. Outside ~/.hermes so it is a separate tenant. */
   enginesDir: path.join(dataDir, 'engines'),
   enginePortBase: Number(process.env.ENGINE_PORT_BASE ?? 8650),
-  /** URL the Hermes gateways use to reach this server's MCP endpoint. */
-  mcpBaseUrl: `http://127.0.0.1:${port}`,
 
   // ---- each bot's own screen: a Chrome with its own profile ----
   chromeBin: process.env.CHROME_BIN ?? '',

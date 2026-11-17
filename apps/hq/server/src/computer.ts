@@ -55,6 +55,11 @@ export function computerState(userId: string): ComputerState {
 
 const starting = new Map<string, Promise<void>>();
 const children = new Map<string, ReturnType<typeof spawn>>();
+process.once('exit', () => {
+  for (const child of children.values()) {
+    if (child.pid) try { process.kill(-child.pid, 'SIGKILL'); } catch { /* already gone */ }
+  }
+});
 
 async function startChrome(botId: string): Promise<void> {
   if (await alive(botId)) {
