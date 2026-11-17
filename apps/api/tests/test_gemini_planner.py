@@ -164,6 +164,22 @@ def test_check_runs_a_synthetic_job_on_a_temp_ledger_and_prints_no_text(capsys, 
     assert client.calls[0]["contents"].count(planner_check.INSTRUCTION) == 1 and not real.exists()
 
 
+def test_check_refuses_a_configured_postgres_ledger(capsys, monkeypatch):
+    model, client = make(json.dumps(PLAN))
+    monkeypatch.setenv("GEMINI_API_KEY", KEY)
+    monkeypatch.setattr(planner_check, "GeminiPlanner", lambda key, name: model)
+    monkeypatch.setattr(ledger, "DATABASE_URL", "postgresql://127.0.0.1/test")
+    service_calls = []
+    monkeypatch.setattr(delegation, "Service", lambda *args, **kwargs: service_calls.append(1))
+
+    with pytest.raises(SystemExit) as done:
+        planner_check.main(["--send-synthetic-task"])
+
+    assert done.value.code == 1
+    assert json.loads(capsys.readouterr().out)["reason"] == "postgres_configured"
+    assert not service_calls and not client.calls
+
+
 def test_check_exits_nonzero_and_prints_only_the_code_when_the_model_fails(capsys, monkeypatch):
     model, _ = make(error=OSError(SECRET))
     monkeypatch.setenv("GEMINI_API_KEY", KEY)

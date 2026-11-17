@@ -15,7 +15,7 @@ _FAKE_HOME = tempfile.mkdtemp(prefix="super-agent-test-home-")
 os.environ["HOME"] = os.environ["USERPROFILE"] = _FAKE_HOME
 atexit.register(shutil.rmtree, _FAKE_HOME, True)
 
-from super_agent_voice import tier1  # noqa: E402  (must come after the home folder is redirected)
+from super_agent_voice import ledger, tier1  # noqa: E402  (after the home redirect)
 from super_agent_voice.runner import Runner  # noqa: E402
 
 
@@ -25,7 +25,7 @@ def _listing(root: Path = REAL_DATA) -> dict:
         return {}
     found = {}
     for path in [root, *root.rglob("*")]:
-        info = path.stat()
+        info = path.lstat()
         found[str(path)] = (info.st_size, info.st_mtime_ns)
     return found
 
@@ -54,7 +54,12 @@ def _real_data_folder_is_untouched_by_each_test():
 
 
 @pytest.fixture(autouse=True)
-def _no_worker_outlives_its_test(monkeypatch):
+def _ledger_uses_test_storage(monkeypatch):
+    monkeypatch.setattr(ledger, "DATABASE_URL", None)
+
+
+@pytest.fixture(autouse=True)
+def _no_worker_outlives_its_test(monkeypatch, _ledger_uses_test_storage):
     """Drain every Runner a test built before the test's own monkeypatches are undone.
 
     This fixture requests monkeypatch, so its teardown runs before monkeypatch's undo. Without it a job

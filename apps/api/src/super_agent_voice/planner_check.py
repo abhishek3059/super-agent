@@ -45,6 +45,9 @@ def run_check(model, model_name: str) -> dict:
     The real ledger path is restored only after the worker has exited, because a live worker's next ledger
     call would otherwise create the real ~/.super-agent/ledger.db. If it has not exited within GRACE_S, the
     path stays on the temporary folder (fail closed) and the state is `worker_unfinished`."""
+    if ledger._is_postgres():
+        return {"model": model_name, "state": "refused", "reason": "postgres_configured", "total_ms": 0}
+
     real_path, started = ledger.DB_PATH, time.monotonic()
     folder = tempfile.mkdtemp(prefix="planner-check-")
     ledger.DB_PATH = Path(folder) / "ledger.db"

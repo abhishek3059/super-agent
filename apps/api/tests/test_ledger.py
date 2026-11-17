@@ -362,3 +362,78 @@ def test_notes_do_not_break_a_later_transition_on_the_same_revision():
     ledger.append_note(job.id, "step", {"step": 0})
     done = ledger.transition(job.id, "succeeded", job.revision, "done", RECEIPT)
     assert done.state == "succeeded"
+
+
+def test_claim_next_job_empty_returns_none():
+    assert ledger.claim_next_job("bot-1") is None
+
+
+def test_claim_next_job_claims_queued_in_fifo_order():
+    j1 = ledger.create_job({"task": "first"}, "k-fifo-1")
+    j2 = ledger.create_job({"task": "second"}, "k-fifo-2")
+
+    claimed1 = ledger.claim_next_job("bot-alpha")
+    assert claimed1 is not None
+    assert claimed1.id == j1.id
+    assert claimed1.state == "running"
+    assert claimed1.revision == 2
+
+    # Verify event recorded
+    events1 = ledger.list_events(j1.id)
+    assert any(e.to_state == "running" and e.reason == "claimed_bot-alpha" for e in events1)
+
+    claimed2 = ledger.claim_next_job("bot-beta")
+    assert claimed2 is not None
+    assert claimed2.id == j2.id
+    assert claimed2.state == "running"
+
+    assert ledger.claim_next_job("bot-gamma") is None
+
+
+def test_claim_next_job_validates_inputs():
+    with pytest.raises(LedgerError):
+        ledger.claim_next_job("")
+    with pytest.raises(LedgerError):
+        ledger.claim_next_job("x" * 65)
+    with pytest.raises(LedgerError):
+        ledger.claim_next_job(123)
+    with pytest.raises(LedgerError):
+        ledger.claim_next_job("bot", state="invalid_state")
+
+
+def test_postgres_seam_query_formatting(monkeypatch):
+    executed = []
+
+    class DummyCursor:
+        def __init__(self):
+            self.rowcount = 1
+        def execute(self, sql, params=()):
+            executed.append((sql, params))
+        def fetchone(self):
+            return ("test-id", "test-key", '{"t": 1}', "queued", 1, "2026-11-16T00:00:00.000000+00:00", "2026-11-16T00:00:00.000000+00:00", None)
+        def fetchall(self):
+            return []
+        def close(self):
+            pass
+
+    class DummyConn:
+        def cursor(self):
+            return DummyCursor()
+        def commit(self):
+            pass
+        def rollback(self):
+            pass
+        def close(self):
+            pass
+
+    dummy_driver = type("DummyDriver", (), {"connect": lambda url: DummyConn()})
+    monkeypatch.setattr(ledger, "DATABASE_URL", "postgresql://user:pass@localhost:5432/test")
+    monkeypatch.setattr(ledger, "psycopg2", dummy_driver)
+    monkeypatch.setattr(ledger, "_pg_initialized", True)
+
+    claimed = ledger.claim_next_job("pg-worker")
+    assert claimed is not None
+    assert claimed.id == "test-id"
+    # Ensure parameter placeholder ? was replaced with %s and SKIP LOCKED was used
+    assert any("FOR UPDATE SKIP LOCKED" in sql and "%s" in sql for sql, _ in executed)
+
