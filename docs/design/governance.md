@@ -104,8 +104,6 @@ class Turn:
     """Facts set by trusted code for one conversation turn. Never model claims."""
     heard: str | None      # the user's own transcript this turn, None outside a voice turn
     read_untrusted: bool   # a tier 1 read already ran this turn
-    memory_on: bool        # memory.enabled()
-    delegate_on: bool      # delegate_enabled(), already validated at session start
 
 @dataclass(frozen=True)
 class Decision:
@@ -128,7 +126,8 @@ Rules for `decide`:
    caller treats `"confirm"` as deny. No rule returns it in slices 1 to 3.
 4. New codes join `REASONS`: `untrusted_read_in_turn`, `not_asked`,
    `tool_disabled`. Callers map a code to their existing user-facing string,
-   so no message changes.
+   so no message changes. Any deny a caller does not map (including
+   `input_invalid`) returns a new fixed `DENIED` string, so it fails closed.
 
 No registry, no plugin hook, no rule objects. The inventory has five
 turn-level rules; a few `if` lines cover them.
@@ -161,7 +160,7 @@ The proposed rule targets the harm instead: an unwanted task.
 
 > **GR-1.** `delegate_task` is allowed only when the user's own words in this
 > turn contain an explicit request to do something (a fixed pattern, like
-> `_ASKED` for memory in `local_adapter.py` 128-132). Otherwise the gate
+> `policy.ASKED` for memory). Otherwise the gate
 > returns `deny` with `not_asked`. The model's claim that the user asked does
 > not count.
 

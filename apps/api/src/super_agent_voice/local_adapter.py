@@ -148,8 +148,8 @@ DENIED = "error: that is not allowed right now, so nothing was done. Do not say 
 _READ_UNTRUSTED: contextvars.ContextVar[bool] = contextvars.ContextVar("read_untrusted", default=False)
 
 
-def _decide(name: str, *, memory_on: bool, delegate_on: bool) -> str | None:
-    return policy.decide(name, policy.Turn(_HEARD.get(), _READ_UNTRUSTED.get(), memory_on, delegate_on)).code
+def _decide(name: str) -> str | None:
+    return policy.decide(name, policy.Turn(_HEARD.get(), _READ_UNTRUSTED.get())).code
 
 
 async def call_tool(name: object, arguments: object) -> str:
@@ -160,7 +160,7 @@ async def call_tool(name: object, arguments: object) -> str:
         on = delegate_enabled()  # read only here: a bad SUPER_AGENT_DELEGATE must not break other tools
         if not on:
             return "error: no such tool."
-        code = _decide(name, memory_on=False, delegate_on=on)
+        code = _decide(name)
         if code == "untrusted_read_in_turn":
             return DELEGATE_AFTER_READ
         if code:  # any other deny, including input_invalid, fails closed
@@ -170,7 +170,7 @@ async def call_tool(name: object, arguments: object) -> str:
         on = memory_enabled()
         if not on:
             return "error: no such tool."
-        code = _decide(name, memory_on=on, delegate_on=False)
+        code = _decide(name)
         # Text from a file or email could ask for a reminder that later speaks a phishing
         # line in the assistant's voice, so a turn that read any of it cannot write memory.
         if code == "untrusted_read_in_turn":

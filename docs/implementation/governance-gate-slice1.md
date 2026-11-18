@@ -5,6 +5,7 @@
 | Date | 2026-11-18 |
 | Design | [governance gate](../design/governance.md) section 3 and section 5 "Slice 1" |
 | Authority | Maintainer `abhishek3059`, in chat, 2026-11-18: accepted `policy.py` as the gate (OD-G1) and asked for slice 1 |
+| Approval record | [governance gate exception](../approvals/governance-gate-exception.md) |
 | Roadmap | Off-path. No roadmap item exists yet (design section 6.2). `roadmap.md` is not edited here. |
 | Behaviour change | None |
 
@@ -40,10 +41,8 @@ pass unedited. No existing test was edited. `npm run check`: see the PR.
 
 ## Known limits
 
-- `MEMORY_WRITES` in `policy.py` copies `memory.WRITES`, because importing
-  `memory` would pull a database into the gate. `test_the_write_names_match_memory` fails if they drift.
-- `Turn.memory_on` and `Turn.delegate_on` are required and type-checked but not
-  used until slice 2. The adapter reads each switch only inside its own branch, as before,
+- `policy.py` imports `memory.WRITES`; `memory.py` imports nothing from the package, so there is no cycle.
+- `Turn` has no switch fields yet; slice 2 adds them when it moves the switch checks. The adapter reads each switch only inside its own branch, as before,
   so a bad `SUPER_AGENT_DELEGATE` still breaks only `delegate_task`.
 - `complete_reminder` and `undo_forget` have no `ASKED` pattern, so, as before, only the untrusted-read rule governs them.
 

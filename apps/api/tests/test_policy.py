@@ -429,7 +429,7 @@ def test_bad_data_class_is_reported_as_data_class_invalid(data):
 # --- decide: the turn-level gate ---------------------------------------------
 
 def _turn(heard="please remember my cat", read=False):
-    return policy.Turn(heard, read, True, True)
+    return policy.Turn(heard, read)
 
 
 @pytest.mark.parametrize("tool, turn, verdict, why", [
@@ -457,11 +457,9 @@ def test_decide_table(tool, turn, verdict, why):
 @pytest.mark.parametrize("tool, turn", [
     (None, _turn()), (3, _turn()), (b"forget", _turn()), (["forget"], _turn()),
     ("forget", None), ("forget", "turn"), ("forget", {"heard": "x"}),
-    ("forget", policy.Turn(5, False, True, True)),
-    ("forget", policy.Turn("forget", 1, True, True)),
-    ("forget", policy.Turn("forget", None, True, True)),
-    ("forget", policy.Turn("forget", False, "yes", True)),
-    ("forget", policy.Turn("forget", False, True, 0)),
+    ("forget", policy.Turn(5, False)),
+    ("forget", policy.Turn("forget", 1)),
+    ("forget", policy.Turn("forget", None)),
 ])
 def test_decide_bad_input_fails_closed(tool, turn):
     assert policy.decide(tool, turn) == policy.Decision("deny", "input_invalid")
@@ -470,11 +468,6 @@ def test_decide_bad_input_fails_closed(tool, turn):
 def test_decide_never_returns_confirm_and_its_codes_are_known():
     names = ["delegate_task", "calculate", *policy.MEMORY_WRITES, *policy.ASKED, None, 1]
     for name, heard, read in itertools.product(names, ["", "remember it", "hello", None], [False, True]):
-        d = policy.decide(name, policy.Turn(heard, read, True, True))
+        d = policy.decide(name, policy.Turn(heard, read))
         assert d.verdict in ("allow", "deny")
         assert (d.code is None) == (d.verdict == "allow") and d.code in REASONS | {None}
-
-
-def test_the_write_names_match_memory():
-    from super_agent_voice import memory
-    assert policy.MEMORY_WRITES == memory.WRITES

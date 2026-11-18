@@ -16,6 +16,7 @@ from datetime import datetime, timedelta
 from typing import Literal
 
 from .ledger import MAX_SPEC_BYTES, TERMINAL, Job, LedgerError
+from .memory import WRITES as MEMORY_WRITES
 
 REASONS = frozenset({
     "limits_invalid", "clock_invalid", "idempotency_key_invalid", "planner_locality_invalid",
@@ -261,9 +262,6 @@ def check_step_output(output_chars: object, limits: object) -> bool:
 
 # --- turn-level gate (docs/design/governance.md section 3) --------------------
 
-# Same names as memory.WRITES; copied because memory.py has a database and policy.py stays
-# free of it. tests/test_policy.py fails if the two drift.
-MEMORY_WRITES = frozenset({"remember_fact", "add_reminder", "complete_reminder", "forget", "undo_forget"})
 # A memory write runs only when the user's own words asked for that kind of change.
 ASKED = {
     "remember_fact": re.compile(r"remember|note|save|store|memori[sz]e|keep in mind|don'?t forget"),
@@ -277,8 +275,6 @@ class Turn:
     """Facts set by trusted code for one conversation turn. Never model claims."""
     heard: str | None      # the user's own transcript this turn, None outside a voice turn
     read_untrusted: bool   # a tier 1 read already ran this turn
-    memory_on: bool        # not used by slice 1 (the switch checks stay in the adapter)
-    delegate_on: bool      # not used by slice 1
 
 
 @dataclass(frozen=True)
@@ -292,7 +288,6 @@ def decide(tool: object, turn: object) -> Decision:
     try:
         if (not isinstance(tool, str) or not isinstance(turn, Turn)
                 or type(turn.read_untrusted) is not bool
-                or type(turn.memory_on) is not bool or type(turn.delegate_on) is not bool
                 or not (turn.heard is None or isinstance(turn.heard, str))):
             return Decision("deny", "input_invalid")
         if (tool == "delegate_task" or tool in MEMORY_WRITES) and turn.read_untrusted:
