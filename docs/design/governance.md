@@ -187,8 +187,8 @@ existing tests pass unchanged; new tests are added only for `decide`.
 
 - `policy.py`: add `Turn`, `Decision`, `decide`; add `untrusted_read_in_turn`
   and `not_asked` to `REASONS`. Move the `_ASKED` patterns here unchanged.
-- `local_adapter.py`: `call_tool` builds a `Turn` from `_HEARD`,
-  `_READ_UNTRUSTED` and the switches, calls `decide`, and maps a deny to
+- `local_adapter.py`: `call_tool` builds a `Turn` from `_HEARD` and
+  `_READ_UNTRUSTED`, calls `decide`, and maps a deny to
   `DELEGATE_AFTER_READ`, `memory.AFTER_READ` or `NOT_ASKED` exactly as today.
   `_ASKED` is deleted from `local_adapter.py`. The switch checks stay for now.
 - `tests/test_policy.py`: add table tests for `decide`, including bad inputs

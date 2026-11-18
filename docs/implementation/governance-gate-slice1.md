@@ -32,12 +32,12 @@ Rules in `decide`:
 
 ```text
 pytest apps/api -q -p no:cacheprovider
-1 failed, 1119 passed, 109 skipped, 1 warning in 55.13s
+1 failed, 1117 passed, 109 skipped, 1 warning in 66.36s (0:01:06)
 FAILED test_memory.py::test_files_are_private_even_when_they_already_existed  (fails on unchanged develop too)
 ```
 
 The four named behaviour tests in `test_local_adapter.py` and `test_delegation.py`
-pass unedited. No existing test was edited. `npm run check`: see the PR.
+pass unedited. No existing test was edited. `npm run check`: 0 errors at e75997a.
 
 ## Known limits
 
