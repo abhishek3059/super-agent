@@ -32,6 +32,7 @@ Status: built on branch `feat/memory-distiller`, not merged, not on the roadmap
 - `_chat_request` gained `json_reply=True` (adds `format: json`, 800 tokens). A model name containing "cloud" is refused by `local_model()`. An alias is refused only if `/api/show` returns a key containing "remote". `_refuse_remote_model` marks those Ollama field names as unverified, and it lets the call through when `/api/show` is unreachable. The chat call itself goes only to the loopback URL.
 - A forgotten learned row is soft deleted (24-hour undo, like facts) and its hash blocks re-inference for 30 days. Undo lifts the block.
 - Caps: 40 turns of 500 characters, 10 items, 200 characters per item, 200 live rows.
+- A session in which `forget` succeeded is not distilled (a RAM flag on the adapter), because the model could return the forgotten fact reworded. Across sessions only the exact-text block applies, so a paraphrase can be relearned.
 - Emergency stop: the adapter has no emergency-stop path, so no session is excluded. When one exists it must skip distilling.
 
 ## Known limits

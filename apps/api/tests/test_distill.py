@@ -325,3 +325,42 @@ def test_the_turn_records_the_users_words_only():
         return said
 
     assert arun(scenario()) == ["I like jazz"]
+
+
+def test_a_session_with_a_successful_forget_is_not_distilled(monkeypatch):
+    calls = []
+    monkeypatch.setattr(distill, "distill", lambda *a, **k: calls.append(1))
+    monkeypatch.setenv("SUPER_AGENT_LEARN", "on")
+    monkeypatch.setenv("SUPER_AGENT_MEMORY", "on")
+    adapter = local_adapter.LocalVoiceAdapter(reply=lambda m: None)
+    adapter._said = ["remember I like tea", "forget that I like tea"]
+
+    async def scenario():
+        local_adapter._FORGOT.set(adapter._forgot)
+        local_adapter._HEARD.set("remember I like tea")
+        assert (await local_adapter.call_tool("remember_fact", {"text": "I like tea"})).startswith("Remembered")
+        local_adapter._HEARD.set("forget that I like tea")
+        assert (await local_adapter.call_tool("forget", {"match": "like tea"})).startswith("Forgot 1")
+        await adapter.close()
+
+    asyncio.run(scenario())
+    assert calls == [] and adapter.learner is None
+
+
+def test_a_session_without_a_forget_is_still_distilled(monkeypatch):
+    adapter, calls = session(monkeypatch, learn="on", mem="on")
+    assert len(calls) == 1 and adapter._forgot == []
+
+
+def test_an_unrecorded_terminal_move_is_reported_after_memory_committed(monkeypatch):
+    real = ledger.transition
+
+    def flaky(job_id, to_state, *args, **kwargs):
+        if to_state == "succeeded":
+            raise ledger.LedgerError("down")
+        return real(job_id, to_state, *args, **kwargs)
+    monkeypatch.setattr(ledger, "transition", flaky)
+    receipt = run(reply=reply_with(("fact", "Likes tea")))
+    assert receipt["ledger"] == "unrecorded" and receipt["added"] == 1
+    assert [t for _, t, *_ in stored()] == ["Likes tea"]
+    assert [j.state for j in ledger.list_jobs()] == ["running"]

@@ -23,7 +23,9 @@ With `SUPER_AGENT_MEMORY=on` (off by default):
 
 With `SUPER_AGENT_LEARN=on` the [distiller](../implementation/memory-distiller.md)
 adds learned notes after a session. They are inferred, local, and shown to the
-model as labelled data, never as instructions.
+model as labelled data, never as instructions. A session with a successful
+forget is not distilled; across sessions the exact-text block applies and a
+paraphrase can be relearned.
 
 Due reminders are spoken between turns, never over the user, and the user's
 next words cut a reminder off. A question gets notes, marked "data, not
