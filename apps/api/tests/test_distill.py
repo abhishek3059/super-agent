@@ -176,14 +176,57 @@ def test_a_ledger_failure_applies_nothing(monkeypatch):
     def broken(*args, **kwargs):
         raise ledger.LedgerError("down")
     monkeypatch.setattr(ledger, "create_job", broken)
-    called = []
-    receipt = run(reply=lambda m: called.append(1) or reply_with(("fact", "Likes tea"))(m))
-    assert receipt["error"] == "ledger_unavailable" and called == [] and not memory.DB_PATH.exists()
+    receipt = run(reply=reply_with(("fact", "Likes tea")))
+    assert receipt["error"] == "ledger_unavailable" and not memory.DB_PATH.exists()
+
+
+def test_the_model_runs_before_any_ledger_job_exists():
+    def reply(messages):
+        assert not ledger.DB_PATH.exists() or ledger.list_jobs() == []
+        return reply_with()(messages)
+    assert run(reply=reply)["status"] == "ok"
+    assert [j.state for j in ledger.list_jobs()] == ["succeeded"]
+
+
+def test_a_failed_move_to_running_fails_the_job_and_applies_nothing(monkeypatch):
+    real = ledger.transition
+
+    def flaky(job_id, to_state, *args, **kwargs):
+        if to_state == "running":
+            raise ledger.LedgerError("down")
+        return real(job_id, to_state, *args, **kwargs)
+    monkeypatch.setattr(ledger, "transition", flaky)
+    assert run(reply=reply_with(("fact", "Likes tea")))["error"] == "ledger_unavailable"
+    assert [j.state for j in ledger.list_jobs()] == ["failed"] and stored() == []
+
+
+def test_forgetting_a_fact_blocks_the_distiller_from_relearning_it():
+    memory.remember_fact("I like tea")
+    memory.forget("like tea")
+    receipt = run(reply=reply_with(("preference", "I like tea."), ("preference", "Likes tea")))
+    assert receipt["added"] == 1 and receipt["dropped"]["blocked"] == 1  # only the exact text is blocked
+    assert memory.undo_forget().startswith("Restored 1")
+    assert run(reply=reply_with(("preference", "I like tea")), epoch="e2")["dropped"]["duplicate"] == 1
+
+
+def test_a_candidate_equal_to_a_live_fact_is_a_duplicate():
+    memory.remember_fact("I like tea")
+    receipt = run(reply=reply_with(("preference", "i like TEA.")))
+    assert receipt["added"] == 0 and receipt["dropped"]["duplicate"] == 1
+
+
+def test_undo_forget_refuses_past_the_learned_cap(monkeypatch):
+    monkeypatch.setattr(memory, "MAX_LEARNED", 2)
+    run(reply=reply_with(("fact", "Likes tea")))
+    memory.forget("likes tea")
+    run(reply=reply_with(("fact", "Likes jazz"), ("fact", "Likes rain")), epoch="e2")
+    assert memory.undo_forget() == memory.FULL_LEARNED
+    assert len(stored()) == 2
 
 
 def test_the_same_session_is_distilled_once():
     run(reply=reply_with(("fact", "Likes tea")))
-    assert run(reply=reply_with(("fact", "Likes jazz")))["error"] == "ledger_unavailable"
+    assert run(reply=reply_with(("fact", "Likes jazz")))["error"] == "duplicate"
     assert [t for _, t, *_ in stored()] == ["Likes tea"]
 
 

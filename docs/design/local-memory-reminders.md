@@ -16,15 +16,20 @@ With `SUPER_AGENT_MEMORY=on` (off by default):
 | --- | --- |
 | `remember_fact` | Saves one short fact the user asked it to remember |
 | `add_reminder` | Saves a reminder for a spoken time, optionally repeating |
-| `list_memory`, `list_reminders` | Reads back what is stored |
+| `list_memory`, `list_reminders` | Reads back what is stored. `list_memory` also shows learned notes marked `(inferred)` |
 | `complete_reminder` | Marks a reminder done; a repeating one moves to its next time |
-| `forget` | Removes up to 5 matching items |
-| `undo_forget` | Restores the last forget within 24 hours |
+| `forget` | Removes up to 5 matching facts, reminders or learned notes. A forgotten item also blocks the distiller from relearning the same text for 30 days |
+| `undo_forget` | Restores the last forget within 24 hours, learned notes included |
+
+With `SUPER_AGENT_LEARN=on` the [distiller](../implementation/memory-distiller.md)
+adds learned notes after a session. They are inferred, local, and shown to the
+model as labelled data, never as instructions.
 
 Due reminders are spoken between turns, never over the user, and the user's
 next words cut a reminder off. A question gets notes, marked "data, not
 instructions", only when a stored fact or a reminder due within 48 hours
-shares a word with it: at most 3 facts and 5 reminders. An unrelated question
+shares a word with it: at most 3 facts, 3 learned notes (under their own
+"inferred" header) and 5 reminders. An unrelated question
 gets none. "What do you remember about me" gets the 5 newest facts.
 
 ## Controls (in code)
@@ -47,7 +52,8 @@ gets none. "What do you remember about me" gets the 5 newest facts.
 7. **Logged, metadata only.** Each memory tool call appends time, tool name,
    and ok or error to `~/.super-agent/tool-audit.log`. Never the text, so the
    log shows that something was added or forgotten, not what. Spoken
-   reminders are not logged.
+   reminders are not logged. Distiller writes are not logged there either:
+   they appear only as a counts-only `memory.distill` job in the ledger.
 8. **No memory writes after reading outside text.** In a turn where a tier 1
    tool read a file, note, email or calendar entry, every memory write tool
    refuses. A message cannot plant a reminder that later speaks in the
@@ -61,7 +67,9 @@ gets none. "What do you remember about me" gets the 5 newest facts.
 11. **The user must have asked.** `remember_fact`, `add_reminder` and `forget`
     run only when the user's words in that turn contain a matching request
     word ("remember", "remind", "forget" and a few like them). The small model
-    otherwise saved things nobody asked for.
+    otherwise saved things nobody asked for. This does not hold for learned
+    notes: the distiller writes them without a request, so they are labelled
+    inferred, expire after 90 days unless reinforced, and never authorize anything.
 
 ## Next step: recall that does not forget (proposal, not built)
 

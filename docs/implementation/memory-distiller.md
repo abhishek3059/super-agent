@@ -24,11 +24,12 @@ Status: built on branch `feat/memory-distiller`, not merged, not on the roadmap
 
 - The design assumes a `memory_item` table that does not exist. I built on the real `facts` and `reminders` module with one new table.
 - The adapter keeps its own list of the user's words (`_said`, last 40, RAM only) because the model history holds only 12 messages (6 turns). History stores the user's plain words, so no memory context leaks in, but the separate list covers a whole session. It is cleared in `close()`.
-- Order of writes: the ledger job is created and moved to `running` first. If the ledger is down, nothing is learned. Then the model runs, then all memory changes go in one SQLite transaction (`apply_learned`), then the job moves to `succeeded` or `failed` with the counts. If only that last step fails, memory is already committed and the job stays `running` for `recover_after_restart`. The receipt then carries `ledger: unrecorded`.
-- The idempotency key is `memory.distill:<session epoch>`, so one session is distilled once.
+- Order of writes: clean the turns, call the model, validate its reply, then create the ledger job and move it to `running`, then apply all memory changes in one SQLite transaction (`apply_learned`), then move the job to `succeeded` or `failed` with the counts. The model call comes first so the job does not hold a slot during the slow call. If the ledger is down, nothing is applied and the code is `ledger_unavailable`. If the move to `running` fails, the job is moved to `failed` on a best-effort basis. If only the last move fails, memory is already committed, the receipt carries `ledger: unrecorded`, and the job stays `running` until `recover_after_restart`; until then it counts toward the delegation queue cap. A model failure creates the job and moves it straight from `queued` to `failed`.
+- The idempotency key is `memory.distill:<session epoch>`. A repeated epoch returns the existing job, and the distiller does nothing and returns code `duplicate`.
+- Forget blocks relearning for facts and learned rows alike. The block matches the exact normalized text (case folded, spaces collapsed, edge punctuation removed). A paraphrase can be relearned. There is no fuzzy matching. A candidate equal to a live fact is dropped as `duplicate`. `undo_forget` refuses to restore past the 200 learned-row cap.
 - Sensitive items (health, money, credentials, third-party personal data, emails, phone numbers) are dropped and counted as `sensitive_held`. There is no screen to confirm them, so none are held. The match is a broad keyword and pattern list and will drop some harmless notes.
 - Turns that look like secrets never reach even the local model.
-- `_chat_request` gained `json_reply=True` (adds `format: json`, 800 tokens). Remote model names and aliases are refused by the existing `local_model()` and `_refuse_remote_model` before any chat call.
+- `_chat_request` gained `json_reply=True` (adds `format: json`, 800 tokens). A model name containing "cloud" is refused by `local_model()`. An alias is refused only if `/api/show` returns a key containing "remote". `_refuse_remote_model` marks those Ollama field names as unverified, and it lets the call through when `/api/show` is unreachable. The chat call itself goes only to the loopback URL.
 - A forgotten learned row is soft deleted (24-hour undo, like facts) and its hash blocks re-inference for 30 days. Undo lifts the block.
 - Caps: 40 turns of 500 characters, 10 items, 200 characters per item, 200 live rows.
 - Emergency stop: the adapter has no emergency-stop path, so no session is excluded. When one exists it must skip distilling.
@@ -48,10 +49,10 @@ httpx2 2.16.0 and `tzdata` (test host only, so the time zone tests run).
 
 ```text
 python -m pytest apps/api/tests/test_distill.py
-49 passed in 6.96s
+54 passed in 3.31s
 
 python -m pytest apps/api
-1 failed, 1138 passed, 109 skipped, 1 warning in 75.78s
+1 failed, 1143 passed, 109 skipped, 1 warning in 58.43s
 FAILED apps\api\tests\test_memory.py::test_files_are_private_even_when_they_already_existed
 
 npm run check

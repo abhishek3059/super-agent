@@ -44,6 +44,7 @@ BAD_WHEN = ("error: I could not understand that time. Try 'in 20 minutes', 'at 5
             "'tomorrow at 9am', 'friday at 3pm' or 'every weekday at 9am'.")
 FULL_FACTS = f"error: memory holds {MAX_FACTS} facts already. Forget one first."
 FULL_REMINDERS = f"error: there are {MAX_REMINDERS} open reminders already. Finish or forget one first."
+FULL_LEARNED = f"error: memory holds {MAX_LEARNED} learned notes already. Forget one first."
 SHORT = "error: give at least 3 characters to match."
 TOO_BROAD = f"error: that matches more than {MAX_FORGET} items. Be more specific."
 AMBIGUOUS = "error: more than one reminder matches. Be more specific."
@@ -367,7 +368,7 @@ def apply_learned(items: list[tuple[str, str]], session_epoch: str, now: datetim
         db.execute("DELETE FROM learned_block WHERE until <= ?", (stamp,))
         live = {_norm(t): i for i, t in db.execute("SELECT id, text FROM learned WHERE deleted_at IS NULL")}
         blocked = {k for (k,) in db.execute("SELECT key FROM learned_block")}
-        seen: set[str] = set()
+        seen = {_norm(t) for (t,) in db.execute("SELECT text FROM facts WHERE deleted_at IS NULL")}  # already remembered
         for kind, text in items:
             norm = _norm(text)
             if norm in seen:
@@ -481,9 +482,9 @@ def forget(match: str) -> str:
         for kind, id_, text in hits:
             db.execute(f"UPDATE {dict(f='facts', r='reminders', l='learned')[kind]} SET deleted_at = ? WHERE id = ?",
                        (stamp, id_))
-            if kind == "l":
-                db.execute("INSERT OR REPLACE INTO learned_block VALUES (?, ?)",
-                           (_key(text), _iso(datetime.now(UTC) + timedelta(days=BLOCK_DAYS))))
+            # Facts and reminders too, or the distiller would relearn what the user just forgot.
+            db.execute("INSERT OR REPLACE INTO learned_block VALUES (?, ?)",
+                       (_key(text), _iso(datetime.now(UTC) + timedelta(days=BLOCK_DAYS))))
     return f"Forgot {len(hits)}: " + "; ".join(t for _, _, t in hits)
 
 
@@ -503,10 +504,12 @@ def undo_forget() -> str:
             raise _Refuse(FULL_FACTS)
         if len(_reminders(db)) + len(reminders) > MAX_REMINDERS:
             raise _Refuse(FULL_REMINDERS)
+        if len(_learned(db)) + len(learned) > MAX_LEARNED:
+            raise _Refuse(FULL_LEARNED)
         db.execute("UPDATE facts SET deleted_at = NULL WHERE deleted_at = ?", (latest,))
         db.execute("UPDATE reminders SET deleted_at = NULL WHERE deleted_at = ?", (latest,))
         db.execute("UPDATE learned SET deleted_at = NULL WHERE deleted_at = ?", (latest,))
-        for (text,) in learned:  # restored on purpose, so it is no longer blocked
+        for (text,) in facts + reminders + learned:  # restored on purpose, so no longer blocked
             db.execute("DELETE FROM learned_block WHERE key = ?", (_key(text),))
     restored = facts + reminders + learned
     return f"Restored {len(restored)}: " + "; ".join(t for (t,) in restored)

@@ -195,6 +195,7 @@ def admit(spec: object, idempotency_key: object, planner_is_local: object, limit
         tools |= TIER1_FILE_TOOLS[task]
     if planner_is_local:
         tools |= TIER1_APP_TOOLS[task]
+    # Memory now holds inferred records from real speech, so memory_is_synthetic must never be True for real memory.
     if planner_is_local or memory_is_synthetic:
         tools |= MEMORY_TOOLS[task]
     return Admission(job, tools, planner_is_local or memory_is_synthetic, deadline, planner_is_local)
