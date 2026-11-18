@@ -50,10 +50,10 @@ httpx2 2.16.0 and `tzdata` (test host only, so the time zone tests run).
 
 ```text
 python -m pytest apps/api/tests/test_distill.py
-54 passed in 3.31s
+57 passed
 
 python -m pytest apps/api
-1 failed, 1143 passed, 109 skipped, 1 warning in 58.43s
+1 failed, 1146 passed, 109 skipped
 FAILED apps\api\tests\test_memory.py::test_files_are_private_even_when_they_already_existed
 
 npm run check
