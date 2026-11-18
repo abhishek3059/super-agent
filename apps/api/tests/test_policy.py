@@ -424,3 +424,57 @@ def test_repeat_with_unparseable_created_at_is_refused(monkeypatch):
 def test_bad_data_class_is_reported_as_data_class_invalid(data):
     assert code(go, {**GOOD, "data_class": data}) == "data_class_invalid"
     assert untouched()
+
+
+# --- decide: the turn-level gate ---------------------------------------------
+
+def _turn(heard="please remember my cat", read=False):
+    return policy.Turn(heard, read, True, True)
+
+
+@pytest.mark.parametrize("tool, turn, verdict, why", [
+    ("delegate_task", _turn(), "allow", None),
+    ("delegate_task", _turn(read=True), "deny", "untrusted_read_in_turn"),
+    ("remember_fact", _turn(), "allow", None),
+    ("remember_fact", _turn(read=True), "deny", "untrusted_read_in_turn"),
+    ("remember_fact", _turn("what time is it"), "deny", "not_asked"),
+    ("remember_fact", _turn("what time is it", read=True), "deny", "untrusted_read_in_turn"),
+    ("remember_fact", _turn(None), "allow", None),  # not a voice turn: no transcript to check
+    ("add_reminder", _turn("Remind me at noon"), "allow", None),
+    ("add_reminder", _turn("hello"), "deny", "not_asked"),
+    ("forget", _turn("delete that"), "allow", None),
+    ("forget", _turn("hello"), "deny", "not_asked"),
+    ("complete_reminder", _turn("hello"), "allow", None),  # a write with no asked pattern, as today
+    ("complete_reminder", _turn(read=True), "deny", "untrusted_read_in_turn"),
+    ("list_memory", _turn("hello", read=True), "allow", None),  # reads are not writes
+    ("calculate", _turn("hello", read=True), "allow", None),  # ungoverned names pass
+    ("anything_else", _turn(), "allow", None),
+])
+def test_decide_table(tool, turn, verdict, why):
+    assert policy.decide(tool, turn) == policy.Decision(verdict, why)
+
+
+@pytest.mark.parametrize("tool, turn", [
+    (None, _turn()), (3, _turn()), (b"forget", _turn()), (["forget"], _turn()),
+    ("forget", None), ("forget", "turn"), ("forget", {"heard": "x"}),
+    ("forget", policy.Turn(5, False, True, True)),
+    ("forget", policy.Turn("forget", 1, True, True)),
+    ("forget", policy.Turn("forget", None, True, True)),
+    ("forget", policy.Turn("forget", False, "yes", True)),
+    ("forget", policy.Turn("forget", False, True, 0)),
+])
+def test_decide_bad_input_fails_closed(tool, turn):
+    assert policy.decide(tool, turn) == policy.Decision("deny", "input_invalid")
+
+
+def test_decide_never_returns_confirm_and_its_codes_are_known():
+    names = ["delegate_task", "calculate", *policy.MEMORY_WRITES, *policy.ASKED, None, 1]
+    for name, heard, read in itertools.product(names, ["", "remember it", "hello", None], [False, True]):
+        d = policy.decide(name, policy.Turn(heard, read, True, True))
+        assert d.verdict in ("allow", "deny")
+        assert (d.code is None) == (d.verdict == "allow") and d.code in REASONS | {None}
+
+
+def test_the_write_names_match_memory():
+    from super_agent_voice import memory
+    assert policy.MEMORY_WRITES == memory.WRITES

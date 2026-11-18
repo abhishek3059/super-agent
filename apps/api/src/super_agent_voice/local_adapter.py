@@ -25,7 +25,7 @@ import wave
 from collections.abc import AsyncIterator, Awaitable, Callable
 from pathlib import Path
 
-from . import delegation, lfm3_voice, memory, tier1
+from . import delegation, lfm3_voice, memory, policy, tier1
 from .adapter import (
     AdapterError, AdapterEvent, AudioChunk, Interrupted, Thinking, Transcript, TurnComplete,
 )
@@ -138,11 +138,6 @@ def _delegate(arguments: object) -> str:
 # What the user said this turn. A small model sometimes saves things nobody asked it to,
 # so a memory write runs only when the user's own words asked for that kind of change.
 _HEARD: contextvars.ContextVar[str | None] = contextvars.ContextVar("heard", default=None)
-_ASKED = {
-    "remember_fact": re.compile(r"remember|note|save|store|memori[sz]e|keep in mind|don'?t forget"),
-    "add_reminder": re.compile(r"remind|alarm|wake me|remember|don'?t (?:let me )?forget"),
-    "forget": re.compile(r"forget|delete|remove|erase|clear|scratch"),
-}
 DELEGATE_AFTER_READ = ("error: no task can be started in a turn that read files, notes, mail or calendar. "
                        "Tell the user to ask again in a new sentence.")
 NOT_ASKED = "error: the user did not ask for that, so nothing was changed. Do not say it was."
@@ -152,25 +147,31 @@ _FORGOT: contextvars.ContextVar[list | None] = contextvars.ContextVar("forgot", 
 _READ_UNTRUSTED: contextvars.ContextVar[bool] = contextvars.ContextVar("read_untrusted", default=False)
 
 
+def _decide(name: str, *, memory_on: bool, delegate_on: bool) -> str | None:
+    return policy.decide(name, policy.Turn(_HEARD.get(), _READ_UNTRUSTED.get(), memory_on, delegate_on)).code
+
+
 async def call_tool(name: object, arguments: object) -> str:
     if name in tier1.T1_NAMES:
         _READ_UNTRUSTED.set(True)
         return await tier1.run_t1(name, arguments)
     if name == "delegate_task":
-        if not delegate_enabled():
+        on = delegate_enabled()  # read only here: a bad SUPER_AGENT_DELEGATE must not break other tools
+        if not on:
             return "error: no such tool."
-        if _READ_UNTRUSTED.get():  # text from a file, note or mail must not start a job over the user's data
+        if _decide(name, memory_on=False, delegate_on=on) == "untrusted_read_in_turn":
             return DELEGATE_AFTER_READ
         return await asyncio.to_thread(_delegate, arguments)
     if name in memory.NAMES:
-        if not memory_enabled():
+        on = memory_enabled()
+        if not on:
             return "error: no such tool."
+        code = _decide(name, memory_on=on, delegate_on=False)
         # Text from a file or email could ask for a reminder that later speaks a phishing
         # line in the assistant's voice, so a turn that read any of it cannot write memory.
-        if name in memory.WRITES and _READ_UNTRUSTED.get():
+        if code == "untrusted_read_in_turn":
             return memory.AFTER_READ
-        heard = _HEARD.get()
-        if heard is not None and name in _ASKED and not _ASKED[name].search(heard.casefold()):
+        if code == "not_asked":
             return NOT_ASKED
         result = await asyncio.to_thread(memory.run, name, arguments)
         if name == "forget" and result.startswith("Forgot") and (box := _FORGOT.get()) is not None:
