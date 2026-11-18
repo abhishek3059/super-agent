@@ -877,3 +877,19 @@ def test_memory_changes_only_when_the_users_words_asked_for_them(monkeypatch, tm
     assert said("remind me to stretch in 5 minutes", "add_reminder", {"text": "stretch", "when": "in 5 minutes"}).startswith("Reminder set")
     assert said("forget my dog", "forget", {"match": "dog"}).startswith("Forgot 1")
     assert said("what do you know", "list_memory", {}) == "No facts stored."
+
+
+def test_an_unexpected_gate_deny_fails_closed(monkeypatch, tmp_path):
+    monkeypatch.setattr(local_adapter.memory, "DB_PATH", tmp_path / "m.db")
+    monkeypatch.setenv("SUPER_AGENT_MEMORY", "on")
+    monkeypatch.setenv("SUPER_AGENT_DELEGATE", "on")
+    monkeypatch.setattr(local_adapter.policy, "decide",
+                        lambda tool, turn: local_adapter.policy.Decision("deny", "input_invalid"))
+    ran = []
+    monkeypatch.setattr(local_adapter.memory, "run", lambda *a: ran.append(a) or "ran")
+    monkeypatch.setattr(local_adapter, "_delegate", lambda *a: ran.append(a) or "ran")
+    call = local_adapter.call_tool
+    results = [run(call("remember_fact", {"text": "x"})), run(call("list_memory", {})),
+               run(call("delegate_task", {"task_type": "answer", "instruction": "x"}))]
+    assert results == [local_adapter.DENIED] * 3
+    assert ran == []

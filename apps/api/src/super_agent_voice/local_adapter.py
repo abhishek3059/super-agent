@@ -143,6 +143,7 @@ DELEGATE_AFTER_READ = ("error: no task can be started in a turn that read files,
 NOT_ASKED = "error: the user did not ask for that, so nothing was changed. Do not say it was."
 # The session's own list, set per turn by the adapter; a successful forget appends to it.
 _FORGOT: contextvars.ContextVar[list | None] = contextvars.ContextVar("forgot", default=None)
+DENIED = "error: that is not allowed right now, so nothing was done. Do not say it was."
 # Set by a tier 1 read inside a turn. Each turn is its own task, so this starts False every turn.
 _READ_UNTRUSTED: contextvars.ContextVar[bool] = contextvars.ContextVar("read_untrusted", default=False)
 
@@ -159,8 +160,11 @@ async def call_tool(name: object, arguments: object) -> str:
         on = delegate_enabled()  # read only here: a bad SUPER_AGENT_DELEGATE must not break other tools
         if not on:
             return "error: no such tool."
-        if _decide(name, memory_on=False, delegate_on=on) == "untrusted_read_in_turn":
+        code = _decide(name, memory_on=False, delegate_on=on)
+        if code == "untrusted_read_in_turn":
             return DELEGATE_AFTER_READ
+        if code:  # any other deny, including input_invalid, fails closed
+            return DENIED
         return await asyncio.to_thread(_delegate, arguments)
     if name in memory.NAMES:
         on = memory_enabled()
@@ -173,6 +177,8 @@ async def call_tool(name: object, arguments: object) -> str:
             return memory.AFTER_READ
         if code == "not_asked":
             return NOT_ASKED
+        if code:  # any other deny, including input_invalid, fails closed
+            return DENIED
         result = await asyncio.to_thread(memory.run, name, arguments)
         if name == "forget" and result.startswith("Forgot") and (box := _FORGOT.get()) is not None:
             box.append(True)  # this session is not distilled: a reworded copy could come back

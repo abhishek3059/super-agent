@@ -46,3 +46,11 @@ pass unedited. No existing test was edited. `npm run check`: see the PR.
   used until slice 2. The adapter reads each switch only inside its own branch, as before,
   so a bad `SUPER_AGENT_DELEGATE` still breaks only `delegate_task`.
 - `complete_reminder` and `undo_forget` have no `ASKED` pattern, so, as before, only the untrusted-read rule governs them.
+
+## Review fix: unexpected denies fail closed
+
+`call_tool` first mapped only `untrusted_read_in_turn` and `not_asked`, so any
+other deny code (such as `input_invalid`) would have let the tool run. It now
+returns the fixed `DENIED` text for every other deny, for memory tools and for
+`delegate_task`. Test: `test_an_unexpected_gate_deny_fails_closed` in
+`tests/test_local_adapter.py`.
