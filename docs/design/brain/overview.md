@@ -382,6 +382,8 @@ When `document_id` matches two documents, the butler asks one question:
 Building this flow is PH-04 work (R-04.2). This section is its design input
 and does not replace that item.
 
+Proposal: [spoken ask-and-resume for background jobs](../ask-and-resume.md) extends the clarifying-question flow to jobs that need an answer mid-run.
+
 ## 8. Timing: the queue and the brief
 
 - **Turn-boundary queue.** The notification coordinator holds a finished
