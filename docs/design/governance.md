@@ -2,10 +2,10 @@
 
 | Field | Value |
 | --- | --- |
-| Status | **Proposal.** Not accepted. Design only, no code. |
+| Status | **Proposal, accepted in part.** OD-G1 is approved ([decisions record](../approvals/governance-decisions.md)); OD-G2 to OD-G5 are open. Design only, no code. |
 | Date | 2026-11-18 |
 | Requested by | Maintainer `abhishek3059`, in chat, 2026-11-18 |
-| Roadmap | Off-path. Current phase is PH-01. Needs a roadmap PR and an approvals record before any code (section 6). |
+| Roadmap | On the roadmap as R-02.7 in PH-02, which is current once PR #58 merges (section 6.2). |
 | Related | [brain overview](brain/overview.md), [brain memory](brain/memory.md), [agent backend](agent-backend.md), [tier 1 read tools](tier1-read-tools.md), [local memory](local-memory-reminders.md), [DEC-18](../../descisions.md#dec-18) |
 
 ## 1. The recommendation
@@ -235,24 +235,19 @@ OD-G4.
 
 ### 6.2 Roadmap position
 
-The current phase is PH-01 with R-01.10 open. This work is on no roadmap
-item. [AGENTS.md](../../AGENTS.md) section 11 rule 1 and
-[roadmap.md](../../roadmap.md) rule 5 need a roadmap PR and a record under
-`docs/approvals/` approved by a maintainer before slice 1 starts. Proposed
-item text, for that PR only (this document does not edit `roadmap.md` or
-`scripts/roadmap-ids.txt`):
-
-```text
-- [ ] R-02.7 [exception: [governance gate exception](docs/approvals/governance-gate-exception.md)] Turn-level checks moved into the policy gate (policy.decide) with no behaviour change; delegation requires the user's own request (GR-1). Evidence: none yet
-```
-
-PH-02 is where policy limits live (R-02.3), so the item fits there. The
-exception record would name the approving maintainer and the date.
+R-02.7 is in PH-02, with no exception tag. PH-02 is the current phase once
+PR #58 merges, and policy limits already live in R-02.3. The roadmap PR that
+adds it also adds the [decisions record](../approvals/governance-decisions.md).
+The `governance-gate-exception.md` record proposed in an earlier draft is not
+needed for slice 1 once that PR merges. If branch
+`feat/governance-gate-slice1` carries that exception record, it becomes
+historical.
 
 ### 6.3 Decisions only a maintainer can make
 
 - **OD-G1.** Accept `policy.py` as the gate, instead of a new
-  `governance.py`.
+  `governance.py`. Decided: approved on 2026-11-19, see the
+  [decisions record](../approvals/governance-decisions.md).
 - **OD-G2.** Whether a brain tone signal may tighten a decision (allow to
   confirm), and what confirmation means in voice before T3 exists.
 - **OD-G3.** `Runner.claim_and_run` bypasses `admit` and hardcodes a local
@@ -261,4 +256,6 @@ exception record would name the approving maintainer and the date.
 - **OD-G4.** Whether HQ jobs in PR #56 must pass `admit`.
 - **OD-G5.** The GR-1 request pattern. A fixed word list misses some real
   requests (the user must rephrase) and is English only.
-- **OD-G6.** The roadmap item, its phase, and the exception record above.
+- **OD-G6.** The roadmap item, its phase, and whether an exception is needed.
+  Answered as a proposal by the roadmap PR: R-02.7 in PH-02, no exception.
+  It takes effect when a maintainer approves or merges that PR.
