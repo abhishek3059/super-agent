@@ -200,11 +200,6 @@ export class VoiceSessionService {
   }
 
   /**
-   * Before authentication the only accepted frames are the server challenge
-   * or a fixed `session.error`. Anything else, or a proof that does not match
-   * the token, closes the socket with nothing more sent and capture off.
-   */
-  /**
    * A muted session sends no audio, so the backend would end it at the idle
    * limit. While connected, ready and muted, a small control refreshes that
    * deadline; unmuted sessions already send audio frames.
@@ -220,6 +215,11 @@ export class VoiceSessionService {
     }, KEEPALIVE_MS);
   }
 
+  /**
+   * Before authentication the only accepted frames are the server challenge
+   * or a fixed `session.error`. Anything else, or a proof that does not match
+   * the token, closes the socket with nothing more sent and capture off.
+   */
   private async answerChallenge(
     event: MessageEvent,
     socket: WebSocket,
