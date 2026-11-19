@@ -1,6 +1,6 @@
 # Memory distiller: first slice
 
-Status: built on branch `feat/memory-distiller`, not merged, not on the roadmap
+Status: built on branch `feat/memory-distiller`, not merged. It is the first slice of roadmap item R-M.12 (unticked), built under an exception
 ([approval record](../approvals/memory-distiller-exception.md)). Off by default.
 
 ## What was built
@@ -54,7 +54,7 @@ python -m pytest apps/api/tests/test_distill.py
 67 passed
 
 python -m pytest apps/api
-1 failed, 1156 passed, 109 skipped
+1 failed, 1175 passed, 109 skipped
 FAILED apps\api\tests\test_memory.py::test_files_are_private_even_when_they_already_existed
 
 npm run check
