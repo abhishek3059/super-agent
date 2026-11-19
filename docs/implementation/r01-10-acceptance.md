@@ -66,8 +66,8 @@ loopback boundary finding remain outside the evidence.
    [proposal](../design/synthetic-voice-console.md), which was never reviewed
    or built. Owner: one maintainer, per [DEC-21](../../descisions.md#dec-21).
    **Path decided 2026-11-19:** the real-microphone run counts
-   ([decisions record](../approvals/r01-10-decisions.md)). A first, partial
-   run passed S1, S9 and S10; S3 to S7 are still to run.
+   ([decisions record](../approvals/r01-10-decisions.md)). A [first, partial
+   run](evidence/r01-10-console-run-20261119T101357Z.md) passed S1, S9 and S10; S3 to S7 are still to run.
 3. **Independent review of the code now on `develop`**, including Gemini mode,
    plus a decision on finding F5 and the F2 condition. Both were tied to
    wiring Gemini into a session. Owner: one maintainer decides; an

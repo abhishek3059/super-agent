@@ -4,7 +4,7 @@
 | --- | --- |
 | Roadmap item | R-01.F9, a fix item under PH-01 (roadmap rule 4) |
 | Finding | B1 (was F5) in the [R-01.10 boundary review](../reviews/r01-10-boundary-review.md), and F5 in the [R-01.6 review](../reviews/r01-6-security-review.md) |
-| Status | Implemented on branch `fix/r01-f9-handshake-proof`. **Not merged. Not ticked.** The roadmap item stays `Evidence: none yet` until this is merged. |
+| Status | Implemented on branch `fix/r01-f9-handshake-proof`, the PH-01 bundle. R-01.F9 is ticked in the same pull request with this record as evidence (roadmap rule 3); the tick counts once that pull request merges. |
 | Author | Claude Code (`claude-opus-5-5`), reviewed by the shared reviewer: not run in this record |
 
 ## The problem

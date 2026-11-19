@@ -3,7 +3,7 @@
 | Field | Value |
 | --- | --- |
 | Date | 2026-11-19 |
-| Trigger | The R-01.10 console run record `r01-10-console-run-20261119T101357Z.md` (not yet committed) ended a live Gemini session with `session-timeout` after about 3.5 minutes. |
+| Trigger | The [R-01.10 console run record](evidence/r01-10-console-run-20261119T101357Z.md) ended a live Gemini session with `session-timeout` after about 3.5 minutes. |
 | Scope | Console and backend control only. The 60-second idle limit and the 15-minute maximum are unchanged. A muted tab left open now stays connected until the 15-minute maximum, instead of ending after 60 seconds. |
 
 ## Cause
