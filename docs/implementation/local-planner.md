@@ -27,8 +27,8 @@ Run Ollama on loopback, set `SUPER_AGENT_DELEGATE=on`. The model is `SUPER_AGENT
 
 `apps/api/tests/test_ollama_planner.py`: parsed JSON, malformed and empty replies, transport and timeout
 errors, text reply, cloud or unvouched model is not local and personal data is refused, plan then finish
-reaches `succeeded`. Full API suite: 1214 passed, 109 skipped, 1 failed. The failure is the known Windows
-`test_memory.py::test_files_are_private_even_when_they_already_existed`.
+reaches `succeeded`. Full API suite on Windows, 2026-11-20, at the 60 s timeout: 1081 passed, 110 skipped, 0 failed
+(shared reviewer run).
 
 ## Real run (loopback Ollama, `qwen3.5:4b`, synthetic data, temp ledger)
 

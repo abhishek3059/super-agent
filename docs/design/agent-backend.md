@@ -129,7 +129,7 @@ All enforced in code. A breach fails closed: the job goes to `failed`, or to
 | Limit | First value (provisional) |
 | --- | --- |
 | Steps per job | 8 |
-| Per-step deadline | 30 seconds |
+| Per-step deadline | 75 seconds |
 | Per-job deadline | 5 minutes |
 | Retries per step | 1, read-only steps only |
 | Model calls per job | 12 |
