@@ -132,6 +132,8 @@ Gemini test session is an inconvenience, not a harm.
 
 ### Recommendation, pending maintainer decision
 
+Decided 2026-11-19 in the [decisions record](../approvals/r01-10-decisions.md): F5 fixed in R-01.F9, F2 accepted for maintainer-only testing. The text below is the review as written.
+
 1. **F2:** treat the condition as not yet triggered for maintainer-only
    Gemini testing, and say so in the F2 acceptance record. It becomes
    triggered when R-A.2 allows real use, or for any multi-user or always-on

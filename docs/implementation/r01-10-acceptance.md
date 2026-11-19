@@ -65,14 +65,18 @@ loopback boundary finding remain outside the evidence.
    (that record says no gate moves), or the synthetic-only console in the
    [proposal](../design/synthetic-voice-console.md), which was never reviewed
    or built. Owner: one maintainer, per [DEC-21](../../descisions.md#dec-21).
+   **Path decided 2026-11-19:** the real-microphone run counts
+   ([decisions record](../approvals/r01-10-decisions.md)). A first, partial
+   run passed S1, S9 and S10; S3 to S7 are still to run.
 3. **Independent review of the code now on `develop`**, including Gemini mode,
    plus a decision on finding F5 and the F2 condition. Both were tied to
    wiring Gemini into a session. Owner: one maintainer decides; an
    independent reviewer agent can do the review. **Review done 2026-11-19;
-   maintainer decision pending.** The
+   decided 2026-11-19** ([decisions record](../approvals/r01-10-decisions.md)):
+   F5 is fixed in R-01.F9, F2 is accepted for maintainer-only testing. The
    [boundary review](../reviews/r01-10-boundary-review.md) of `d52d894`
    raises F5 to MEDIUM and recommends a fix or a testing-only acceptance;
-   the decision on F5 and the F2 condition is still open. A fix for B1 (F5)
+   A fix for B1 (F5)
    is on branch `fix/r01-f9-handshake-proof` as roadmap item R-01.F9, **not
    merged**; see the [R-01.F9 record](r01-f9-handshake-proof.md). B2 (F2)
    stays accepted for single-user loopback development.
