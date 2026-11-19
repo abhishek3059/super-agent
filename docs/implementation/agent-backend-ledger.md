@@ -94,3 +94,5 @@ Slice 5 added `append_note` ([graph record](agent-backend-graph.md#step-records)
 The [delegation service](agent-backend-delegation.md) calls `recover_after_restart` (through the runner) and
 `purge` at startup only when supplied with a planner. The [Gemini text check](agent-backend-gemini-planner.md)
 uses that service on temporary SQLite. Conversation delegation is off by default and has no planner wired in.
+
+PH-02 acceptance evidence for the ledger, policy, and runner: [PH-02 evidence record](ph02-ledger-evidence.md).
