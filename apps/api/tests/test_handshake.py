@@ -115,14 +115,14 @@ def test_handshake_steps_time_out_and_fail_closed() -> None:
 
 def test_one_deadline_covers_the_whole_handshake() -> None:
     # A late hello must not restart the clock: a pre-auth socket is held for one auth timeout, not two.
-    settings = VoiceConfig(local_token=TOKEN, auth_timeout_seconds=0.5)
+    settings = VoiceConfig(local_token=TOKEN, auth_timeout_seconds=1.0)
     created, factory = counting_factory()
     with make_client(config=settings, factory=factory) as client:
         started = time.monotonic()
         with connect(client) as slow:
-            time.sleep(0.4)
+            time.sleep(0.6)
             slow.send_json({"type": "session.hello", "nonce": "9" * 32})
             assert slow.receive_json()["type"] == "session.challenge"
             assert slow.receive_json() == {"type": "session.error", "category": "session-timeout"}
-        assert time.monotonic() - started < 0.8  # per-step deadlines would take about 0.9 s
+        assert time.monotonic() - started < 1.4  # per-step deadlines would take about 1.6 s
     assert created == []
