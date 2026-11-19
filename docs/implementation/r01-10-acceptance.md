@@ -30,7 +30,7 @@ the last column says what the evidence does not cover.
 
 ## Blockers
 
-R-01.10 stays unticked until these are cleared. R-01.F10 (muted keep-alive and stalled-microphone reporting, found in the first console run) is open and must be ticked first; see its [record](r01-f10-idle-keepalive.md). Native media evidence needs a
+R-01.10 stays unticked until these are cleared. R-01.F10 (muted keep-alive and stalled-microphone reporting, found in the first console run) is ticked in the PH-01 pull request; see its [record](r01-f10-idle-keepalive.md). Native media evidence needs a
 live run. Boundary implementation and offline verification can proceed first.
 
 The [subscription-backed runtime proposal](../design/subscription-backed-runtime.md)
@@ -75,11 +75,10 @@ loopback boundary finding remain outside the evidence.
    decided 2026-11-19** ([decisions record](../approvals/r01-10-decisions.md)):
    F5 is fixed in R-01.F9, F2 is accepted for maintainer-only testing. The
    [boundary review](../reviews/r01-10-boundary-review.md) of `d52d894`
-   raises F5 to MEDIUM and recommends a fix or a testing-only acceptance;
-   A fix for B1 (F5)
-   is on branch `fix/r01-f9-handshake-proof` as roadmap item R-01.F9, **not
-   merged**; see the [R-01.F9 record](r01-f9-handshake-proof.md). B2 (F2)
-   stays accepted for single-user loopback development.
+   raises F5 to MEDIUM and recommends a fix or a testing-only acceptance.
+   The fix for B1 (F5) is roadmap item R-01.F9 in the PH-01 pull request;
+   see the [R-01.F9 record](r01-f9-handshake-proof.md). B2 (F2) is accepted
+   for maintainer-only testing.
 4. **Records.** After 2 and 3, update the RT-002 and RT-003 records and tick
    R-01.10 with links to the saved output and review.
 
@@ -87,7 +86,7 @@ loopback boundary finding remain outside the evidence.
 
 | Check | Evidence and limit |
 | --- | --- |
-| Local loopback boundary | [Independent review and disposition](../reviews/r01-6-security-review.md) and the [Windows launcher record](r01-f4-windows-launcher.md). Review of the deployed fake console does not approve native provider wiring. The [R-01.10 boundary review](../reviews/r01-10-boundary-review.md) covers `d52d894` with Gemini mode; its F5 and F2 recommendation awaits a maintainer. |
+| Local loopback boundary | [Independent review and disposition](../reviews/r01-6-security-review.md) and the [Windows launcher record](r01-f4-windows-launcher.md). Review of the deployed fake console does not approve native provider wiring. The [R-01.10 boundary review](../reviews/r01-10-boundary-review.md) covers `d52d894` with Gemini mode; F5 and F2 are decided in the [decisions record](../approvals/r01-10-decisions.md). |
 | Human microphone controls | [Jeevesh's test record](../approvals/r01-4-microphone-test.md) covers the revised fake scaffold at `a790530`. Manual Stop playback feedback was inconclusive. PR #34's rebuilt console was not the one used for this test. |
 | Rebuilt console | Chromium smoke check at `3025155` covered the connection dialog. The later [browser verification](#browser-verification) exercised authenticated local echo, playback stop, mute, and session end with generated input. |
 | Live provider | [Saved synthetic run](r01-8-live-check.md) measured a reply and an unsupported-model refusal through the standalone adapter. The reply ended naturally. It did not demonstrate barge-in or browser-to-provider controls. |

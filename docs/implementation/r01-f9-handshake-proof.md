@@ -48,8 +48,9 @@ server. Stop, mute, and interrupt send nothing until step 3 has passed.
 - The hello must be a JSON object with `type == "session.hello"` and a nonce
   matching `[0-9a-f]{32}`; anything else is `invalid-control`, already counted
   as a failed attempt. Frames are still capped by `max_control_bytes`.
-- Each step (receive hello, send challenge, receive auth) has its own
-  `auth_timeout_seconds` deadline, still bounded by the total session budget.
+- One `auth_timeout_seconds` deadline covers the whole handshake (receive
+  hello, send challenge, receive auth), still bounded by the total session
+  budget.
 - A wrong, missing, non-string, oversized, or replayed `proof` closes 1008 and
   is counted by the existing failure throttle (`auth.failed()`), exactly like
   a wrong token was before. A client proof is bound to a fresh server nonce,
