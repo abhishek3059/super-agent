@@ -240,6 +240,7 @@ Client events:
 | `session.auth` | `{ "type": "session.auth", "proof": "<64 hex>" }` | Second message, only after the server proof verified. Required before any audio. |
 | `capture.mute` | `{ "type": "capture.mute" }` | Stops browser capture and ends the provider audio stream. |
 | `capture.unmute` | `{ "type": "capture.unmute" }` | Starts a new provider audio stream. |
+| `session.keepalive` | `{ "type": "session.keepalive" }` | Sent every 20 s by a muted, ready console, which ships no audio. Only refreshes the idle deadline. Any extra field fails closed as `invalid-control`. |
 | `playback.interrupt` | `{ "type": "playback.interrupt" }` | Local barge-in. Stops playback and bumps the epoch. |
 | `session.stop` | `{ "type": "session.stop" }` | Ends the session and closes the provider. |
 
@@ -307,7 +308,7 @@ Error categories:
 | `invalid-control` | Malformed JSON, unknown event, or missing field. |
 | `invalid-audio` | Odd length, oversized frame, or audio before ready. |
 | `max-duration` | Code-level 15-minute limit reached. |
-| `session-timeout` | 60-second idle limit reached. The console shows it as a plain notice ("Session ended after the idle limit") and returns to the ready state, not as an error. |
+| `session-timeout` | 60 seconds with no incoming frame (audio or control). A muted console sends `session.keepalive` so a long mute does not trip it (R-01.F10); the limit and the 15-minute maximum are unchanged. The console shows it as a plain notice ("Session ended after the idle limit") and returns to the ready state, not as an error. |
 | `session-busy` | One active session already exists. |
 | `provider-unavailable` | Connection, DNS, TLS, or network failure. |
 | `provider-limits` | Quota or rate limit. |

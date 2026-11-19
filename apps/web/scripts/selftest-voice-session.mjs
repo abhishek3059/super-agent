@@ -574,6 +574,121 @@ await (async function muteEndToEnd() {
   assert.equal(socket.countText('capture.unmute'), 1);
 })();
 
+/** Replaces setInterval/clearInterval so a test fires timers by hand. */
+function fakeIntervals() {
+  const real = { set: globalThis.setInterval, clear: globalThis.clearInterval };
+  const timers = new Map();
+  let next = 1;
+  globalThis.setInterval = (callback, ms) => { timers.set(next, { callback, ms }); return next++; };
+  globalThis.clearInterval = (id) => { timers.delete(id); };
+  return {
+    timers,
+    fire() { for (const timer of [...timers.values()]) timer.callback(); },
+    restore() { globalThis.setInterval = real.set; globalThis.clearInterval = real.clear; },
+  };
+}
+
+await (async function keepaliveWhileMuted() {
+  beginTest('a muted ready session sends session.keepalive every 20 s; unmute and stop clear the timer');
+  const fake = fakeIntervals();
+  try {
+    const service = new VoiceSessionService();
+    micResolved();
+    const socket = await startLive(service);
+    assert.equal(fake.timers.size, 0, 'no keep-alive while unmuted');
+    service.setMuted(true);
+    assert.equal(fake.timers.size, 1);
+    assert.equal([...fake.timers.values()][0].ms, 20000);
+    assert.equal(socket.countText('session.keepalive'), 0);
+    fake.fire();
+    fake.fire();
+    assert.equal(socket.countText('session.keepalive'), 2);
+    assert.deepEqual(JSON.parse(socket.sent.findLast((f) => typeof f === 'string' && f.includes('keepalive'))), { type: 'session.keepalive' });
+    service.setMuted(false);
+    assert.equal(fake.timers.size, 0, 'unmute stops the timer');
+    service.setMuted(true);
+    assert.equal(fake.timers.size, 1);
+    service.stop();
+    await flushed();
+    assert.equal(fake.timers.size, 0, 'stop clears the timer');
+    const before = socket.countText('session.keepalive');
+    fake.fire();
+    assert.equal(socket.countText('session.keepalive'), before);
+  } finally {
+    fake.restore();
+  }
+})();
+
+await (async function noKeepaliveBeforeCaptureReady() {
+  beginTest('a mute before the microphone is ready starts the timer only once capture is ready');
+  const fake = fakeIntervals();
+  try {
+    const service = new VoiceSessionService();
+    const { socket, deferred } = await startReadyPending(service);
+    service.setMuted(true);
+    assert.equal(fake.timers.size, 0, 'not before capture is ready');
+    deferred.resolve(fakeStream());
+    await flushed();
+    assert.equal(fake.timers.size, 1);
+    assert.equal(socket.countText('session.keepalive'), 0);
+  } finally {
+    fake.restore();
+  }
+})();
+
+await (async function noKeepaliveAfterSocketClose() {
+  beginTest('the keep-alive timer is cleared when the backend closes the socket');
+  const fake = fakeIntervals();
+  try {
+    const service = new VoiceSessionService();
+    micResolved();
+    const socket = await startLive(service);
+    service.setMuted(true);
+    socket.fireClose();
+    await flushed();
+    assert.equal(fake.timers.size, 0);
+  } finally {
+    fake.restore();
+  }
+})();
+
+await (async function stalledMicrophoneIsReported() {
+  beginTest('a suspended context, a muted source, and an ended track are reported, not idled');
+  const service = new VoiceSessionService();
+  const stream = micResolved();
+  await startLive(service);
+  const context = lastContext();
+  context.state = 'suspended';
+  context.onstatechange();
+  assert.match(service.notice(), /paused/);
+  await flushed();
+  assert.equal(context.state, 'running', 'resume was attempted');
+  context.onstatechange();
+  assert.equal(service.notice(), '', 'notice clears once running');
+  stream.track.onmute();
+  assert.match(service.notice(), /paused/);
+  stream.track.onunmute();
+  assert.equal(service.notice(), '');
+  stream.track.onended();
+  await flushed();
+  assert.match(service.error(), /Microphone stopped/);
+  assert.equal(service.status(), 'error');
+})();
+
+await (async function resumeFailureEndsTheSession() {
+  beginTest('a context that cannot resume ends the session with a notice');
+  const service = new VoiceSessionService();
+  micResolved();
+  await startLive(service);
+  const context = lastContext();
+  env.rejectResume = true;
+  context.state = 'suspended';
+  context.onstatechange();
+  await flushed();
+  assert.match(service.error(), /could not resume/);
+  assert.equal(service.status(), 'error');
+})();
+
 await (async function automaticBargeIn() {
   beginTest('two consecutive loud input frames barge in while audible playback runs, and only once');
   const service = new VoiceSessionService();

@@ -854,7 +854,8 @@ async def _receive(
             if not state.muted:
                 await adapter.enqueue_audio(audio)
             continue
-        event = _control(incoming.get("text"), settings).get("type")
+        control = _control(incoming.get("text"), settings)
+        event = control.get("type")
         if event == "capture.mute":
             state.muted = True
             outbound.clear_playback()
@@ -871,6 +872,11 @@ async def _receive(
             outbound.put(_Outbound({
                 "type": "playback.interrupted", "playbackEpoch": state.epoch, "source": "local",
             }))
+        elif event == "session.keepalive":
+            # Sent by a muted console, which ships no audio. It only refreshed
+            # last_input above; a payload is not allowed.
+            if len(control) != 1:
+                raise _SessionFailure("invalid-control")
         elif event == "session.stop":
             raise _Stopped()
         else:

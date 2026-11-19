@@ -363,6 +363,7 @@ def test_adapter_never_created_without_valid_auth() -> None:
         '"text"',
         '{"type": "capture.mute"}',
         '{"type": "capture.mute", "token": "%s"}' % TOKEN,
+        '{"type": "session.keepalive"}',
         '{"type": "session.auth"}',
         '{"type": "session.auth", "token": "%s"}' % TOKEN,
         '{"type": "session.hello"}',
@@ -509,6 +510,33 @@ def test_mute_ends_the_adapter_audio_stream() -> None:
         websocket.send_json({"type": "capture.mute"})
         assert websocket.receive_json() == {"type": "session.state", "muted": True}
         assert ends == 1
+
+
+def test_keepalive_refreshes_the_idle_deadline_then_idle_still_ends_it() -> None:
+    settings = VoiceConfig(local_token=TOKEN, idle_timeout_seconds=0.6)
+    with make_client(FakeVoiceAdapter(), settings) as client, connect(client) as websocket:
+        authenticate(websocket)
+        started = time.monotonic()
+        for _ in range(5):
+            time.sleep(0.25)
+            websocket.send_json({"type": "session.keepalive"})
+        # More than twice the idle limit has passed and the session is alive.
+        assert time.monotonic() - started > 1.2
+        assert websocket.receive_json() == {
+            "type": "session.error",
+            "category": "session-timeout",
+        }
+
+
+@pytest.mark.parametrize(
+    "message",
+    ['{"type": "session.keepalive", "extra": 1}', '{"type": "session.keepalive", "token": "x"}'],
+)
+def test_keepalive_with_a_payload_fails_closed(message: str) -> None:
+    with make_client() as client, connect(client) as websocket:
+        authenticate(websocket)
+        websocket.send_text(message)
+        assert websocket.receive_json() == {"type": "session.error", "category": "invalid-control"}
 
 
 def test_silent_adapter_times_out_and_is_closed() -> None:

@@ -19,6 +19,9 @@ const ERROR_CATEGORIES = new Set([
 
 const HANDSHAKE_TIMEOUT_MS = 5000;
 const HANDSHAKE_REFUSED = 'The local voice backend did not prove it holds the session token. Nothing was sent and the microphone stays off.';
+/** Must stay well under the backend idle limit (60 s); a muted session ships no audio. */
+const KEEPALIVE_MS = 20000;
+const MIC_PAUSED = 'Microphone paused by the browser or system. Trying to resume.';
 const NONCE_PATTERN = /^[0-9a-f]{32}$/;
 const PROOF_PATTERN = /^[0-9a-f]{64}$/;
 
@@ -61,6 +64,7 @@ export class VoiceSessionService {
   private authenticated = false;
   private challenged = false;
   private handshakeTimer?: ReturnType<typeof setTimeout>;
+  private keepaliveTimer?: ReturnType<typeof setInterval>;
   private stream?: MediaStream;
   private context?: AudioContext;
   private processor?: ScriptProcessorNode;
@@ -173,6 +177,7 @@ export class VoiceSessionService {
       track.enabled = !value;
     }
     socket.send(JSON.stringify({ type: value ? 'capture.mute' : 'capture.unmute' }));
+    this.syncKeepalive(socket);
     this.status.set(value ? 'muted' : this.playing.size ? 'speaking' : 'listening');
   }
 
@@ -199,6 +204,22 @@ export class VoiceSessionService {
    * or a fixed `session.error`. Anything else, or a proof that does not match
    * the token, closes the socket with nothing more sent and capture off.
    */
+  /**
+   * A muted session sends no audio, so the backend would end it at the idle
+   * limit. While connected, ready and muted, a small control refreshes that
+   * deadline; unmuted sessions already send audio frames.
+   */
+  private syncKeepalive(socket: WebSocket): void {
+    clearInterval(this.keepaliveTimer);
+    this.keepaliveTimer = undefined;
+    if (!this.muted() || !this.captureReady) return;
+    this.keepaliveTimer = setInterval(() => {
+      if (this.socket === socket && socket.readyState === WebSocket.OPEN) {
+        socket.send(JSON.stringify({ type: 'session.keepalive' }));
+      }
+    }, KEEPALIVE_MS);
+  }
+
   private async answerChallenge(
     event: MessageEvent,
     socket: WebSocket,
@@ -398,6 +419,7 @@ export class VoiceSessionService {
       };
       source.connect(processor);
       processor.connect(context.destination);
+      this.watchCapture(stream, context, socket, generation);
     } catch {
       // Local capture setup failed; the message names the local capture
       // stage and never exposes any underlying detail.
@@ -421,6 +443,36 @@ export class VoiceSessionService {
     // Start in the meantime must not become ready or fail from it.
     if (this.socket !== socket || this.generation !== generation) return;
     this.captureReady = true;
+    this.syncKeepalive(socket);
+  }
+
+  /** Without these a stalled microphone silently idles into the backend timeout. */
+  private watchCapture(
+    stream: MediaStream,
+    context: AudioContext,
+    socket: WebSocket,
+    generation: number,
+  ): void {
+    const live = () => this.socket === socket && this.generation === generation;
+    for (const track of stream.getAudioTracks()) {
+      track.onended = () => {
+        if (live()) this.fail('Microphone stopped by the browser or system. Start again to retry.');
+      };
+      // "muted" is the source going silent (OS or browser); enabled=false is not.
+      track.onmute = () => { if (live()) this.notice.set(MIC_PAUSED); };
+      track.onunmute = () => { if (live() && this.notice() === MIC_PAUSED) this.notice.set(''); };
+    }
+    context.onstatechange = () => {
+      if (!live() || this.context !== context) return;
+      if (context.state === 'running') {
+        if (this.notice() === MIC_PAUSED) this.notice.set('');
+      } else if (context.state === 'suspended' || context.state === ('interrupted' as AudioContextState)) {
+        this.notice.set(MIC_PAUSED);
+        context.resume().catch(() => {
+          if (live()) this.fail('Audio capture was paused and could not resume. Start again to retry.');
+        });
+      }
+    };
   }
 
   private onAudioProcess(socket: WebSocket, audioEvent: AudioProcessingEvent): void {
@@ -519,7 +571,10 @@ export class VoiceSessionService {
     this.captureReady = false;
     this.authenticated = false;
     clearTimeout(this.handshakeTimer);
+    clearInterval(this.keepaliveTimer);
+    this.keepaliveTimer = undefined;
     const context = this.context;
+    if (context) context.onstatechange = null;
     this.context = undefined;
     const socket = this.socket;
     this.socket = undefined;

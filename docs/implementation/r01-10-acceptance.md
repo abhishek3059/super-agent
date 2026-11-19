@@ -30,7 +30,7 @@ the last column says what the evidence does not cover.
 
 ## Blockers
 
-R-01.10 stays unticked until these are cleared. Native media evidence needs a
+R-01.10 stays unticked until these are cleared. R-01.F10 (muted keep-alive and stalled-microphone reporting, found in the first console run) is open and must be ticked first; see its [record](r01-f10-idle-keepalive.md). Native media evidence needs a
 live run. Boundary implementation and offline verification can proceed first.
 
 The [subscription-backed runtime proposal](../design/subscription-backed-runtime.md)
