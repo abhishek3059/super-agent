@@ -98,6 +98,11 @@ Maps to [RT-004](tasks/004-task-ledger-and-policy.md), [RT-005](tasks/005-fixed-
 - [ ] R-02.3 [exception: [agent backend exception](docs/approvals/agent-backend-exception.md)] Policy limits enforced outside the model (schemas, sizes, deadlines, steps, retries, budget). Evidence: none yet
 - [ ] R-02.4 [exception: [agent backend exception](docs/approvals/agent-backend-exception.md)] Two trusted read-only workers over synthetic data, with no arbitrary-code, host-shell, plugin, or external-action exposure. Evidence: none yet
 - [ ] R-02.5 [exception: [agent backend exception](docs/approvals/agent-backend-exception.md)] Worker execution off the voice event loop; conversation continues during overlap (RT-A02, RT-A03). Evidence: none yet
+- [ ] R-02.7 Governance gate per [governance design](docs/design/governance.md): `policy.decide` is the single allow, deny, or confirm decision for turn-level checks, fail closed, moved in slices 1 to 4 with no behaviour change except GR-1 (emotional or social turns never start a task). OD-G1 (`policy.py` is the gate) is approved in the [decisions record](docs/approvals/governance-decisions.md); OD-G2 to OD-G5 are preconditions a maintainer must decide before slice 1 starts; OD-G6 is answered in the [decisions record](docs/approvals/governance-decisions.md) (PH-02, no exception). Evidence: none yet
+- [ ] R-02.F1 Fix the admission bypass in `Runner.claim_and_run`: it must call `policy.admit`, use the job's own admitted tools, and stop offering `memory_recall` and `memory_save`, which do not exist, or the method is removed (review finding B4). Evidence: none yet
+- [ ] R-02.F2 If PR #56 merges, HQ job submission must go through the ledger and the policy gate, not call `validate_spec` and `ledger.create_job` directly. Evidence: none yet
+- [ ] R-02.F3 Reconcile the two ledger paths: the SQLite owner ledger is the one application-owned truth, and the PostgreSQL seam and the Hermes worker definitions from PR #55 either sit behind it with the same states, idempotency, and policy admission, or are removed. Evidence: none yet
+- [ ] R-02.F4 Close F2 (accept-before-auth denial of service) by handshake-time authentication before any of: R-A.2 allows real voice to a cloud provider beyond maintainer testing; a multi-user, shared, always-on, or remote host; job control reachable from a voice session ([decisions](docs/approvals/r01-10-decisions.md), [risk acceptance](docs/approvals/r01-6-f2-risk-acceptance.md)). Evidence: none yet
 - [ ] R-02.6 RT-004 and RT-005 records complete and RT-G02 evidenced. Evidence: none yet
 
 ## PH-03: steering, stops, recovery, and validation
@@ -110,6 +115,10 @@ Maps to [RT-006](tasks/006-steering-and-stop-controls.md), [RT-007](tasks/007-re
 - [ ] R-03.2 Duplicate, stale, and lost-event handling; cancellation races and unknown outcomes; native replacement sessions; restart without blind replay; sleep and off limits disclosed (RT-A04). Evidence: none yet
 - [ ] R-03.3 Retention and deletion policy implemented and tested (RT-A06). Evidence: none yet
 - [ ] R-03.4 Negative security tests for the local boundary pass (RT-A05). Evidence: none yet
+- [ ] R-03.F1 Fail closed when the local adapter's remote-model check cannot run (Ollama unreachable): refuse the session or re-check before the first chat request (review finding B3). Evidence: none yet
+- [ ] R-03.F2 Owner-only protection on Windows for the token, memory, and ledger files (ACL or documented equivalent), and make the failing `test_memory.py` file-mode test pass or skip correctly on Windows (review finding B5). Evidence: none yet
+- [ ] R-03.F3 Enforce the 127.0.0.1 bind in code, not only in the launch commands (review finding B6). Evidence: none yet
+- [ ] R-03.F4 Bound the Gemini adapter queues in code and make the tool-call cap apply per user reply, not per provider turn (review finding B7). Evidence: none yet
 - [ ] R-03.5 Measured latency and barge-in results reported against targets (RT-A02). Evidence: none yet
 - [ ] R-03.6 Independent implementation review and security assessment of the actual revision. Evidence: none yet
 - [ ] R-03.7 RT-006, RT-007, RT-008 records complete; RT-G03 and RT-G04 evidenced. Evidence: none yet
@@ -164,6 +173,29 @@ These do not gate any phase, but they are on the path and must be ticked.
 - [ ] R-R.4 [human] Branch protection on `main` and `develop` agreed and set: required **Repository checks** and no force pushes or deletions on both; on `develop`, the shared AI reviewer as the review gate instead of a required human review ([DEC-19](descisions.md#dec-19)); on `main`, a required human review. Evidence: none yet
 - [ ] R-R.5 [human] Dependabot alerts, CodeQL, and secret scanning enabled. Evidence: none yet
 - [x] R-R.6 README links to the learnings folder (the roadmap link is already there). Evidence: [PR 21](https://github.com/abhishek3059/super-agent/pull/21)
+
+## Parallel track M: memory and brain
+
+Design input: [brain overview](docs/design/brain/overview.md) and [memory design](docs/design/brain/memory.md). This track gates no phase and moves no gate. R-M.1 can happen any time. No item is built before the items it needs are ticked. The clarifying-question build stays in R-04.2 and the T0 persona in R-A.3. Work record: [roadmap record](docs/implementation/roadmap-brain-memory-governance.md).
+
+- [ ] R-M.1 [human] A maintainer approves the brain and memory design and records every open decision in [brain overview](docs/design/brain/overview.md) section 10, including the persistent-memory approval under RT-G05. Evidence: none yet
+- [ ] R-M.2 Local model measurement spike on the tool and step schemas; model and licence recorded (needs R-M.1). Evidence: none yet
+- [ ] R-M.3 Context assembler and model router with data-class enforcement and session memory only, with tests (needs R-02.3, R-M.2, R-A.2, R-02.F4). Evidence: none yet
+- [ ] R-M.4 System 1 tools `delegate_task`, `query_ledger`, and `cancel_task` wired to the ledger, tested with a scripted model (needs R-02.1, R-02.2, R-M.3, R-02.F4). Evidence: none yet
+- [ ] R-M.5 `steer_task` wired to revisions (needs R-03.1, R-M.4). Evidence: none yet
+- [ ] R-M.6 Profile store: remember, correct, and export as ledger jobs, with an inspect screen and the confirmation paths; synthetic data only until R-M.7 is ticked (needs R-02.1 to R-02.3, R-M.1, R-M.4). Evidence: none yet
+- [ ] R-M.7 Forgetting and retention purge, with the residue tests passing; the profile store may hold real data only after this item (needs R-03.3, R-M.6). Evidence: none yet
+- [ ] R-M.8 Day book written from verified receipts (needs R-02.6, R-M.7, OD-3 recorded). Evidence: none yet
+- [ ] R-M.9 Advice-only recommendations with cited evidence (needs R-M.6, R-M.8, R-A.3). Evidence: none yet
+- [ ] R-M.10 Library layer built behind the policy layer (needs R-A.4, R-A.5, R-M.7). Evidence: none yet
+- [ ] R-M.11 Evaluation suite run on the built layers and recorded. Evidence: none yet
+- [ ] R-M.12 Memory distiller that learns the user: a `memory.distill` job with origin `session_end`, local model only, `inferred` records, episodes and decisions stores, the "What I learned" screen, trip scenario EV-A1 to EV-A10 as acceptance; needs its exception record `docs/approvals/memory-distiller-exception.md` (on branch `feat/memory-distiller`, not yet merged) before it starts (needs R-M.7, R-M.8, OD-15 to OD-18, IR-9, IR-10). Evidence: none yet
+- [ ] R-M.13 Explicit facts and reminders (`remember`, `add_reminder`, `forget`, `undo_forget`; SQLite, opt-in, secrets refused), merged in commit 774bca4 under the [local memory exception](docs/approvals/local-memory-exception.md); tick only with later evidence. Evidence: none yet
+- [ ] R-M.14 [human] Decide how contradictions and outdated facts are handled: a one-off is not a habit, a newer record supersedes an older one, the old one is kept for a set time, and the user can see why. Evidence: none yet
+- [ ] R-M.15 Contradiction handling built and tested as decided in R-M.14 (needs R-M.12, R-M.14). Evidence: none yet
+- [ ] R-M.16 Decay of unreinforced `inferred` records and forget with a receipt, including skipping distillation of any session that contains a forget request, tested (needs R-M.12). Evidence: none yet
+- [ ] R-M.17 Result handler subagent: job results reach the conversation model only through a handler that returns a brief at the turn boundary, never raw worker output, with tests (needs R-02.5, R-M.4). Evidence: none yet
+- [ ] R-M.19 Butler and etiquette rules BR-1 to BR-8 applied: short replies, ask once, discretion, good timing, not reciting stored facts, report only ledger truth, with tests; persona per OD-11 (needs R-M.1, R-M.4, R-A.3; persona name and tone come from the OD-11 record in R-M.1). Evidence: none yet
 
 ## Parallel track A: capability ladder (DEC-18)
 

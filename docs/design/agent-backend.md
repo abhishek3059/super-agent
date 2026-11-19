@@ -209,7 +209,7 @@ open decision 2.
   receipt, used to measure any later prompt or model change. It follows the
   tier A and tier B split in [evaluation](brain/evaluation.md#1-two-tiers-of-test).
 - **"Self-improving" in this project means, in order:** a memory distiller
-  (proposed as R-M.12 in [brain overview](brain/overview.md#12-roadmap-proposal-proposed-text-only)),
+  (R-M.12 in [brain overview](brain/overview.md#12-roadmap-items-now-on-the-roadmap)),
   the evaluation set, measured prompt changes, and only later any training, on
   synthetic data. Nothing here trains a model.
 
