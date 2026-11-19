@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import threading
 import uuid
 from datetime import UTC, datetime
 
@@ -47,8 +48,10 @@ class Service:
         self._model, self._data_class, self._closed = model, data_class, False
         self._limits = policy.Limits() if limits is None else limits
         self._clock = lambda: datetime.now(UTC)
+        self._session, self._gated, self._session_lock = None, False, threading.Lock()
         self._runner = Runner(ledger, self._limits,
-                              graph.make_work(ledger, model, run_read_tool, self._limits, self._clock), self._clock)
+                              graph.make_work(ledger, model, run_read_tool, self._limits, self._clock), self._clock,
+                              self._is_local())
         if model is None:  # disabled delegation must leave jobs owned by other workers alone
             return
         try:  # nothing schedules the purge after this
@@ -58,17 +61,37 @@ class Service:
             self._runner.close()
             raise
 
-    def delegate(self, task_type: object, instruction: object, call_key: object) -> dict:
+    def _is_local(self) -> bool:
+        try:
+            return self._model.is_local is True
+        except Exception:  # a broken flag, or no model, is not local
+            return False
+
+    def open_session(self, session_id: str) -> None:
+        """The newest voice session is the only live one; opening it replaces any older one."""
+        with self._session_lock:
+            self._session, self._gated = session_id, True
+
+    def close_session(self, session_id: str) -> None:
+        with self._session_lock:
+            if self._session == session_id:
+                self._session = None
+
+    def _check_session(self, session_id: object) -> None:
+        # Once any session has been opened, a caller must name the live one. Before that, only "no session".
+        with self._session_lock:
+            if session_id != self._session if self._gated else session_id is not None:
+                raise PolicyError("session_stale")
+
+    def delegate(self, task_type: object, instruction: object, call_key: object, session_id: object = None) -> dict:
         """A receipt {job_id, state, revision}, or {"refused": <PolicyError code>}."""
         try:
             if self._closed or self._model is None:
                 raise PolicyError("delegation_unavailable")
-            try:
-                local = self._model.is_local is True
-            except Exception:  # a broken flag is not local
-                local = False
+            self._check_session(session_id)
             spec = {"task_type": task_type, "instruction": instruction, "data_class": self._data_class}
-            adm = policy.admit(spec, call_key, local, self._limits, ledger, self._clock())
+            adm = policy.admit(spec, call_key, self._is_local(), self._limits, ledger, self._clock(),
+                               session=session_id)
             self._runner.submit(adm)
         except PolicyError as err:
             return {"refused": err.code}
@@ -76,11 +99,22 @@ class Service:
             return {"refused": "delegation_unavailable"}
         return {"job_id": adm.job.id, "state": adm.job.state, "revision": adm.job.revision}
 
-    def handle(self, arguments: object) -> str:
+    def cancel(self, job_id: object, session_id: object = None) -> dict:
+        """The job's receipt {job_id, state, revision}, or {"refused": <code>}. Only the live session may cancel."""
+        try:
+            self._check_session(session_id)
+            job = self._runner.cancel(job_id)
+        except PolicyError as err:
+            return {"refused": err.code}
+        except Exception:
+            return {"refused": "delegation_unavailable"}
+        return {"job_id": job.id, "state": job.state, "revision": job.revision}
+
+    def handle(self, arguments: object, session_id: object = None) -> str:
         """The tool call. The key is fresh per call, so a retried tool call is a new job."""
         if not isinstance(arguments, dict) or set(arguments) != {"task_type", "instruction"}:
             return "error: not delegated (spec_invalid)."
-        result = self.delegate(arguments["task_type"], arguments["instruction"], uuid.uuid4().hex)
+        result = self.delegate(arguments["task_type"], arguments["instruction"], uuid.uuid4().hex, session_id)
         if "refused" in result:
             return f"error: not delegated ({result['refused']})."
         return json.dumps({"job_id": result["job_id"], "state": result["state"]})  # never job output

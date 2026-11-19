@@ -47,6 +47,40 @@ def _check_args(tool: str, text: str) -> None:
         raise PolicyError("tool_args_invalid")
 
 
+_ABANDONED_CAP = 4
+_stuck: list[threading.Thread] = []
+_stuck_lock = threading.Lock()
+
+
+def _call(fn, seconds: float, *args):
+    """Run fn in a daemon thread and wait at most `seconds`; a tool that hangs fails the step, not the job thread.
+    shortcut: Python threads cannot be killed, a stuck tool thread lives until it returns; upgrade to a
+    subprocess worker if this cap is ever hit in practice."""
+    with _stuck_lock:
+        _stuck[:] = [t for t in _stuck if t.is_alive()]
+        if len(_stuck) >= _ABANDONED_CAP:
+            raise PolicyError("tool_threads_stuck")
+    box: list = []
+
+    def target():
+        try:
+            box.append((True, fn(*args)))
+        except BaseException as err:  # re-raised in the caller
+            box.append((False, err))
+
+    thread = threading.Thread(target=target, daemon=True, name="tool-call")
+    thread.start()
+    thread.join(max(seconds, 0.001))
+    if thread.is_alive():
+        with _stuck_lock:
+            _stuck.append(thread)
+        raise PolicyError("step_deadline")
+    ok, value = box[0]
+    if not ok:
+        raise value
+    return value
+
+
 def _tracing() -> bool:
     """LangSmith would send run data to a cloud service (REQ-13). Checked once, at job start, in three places:
     any LANGSMITH_ or LANGCHAIN_ environment variable with a value, LangSmith's own switch
@@ -101,11 +135,14 @@ def make_work(ledger, model, run_tool, limits, clock):
             while True:
                 policy.check_step_deadline(started, clock(), limits)
                 try:
-                    out = run_tool(step.tool, args)
+                    left = limits.step_deadline_s - (clock() - started).total_seconds()
+                    out = _call(run_tool, left, step.tool, args)
                     if type(out) is not str or out.startswith("error:"):
                         raise ValueError
                     out.encode("utf-8")
                     return out
+                except PolicyError:  # a hung tool or a stuck-thread refusal is final, never retried
+                    raise
                 except Exception:
                     policy.check_retry("read_tool", retries, limits)  # one retry, then retries_exhausted
                     retries += 1
