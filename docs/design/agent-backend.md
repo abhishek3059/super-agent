@@ -17,7 +17,7 @@ Claims about external packages are marked UNVERIFIED.
 
 | Fact | Source |
 | --- | --- |
-| Current phase is PH-01. R-01.10 is unticked (R-01.4 is ticked). PH-02 and PH-04 are not started. | [roadmap.md](../../roadmap.md) |
+| As written (before 2026-11-19): current phase PH-01. PH-01 closed on 2026-11-19 and the current phase is PH-02; see the roadmap. PH-02 and PH-04 items are not ticked. | [roadmap.md](../../roadmap.md) |
 | Built on this branch (slices 1 to 6, section 10): ledger, limits and admission, runner, planner seam with a scripted fake, dynamic graph, and `delegate_task` in the local text conversation loop (off by default, `SUPER_AGENT_DELEGATE`). No real planner model exists, so a real run refuses every delegation. The two fixed workers do not exist. | [records](../implementation/agent-backend-delegation.md); the older [brain overview, section 1](brain/overview.md#1-what-exists-today) predates them |
 | The voice adapter seam is `VoiceAdapter` (`start`, `enqueue_audio`, `end_audio_stream`, `interrupt`, `events`, `close`). | [adapter.py](../../apps/api/src/super_agent_voice/adapter.py) |
 | Adapters: Gemini Live and a local cascade. | [gemini_adapter.py](../../apps/api/src/super_agent_voice/gemini_adapter.py), [local_adapter.py](../../apps/api/src/super_agent_voice/local_adapter.py) |
@@ -209,7 +209,7 @@ open decision 2.
   receipt, used to measure any later prompt or model change. It follows the
   tier A and tier B split in [evaluation](brain/evaluation.md#1-two-tiers-of-test).
 - **"Self-improving" in this project means, in order:** a memory distiller
-  (proposed as R-M.12 in [brain overview](brain/overview.md#12-roadmap-proposal-proposed-text-only)),
+  (R-M.12 in [brain overview](brain/overview.md#12-roadmap-items-now-on-the-roadmap)),
   the evaluation set, measured prompt changes, and only later any training, on
   synthetic data. Nothing here trains a model.
 

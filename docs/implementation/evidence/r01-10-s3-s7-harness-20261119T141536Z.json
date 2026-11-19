@@ -1,0 +1,88 @@
+{
+  "started": "2026-11-19T14:15:36.071Z",
+  "steps": {
+    "connect1": {
+      "listening": true
+    },
+    "S3": {
+      "replyAudio": true,
+      "firstAudioMsAfterCue": 3824,
+      "returnedToListening": true
+    },
+    "S4": {
+      "replyPlaying": true,
+      "statusBeforeTalkOver": "Speaking",
+      "interruptSent": true,
+      "msTalkOverToInterruptSent": 460,
+      "playbackStopped": true,
+      "msTalkOverToPlaybackStop": 460,
+      "statusAfterStop": "Listening",
+      "statusThreeSecondsLater": "Listening"
+    },
+    "S5": {
+      "statusWhenMuted": "Muted",
+      "statusAfter8s": "Muted",
+      "replyAudioChunksWhileMuted": 0,
+      "statusAfterUnmute": "Listening"
+    },
+    "S6": {
+      "statusAfter": "Disconnected",
+      "captureTracksStopped": 1,
+      "allCaptureTracksEnded": true
+    },
+    "S7": {
+      "listening": true,
+      "replyAudio": true,
+      "firstAudioMsAfterCue": 4342,
+      "returnedToListening": true,
+      "statusAfterEnd": "Disconnected",
+      "allCaptureTracksEnded": true
+    }
+  },
+  "hosts": [
+    "127.0.0.1:4200",
+    "127.0.0.1:8000"
+  ],
+  "sockets": [
+    "127.0.0.1:4200/",
+    "127.0.0.1:8000/ws/voice",
+    "127.0.0.1:8000/ws/voice"
+  ],
+  "statusTimeline": [
+    "100 status",
+    "616 status Disconnected",
+    "4115 status Connecting",
+    "4126 send session.hello",
+    "4130 send session.auth",
+    "8184 gum",
+    "8205 status Listening",
+    "9753 say time",
+    "13553 status Speaking",
+    "19743 status Listening",
+    "21350 say story",
+    "26941 status Speaking",
+    "29141 say interrupt",
+    "29601 send playback.interrupt",
+    "29603 status Listening",
+    "30497 send ping",
+    "34252 send capture.mute",
+    "34259 status Muted",
+    "34772 say mute",
+    "42787 send capture.unmute",
+    "42791 status Listening",
+    "43908 send session.stop",
+    "43917 status Disconnected",
+    "46761 status Connecting",
+    "46767 send session.hello",
+    "46768 send session.auth",
+    "48335 gum",
+    "48362 status Listening",
+    "49919 say hi",
+    "54226 status Speaking",
+    "56061 status Listening",
+    "56126 send session.stop",
+    "56130 status Disconnected"
+  ],
+  "getUserMediaCalls": 2,
+  "finished": "2026-11-19T14:16:34.706Z"
+}

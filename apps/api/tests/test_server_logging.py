@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import base64
+import json
 import os
 import secrets
 import socket
@@ -11,6 +12,7 @@ import time
 from pathlib import Path
 
 import pytest
+from handshake import proof
 
 SRC = Path(__file__).resolve().parents[1] / "src"
 # The documented launch flags: small frame and queue limits before authentication.
@@ -87,7 +89,16 @@ def test_token_is_not_logged_by_a_real_server_and_debug_refuses_to_start(tmp_pat
     try:
         wait_for_port(process, port)
         connection = handshake(port)
-        connection.sendall(text_frame(('{"type":"session.auth","token":"%s"}' % token).encode()))
+        client_nonce = secrets.token_hex(16)
+        hello = '{"type":"session.hello","nonce":"%s"}' % client_nonce
+        connection.sendall(text_frame(hello.encode()))
+        frame = connection.recv(4096)
+        challenge = json.loads(frame[2 if frame[1] < 126 else 4:])
+        assert token.encode() not in frame  # the server never echoes the token either
+        assert challenge["proof"] == proof(token, "server-proof", client_nonce, challenge["nonce"])
+        answer = '{"type":"session.auth","proof":"%s"}' % proof(
+            token, "client-proof", challenge["nonce"], client_nonce)
+        connection.sendall(text_frame(answer.encode()))
         assert b"session.ready" in connection.recv(4096)
         connection.close()
     finally:

@@ -10,10 +10,13 @@ from __future__ import annotations
 
 import dataclasses
 import json
+import re
 from dataclasses import dataclass
 from datetime import datetime, timedelta
+from typing import Literal
 
 from .ledger import MAX_SPEC_BYTES, TERMINAL, Job, LedgerError
+from .memory import WRITES as MEMORY_WRITES
 
 REASONS = frozenset({
     "limits_invalid", "clock_invalid", "idempotency_key_invalid", "planner_locality_invalid",
@@ -24,7 +27,7 @@ REASONS = frozenset({
     "output_too_large",
     "plan_invalid", "tool_out_of_scope", "model_error",
     "tool_args_invalid", "clarify_unsupported", "tracing_enabled", "model_reply_invalid", "step_failed",
-    "verify_failed", "delegation_unavailable",
+    "verify_failed", "delegation_unavailable", "untrusted_read_in_turn", "not_asked",
 })
 
 
@@ -195,6 +198,7 @@ def admit(spec: object, idempotency_key: object, planner_is_local: object, limit
         tools |= TIER1_FILE_TOOLS[task]
     if planner_is_local:
         tools |= TIER1_APP_TOOLS[task]
+    # Memory now holds inferred records from real speech, so memory_is_synthetic must never be True for real memory.
     if planner_is_local or memory_is_synthetic:
         tools |= MEMORY_TOOLS[task]
     return Admission(job, tools, planner_is_local or memory_is_synthetic, deadline, planner_is_local)
@@ -254,3 +258,42 @@ def check_step_output(output_chars: object, limits: object) -> bool:
     if _count(output_chars) > _limits(limits).step_output_chars:
         raise PolicyError("output_too_large")
     return True
+
+
+# --- turn-level gate (docs/design/governance.md section 3) --------------------
+
+# A memory write runs only when the user's own words asked for that kind of change.
+ASKED = {
+    "remember_fact": re.compile(r"remember|note|save|store|memori[sz]e|keep in mind|don'?t forget"),
+    "add_reminder": re.compile(r"remind|alarm|wake me|remember|don'?t (?:let me )?forget"),
+    "forget": re.compile(r"forget|delete|remove|erase|clear|scratch"),
+}
+
+
+@dataclass(frozen=True)
+class Turn:
+    """Facts set by trusted code for one conversation turn. Never model claims."""
+    heard: str | None      # the user's own transcript this turn, None outside a voice turn
+    read_untrusted: bool   # a tier 1 read already ran this turn
+
+
+@dataclass(frozen=True)
+class Decision:
+    verdict: Literal["allow", "deny", "confirm"]
+    code: str | None
+
+
+def decide(tool: object, turn: object) -> Decision:
+    """Pure and total: never raises, bad input is a deny. "confirm" is never returned yet."""
+    try:
+        if (not isinstance(tool, str) or not isinstance(turn, Turn)
+                or type(turn.read_untrusted) is not bool
+                or not (turn.heard is None or isinstance(turn.heard, str))):
+            return Decision("deny", "input_invalid")
+        if (tool == "delegate_task" or tool in MEMORY_WRITES) and turn.read_untrusted:
+            return Decision("deny", "untrusted_read_in_turn")  # file, note or mail text must not act over the user's data
+        if tool in ASKED and turn.heard is not None and not ASKED[tool].search(turn.heard.casefold()):
+            return Decision("deny", "not_asked")
+        return Decision("allow", None)
+    except Exception:
+        return Decision("deny", "input_invalid")

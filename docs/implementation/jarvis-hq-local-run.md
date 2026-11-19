@@ -288,4 +288,6 @@ inside the bot's sandbox).
 - Composio connected apps and xAI `x_search`. Both are switched off in code.
 - All five browsers at once. Five gateways and two browsers ran together.
 - Windows and Linux. Bots do not start there without `HQ_UNCONTAINED=1`.
-- The CI workflow. It runs when the pull request opens.
+- Nothing further for CI: the Jarvis HQ workflow (typecheck, self-checks,
+  build on macOS) runs on every push to PR #56 and passed on `e71f06f` and
+  `f96184e`.

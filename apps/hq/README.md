@@ -200,8 +200,9 @@ none of the protections above apply, including the server's file handling.
 - Chrome's own inner sandbox cannot run inside ours, so it is off. Pages in
   one bot's browser are less isolated from each other. They are still inside
   that bot's sandbox.
-- `sandbox-exec` is a macOS tool that Apple marks as deprecated. It has had
-  no independent review here.
+- `sandbox-exec` is a macOS tool that Apple marks as deprecated. The security
+  review probed this app's profile from inside it; the macOS sandbox
+  mechanism itself was not attacked or reviewed.
 
 Use synthetic speech and data while R-A.2 (real voice and personal data to
 a cloud provider) is open. The

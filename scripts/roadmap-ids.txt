@@ -39,16 +39,27 @@ R-01.F5
 R-01.F6
 R-01.F7
 R-01.F8
+R-01.F9
+R-01.F10
 R-02.1
 R-02.2
 R-02.3
 R-02.4
 R-02.5
+R-02.7
+R-02.F1
+R-02.F2
+R-02.F3
+R-02.F4
 R-02.6
 R-03.1
 R-03.2
 R-03.3
 R-03.4
+R-03.F1
+R-03.F2
+R-03.F3
+R-03.F4
 R-03.5
 R-03.6
 R-03.7
@@ -70,6 +81,24 @@ R-R.3 human
 R-R.4 human
 R-R.5 human
 R-R.6
+R-M.1 human
+R-M.2
+R-M.3
+R-M.4
+R-M.5
+R-M.6
+R-M.7
+R-M.8
+R-M.9
+R-M.10
+R-M.11
+R-M.12
+R-M.13
+R-M.14 human
+R-M.15
+R-M.16
+R-M.17
+R-M.19
 R-A.1 human
 R-A.2 human
 R-A.3

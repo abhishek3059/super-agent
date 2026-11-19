@@ -12,7 +12,7 @@ background task delegation.
 > (T2, PR #45) are merged. An opt-in Gemini Live adapter and console testing
 > mode with calculator and clock tools exist under an exception (PR #41).
 > Nothing leaves the machine on the local path. There are no workers,
-> stored audio, or complete assistant. RT-G01 and later runtime gates remain open.
+> stored audio, or complete assistant. RT-G01 is evidenced (PH-01 done, 2026-11-19); RT-G02 and later runtime gates remain open.
 
 > **Jarvis HQ (experimental).** A local multi-bot workspace is in
 > [`apps/hq`](apps/hq/README.md): Jarvis plus four Hermes workers, each with
