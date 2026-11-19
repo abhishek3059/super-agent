@@ -149,7 +149,9 @@ _READ_UNTRUSTED: contextvars.ContextVar[bool] = contextvars.ContextVar("read_unt
 
 
 def _decide(name: str) -> str | None:
-    return policy.decide(name, policy.Turn(_HEARD.get(), _READ_UNTRUSTED.get())).code
+    d = policy.decide(name, policy.Turn(_HEARD.get(), _READ_UNTRUSTED.get()))
+    # OD-G2: "confirm" is a refusal in voice until T3, so only "allow" runs the tool.
+    return None if d.verdict == "allow" else d.code or d.verdict
 
 
 async def call_tool(name: object, arguments: object) -> str:

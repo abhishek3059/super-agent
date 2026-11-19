@@ -879,12 +879,13 @@ def test_memory_changes_only_when_the_users_words_asked_for_them(monkeypatch, tm
     assert said("what do you know", "list_memory", {}) == "No facts stored."
 
 
-def test_an_unexpected_gate_deny_fails_closed(monkeypatch, tmp_path):
+@pytest.mark.parametrize("verdict, code", [("deny", "input_invalid"), ("confirm", None)])
+def test_an_unexpected_gate_deny_fails_closed(monkeypatch, tmp_path, verdict, code):
     monkeypatch.setattr(local_adapter.memory, "DB_PATH", tmp_path / "m.db")
     monkeypatch.setenv("SUPER_AGENT_MEMORY", "on")
     monkeypatch.setenv("SUPER_AGENT_DELEGATE", "on")
     monkeypatch.setattr(local_adapter.policy, "decide",
-                        lambda tool, turn: local_adapter.policy.Decision("deny", "input_invalid"))
+                        lambda tool, turn: local_adapter.policy.Decision(verdict, code))
     ran = []
     monkeypatch.setattr(local_adapter.memory, "run", lambda *a: ran.append(a) or "ran")
     monkeypatch.setattr(local_adapter, "_delegate", lambda *a: ran.append(a) or "ran")

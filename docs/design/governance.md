@@ -238,10 +238,8 @@ OD-G4.
 R-02.7 is in PH-02, with no exception tag. PH-02 is the current phase since
 PR #58 merged, and policy limits already live in R-02.3. [PR 59](https://github.com/abhishek3059/super-agent/pull/59), which
 adds it also adds the [decisions record](../approvals/governance-decisions.md).
-The `governance-gate-exception.md` record proposed in an earlier draft is not
-needed for slice 1 once that PR merges. If branch
-`feat/governance-gate-slice1` carries that exception record, it becomes
-historical.
+No `governance-gate-exception.md` record is needed. Slice 1 is built
+([record](../implementation/governance-gate-slice1.md)); R-02.7 has 4 slices and stays unticked.
 
 ### 6.3 Decisions only a maintainer can make
 
