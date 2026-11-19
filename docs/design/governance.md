@@ -173,7 +173,7 @@ The other half is model judgment and is labelled as such: the T0 persona
 prompt tells the model not to propose tasks while the user is venting, and to
 acknowledge first. If that judgment fails, GR-1 still holds. A brain "tone"
 signal may later be passed to the gate as a tightening-only fact (it can turn
-allow into confirm, never the reverse). That is open decision OD-G2.
+allow into confirm, never the reverse). OD-G2 decided this on 2026-11-19.
 
 GR-1 changes behaviour, so it is its own slice (slice 2b), not part of the
 no-change migration.
@@ -248,14 +248,21 @@ historical.
 - **OD-G1.** Accept `policy.py` as the gate, instead of a new
   `governance.py`. Decided: approved on 2026-11-19, see the
   [decisions record](../approvals/governance-decisions.md).
-- **OD-G2.** Decided 2026-11-19: tighten only; confirm in voice is a refusal until T3. Whether a brain tone signal may tighten a decision (allow to
-  confirm), and what confirmation means in voice before T3 exists.
-- **OD-G3.** Decided 2026-11-19: route it through the gate. `Runner.claim_and_run` bypasses `admit` and hardcodes a local
-  planner. Delete it, or route it through the gate. Its worker tool names
-  need fixing either way.
-- **OD-G4.** Decided 2026-11-19: yes. Whether HQ jobs in PR #56 must pass `admit`.
-- **OD-G5.** Open, blocks slice 2b only. The owner asked for a design that understands the user's intent and emotional meaning and picks the type of response, instead of a word list. The GR-1 request pattern. A fixed word list misses some real
-  requests (the user must rephrase) and is English only.
+- **OD-G2.** Decided 2026-11-19: a tone signal may only tighten a decision,
+  and `confirm` in voice is a refusal until T3 exists. The question was
+  whether a brain tone signal may tighten a decision (allow to confirm), and
+  what confirmation means in voice before T3 exists.
+- **OD-G3.** Decided 2026-11-19: route it through the gate. The question was
+  that `Runner.claim_and_run` bypasses `admit` and hardcodes a local planner:
+  delete it, or route it through the gate. Its worker tool names need fixing
+  either way.
+- **OD-G4.** Decided 2026-11-19: yes. The question was whether HQ jobs in
+  PR #56 must pass `admit`.
+- **OD-G5.** Open, and blocks slice 2b only. The question is the GR-1
+  request pattern: a fixed word list misses some real requests (the user must
+  rephrase) and is English only. The owner asked for a design that
+  understands the user's intent and emotional meaning and picks the type of
+  response, instead of a word list.
 - **OD-G6.** The roadmap item, its phase, and whether an exception is needed.
   Answered as a proposal by the roadmap PR: R-02.7 in PH-02, no exception.
   It takes effect when a maintainer approves or merges that PR.
