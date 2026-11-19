@@ -7,7 +7,7 @@
 | Status | Proposal for review. No implementation, dependency installation, provider call, microphone transmission, or runtime approval. |
 | Product context | [Personal-agent architecture](../product/personal-agent-architecture.md) |
 | Maintainer confirmation | [Decision record](../approvals/voice-foundation-confirmation.md) |
-| Runtime gate | [RT-G00](../approvals/rt-g00-resolution.md) is resolved; [RT-001](../../tasks/001-runtime-consent-and-feasibility.md) is complete. RT-G01 remains open. |
+| Runtime gate | [RT-G00](../approvals/rt-g00-resolution.md) is resolved; [RT-001](../../tasks/001-runtime-consent-and-feasibility.md) is complete. RT-G01 was evidenced on 2026-11-19 ([R-01.10 record](../implementation/r01-10-acceptance.md)). |
 | Revision 1 | Preserved verbatim in [voice-foundation-revision-1.md](voice-foundation-revision-1.md). |
 | Revision 2.1 | 2026-11-10: section 7 credential design and the section 9 bad-token row updated for the [R-01.5 review](../reviews/r01-5-credential-design.md). |
 
