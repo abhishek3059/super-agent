@@ -364,3 +364,49 @@ def test_an_unrecorded_terminal_move_is_reported_after_memory_committed(monkeypa
     assert receipt["ledger"] == "unrecorded" and receipt["added"] == 1
     assert [t for _, t, *_ in stored()] == ["Likes tea"]
     assert [j.state for j in ledger.list_jobs()] == ["running"]
+
+
+def test_norm_ignores_a_leading_user_subject():
+    assert memory._norm("User decided X.") == memory._norm("decided x") == memory._norm("The user decided X")
+
+
+def two_step(extraction, matches, seen=None):
+    """Fake model: the first call extracts, the second maps new items to known ones."""
+    calls = iter([json.dumps({"items": [{"kind": k, "text": t} for k, t in extraction]}), matches])
+
+    def reply(messages):
+        if seen is not None:
+            seen.append(messages)
+        return next(calls)
+    return reply
+
+
+def test_a_reworded_item_reinforces_the_known_note_it_matches():
+    run(reply=reply_with(("decision", "User decided to use SQLite for the ledger"), ("fact", "User likes tea")))
+    seen = []
+    matches = json.dumps({"matches": [{"item": 1, "known": 2}, {"item": 2, "known": 0}]})
+    receipt = run(reply=two_step([("decision", "User decided on SQLite for the ledger"), ("fact", "User likes coffee")],
+                                 matches, seen), epoch="e2")
+    assert (receipt["added"], receipt["reinforced"]) == (1, 1)
+    assert "2. User decided to use SQLite for the ledger" in seen[1][1]["content"]
+    assert "User decided on SQLite for the ledger" not in [text for _, text, *_ in stored()]
+
+
+@pytest.mark.parametrize("matches", ["not json", "{}", '{"matches": 3}', '{"matches": [{"item": 1}]}',
+                                     '{"matches": [{"item": 1, "known": 9}]}', '{"matches": [{"item": 1, "known": true}]}'])
+def test_a_bad_match_reply_keeps_the_new_items_as_they_are(matches):
+    run(reply=reply_with(("fact", "User likes tea")))
+    receipt = run(reply=two_step([("fact", "User enjoys tea")], matches), epoch="e2")
+    assert (receipt["status"], receipt["added"], receipt["reinforced"]) == ("ok", 1, 0)
+
+
+def test_nothing_is_matched_when_nothing_is_known():
+    seen = []
+    run(reply=reply_with(("fact", "User likes tea"), seen=seen))
+    assert len(seen) == 1
+
+
+def test_a_user_prefixed_rewording_reinforces():
+    run(reply=reply_with(("decision", "decided to use SQLite for the ledger")))
+    receipt = run(reply=two_step([("decision", "User decided to use SQLite for the ledger.")], "{}"), epoch="e2")
+    assert (receipt["added"], receipt["reinforced"]) == (0, 1)

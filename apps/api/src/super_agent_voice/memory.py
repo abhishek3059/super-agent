@@ -335,8 +335,12 @@ def _facts(db: sqlite3.Connection) -> list[tuple[int, str]]:
     return db.execute("SELECT id, text FROM facts WHERE deleted_at IS NULL ORDER BY id DESC").fetchall()
 
 
+_SUBJECT = re.compile(r"^(?:the )?user ")
+
+
 def _norm(text: str) -> str:
-    return " ".join(text.casefold().split()).strip(" .!?,;:")
+    # The distiller model drifts between "Prefers x" and "User prefers x"; they must match.
+    return _SUBJECT.sub("", " ".join(text.casefold().split()).strip(" .!?,;:"))
 
 
 def _key(text: str) -> str:
