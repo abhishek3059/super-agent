@@ -9,7 +9,9 @@ This app is adapted from [Bot HQ](https://github.com/nickvasilescu/bot-hq)
 (MIT). See [third-party notices](THIRD_PARTY_NOTICES.md). It is experimental.
 Bots run inside the macOS sandbox, which had an
 [independent security review](../../docs/reviews/jarvis-hq-security-review.md)
-on 2026-11-19 (all findings closed; the sandbox itself was not attacked). It runs under a bounded
+on 2026-11-19: fifteen findings closed and one accepted as documented. The
+review probed the sandbox from inside its profile; macOS's sandbox mechanism
+itself was not attacked directly. It runs under a bounded
 exception, [DEC-23](../../descisions.md#dec-23). The maintainer's direction is
 [recorded here](../../docs/approvals/jarvis-hq-local-team.md).
 

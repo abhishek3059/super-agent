@@ -49,7 +49,8 @@ permission to build it.
   sandbox and cannot read the operator's files, the session secret or
   another bot's folder; it reaches the internet only through a proxy that
   refuses local addresses. An [independent security review](../reviews/jarvis-hq-security-review.md)
-  found and closed eleven issues. A bot still holds its own copied model
+  closed fifteen findings and accepted one (DNS and any public port remain
+  reachable). A bot still holds its own copied model
   keys for the configured providers.
 - **Data boundary.** The [PH-00 boundary](ph-00-setup-decisions.md) kept
   personal microphone audio local, and roadmap item R-A.2 (real voice and

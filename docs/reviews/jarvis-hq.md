@@ -167,3 +167,28 @@ All pass 8 findings resolved. The reviewer ran `npm test` in `apps/hq` (15 of 15
 6. No CI on this head yet.
 
 Pass 9 left the independent security review (R-H.4), live voice run (R-H.3) and maintainer approval (R-H.1) open. The [later approval record](../approvals/jarvis-hq-dec-23-approval.md) closes R-H.1.
+
+## Pass 10: REVISE (average 7.8)
+
+| Correctness | Security | Honesty | Scope | Clarity |
+| --- | --- | --- | --- | --- |
+| 8 | 8 | 7 | 8 | 8 |
+
+On `e71f06f`, after the Codex session's work (R-H.1 approval record, bearer sign-in, voice probe) and the [independent security review](jarvis-hq-security-review.md) fixes. The reviewer ran `npm test` in `apps/hq` (28 of 28) and read the new process-stopping code (C6), finding no security flaw. Findings, and what was done:
+
+1. to 4. Documents still said there had been no independent security review, an approval-record bullet was stale, and the review record did not say who verified the second closure. Corrected.
+5. The PR body was stale. Rewritten.
+6. The run record header and dates were stale. Corrected.
+7. The engine port counter could one day reach the app's own ports. It now skips them and stays below the browser range; self-check added.
+8. The gateway check ran `lsof` and `ps` on every turn. Cached for a minute.
+9. Any page could crowd out the launcher's sign-in challenge. Browser requests are refused; self-check added.
+10. Stale comments in `sandbox.ts` and DEC-23. Corrected.
+11. The proxy could dial for a client that had already left. Guarded.
+
+## Pass 11: REVISE (average 8.2)
+
+| Correctness | Security | Honesty | Scope | Clarity |
+| --- | --- | --- | --- | --- |
+| 9 | 8 | 8 | 8 | 8 |
+
+All pass 10 fixes verified in code and docs; `npm test` 30 of 30. Remaining findings were wording and records: the run record's test count, passes 10 and 11 missing from this file, the PR body pointing at a review comment that did not exist, the README and approval record miscounting the security findings. All corrected. A note: bots created before the port fix keep their ports, which matters only after more than about 130 bot creations.
