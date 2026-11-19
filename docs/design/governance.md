@@ -5,7 +5,7 @@
 | Status | **Proposal, accepted in part.** OD-G1 is approved ([decisions record](../approvals/governance-decisions.md)); OD-G2 to OD-G5 are open. Design only, no code. |
 | Date | 2026-11-18 |
 | Requested by | Maintainer `abhishek3059`, in chat, 2026-11-18 |
-| Roadmap | On the roadmap as R-02.7 in PH-02, which is current once PR #58 merges (section 6.2). |
+| Roadmap | On the roadmap as R-02.7 in PH-02, the current phase since PR #58 merged on 2026-11-19 (section 6.2). |
 | Related | [brain overview](brain/overview.md), [brain memory](brain/memory.md), [agent backend](agent-backend.md), [tier 1 read tools](tier1-read-tools.md), [local memory](local-memory-reminders.md), [DEC-18](../../descisions.md#dec-18) |
 
 ## 1. The recommendation
@@ -235,8 +235,8 @@ OD-G4.
 
 ### 6.2 Roadmap position
 
-R-02.7 is in PH-02, with no exception tag. PH-02 is the current phase once
-PR #58 merges, and policy limits already live in R-02.3. The roadmap PR that
+R-02.7 is in PH-02, with no exception tag. PH-02 is the current phase since
+PR #58 merged, and policy limits already live in R-02.3. The roadmap PR that
 adds it also adds the [decisions record](../approvals/governance-decisions.md).
 The `governance-gate-exception.md` record proposed in an earlier draft is not
 needed for slice 1 once that PR merges. If branch

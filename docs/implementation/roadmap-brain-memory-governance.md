@@ -1,6 +1,8 @@
 # Roadmap record: governance, boundary fixes, and track M
 
-Date: 2026-11-19. Status: roadmap edit only. No item is ticked, no gate or
+Date: 2026-11-19. Status: roadmap edit, plus the governance design
+([docs/design/governance.md](../design/governance.md)) and its
+[decisions record](../approvals/governance-decisions.md). No item is ticked, no gate or
 phase moves, and `phases.md` is unchanged.
 
 ## Reason
@@ -8,14 +10,14 @@ phase moves, and `phases.md` is unchanged.
 The owner's past discussions (a 2026-11-19 brainstorm inventory, a working
 note outside the repo and not citable here) named work that is on no roadmap item.
 [AGENTS.md](../../AGENTS.md) section 11 rule 1 says such work needs a roadmap
-PR before it starts. This PR adds the items. It builds nothing. PH-02 is current only after the base PR #58 merges, so
-this PR must merge after it.
+PR before it starts. This PR adds the items. It builds nothing. PH-02 became current when
+[PR 58](https://github.com/abhishek3059/super-agent/pull/58) merged on 2026-11-19.
 
 ## Items and sources
 
 | Item | Source |
 | --- | --- |
-| R-02.7 governance gate, slices 1 to 4, GR-1 | [governance design](../design/governance.md) section 5 and 6.2 (commit 4aa50cf, cherry-picked from d631c87). No exception tag: PH-02 is current and policy limits already live in R-02.3. OD-G1 approved, OD-G2 to OD-G5 open, OD-G6 proposed: see the [decisions record](../approvals/governance-decisions.md) |
+| R-02.7 governance gate, slices 1 to 4, GR-1 | [governance design](../design/governance.md) section 5 and 6.2 (added by this PR). No exception tag: PH-02 is current and policy limits already live in R-02.3. OD-G1 approved, OD-G2 to OD-G5 open, OD-G6 proposed: see the [decisions record](../approvals/governance-decisions.md) |
 | R-02.F1 `claim_and_run` bypass | [boundary review](../reviews/r01-10-boundary-review.md) B4; governance OD-G3 |
 | R-02.F2 HQ jobs bypass | governance design section 6.1 (PR #56), OD-G4; conditional on PR #56 merging |
 | R-02.F3 two ledger paths | inventory gap 6; PR #55 next to the SQLite ledger in [agent backend](../design/agent-backend.md) |

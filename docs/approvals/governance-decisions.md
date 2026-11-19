@@ -4,7 +4,7 @@
 | --- | --- |
 | Roadmap item | R-02.7 |
 | Date | 2026-11-19 |
-| Decided by | `abhishek3059`, in chat with Claude Code (`claude-opus-5-5`), which recorded it at his instruction. One maintainer's decision is enough ([DEC-21](../../descisions.md#dec-21)). |
+| Decided by | `abhishek3059`, in chat with Claude Code (`claude-opus-5-5`), which wrote this record from his answer. One maintainer's decision is enough ([DEC-21](../../descisions.md#dec-21)). |
 | Inputs | [governance design](../design/governance.md), section 6.3 |
 
 | Decision | State | Detail |
