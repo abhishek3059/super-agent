@@ -13,8 +13,9 @@ was independently reviewed at commits `5de7293` and `d5808c6`. Authentication,
 throttling, expiry, Host/Origin checks, CSP, and bounded teardown exist. The
 console now also accepts an opt-in Gemini adapter and a local adapter
 (`SUPER_AGENT_ADAPTER`); the fake adapter stays the default. That code, and
-the other adapters and tools merged after the review, has no independent
-review record. Development commands are in
+the other adapters and tools merged after the review, were reviewed in the
+[R-01.10 boundary review](../docs/reviews/r01-10-boundary-review.md) on
+2026-11-19. Development commands are in
 [apps/voice-foundation.md](../apps/voice-foundation.md).
 The task was accepted on 2026-11-19 when the blockers in the
 [R-01.10 record](../docs/implementation/r01-10-acceptance.md#blockers) cleared.
