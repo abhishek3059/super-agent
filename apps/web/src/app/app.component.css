@@ -257,6 +257,17 @@ button:disabled {
   font-size: 0.78rem;
 }
 
+.session-notice {
+  width: min(100%, 36rem);
+  margin: 0;
+  padding: 0.7rem 0.85rem;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-radius: 0.8rem;
+  background: rgba(15, 23, 42, 0.58);
+  color: #cbd5e1;
+  font-size: 0.78rem;
+}
+
 .error-banner svg {
   width: 1rem;
   flex: 0 0 auto;
@@ -348,16 +359,6 @@ button:disabled {
 
 .muted-icon {
   color: #fde68a;
-}
-
-.session-timer {
-  z-index: 1;
-  color: rgba(226, 232, 240, 0.9);
-  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
-  font-size: clamp(0.9rem, 2vw, 1.05rem);
-  font-variant-numeric: tabular-nums;
-  font-weight: 600;
-  letter-spacing: 0.12em;
 }
 
 .voice-copy h1 {

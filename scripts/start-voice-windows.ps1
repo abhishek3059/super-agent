@@ -103,6 +103,14 @@ try {
     Write-Host "Voice scaffold ready: http://127.0.0.1:4200"
     Write-Host "Adapter: $($health.provider)"
     Write-Host "Token file: $HOME\.super-agent\voice-token"
+    # The console keeps the token in memory only (REQ-11, REQ-12), so hand it
+    # over through the clipboard for pasting. Never print it.
+    try {
+        Get-Content -Raw -LiteralPath (Join-Path $HOME ".super-agent\voice-token") | Set-Clipboard
+        Write-Host "Local token copied to the clipboard. Paste it into the console settings."
+    } catch {
+        Write-Host "Could not copy the local token to the clipboard. Copy it from the token file."
+    }
     Write-Host "Use Ctrl+C to stop both services."
     Write-Host ""
 

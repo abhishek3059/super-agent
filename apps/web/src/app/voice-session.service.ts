@@ -35,6 +35,8 @@ export class VoiceSessionService {
   readonly status = signal('stopped');
   readonly muted = signal(false);
   readonly error = signal('');
+  /** Non-error end-of-session message, such as the backend idle limit; cleared on the next Start. */
+  readonly notice = signal('');
   readonly inputLevel = signal(0);
   readonly provider = signal('');
   /** Transcript of the current session only; cleared in cleanup, never persisted or logged. */
@@ -77,6 +79,7 @@ export class VoiceSessionService {
     this.generation += 1;
     const generation = this.generation;
     this.error.set('');
+    this.notice.set('');
     this.status.set('connecting');
     // A fresh session always starts unmuted to match the backend default.
     // The old session's mute is either already reset by its cleanup or was
@@ -237,7 +240,14 @@ export class VoiceSessionService {
     } else if (message.type === 'session.error') {
       const category = message.category !== undefined
         && ERROR_CATEGORIES.has(message.category) ? message.category : 'unknown';
-      this.fail(`Voice session failed: ${category}`);
+      // The idle limit (60 s without audio frames, enforced by the backend)
+      // is an expected end, not a failure: the console returns to ready.
+      if (category === 'session-timeout') {
+        this.notice.set('Session ended after 60 s idle. Start again when ready.');
+        void this.cleanup('stopped', generation);
+      } else {
+        this.fail(`Voice session failed: ${category}`);
+      }
     } else if (message.type === 'session.state') {
       // Only acknowledgements arrive here (mute, unmute, stopping); local
       // state is already authoritative and the final event precedes close.

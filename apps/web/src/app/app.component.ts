@@ -2,7 +2,6 @@ import {
   ChangeDetectionStrategy,
   Component,
   ElementRef,
-  OnDestroy,
   ViewChild,
   afterRenderEffect,
   computed,
@@ -11,7 +10,6 @@ import {
 } from '@angular/core';
 import { VoiceSessionService } from './voice-session.service';
 import {
-  formatElapsed,
   isSessionActive,
   isSessionReady,
   providerCopy,
@@ -27,7 +25,7 @@ import {
   templateUrl: './app.component.html',
   styleUrl: './app.component.css',
 })
-export class AppComponent implements OnDestroy {
+export class AppComponent {
   @ViewChild('settingsButton') private settingsButton?: ElementRef<HTMLButtonElement>;
   @ViewChild('settingsPanel') private settingsPanel?: ElementRef<HTMLElement>;
   @ViewChild('tokenInput') private tokenInput?: ElementRef<HTMLInputElement>;
@@ -35,7 +33,6 @@ export class AppComponent implements OnDestroy {
 
   readonly session = inject(VoiceSessionService);
   readonly settingsOpen = signal(false);
-  readonly elapsedMs = signal(0);
   readonly bars = Array.from({ length: 40 }, (_, index) => {
     const center = Math.sin(((index + 1) / 41) * Math.PI);
     return 0.35 + center * (0.5 + ((index * 17) % 7) / 35);
@@ -58,21 +55,6 @@ export class AppComponent implements OnDestroy {
   });
 
   token = '';
-  private sessionStartedAt = 0;
-  private readonly timer = window.setInterval(() => {
-    if (!this.isSessionActive()) {
-      this.sessionStartedAt = 0;
-      this.elapsedMs.set(0);
-      return;
-    }
-    if (!this.sessionStartedAt) this.sessionStartedAt = performance.now();
-    this.elapsedMs.set(performance.now() - this.sessionStartedAt);
-  }, 100);
-
-  ngOnDestroy(): void {
-    window.clearInterval(this.timer);
-  }
-
   openSettings(): void {
     this.settingsOpen.set(true);
     window.setTimeout(() => this.tokenInput?.nativeElement.focus());
@@ -108,8 +90,6 @@ export class AppComponent implements OnDestroy {
 
   start(): void {
     const token = this.token.trim();
-    this.sessionStartedAt = performance.now();
-    this.elapsedMs.set(0);
     void this.session.start(token);
     this.closeSettings();
   }
@@ -133,10 +113,6 @@ export class AppComponent implements OnDestroy {
   endOrStart(): void {
     if (this.isSessionActive()) this.stop();
     else this.openSettings();
-  }
-
-  elapsedLabel(): string {
-    return formatElapsed(this.elapsedMs());
   }
 
   barHeight(strength: number): number {

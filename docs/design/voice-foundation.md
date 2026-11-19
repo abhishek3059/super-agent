@@ -88,7 +88,7 @@ Browser voice console
   AudioWorklet capture at 16 kHz
   PCM16 LE mono frames
   playback buffers at the event rate, 24 kHz for Gemini
-  mute, barge-in, stop, status, timer, errors
+  mute, barge-in, stop, status, errors
         |
         | WebSocket on 127.0.0.1
         | token or same-origin session cookie
@@ -295,7 +295,7 @@ Error categories:
 | `invalid-control` | Malformed JSON, unknown event, or missing field. |
 | `invalid-audio` | Odd length, oversized frame, or audio before ready. |
 | `max-duration` | Code-level 15-minute limit reached. |
-| `session-timeout` | 60-second idle limit reached. |
+| `session-timeout` | 60-second idle limit reached. The console shows it as a plain notice ("Session ended after 60 s idle") and returns to the ready state, not as an error. |
 | `session-busy` | One active session already exists. |
 | `provider-unavailable` | Connection, DNS, TLS, or network failure. |
 | `provider-limits` | Quota or rate limit. |
@@ -562,7 +562,7 @@ Implementation conditions from the review (tested in R-01.6):
 
 Minimum console:
 
-- Header with connection state, provider mode, and session timer.
+- Header with connection state and provider mode.
 - Large Start and Stop control.
 - Mute toggle.
 - Interrupt control.
@@ -585,8 +585,9 @@ Recommended real-console features:
   selection is a preference, not a secret. Keep it in memory for the first
   slice.
 - Level meter from the AudioWorklet.
-- Session timer with a warning one minute before the code maximum and a note
-  that the provider may end earlier.
+- Session timer: removed on 2026-11-19 after the R-01.10 console run, because
+  it counted wall-clock time while muted and after speech stopped. The code
+  maximum and the idle limit stay enforced by the backend.
 - Provider consent before the first Gemini session. The console says:
   "Audio is sent to Google Gemini Live for this session. This app does not
   store it. Free-tier terms may allow Google to use inputs for product
@@ -834,7 +835,7 @@ Risks:
 - The Gemini SDK surface is verified from documentation, not from a live call.
   The live test may find differences.
 - The provider connection lifetime is about 10 minutes, shorter than the
-  15-minute code maximum. A real session may end earlier than the UI timer.
+  15-minute code maximum. A real session may end earlier than that maximum.
 - Barge-in behavior with real audio is unverified. The live synthetic test must
   measure it.
 - Free-tier quota and terms may limit the live test.

@@ -51,8 +51,6 @@ equal(ui.isSessionReady('muted'), true);
 equal(ui.isSessionReady('thinking'), true);
 equal(ui.isSessionActive('thinking'), true);
 equal(ui.pipelineSummary('thinking'), 'Working on a reply locally');
-equal(ui.formatElapsed(0), '00:00.0');
-equal(ui.formatElapsed(61_234), '01:01.2');
 equal(ui.spectrumBarHeight('stopped', 1, 0.5), 9.5);
 equal(ui.spectrumBarHeight('connecting', 0, 0.5), 18);
 equal(ui.spectrumBarHeight('speaking', 0, 0.5), 57);
