@@ -210,3 +210,11 @@ Before pass 13 the branch also took in the latest `develop` (PH-01 closed, the g
 | 9 | 8 | 8 | 8 | 9 |
 
 On `4f353af`. The merge was verified to keep both sides: every file outside this PR is identical to `develop`, `develop`'s PH-01 close and current phase PH-02 are kept, and ticks in parallel track H are allowed by the roadmap check. `npm test` 30 of 30; the Jarvis HQ CI workflow passed. Findings: this file lacked passes 12 and 13 and overstated pass 11; the PR body still lacked the pasted report; a README line ("There are no workers") could be read as contradicting Jarvis HQ; the disabled Composio and xAI code is still present (disclosed, accepted earlier as low). The first three were fixed; the PR body now carries the pass 13 report.
+
+## Pass 14: PASS (average 8.6)
+
+| Correctness | Security | Honesty | Scope | Clarity |
+| --- | --- | --- | --- | --- |
+| 9 | 8 | 9 | 8 | 9 |
+
+On `bde66d1`. The pass 13 fixes verified; `npm test` 30 of 30; the required check and the Jarvis HQ workflow passed. Two one-line README items (the decision register range, an awkward sentence) were fixed afterwards. Accepted low items: the disabled Composio and xAI code, and the historical PH-01 wording in dated approval records. What remains is human-gated: the merge (R-H.2) and the live voice run (R-H.3).
