@@ -40,4 +40,31 @@ Not tested by the reviewer: real Hermes model runs and prompt injection, UDP, a 
 | C4 | A bot gets sign-ins and keys only for the providers named in the operator's Hermes settings (default, fallbacks, custom), not every key. | Live: of the operator's keys, the bot received only `OPENROUTER_API_KEY`, `NVIDIA_API_KEY`, `ANYAPI_API_KEY`, `CLOUDFLARE_API_KEY`; its `auth.json` kept only the `openrouter` and `nvidia` pools. Messaging tokens and unused providers' credentials were not copied. |
 | C5 | Owner proofs include the server's own origin. The app page sends a content security policy. README corrected. | Sign-in self-checks updated; live sign-in through the launcher. |
 
-Closure check by an independent reviewer on the new revision: see below when recorded.
+## Closure check
+
+The same reviewer re-ran every reproduction on `553b8a6` (plus the then-uncommitted CSP placement change).
+
+| Field | Value |
+| --- | --- |
+| Verdict | **ACCEPT WITH CONDITIONS.** Scores: correctness 8, security 8, honesty 8, scope 9, clarity 8, average 8.2. |
+| F1 to F11 | All closed. F1: 22 address forms against IPv4 and IPv6 canaries, 66 refusals; UDP refused; Chrome got the proxy's refusal page for every loopback URL. The proxy refused 30 plain-HTTP and every CONNECT loopback, private and malformed target, request smuggling (`Content-Length` with `Transfer-Encoding`, obfuscated encodings) and pipelined loopback requests. F5 mostly closed (N3). F9 closed with the CSP change. |
+| Conditions | 1. Fix N1. 2. Commit the CSP change and recheck it. 3. Fix N2 and N3, or list them as open. |
+
+| ID | Severity | New finding | Status |
+| --- | --- | --- | --- |
+| N1 | MEDIUM | After an upgrade, gateways recorded by the older format (a bare pid) were never stopped, so they kept the older, open profile. | Fixed (C6) |
+| N2 | LOW | The proxy resolved names with `dns.lookup` on Node's small shared worker pool; slow names stalled every bot's lookups. | Fixed (C7) |
+| N3 | LOW | Unknown top-level keys in `auth.json` were copied to bots. | Fixed (C8) |
+| N4 | INFO | The proxy would allow the host's own public addresses, leading to services listening on all interfaces. | Fixed (C7) |
+| N5 | INFO | Any public port is reachable through the proxy, and names still resolve through the system resolver. Both follow from the accepted internet access. | Accepted, documented in the README |
+
+## Second closure
+
+| Change | What changed | Verified by |
+| --- | --- | --- |
+| C6 | A bare-pid record from an earlier version is recognised by its command and stopped. While verifying this live, a related gap appeared: Hermes relaunches itself in a new session after starting, so the process the server spawned is gone and the real gateway was left untracked (still inside its sandbox, but never stopped or adopted). A bot's gateway is now identified as the process listening on that bot's engine port whose command runs from that bot's home; only that bot's sandbox may listen there. It is stopped on restart, upgrade and delete. | Self-checks: a bare-pid record is found and stopped (fails with the old parsing); a relaunched gateway is found by port and home and stopped while an unrelated listener is left alone (fails with the old behaviour). Live: two orphaned gateways from an earlier run were stopped at startup; across two further restarts all five gateways were replaced cleanly; a Jarvis to Quill handoff then ran without any gateway restart. |
+| C7 | The proxy resolves names with c-ares (`dns.Resolver`, 3 s timeout) instead of the shared worker pool, caps pending lookups at 32, and also refuses the host's own interface addresses. Names resolve through DNS only, so `localhost`, `127.1` and decimal forms do not resolve at all. | Proxy self-checks updated (names are refused with 502 or 403, never reaching the canary). Live: example.com, iana.org and the model provider reached through the proxy; real bots browsed and called the model. |
+| C8 | `auth.json` for a bot holds only `version`, `providers`, `credential_pool` and `active_provider`, each filtered to configured providers. | Code; live bot home inspected by name only. |
+| C9 | The CSP is set in the middleware that wraps every page response, so the static handler cannot skip it. | Live: the header on `/`, `/index.html` and `/assets/`; the app loaded and every request returned 200 with no policy violations. |
+
+With the conditions met, R-H.4 is ticked. The macOS sandbox itself was not attacked directly, and `sandbox-exec` is deprecated by Apple; both stay in the README's list of what containment does not cover.

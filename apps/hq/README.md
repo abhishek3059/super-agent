@@ -183,6 +183,9 @@ none of the protections above apply, including the server's file handling.
   message another. Nothing a bot does in its own shell or browser asks for
   approval.
 - A bot can read system files outside the closed folders.
+- Through the proxy a bot can reach any public address and port, and it can
+  still look up names through the system resolver, so data can leave as DNS
+  queries.
 - Chrome makes its profile lock in the system's per-user temporary folder,
   whatever the settings say. The browser's sandbox opens folders there named
   after the browser (`com.google.Chrome.*`). Every bot's browser shares them,

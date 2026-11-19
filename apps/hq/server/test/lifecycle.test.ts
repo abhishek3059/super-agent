@@ -142,3 +142,26 @@ test('HQ leaves the socket unbound until its old browser and gateway have exited
   assert.equal(children[0].exitCode, 0);
   assert.equal(children[1].exitCode, 0);
 });
+
+test('a relaunched gateway is found by its own port and home, and nothing else on the port is touched', async (t) => {
+  const { stopAllGateways } = await import('../src/engine.js');
+  const { env } = await import('../src/env.js');
+  const free = async () => { const s = net.createServer(); await new Promise<void>((r) => s.listen(0, '127.0.0.1', r)); const p = (s.address() as net.AddressInfo).port; s.close(); return p; };
+  const listen = (port: number, extra: string) => spawn(process.execPath, ['-e', `require('net').createServer().listen(${port},'127.0.0.1')`, extra], { detached: true, stdio: 'ignore' });
+  // Hermes relaunches itself in a new session: no pid record, only a listener running from the bot's home.
+  const ourPort = await free();
+  addBot.run('bot_relaunched', ourPort, Date.now(), Date.now());
+  const ours = listen(ourPort, `${path.join(env.enginesDir, 'bot_relaunched')}/tools/python`);
+  // Something else, on another bot's port, that does not run from that bot's home.
+  const otherPort = await free();
+  addBot.run('bot_other', otherPort, Date.now(), Date.now());
+  const stranger = listen(otherPort, '/somewhere/else');
+  t.after(() => { for (const c of [ours, stranger]) try { process.kill(c.pid!, 'SIGKILL'); } catch { /* gone */ } });
+  await sleep(500);
+  await stopAllGateways();
+  // Our own children: a stopped one is only reaped through its exit event, so that is what counts.
+  const alive = async (c: ChildProcess) => c.exitCode === null && c.signalCode === null
+    && !(await Promise.race([once(c, 'exit').then(() => true), sleep(1000).then(() => false)]));
+  assert.equal(await alive(ours), false, 'the relaunched gateway is stopped');
+  assert.equal(await alive(stranger), true, 'a process that is not the bot\'s gateway is left alone');
+});

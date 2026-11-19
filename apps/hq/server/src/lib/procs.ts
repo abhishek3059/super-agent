@@ -29,15 +29,20 @@ export function recordPid(name: string, pid: number | undefined) {
 
 // A null result is stale or missing; undefined means we couldn't establish the process identity.
 function inspectPid(name: string, marker: string): number | null | undefined {
-  let pid: number, started: string;
-  try { ({ pid, started } = JSON.parse(fs.readFileSync(fileFor(name), 'utf8'))); } catch (e) {
-    return (e as NodeJS.ErrnoException).code === 'ENOENT' ? null : (e instanceof SyntaxError ? null : undefined);
+  let pid: number, started: string | undefined;
+  try {
+    const record = JSON.parse(fs.readFileSync(fileFor(name), 'utf8'));
+    // An earlier version wrote the bare pid. Such a process must still be found and stopped, by its
+    // command alone, or it would keep running under that version's rules after an upgrade.
+    ({ pid, started } = typeof record === 'number' ? { pid: record, started: undefined } : record);
+  } catch (e) {
+    return (e as NodeJS.ErrnoException).code === 'ENOENT' ? null : undefined;
   }
   if (!Number.isInteger(pid) || pid <= 1) return null;
   const result = spawnSync('ps', ['-p', String(pid), '-o', 'command='], { encoding: 'utf8', timeout: 3000 });
   if (result.error || result.signal) return undefined;
   // Same command and same start time: the pid has not been handed to some other process since.
-  if (result.status === 0) return result.stdout.includes(marker) && started && startedAt(pid) === started ? pid : null;
+  if (result.status === 0) return result.stdout.includes(marker) && (!started || startedAt(pid) === started) ? pid : null;
   // With a valid selector and no matching processes, ps exits 1 without output.
   if (result.status === 1 && !result.stdout && !result.stderr) return null;
   return undefined;

@@ -184,7 +184,7 @@ Tiers are defined in [DEC-18](descisions.md#dec-18). R-A.1 and R-A.2 can happen 
 - [x] R-H.1 [human] A maintainer approves DEC-23, the AGENTS.md section 5 exception and the OpenAI voice spend. Evidence: [maintainer approval in chat, 2026-11-17](docs/approvals/jarvis-hq-dec-23-approval.md)
 - [ ] R-H.2 `apps/hq` merged with its self-checks green in CI. Evidence: none yet
 - [ ] R-H.3 Live voice run recorded with synthetic speech: connect, tool call handed to a bot, spoken result, interrupt, end. Evidence: none yet
-- [ ] R-H.4 Independent security review of `apps/hq`: loopback boundary, screen relay, the sandbox profile, credentials copied into bot homes, internet egress. Evidence: none yet
+- [x] R-H.4 Independent security review of `apps/hq`: loopback boundary, screen relay, the sandbox profile, credentials copied into bot homes, internet egress. Evidence: [security review and closure](docs/reviews/jarvis-hq-security-review.md)
 - [x] R-H.5 Workers contained so one bot cannot read the operator's files, the session secret or another bot's folder. Evidence: [containment run and attacks through the server](docs/implementation/jarvis-hq-local-run.md#containment), [self-checks](apps/hq/server/test/hq.test.ts)
 
 ## Parallel track C: community and launch

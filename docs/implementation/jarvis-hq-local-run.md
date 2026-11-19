@@ -19,7 +19,7 @@ Output below is copied from the terminal. Bot ids are omitted.
 ```text
 $ npm run typecheck        (no errors)
 $ npm test
-# pass 26
+# pass 28
 # fail 0
 $ npm run build            (no errors)
 $ npm audit
@@ -29,7 +29,7 @@ $ npm run check            (repository root)
 roadmap self-test: all checks passed
 ```
 
-The self-checks grew from 6 to 26 during review and containment work, with
+The self-checks grew from 6 to 28 during review and containment work, with
 more assertions added inside them in later rounds; the figure above is the final
 run. With `xaiKey` in `env.ts` put back to read the environment, the
 "services stay off" check failed (`# pass 8`, `# fail 1`), so it does guard

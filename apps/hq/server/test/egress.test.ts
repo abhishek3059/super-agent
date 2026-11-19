@@ -58,13 +58,17 @@ function status(request: string): Promise<number> {
 const connect = (target: string) => status(`CONNECT ${target} HTTP/1.1\r\nHost: ${target}\r\n\r\n`);
 
 test('CONNECT to loopback is refused', async () => {
-  for (const t of [`127.0.0.1:${localPort}`, `localhost:${localPort}`, `[::ffff:0.0.0.0]:${localPort}`, `[::1]:${localPort}`,
-    `[::ffff:127.0.0.1]:${localPort}`, `127.1:${localPort}`, `2130706433:${localPort}`]) assert.equal(await connect(t), 403, t);
+  for (const t of [`127.0.0.1:${localPort}`, `[::ffff:0.0.0.0]:${localPort}`, `[::1]:${localPort}`,
+    `[::ffff:127.0.0.1]:${localPort}`]) assert.equal(await connect(t), 403, t);
+  // Names are resolved through DNS only (no hosts file, no numeric shorthands), so these never
+  // resolve at all: refused before any address check (502), and never reach the local server.
+  for (const t of [`localhost:${localPort}`, `127.1:${localPort}`, `2130706433:${localPort}`]) assert.ok([403, 502].includes(await connect(t)), t);
 });
 
 test('plain HTTP to loopback is refused', async () => {
-  for (const u of [`http://127.0.0.1:${localPort}/`, `http://localhost:${localPort}/`, `http://[::ffff:0.0.0.0]:${localPort}/`,
+  for (const u of [`http://127.0.0.1:${localPort}/`, `http://[::ffff:0.0.0.0]:${localPort}/`,
     `http://127.0.0.1:${proxy.port}/`]) assert.equal(await status(`GET ${u} HTTP/1.1\r\nHost: x\r\n\r\n`), 403, u);
+  assert.ok([403, 502].includes(await status(`GET http://localhost:${localPort}/ HTTP/1.1\r\nHost: x\r\n\r\n`)), 'localhost');
 });
 
 test('malformed requests get 400', async () => {

@@ -28,6 +28,7 @@ initRooms();
 expireStaleApprovals();
 
 const app = new Hono();
+const CSP = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob:; connect-src 'self' https://api.openai.com wss://api.openai.com; frame-ancestors 'none'; base-uri 'none'; form-action 'self'";
 
 app.use('*', async (c, next) => {
   if (!allowedHost(c.req.header('host'))) return c.text('forbidden host', 403);
@@ -44,13 +45,15 @@ app.route('/api', configApi);
 const webDist = path.resolve(new URL('.', import.meta.url).pathname, '../../web/dist');
 if (fs.existsSync(webDist)) {
   // The page itself is always revalidated, so a rebuild is picked up; its hashed assets can be cached.
-  app.use('/*', async (c, next) => { await next(); if (!c.req.path.startsWith('/assets/') && !c.req.path.startsWith('/api/')) c.header('Cache-Control', 'no-cache'); });
-  app.use('/*', serveStatic({ root: path.relative(process.cwd(), webDist) }));
-  app.get('*', (c) => {
+  app.use('/*', async (c, next) => {
+    await next();
+    if (c.req.path.startsWith('/api/')) return;
+    if (!c.req.path.startsWith('/assets/')) c.header('Cache-Control', 'no-cache');
     // The page runs only its own scripts, and talks only to this server and OpenAI's voice endpoint.
-    c.header('Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob:; connect-src 'self' https://api.openai.com wss://api.openai.com; frame-ancestors 'none'; base-uri 'none'; form-action 'self'");
-    return c.html(fs.readFileSync(path.join(webDist, 'index.html'), 'utf8'));
+    c.header('Content-Security-Policy', CSP);
   });
+  app.use('/*', serveStatic({ root: path.relative(process.cwd(), webDist) }));
+  app.get('*', (c) => c.html(fs.readFileSync(path.join(webDist, 'index.html'), 'utf8')));
 }
 
 await Promise.all([stopAllBrowsers(), stopAllGateways()]);

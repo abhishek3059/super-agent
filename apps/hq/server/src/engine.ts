@@ -1,4 +1,4 @@
-import { spawn } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -170,7 +170,8 @@ function writeHome(botId: string): string {
   const auth = readJson(path.join(env.hermesHome, 'auth.json'));
   if (auth) {
     const only = (o: any) => Object.fromEntries(Object.entries(o ?? {}).filter(([k]) => providers.has(k)));
-    writeOwn(home, 'auth.json', JSON.stringify({ ...auth, providers: only(auth.providers), credential_pool: only(auth.credential_pool),
+    // Only the known parts: anything else in the operator's file stays with the operator.
+    writeOwn(home, 'auth.json', JSON.stringify({ version: auth.version, providers: only(auth.providers), credential_pool: only(auth.credential_pool),
       active_provider: providers.has(auth.active_provider) ? auth.active_provider : null }));
   }
   const primaryEnv = readDotenv(path.join(env.hermesHome, '.env'));
@@ -199,7 +200,24 @@ async function keyAccepted(url: string, key: string): Promise<boolean> {
 
 /** The gateway we started for this bot, if it is still running. Its command line carries these words. */
 const GATEWAY = 'gateway run';
-const gatewayPid = (botId: string) => livePid(`${botId}.gateway`, GATEWAY);
+
+/**
+ * The bot's running gateway: the process listening on its engine port whose command runs from its
+ * own Hermes home. Hermes relaunches itself in a new session after it starts, so the process this
+ * server spawned is gone by then; the listener is what identifies the gateway. Only this bot's
+ * sandbox may listen on that port, so nothing else can pose as it.
+ */
+function gatewayPid(botId: string): number | null {
+  const port = botRow(botId)?.engine_port;
+  if (!port) return null;
+  const listeners = spawnSync('lsof', ['-nP', `-iTCP:${port}`, '-sTCP:LISTEN', '-t'], { encoding: 'utf8', timeout: 3000 });
+  for (const line of (listeners.stdout ?? '').split('\n').filter(Boolean)) {
+    const pid = Number(line);
+    const cmd = spawnSync('ps', ['-p', String(pid), '-o', 'command='], { encoding: 'utf8', timeout: 3000 }).stdout ?? '';
+    if (Number.isInteger(pid) && pid > 1 && cmd.includes(`${homeFor(botId)}/`)) return pid;
+  }
+  return null;
+}
 
 /** The internet, for a confined process: only through the proxy. Loopback stays direct (its own listed ports). */
 export const proxyEnv = (): Record<string, string> => {
@@ -228,7 +246,16 @@ function hermesContained(botId: string, args: string[]) {
   }, `${botId}.g`);
 }
 
-const stopGateway = (botId: string) => stopPid(`${botId}.gateway`, GATEWAY);
+async function stopGateway(botId: string): Promise<void> {
+  await stopPid(`${botId}.gateway`, GATEWAY); // the launcher, while it still runs
+  const pid = gatewayPid(botId); // and the relaunched gateway itself
+  if (!pid) return;
+  const signal = (sig: NodeJS.Signals) => { try { process.kill(-pid, sig); } catch { try { process.kill(pid, sig); } catch { /* gone */ } } };
+  signal('SIGTERM');
+  for (let i = 0; i < 40 && gatewayPid(botId) === pid; i++) await new Promise((r) => setTimeout(r, 250));
+  if (gatewayPid(botId) === pid) { signal('SIGKILL'); await new Promise((r) => setTimeout(r, 300)); }
+  if (gatewayPid(botId)) throw new Error(`Could not stop the gateway of ${botId}`);
+}
 
 const starting = new Map<string, Promise<void>>();
 const failures = new Map<string, string>();

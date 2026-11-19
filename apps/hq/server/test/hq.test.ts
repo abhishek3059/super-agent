@@ -350,3 +350,17 @@ test('inside the sandbox no loopback address form reaches an unlisted port, and 
   if (written) execFileSync('/usr/bin/defaults', ['delete', domain]);
   assert.equal(written, false, 'the preference was not written');
 });
+
+test('a process recorded by an earlier version (bare pid) is still found and stopped', async () => {
+  const { stopPid, livePid } = await import('../src/lib/procs.js');
+  const { spawn } = await import('node:child_process');
+  const child = spawn('/bin/bash', ['-c', 'exec -a "hermes gateway run legacy-selfcheck" sleep 30'], { detached: true, stdio: 'ignore' });
+  await new Promise((r) => setTimeout(r, 300));
+  fs.mkdirSync(path.join(env.dataDir, 'run'), { recursive: true });
+  fs.writeFileSync(path.join(env.dataDir, 'run', 'bot_legacy.gateway.pid'), String(child.pid));
+  assert.equal(livePid('bot_legacy.gateway', 'gateway run'), child.pid, 'the old record is recognised');
+  await stopPid('bot_legacy.gateway', 'gateway run');
+  let alive = true;
+  try { process.kill(child.pid!, 0); } catch { alive = false; }
+  assert.equal(alive, false, 'and its process is stopped, not left running under old rules');
+});

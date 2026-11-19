@@ -6,6 +6,7 @@
 import dns from 'node:dns/promises';
 import http from 'node:http';
 import net from 'node:net';
+import os from 'node:os';
 
 const CONNECT_MS = 15_000;
 const IDLE_MS = 5 * 60_000;
@@ -60,11 +61,30 @@ function target(host: string, port: string): { host: string; port: number } {
   return { host: bare, port: n };
 }
 
+// Names are resolved with c-ares, not getaddrinfo: dns.lookup runs on Node's small shared worker pool,
+// which a bot could fill with slow names and stall every lookup (and the server's file work) with it.
+const resolver = new dns.Resolver({ timeout: 3000, tries: 2 });
+const MAX_PENDING = 32;
+let pending = 0;
+
+async function resolveAll(host: string): Promise<string[]> {
+  if (pending >= MAX_PENDING) throw new Refusal(503, 'busy');
+  pending++;
+  try {
+    const found = await Promise.allSettled([resolver.resolve4(host), resolver.resolve6(host)]);
+    return found.flatMap((r) => (r.status === 'fulfilled' ? r.value : []));
+  } finally { pending--; }
+}
+
+/** This machine's own addresses: a public one still leads to services listening on every interface. */
+const ownAddresses = () => new Set(Object.values(os.networkInterfaces()).flat().map((i) => i?.address).filter(Boolean));
+
 // Resolves once and returns an address that has already passed the public check.
 async function checkedAddress(host: string): Promise<string> {
-  const addrs = net.isIP(host) ? [host] : (await dns.lookup(host, { all: true }).catch(() => [])).map((a) => a.address);
+  const addrs = net.isIP(host) ? [host] : await resolveAll(host);
   if (!addrs.length) throw new Refusal(502, 'dns');
-  if (!addrs.every(isPublicAddress)) throw new Refusal(403, 'not-public');
+  const own = ownAddresses();
+  if (!addrs.every((a) => isPublicAddress(a) && !own.has(a))) throw new Refusal(403, 'not-public');
   return addrs[0];
 }
 
