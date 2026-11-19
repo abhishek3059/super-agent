@@ -48,7 +48,7 @@ def _check_args(tool: str, text: str) -> None:
 
 
 _ABANDONED_CAP = 4
-_stuck: set[threading.Thread] = set()  # tool threads in flight, hung or not
+_stuck: set[threading.Thread] = set()  # tool threads abandoned after a timeout
 _stuck_lock = threading.Lock()
 
 
@@ -56,7 +56,8 @@ def _call(fn, seconds: float, *args):
     """Run fn in a daemon thread and wait at most `seconds`; a tool that hangs fails the step, not the job thread.
     shortcut: Python threads cannot be killed, a stuck tool thread lives until it returns; upgrade to a
     subprocess worker if this cap is ever hit in practice. A hung network mount inside a T1 root (macOS) can
-    fill the cap; tools then refuse until the threads return or the process restarts (fail closed)."""
+    fill the cap; tools then refuse until the threads return or the process restarts (fail closed). In-flight
+    calls can overshoot the cap by at most the number of calls running at once."""
     box: list = []
 
     def target():
@@ -69,13 +70,16 @@ def _call(fn, seconds: float, *args):
                 _stuck.discard(threading.current_thread())
 
     thread = threading.Thread(target=target, daemon=True, name="tool-call")
-    with _stuck_lock:  # the cap check and the registration are one step
+    with _stuck_lock:
         if len(_stuck) >= _ABANDONED_CAP:
             raise PolicyError("tool_threads_stuck")
-        _stuck.add(thread)
-    thread.start()
+    thread.start()  # nothing is registered before this, so a failed start leaves nothing behind
     thread.join(max(seconds, 0.001))
     if thread.is_alive():
+        with _stuck_lock:
+            _stuck.add(thread)
+            if not thread.is_alive():  # it returned between the join and here: its own discard already ran
+                _stuck.discard(thread)
         raise PolicyError("step_deadline")
     ok, value = box[0]
     if not ok:

@@ -563,25 +563,46 @@ def test_abandoned_tool_threads_are_capped(monkeypatch):
     assert graph._call(lambda: "x", 1) == "x"  # a finished thread freed its slot
 
 
-def test_the_cap_is_atomic_for_concurrent_calls(monkeypatch):
+def test_the_cap_counts_abandoned_threads_across_concurrent_calls(monkeypatch):
     from super_agent_voice import graph
     from super_agent_voice.policy import PolicyError
-    release, start, out = threading.Event(), threading.Barrier(12), []
+    release = threading.Event()
     monkeypatch.setattr(graph, "_stuck", set())
     monkeypatch.setattr(graph, "_ABANDONED_CAP", 3)
 
-    def one():
-        start.wait()
-        try:
-            graph._call(release.wait, 0.3, 30)
-        except PolicyError as err:
-            out.append(err.code)
+    def burst(count, seconds):
+        start, out = threading.Barrier(count), []
 
-    threads = [threading.Thread(target=one) for _ in range(12)]
-    [t.start() for t in threads]
-    [t.join() for t in threads]
+        def one():
+            start.wait()
+            try:
+                graph._call(release.wait, seconds, 30)
+            except PolicyError as err:
+                out.append(err.code)
+
+        threads = [threading.Thread(target=one) for _ in range(count)]
+        [t.start() for t in threads]
+        [t.join() for t in threads]
+        return out
+
+    assert burst(3, 0.1) == ["step_deadline"] * 3  # three hung calls are abandoned
+    assert burst(9, 0.1) == ["tool_threads_stuck"] * 9  # the cap is full: every new call refuses
     release.set()
-    assert out.count("tool_threads_stuck") == 9 and out.count("step_deadline") == 3
+
+
+def test_healthy_parallel_reads_are_not_capped(services):
+    steps = [{"type": "read_tool", "tool": "calculate", "args": {"expression": f"{i}+1"}} for i in range(6)]
+    plan = {"steps": [*steps, {"type": "finish", "after": list(range(6))}]}
+    service = services(ScriptedModel([plan]), limits=Limits(steps_per_job=8))
+    job_id = service.delegate("answer", "hello", "k1")["job_id"]
+    assert wait_terminal(job_id).state == "succeeded"
+
+
+def test_cancel_of_an_unknown_job_is_unknown_job(services):
+    service = services(Gate([PLAN]))
+    service.open_session("s1")
+    assert service.cancel("no-such-job", "s1") == {"refused": "unknown_job"}
+    assert service.cancel("no-such-job", "old") == {"refused": "session_stale"}
 
 
 def test_concurrent_admit_respects_queue_cap():

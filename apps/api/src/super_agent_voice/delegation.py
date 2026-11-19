@@ -107,7 +107,9 @@ class Service:
         try:
             self._check_session(session_id)
             found = ledger.get_job(job_id)
-            if found is None or session_id is None or found.spec.get("session") != session_id:
+            if found is None:
+                raise PolicyError("unknown_job")
+            if session_id is None or found.spec.get("session") != session_id:
                 raise PolicyError("session_stale")  # only the job's own session may cancel it
             job = self._runner.cancel(job_id)
         except PolicyError as err:

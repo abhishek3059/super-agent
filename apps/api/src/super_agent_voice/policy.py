@@ -29,7 +29,7 @@ REASONS = frozenset({
     "plan_invalid", "tool_out_of_scope", "model_error",
     "tool_args_invalid", "clarify_unsupported", "tracing_enabled", "model_reply_invalid", "step_failed",
     "verify_failed", "delegation_unavailable", "untrusted_read_in_turn", "not_asked",
-    "session_stale", "tool_threads_stuck",
+    "session_stale", "tool_threads_stuck", "unknown_job",
 })
 
 
