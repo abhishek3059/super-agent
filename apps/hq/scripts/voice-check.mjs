@@ -11,8 +11,9 @@ import { ownerLogin } from './owner-login.mjs';
 
 const exec = promisify(execFile);
 const ownerName = 'Voice Check';
-const request = 'Ask Scout to open example dot com and tell me the page heading';
-const scopedRequest = 'Ask Scout to open https://example.com and tell me the page heading.';
+const request = 'Ask Scout to open example dot com and tell me the page title';
+const scopedRequest = 'Ask Scout to open https://example.com and tell me the page title.';
+// example.com no longer has an <h1> (checked 2026-11-19); its title is still "Example Domain".
 const heading = 'Example Domain';
 const silence = Buffer.alloc(48_000);
 const frameBytes = 960; // 20 ms at 24 kHz, mono PCM16.
@@ -78,8 +79,9 @@ async function run() {
     stage = label;
     console.log(`[${Math.round(performance.now() - start)} ms] ${label}`);
   };
-  const signal = AbortSignal.timeout(84_000);
-  setTimeout(() => { state('FAIL hard deadline'); process.exit(1); }, 90_000).unref();
+  // A fresh bot's first gateway start installs Hermes dependencies (about 50 s each for Jarvis and Scout).
+  const signal = AbortSignal.timeout(234_000);
+  setTimeout(() => { state('FAIL hard deadline'); process.exit(1); }, 240_000).unref();
   let directory, req, socket, botId, callId;
   let failed = false;
   try {
@@ -237,16 +239,16 @@ async function run() {
         && row.body.role === 'assistant' && !row.body.streaming && mentionsHeading(row.body.text));
       if (!jarvisResult) await delay(350, undefined, { signal });
     }
-    state('Scout returned the heading and Jarvis replied');
+    state('Scout returned the title and Jarvis replied');
 
     send({ type: 'conversation.item.create', item: { type: 'message', role: 'user',
-      content: [{ type: 'input_text', text: `[work_landed] Scout confirmed the heading is "${heading}". Tell the caller.` }] } });
+      content: [{ type: 'input_text', text: `[work_landed] Scout confirmed the page title is "${heading}". Tell the caller.` }] } });
     send({ type: 'response.create', response: { tool_choice: 'none' } });
     const spoken = await take((event) => event.type === 'response.output_audio.delta' && event.delta);
     const caption = await take((event) => event.type === 'response.output_audio_transcript.done'
       && event.response_id === spoken.response_id);
     const spokenDone = await take((event) => event.type === 'response.done' && event.response?.id === spoken.response_id);
-    check(spokenDone.response.status === 'completed' && mentionsHeading(caption.transcript), 'spoken response did not complete with the heading');
+    check(spokenDone.response.status === 'completed' && mentionsHeading(caption.transcript), 'spoken response did not complete with the title');
     state('spoken Scout result verified');
 
     // A deliberately long turn keeps generation active while the second clip reaches server VAD.

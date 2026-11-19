@@ -218,3 +218,19 @@ On `4f353af`. The merge was verified to keep both sides: every file outside this
 | 9 | 8 | 9 | 8 | 9 |
 
 On `bde66d1`. The pass 13 fixes verified; `npm test` 30 of 30; the required check and the Jarvis HQ workflow passed. Two one-line README items (the decision register range, an awkward sentence) were fixed afterwards. Accepted low items: the disabled Composio and xAI code, and the historical PH-01 wording in dated approval records. What remains is human-gated: the merge (R-H.2) and the live voice run (R-H.3).
+
+## Pass 15: PASS (average 8.6)
+
+| Correctness | Security | Honesty | Scope | Clarity |
+| --- | --- | --- | --- | --- |
+| 9 | 8 | 9 | 8 | 9 |
+
+On `9a450dd` (documentation only). The README fixes after pass 14 were verified; no new findings. The report is in the PR body.
+
+## Pass 16: PASS (average 8.6)
+
+| Correctness | Security | Honesty | Scope | Clarity |
+| --- | --- | --- | --- | --- |
+| 8.5 | 8.5 | 8.5 | 9 | 8.5 |
+
+Run on the R-H.3 revision before commit, by the shared reviewer on Sonnet 5.5. Changes: the live voice run and the three fixes it found (egress lookup cap, finding relaunched gateways by working folder, probe deadline and target). `npm test` 30 of 30. The cwd match was judged bounded: it only looks at the bot's own port, and it fails closed when lsof fails. Findings fixed: a stale `gatewayPid` comment, and no revision or cost note on the run record. Accepted: the new test covers the positive cwd case and a stranger, but not a sibling-prefix home (`bot_1` against `bot_10`), which the code handles with a trailing `/`. Runs 1 to 3 have no saved output; only run 4 is evidence.

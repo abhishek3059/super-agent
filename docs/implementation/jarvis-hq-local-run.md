@@ -284,7 +284,9 @@ inside the bot's sandbox).
 
 ## Not run
 
-- Any OpenAI call: voice, voice preview, dictation. No key was present.
+- Any OpenAI call in these runs: no key was present. The synthetic live voice
+  run passed on 2026-11-19 ([voice check record](jarvis-hq-voice-check.md#live-run-2026-11-19)).
+  Voice preview and dictation are still not run.
 - Composio connected apps and xAI `x_search`. Both are switched off in code.
 - All five browsers at once. Five gateways and two browsers ran together.
 - Windows and Linux. Bots do not start there without `HQ_UNCONTAINED=1`.

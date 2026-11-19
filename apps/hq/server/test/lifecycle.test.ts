@@ -147,22 +147,29 @@ test('a relaunched gateway is found by its own port and home, and nothing else o
   const { stopAllGateways } = await import('../src/engine.js');
   const { env } = await import('../src/env.js');
   const free = async () => { const s = net.createServer(); await new Promise<void>((r) => s.listen(0, '127.0.0.1', r)); const p = (s.address() as net.AddressInfo).port; s.close(); return p; };
-  const listen = (port: number, extra: string) => spawn(process.execPath, ['-e', `require('net').createServer().listen(${port},'127.0.0.1')`, extra], { detached: true, stdio: 'ignore' });
+  const listen = (port: number, extra: string, cwd?: string) => spawn(process.execPath, ['-e', `require('net').createServer().listen(${port},'127.0.0.1')`, extra], { detached: true, stdio: 'ignore', cwd });
   // Hermes relaunches itself in a new session: no pid record, only a listener running from the bot's home.
   const ourPort = await free();
   addBot.run('bot_relaunched', ourPort, Date.now(), Date.now());
   const ours = listen(ourPort, `${path.join(env.enginesDir, 'bot_relaunched')}/tools/python`);
+  // Its bootstrap form names no path at all (`python3 -I -c <script>`): only its working folder is the home.
+  const bootPort = await free();
+  const bootHome = path.join(env.enginesDir, 'bot_bootstrap');
+  fs.mkdirSync(bootHome, { recursive: true });
+  addBot.run('bot_bootstrap', bootPort, Date.now(), Date.now());
+  const booted = listen(bootPort, 'no-path', bootHome);
   // Something else, on another bot's port, that does not run from that bot's home.
   const otherPort = await free();
   addBot.run('bot_other', otherPort, Date.now(), Date.now());
   const stranger = listen(otherPort, '/somewhere/else');
-  t.after(() => { for (const c of [ours, stranger]) try { process.kill(c.pid!, 'SIGKILL'); } catch { /* gone */ } });
+  t.after(() => { for (const c of [ours, booted, stranger]) try { process.kill(c.pid!, 'SIGKILL'); } catch { /* gone */ } });
   await sleep(500);
   await stopAllGateways();
   // Our own children: a stopped one is only reaped through its exit event, so that is what counts.
   const alive = async (c: ChildProcess) => c.exitCode === null && c.signalCode === null
     && !(await Promise.race([once(c, 'exit').then(() => true), sleep(1000).then(() => false)]));
   assert.equal(await alive(ours), false, 'the relaunched gateway is stopped');
+  assert.equal(await alive(booted), false, 'the bootstrap-form gateway is stopped');
   assert.equal(await alive(stranger), true, 'a process that is not the bot\'s gateway is left alone');
 });
 

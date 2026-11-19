@@ -209,8 +209,8 @@ async function keyAccepted(url: string, key: string): Promise<boolean> {
 const GATEWAY = 'gateway run';
 
 /**
- * The bot's running gateway: the process listening on its engine port whose command runs from its
- * own Hermes home. Hermes relaunches itself in a new session after it starts, so the process this
+ * The bot's running gateway: the process listening on its engine port whose command or working folder
+ * is in its own Hermes home. Hermes relaunches itself in a new session after it starts, so the process this
  * server spawned is gone by then; the listener is what identifies the gateway. Only this bot's
  * sandbox may listen on that port, so nothing else can pose as it.
  */
@@ -220,8 +220,14 @@ function gatewayPid(botId: string): number | null {
   const listeners = spawnSync('lsof', ['-nP', `-iTCP:${port}`, '-sTCP:LISTEN', '-t'], { encoding: 'utf8', timeout: 3000 });
   for (const line of (listeners.stdout ?? '').split('\n').filter(Boolean)) {
     const pid = Number(line);
+    if (!Number.isInteger(pid) || pid <= 1) continue;
     const cmd = spawnSync('ps', ['-p', String(pid), '-o', 'command='], { encoding: 'utf8', timeout: 3000 }).stdout ?? '';
-    if (Number.isInteger(pid) && pid > 1 && cmd.includes(`${homeFor(botId)}/`)) return pid;
+    // Hermes' relaunch runs as `python3 -I -c <script>` with no path in its arguments; its working folder is the home.
+    const cwd = (spawnSync('lsof', ['-a', '-p', String(pid), '-d', 'cwd', '-Fn'], { encoding: 'utf8', timeout: 3000 }).stdout ?? '')
+      .split('\n').find((l) => l.startsWith('n'))?.slice(1) ?? '';
+    const home = homeFor(botId);
+    const real = fs.existsSync(home) ? fs.realpathSync(home) : home; // lsof prints resolved paths
+    if (cmd.includes(`${home}/`) || cwd === real || cwd.startsWith(`${real}/`)) return pid;
   }
   return null;
 }

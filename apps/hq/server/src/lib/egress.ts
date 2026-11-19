@@ -64,7 +64,8 @@ function target(host: string, port: string): { host: string; port: number } {
 // Names are resolved with c-ares, not getaddrinfo: dns.lookup runs on Node's small shared worker pool,
 // which a bot could fill with slow names and stall every lookup (and the server's file work) with it.
 const resolver = new dns.Resolver({ timeout: 3000, tries: 2 });
-const MAX_PENDING = 32;
+// A bot's first start installs packages over many parallel connections; 32 refused part of that burst.
+const MAX_PENDING = 256;
 let pending = 0;
 
 async function resolveAll(host: string): Promise<string[]> {

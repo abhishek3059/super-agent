@@ -34,6 +34,8 @@ exception, [DEC-23](../../descisions.md#dec-23). The maintainer's direction is
 You need macOS, Node.js 22 or newer, Google Chrome (or Chromium, Brave or
 Ego Browser), and a working `hermes` command with at least one model
 provider set up in `~/.hermes`.
+A new bot installs its own copy of the Hermes dependencies on first start.
+That takes about 50 seconds and 1 GB of disk per bot.
 
 ```bash
 cd apps/hq

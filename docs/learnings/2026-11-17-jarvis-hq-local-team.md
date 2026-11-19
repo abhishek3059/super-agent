@@ -92,3 +92,9 @@ prompt can carry the owner identity, chat and memory from an existing
 workspace. The [voice probe](../implementation/jarvis-hq-voice-check.md)
 checks both boundaries. Verify stale process cleanup before binding the
 server and keep PID records if identity checks fail.
+
+2026-11-19, live voice run. Leave room for each fresh bot's first start:
+Hermes installs its own dependencies, about 50 seconds and 1 GB per bot.
+Identify gateways by their working folder as well as their arguments,
+because a relaunched Hermes names no path. Do not probe a third-party page's
+markup: example.com dropped its `<h1>`, and that cost a run.

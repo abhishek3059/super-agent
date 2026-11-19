@@ -41,5 +41,50 @@ Actual loopback HQ with the key disabled:
 [1833 ms] FAIL mint Realtime session (HQ /api/voice/session HTTP 409)
 ```
 
-R-H.3 remains open. No OpenAI connection, live spoken result, or live
-barge-in was tested in this run. The browser call is also pending.
+That run did not reach OpenAI.
+
+## Live run, 2026-11-19
+
+The operator's OpenAI key came from the process environment only and was never
+printed. HQ ran on a fresh owner-only data folder (`HQ_DATA_DIR`), port 8797,
+owner "Voice Check", with synthetic speech from macOS `say`. Four runs, one
+fresh folder each:
+
+| Run | Result | Cause | Fix |
+| --- | --- | --- | --- |
+| 1 | FAIL at 84 s | Each bot's first gateway start installs Hermes dependencies (about 50 s). The egress proxy also refused part of that download burst as `busy`. | Probe deadline 84 s to 234 s. Egress lookup cap 32 to 256. |
+| 2 | FAIL at 234 s | Gateways from run 1 still held the engine ports. HQ could not see them: a relaunched Hermes runs as `python3 -I -c <script>`, with no home path in its arguments. | `gatewayPid` also accepts a listener whose working folder is the bot's home. New self-check case in `lifecycle.test.ts`. |
+| 3 | FAIL at 234 s | The chain worked, but example.com no longer has an `<h1>`. Scout correctly said so. | The probe asks for the page title (still "Example Domain"). |
+| 4 | **PASS** in 123 s | | |
+
+Run 4 output: [saved output](evidence/rh3-voice-check-output-20261119.txt).
+Run 4 used the code in the commit that adds this record (9a450dd plus these
+fixes). Only runs 1 to 4 used OpenAI, about a minute of Realtime audio each.
+Their cost was not measured here. Check it on the OpenAI usage page against
+the US$5 monthly cap.
+It covers connect, a `send_task` tool call handed to Jarvis, the handoff to
+Scout, Scout's browser result, the spoken result, barge-in with
+`response.cancel`, and no further audio after the cancel. The probe then
+ended the call. R-H.3 is met.
+
+The run 2 bug also affects normal use. After the 60-second cache expired,
+HQ lost track of a relaunched gateway. It then refused to start the bot
+("Port is taken by a process this app did not start") until someone killed
+that gateway by hand.
+
+Observed and not fixed here:
+
+- The operator's Hermes default model, `nvidia/nemotron-3-super-120b-a12b`,
+  returns HTTP 410 (retired 2026-10-03). Bots reach a fallback provider,
+  which costs about 40 seconds per turn. Fix this in the operator's
+  `~/.hermes/config.yaml`, not in HQ.
+- Hermes warns that the bot home "is read-only" and falls back to JSONL
+  sessions. Its own kanban ticks fail. The sandbox causes this: it denies
+  writes to the home folder itself so a bot cannot swap it, and Hermes's
+  writability check then fails. HQ does not use the Hermes kanban.
+- Hermes' shutdown-watchdog socket path is too long (`AF_UNIX path too
+  long`). Liveness probes lose one signal and nothing else.
+- Each fresh bot installs its own Hermes dependencies, about 1 GB per bot.
+
+The browser call (a person speaking through the web client) was not part
+of this probe.
