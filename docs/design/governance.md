@@ -104,8 +104,6 @@ class Turn:
     """Facts set by trusted code for one conversation turn. Never model claims."""
     heard: str | None      # the user's own transcript this turn, None outside a voice turn
     read_untrusted: bool   # a tier 1 read already ran this turn
-    memory_on: bool        # memory.enabled()
-    delegate_on: bool      # delegate_enabled(), already validated at session start
 
 @dataclass(frozen=True)
 class Decision:
@@ -128,7 +126,8 @@ Rules for `decide`:
    caller treats `"confirm"` as deny. No rule returns it in slices 1 to 3.
 4. New codes join `REASONS`: `untrusted_read_in_turn`, `not_asked`,
    `tool_disabled`. Callers map a code to their existing user-facing string,
-   so no message changes.
+   so no message changes. Any deny a caller does not map (including
+   `input_invalid`) returns a new fixed `DENIED` string, so it fails closed.
 
 No registry, no plugin hook, no rule objects. The inventory has five
 turn-level rules; a few `if` lines cover them.
@@ -161,7 +160,7 @@ The proposed rule targets the harm instead: an unwanted task.
 
 > **GR-1.** `delegate_task` is allowed only when the user's own words in this
 > turn contain an explicit request to do something (a fixed pattern, like
-> `_ASKED` for memory in `local_adapter.py` 128-132). Otherwise the gate
+> `policy.ASKED` for memory). Otherwise the gate
 > returns `deny` with `not_asked`. The model's claim that the user asked does
 > not count.
 
@@ -184,11 +183,12 @@ Each slice moves checks behind the gate with no change in behaviour. All
 existing tests pass unchanged; new tests are added only for `decide`.
 
 **Slice 1: the three untrusted-text and asked-for rules.** One session.
+**Built** in [PR 62](https://github.com/abhishek3059/super-agent/pull/62): [slice 1 record](../implementation/governance-gate-slice1.md).
 
 - `policy.py`: add `Turn`, `Decision`, `decide`; add `untrusted_read_in_turn`
   and `not_asked` to `REASONS`. Move the `_ASKED` patterns here unchanged.
-- `local_adapter.py`: `call_tool` builds a `Turn` from `_HEARD`,
-  `_READ_UNTRUSTED` and the switches, calls `decide`, and maps a deny to
+- `local_adapter.py`: `call_tool` builds a `Turn` from `_HEARD` and
+  `_READ_UNTRUSTED`, calls `decide`, and maps a deny to
   `DELEGATE_AFTER_READ`, `memory.AFTER_READ` or `NOT_ASKED` exactly as today.
   `_ASKED` is deleted from `local_adapter.py`. The switch checks stay for now.
 - `tests/test_policy.py`: add table tests for `decide`, including bad inputs
@@ -238,10 +238,8 @@ OD-G4.
 R-02.7 is in PH-02, with no exception tag. PH-02 is the current phase since
 PR #58 merged, and policy limits already live in R-02.3. [PR 59](https://github.com/abhishek3059/super-agent/pull/59), which
 adds it also adds the [decisions record](../approvals/governance-decisions.md).
-The `governance-gate-exception.md` record proposed in an earlier draft is not
-needed for slice 1 once that PR merges. If branch
-`feat/governance-gate-slice1` carries that exception record, it becomes
-historical.
+No `governance-gate-exception.md` record is needed. Slice 1 is built
+([record](../implementation/governance-gate-slice1.md)); R-02.7 has 4 slices and stays unticked.
 
 ### 6.3 Decisions only a maintainer can make
 

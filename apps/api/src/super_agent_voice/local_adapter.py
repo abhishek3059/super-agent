@@ -25,7 +25,7 @@ import wave
 from collections.abc import AsyncIterator, Awaitable, Callable
 from pathlib import Path
 
-from . import delegation, lfm3_voice, memory, tier1
+from . import delegation, lfm3_voice, memory, policy, tier1
 from .adapter import (
     AdapterError, AdapterEvent, AudioChunk, Interrupted, Thinking, Transcript, TurnComplete,
 )
@@ -138,18 +138,20 @@ def _delegate(arguments: object) -> str:
 # What the user said this turn. A small model sometimes saves things nobody asked it to,
 # so a memory write runs only when the user's own words asked for that kind of change.
 _HEARD: contextvars.ContextVar[str | None] = contextvars.ContextVar("heard", default=None)
-_ASKED = {
-    "remember_fact": re.compile(r"remember|note|save|store|memori[sz]e|keep in mind|don'?t forget"),
-    "add_reminder": re.compile(r"remind|alarm|wake me|remember|don'?t (?:let me )?forget"),
-    "forget": re.compile(r"forget|delete|remove|erase|clear|scratch"),
-}
 DELEGATE_AFTER_READ = ("error: no task can be started in a turn that read files, notes, mail or calendar. "
                        "Tell the user to ask again in a new sentence.")
 NOT_ASKED = "error: the user did not ask for that, so nothing was changed. Do not say it was."
 # The session's own list, set per turn by the adapter; a successful forget appends to it.
 _FORGOT: contextvars.ContextVar[list | None] = contextvars.ContextVar("forgot", default=None)
+DENIED = "error: that is not allowed right now, so nothing was done. Do not say it was."
 # Set by a tier 1 read inside a turn. Each turn is its own task, so this starts False every turn.
 _READ_UNTRUSTED: contextvars.ContextVar[bool] = contextvars.ContextVar("read_untrusted", default=False)
+
+
+def _decide(name: str) -> str | None:
+    d = policy.decide(name, policy.Turn(_HEARD.get(), _READ_UNTRUSTED.get()))
+    # OD-G2: "confirm" is a refusal in voice until T3, so only "allow" runs the tool.
+    return None if d.verdict == "allow" else d.code or d.verdict
 
 
 async def call_tool(name: object, arguments: object) -> str:
@@ -157,21 +159,28 @@ async def call_tool(name: object, arguments: object) -> str:
         _READ_UNTRUSTED.set(True)
         return await tier1.run_t1(name, arguments)
     if name == "delegate_task":
-        if not delegate_enabled():
+        on = delegate_enabled()  # read only here: a bad SUPER_AGENT_DELEGATE must not break other tools
+        if not on:
             return "error: no such tool."
-        if _READ_UNTRUSTED.get():  # text from a file, note or mail must not start a job over the user's data
+        code = _decide(name)
+        if code == "untrusted_read_in_turn":
             return DELEGATE_AFTER_READ
+        if code:  # any other deny, including input_invalid, fails closed
+            return DENIED
         return await asyncio.to_thread(_delegate, arguments)
     if name in memory.NAMES:
-        if not memory_enabled():
+        on = memory_enabled()
+        if not on:
             return "error: no such tool."
+        code = _decide(name)
         # Text from a file or email could ask for a reminder that later speaks a phishing
         # line in the assistant's voice, so a turn that read any of it cannot write memory.
-        if name in memory.WRITES and _READ_UNTRUSTED.get():
+        if code == "untrusted_read_in_turn":
             return memory.AFTER_READ
-        heard = _HEARD.get()
-        if heard is not None and name in _ASKED and not _ASKED[name].search(heard.casefold()):
+        if code == "not_asked":
             return NOT_ASKED
+        if code:  # any other deny, including input_invalid, fails closed
+            return DENIED
         result = await asyncio.to_thread(memory.run, name, arguments)
         if name == "forget" and result.startswith("Forgot") and (box := _FORGOT.get()) is not None:
             box.append(True)  # this session is not distilled: a reworded copy could come back
