@@ -4,9 +4,9 @@
 | --- | --- |
 | Date | 2026-11-18 |
 | Design | [governance gate](../design/governance.md) section 3 and section 5 "Slice 1" |
-| Authority | Maintainer `abhishek3059`, in chat, 2026-11-18: accepted `policy.py` as the gate (OD-G1) and asked for slice 1 |
+| Authority | Maintainer `abhishek3059` accepted `policy.py` as the gate (OD-G1) and asked for slice 1; see the [decisions record](../approvals/governance-decisions.md) |
 | Roadmap | R-02.7 slice 1 of 4, no exception (design section 6.2). R-02.7 stays unticked; `roadmap.md` is not edited here. |
-| Behaviour change | None |
+| Behaviour change | None for any verdict the rules produce today. Fail-closed hardening: a `confirm` verdict or an unmapped deny (such as `input_invalid`) is now refused (see Review fix). |
 
 ## What was built
 

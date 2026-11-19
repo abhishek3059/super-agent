@@ -183,7 +183,7 @@ Each slice moves checks behind the gate with no change in behaviour. All
 existing tests pass unchanged; new tests are added only for `decide`.
 
 **Slice 1: the three untrusted-text and asked-for rules.** One session.
-**Built** 2026-11-18, local branch only: [slice 1 record](../implementation/governance-gate-slice1.md).
+**Built** in [PR 62](https://github.com/abhishek3059/super-agent/pull/62): [slice 1 record](../implementation/governance-gate-slice1.md).
 
 - `policy.py`: add `Turn`, `Decision`, `decide`; add `untrusted_read_in_turn`
   and `not_asked` to `REASONS`. Move the `_ASKED` patterns here unchanged.
