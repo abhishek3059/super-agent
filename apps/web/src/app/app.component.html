@@ -37,6 +37,10 @@
       </div>
     }
 
+    @if (session.notice()) {
+      <p class="session-notice" role="status">{{ session.notice() }}</p>
+    }
+
     <section class="orb-section" aria-labelledby="voice-state-title">
       <button class="mic-core" type="button" (click)="centerAction()"
         [disabled]="session.status() === 'connecting'"
@@ -52,7 +56,6 @@
             <path stroke-linecap="round" stroke-linejoin="round" d="M12 18.8a6 6 0 0 0 6-6v-1.5m-6 7.5a6 6 0 0 1-6-6v-1.5m6 7.5v3.7m-3.8 0h7.6M12 15.8a3 3 0 0 1-3-3V4.5a3 3 0 1 1 6 0v8.3a3 3 0 0 1-3 3Z" />
           </svg>
         }
-        <span class="session-timer">{{ elapsedLabel() }}</span>
       </button>
 
       <div class="voice-copy">

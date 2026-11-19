@@ -72,8 +72,13 @@ SUPER_AGENT_MEMORY=on SUPER_AGENT_T1=files SUPER_AGENT_T1_FOLDERS="$HOME/super-a
   scripts/start-voice-mac.sh lfm3
 ```
 
-Open <http://127.0.0.1:4200>, run `pbcopy < ~/.super-agent/voice-token`, paste
-the token, and connect. Use `cascade` instead of `lfm3` for whisper.cpp and
+Open <http://127.0.0.1:4200>. The launcher copies the local token to the
+clipboard (it never prints it) and clears the clipboard when it exits, so
+paste it into the connection settings and connect. Turn off clipboard sync
+(Universal Clipboard on a Mac, "Sync across your devices" in Windows clipboard
+settings), or the token leaves this machine. A hard kill of the launcher
+skips the clear, and the Mac token file persists, so a copied token stays
+valid until you replace that file. Use `cascade` instead of `lfm3` for whisper.cpp and
 `say`.
 
 Memory: the launcher keeps one Ollama model loaded at a time. LFM3-Audio and
@@ -163,7 +168,14 @@ profile directory's ACL; an explicit owner-only ACL is not implemented yet.
 From any PowerShell working directory, call the launcher by its path. It uses
 its own location to find the repository, installs the locked dependencies,
 creates a fresh local token, starts the backend, waits for its health check,
-and then runs the frontend. `Ctrl+C` stops both services.
+and then runs the frontend. It copies the local token to the clipboard with
+`Set-Clipboard` and says so, without printing the token, and clears the
+clipboard when it exits; paste it into the console's connection settings.
+Turn off "Sync across your devices" in Windows clipboard settings, or the
+token leaves this machine. Clipboard history (Win+V) keeps its own copy even
+after the launcher clears the clipboard; delete that entry or turn history
+off. Closing the window or killing the launcher skips the clear. The token is
+new on every run, so an old copy stops working at the next launch. `Ctrl+C` stops both services.
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\start-voice-windows.ps1
@@ -246,7 +258,7 @@ deferred resume keeping speaking after the resume, and invalid metadata,
 odd, oversized, untagged, and malformed payloads. No microphone, provider
 call, or key is involved.
 
-`npm run test:ui` covers the status labels, timer formatting, and spectrum
+`npm run test:ui` covers the status labels and spectrum
 mapping used by the live voice interface. `npm run test:epoch` keeps the 8
 focused playback-epoch cases separate.
 

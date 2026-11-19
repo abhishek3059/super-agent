@@ -13,6 +13,8 @@ venv="${SUPER_AGENT_VENV:-$HOME/.super-agent/venv}"
 export OLLAMA_HOST=127.0.0.1:11434 OLLAMA_MAX_LOADED_MODELS=1 OLLAMA_KEEP_ALIVE=30m
 pids=()
 cleanup() {
+  # The token must not outlive the launcher on the clipboard.
+  if [[ -n "${token_copied:-}" ]]; then pbcopy </dev/null || true; fi
   if [[ -n "${pids[0]:-}" ]]; then
     kill "${pids[@]}" 2>/dev/null || true
   fi
@@ -46,5 +48,11 @@ if [[ "$mode" == "lfm3" ]]; then export SUPER_AGENT_STT=lfm3 SUPER_AGENT_TTS=lfm
 "$venv/bin/python" -m uvicorn super_agent_voice.app:create_app --factory \
   --host 127.0.0.1 --port 8000 --ws-max-size 65600 --ws-max-queue 4 & pids+=($!)
 npm start --prefix apps/web & pids+=($!)
-echo "Open http://127.0.0.1:4200 and paste the token: pbcopy < ~/.super-agent/voice-token"
+# The console keeps the token in memory only (REQ-11, REQ-12); never print it.
+if pbcopy < "$HOME/.super-agent/voice-token"; then
+  token_copied=1
+  echo "Open http://127.0.0.1:4200. Local token copied to the clipboard; paste it into the console settings."
+else
+  echo "Open http://127.0.0.1:4200 and paste the token from ~/.super-agent/voice-token"
+fi
 wait
