@@ -2,9 +2,9 @@
 
 | Field | Value |
 | --- | --- |
-| Date | 2026-11-16 |
+| Date | 2026-11-19 |
 | Revision | 6 |
-| Status | PH-DOC and PH-00 done; PH-01 in progress; later phases not started |
+| Status | PH-DOC, PH-00, and PH-01 done; PH-02 is the current phase; later phases not started |
 | Revision 2 note | Corrections applied 2026-11-07 for independent review finding R-02 (see [docs/reviews/super-agent.md](docs/reviews/super-agent.md)): entry prerequisites and exit/acceptance gates are now stated separately per phase; no gate is asserted to have passed. |
 | Revision 4 note | Status metadata updated 2026-11-07: actual independent reports now exist at [docs/reviews/super-agent.md](docs/reviews/super-agent.md) (design review, opens PASS for the revision-3 correction set) and [docs/security/super-agent.md](docs/security/super-agent.md) (design-stage security, opens PASS, findings LOW-01 and INFO-01–03, for signed design revision 1 plus that set); see [progress](progress.md). No future-phase gate is claimed passed and no runtime work has started; PH-DOC status is a status-revision clarification, not a final acceptance. |
 
@@ -58,7 +58,7 @@ Separately approved local scaffold/boundary and manually activated native voice 
 
 - **Entry prerequisites:** [RT-G00](prd.md#rt-g00) resolved (runtime consent, eligibility, host, task selection, budgets/retention) **and** explicit implementation authorization. The offline scaffold exists through the approved PH-01 exception. The Gemini adapter and standalone synthetic live check exist; browser-console provider integration, human microphone evidence, task completion, and RT-G01 acceptance remain phase work.
 - **Exit/acceptance gates:** [RT-002](tasks/002-local-scaffold-and-boundary.md) and [RT-003](tasks/003-native-voice-session.md) complete, and [RT-G01](prd.md#rt-g01) evidenced: actually reviewed scaffold/commands, deployed authentication/Host/Origin/CORS/WS/CSRF controls, backend-only secrets, and measured native media and backend event/control connection with manual activation, stop controls, visible states, and fail-closed transport behavior.
-- **Status:** `in progress`. Revision 2 of the [voice design](docs/design/voice-foundation.md) is merged. The Gemini Live adapter has offline tests and a standalone synthetic run against the real service. The [R-01.4 operator report](docs/approvals/r01-4-microphone-test.md) covers the revised offline scaffold. Defect items R-01.F5–F8 are resolved and verified (PR #42). R-01.10 is the remaining roadmap item.
+- **Status:** `done`. RT-002, RT-003, and RT-G01 were accepted on 2026-11-19 by `abhishek3059` ([decisions record](docs/approvals/r01-10-decisions.md)) in PR #58, with the limits stated there. Revision 2 of the [voice design](docs/design/voice-foundation.md) is merged. The Gemini Live adapter has offline tests and a standalone synthetic run against the real service. The [R-01.4 operator report](docs/approvals/r01-4-microphone-test.md) covers the revised offline scaffold. Defect items R-01.F5–F8 are resolved and verified (PR #42). R-01.10 was ticked on 2026-11-19.
 
 Task links: [RT-002](tasks/002-local-scaffold-and-boundary.md), [RT-003](tasks/003-native-voice-session.md).
 
@@ -128,7 +128,7 @@ Task links: [RT-012](tasks/012-private-native-audio-feasibility.md).
 | --- | --- | --- | --- | --- |
 | PH-DOC | Signed design + delivery sources. | DOC-A01–DOC-A06; manager-recorded independent review/security dispositions. | None. | `done` |
 | PH-00 | Separate authorization for feasibility/setup decision work; PH-DOC dispositions. | RT-001 dated setup decision; RT-G00 resolved. | [RT-001](tasks/001-runtime-consent-and-feasibility.md) | `done` |
-| PH-01 | RT-G00 resolved **and** explicit new scaffold authorization. | RT-002 + RT-003 complete; RT-G01 evidenced. | [RT-002](tasks/002-local-scaffold-and-boundary.md), [RT-003](tasks/003-native-voice-session.md) | `in progress` |
+| PH-01 | RT-G00 resolved **and** explicit new scaffold authorization. | RT-002 + RT-003 complete; RT-G01 evidenced. | [RT-002](tasks/002-local-scaffold-and-boundary.md), [RT-003](tasks/003-native-voice-session.md) | `done` |
 | PH-02 | RT-G01 evidenced. | RT-004 + RT-005 complete; RT-G02 evidenced. | [RT-004](tasks/004-task-ledger-and-policy.md), [RT-005](tasks/005-fixed-sample-workers.md) | `not started` |
 | PH-03 | RT-G02 evidenced / RT-005 complete. | RT-006 + RT-007 complete; RT-G03 evidenced; RT-008 complete; RT-G04 evidenced. | [RT-006](tasks/006-steering-and-stop-controls.md), [RT-007](tasks/007-recovery-and-retention.md), [RT-008](tasks/008-runtime-validation.md) | `not started` |
 | PH-04 | Fixed slice accepted (RT-G04); user-approved real task pair and worker/recipient capabilities. | RT-009 complete; RT-G05 bounded-planner evidence. | [RT-009](tasks/009-bounded-real-task-planner.md) | `not started` |

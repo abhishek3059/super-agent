@@ -4,7 +4,7 @@
 | --- | --- |
 | Date | 2026-11-12; criteria table, offline re-run, and revised live run added 2026-11-15 |
 | Integration baseline | `3025155` on `develop` (merge of [PR #34](https://github.com/abhishek3059/super-agent/pull/34)); offline suites re-run at `0638660` on 2026-11-15 |
-| Status | In progress. R-01.10 cannot be ticked: RT-002 and RT-003 are not accepted and [RT-G01](../../prd.md#rt-g01) remains open. Blockers are listed under [Blockers](#blockers). |
+| Status | Accepted 2026-11-19 by `abhishek3059` ([decisions record](../approvals/r01-10-decisions.md#4-evidence-accepted-for-rt-g01-2026-11-19)), with the limits stated there. RT-002 and RT-003 are accepted and [RT-G01](../../prd.md#rt-g01) is evidenced. Blockers 2, 3, and 4 are cleared below; blocker 1 was cleared on 2026-11-15. |
 | Approved boundary | [PH-00 setup decisions](../approvals/ph-00-setup-decisions.md): synthetic speech only to Gemini, personal microphone audio stays local |
 
 ## Criteria and evidence
@@ -18,20 +18,19 @@ the last column says what the evidence does not cover.
 | RT-002: minimal scaffold, exact dependency and command contract | [PR #13](https://github.com/abhishek3059/super-agent/pull/13), locked `apps/api/requirements.lock` and `apps/web/package-lock.json`, [run instructions](../../apps/voice-foundation.md), [Windows launcher](r01-f4-windows-launcher.md), [offline re-run](evidence/r01-10-offline-suites-20261115.txt) | Met for the scaffold. |
 | RT-002: unauthenticated clients, hostile or null origins, wrong Host cannot create a session; fail closed | Backend cases `test_rejects_bad_origin_and_token`, `test_wrong_origin_is_refused_before_auth`, `test_wrong_host_is_refused_before_auth`, `test_adapter_never_created_without_valid_auth` in `apps/api/tests/test_voice_api.py`; [security review](../reviews/r01-6-security-review.md) | Met offline. The independent review read commit `5de7293` and its closure check read `d5808c6`, with the fake adapter. |
 | RT-002: credential design reviewed; entropy, token file, expiry, throttling implemented | [credential design review](../reviews/r01-5-credential-design.md), token and throttle cases in `test_voice_api.py` | Met, except the Windows owner-only ACL (N2) and the token directory mode, which stay open as recorded in the [F2 acceptance](../approvals/r01-6-f2-risk-acceptance.md). |
-| RT-002: independent review covers the boundary as it now exists on `develop` | None. The `docs/reviews` folder has no review of the local adapter, the T1 and memory tools, the rebuilt console, or Gemini mode in the console. | **Missing.** |
-| RT-003: single manual native adapter and thin UI with indicators, backend control, mic and playback stops | Gemini adapter ([R-01.7](r01-7-gemini-adapter.md)); console with fake adapter tested by a person ([R-01.4](../approvals/r01-4-microphone-test.md), predates #34); generated-audio browser run (summary below, raw output not saved) | Partly met. The operator reported in the [PR #41](https://github.com/abhishek3059/super-agent/pull/41) description that a live Gemini session through the console worked. The output was not saved, so it is not evidence. |
-| RT-003: native behavior measured: stops, interruption, consent and failure | [Saved synthetic run](evidence/r01-9-live-check-output-20261112T000230Z.txt): reply, unsupported model refused. [Revised synthetic run, 2026-11-15](evidence/r01-10-live-check-output-20261115T172901Z.txt): reply, provider `Interrupted` on barge-in, `calculate` and `current_time` tool calls, unsupported model refused. Offline bridge tests for PCM framing and interruption order. | Partly met in the standalone tests. Each run had one sample. The explicit interrupt ended with `TurnComplete`. Measured playback stop, visible state and consent through the application remain **missing**. |
+| RT-002: independent review covers the boundary as it now exists on `develop` | [R-01.10 boundary review](../reviews/r01-10-boundary-review.md) of `d52d894`, with F5 fixed in [R-01.F9](r01-f9-handshake-proof.md) and F2 accepted for maintainer-only testing ([decisions](../approvals/r01-10-decisions.md)). | Met. B3 to B8 stay open. |
+| RT-003: single manual native adapter and thin UI with indicators, backend control, mic and playback stops | Gemini adapter ([R-01.7](r01-7-gemini-adapter.md)); console with fake adapter tested by a person ([R-01.4](../approvals/r01-4-microphone-test.md), predates #34); generated-audio browser run (summary below, raw output not saved) | Met under the 2026-11-19 maintainer decision. The [console run](evidence/r01-10-console-run-20261119T101357Z.md) shows the console connecting to Gemini, reply audio, mute, stop, restart, and fail-closed errors. Limits: S3 to S7 used synthetic speech through a harness; tool calls were not verified. The earlier PR #41 report is still not counted. |
+| RT-003: native behavior measured: stops, interruption, consent and failure | [Saved synthetic run](evidence/r01-9-live-check-output-20261112T000230Z.txt): reply, unsupported model refused. [Revised synthetic run, 2026-11-15](evidence/r01-10-live-check-output-20261115T172901Z.txt): reply, provider `Interrupted` on barge-in, `calculate` and `current_time` tool calls, unsupported model refused. Offline bridge tests for PCM framing and interruption order. | Partly met in the standalone tests. Each run had one sample. The explicit interrupt ended with `TurnComplete`. Through the application, the [console run](evidence/r01-10-console-run-20261119T101357Z.md) and its [harness JSON](evidence/r01-10-s3-s7-harness-20261119T141536Z.json) measured barge-in (playback stopped 460 ms after the talk-over began), mute, stop, restart, and visible states, one sample each, with synthetic speech for S3 to S7. Tool calls were not verified in the console. |
 | RT-003: no silent provider fallback; native model access not assumed | `test_gemini_selection_needs_the_key_and_never_echoes_it` in `test_gemini_console.py`, `SUPER_AGENT_ADAPTER` selection in `app.py` (unknown value or missing key refuses to start), `unsupported-model` step of the saved run, F7 and F8 below | Met offline and by one standalone live step. |
 | RT-G01: reviewed scaffold and commands | R-01.6 review, [Windows launcher record](r01-f4-windows-launcher.md) | Partly met. Same limit as the independent-review row. |
 | RT-G01: deployed authentication, Host, Origin, CORS, WebSocket, CSRF controls | R-01.6 review and [F2 acceptance](../approvals/r01-6-f2-risk-acceptance.md) | Met for the reviewed boundary. Review finding F5 (token goes to whatever process holds the port) is open, and the review said to raise it before Gemini is wired into a session. Gemini mode now is. The F2 acceptance has the same trigger. |
 | RT-G01: backend-only secrets | Key read from the process environment only; no key in logs or messages (`test_tokens_never_appear_in_logs_output_or_client_messages`, the selection test above); R-01.6 review | Met offline. |
-| RT-G01: measured native media and backend event and control connection, manual activation, stop controls, visible states | None through the application. | **Missing.** |
+| RT-G01: measured native media and backend event and control connection, manual activation, stop controls, visible states | [Console run](evidence/r01-10-console-run-20261119T101357Z.md) (S1, S2 by the operator; S3 to S7 by the harness, [JSON](evidence/r01-10-s3-s7-harness-20261119T141536Z.json); S8 to S10), accepted by [decision 4](../approvals/r01-10-decisions.md#4-evidence-accepted-for-rt-g01-2026-11-19). | Accepted with limits: synthetic speech for S3 to S7, no tool-call check, no latency targets (PH-03), run at `3fd4e16`. Commits `fa738a2` and `1d9f135` are covered by offline tests and the maintainer's unrecorded self-testing. |
 | RT-G01: fail-closed unsupported transport | `unsupported-model` result in the saved run (`fails_closed: true`); R-01.F7 and R-01.F8 checks below | Met. |
 
 ## Blockers
 
-R-01.10 stays unticked until these are cleared. R-01.F10 (muted keep-alive and stalled-microphone reporting, found in the first console run) is ticked in the PH-01 pull request; see its [record](r01-f10-idle-keepalive.md). Native media evidence needs a
-live run. Boundary implementation and offline verification can proceed first.
+All four blockers are cleared as of 2026-11-19 and R-01.10 is ticked. R-01.F10 (muted keep-alive and stalled-microphone reporting, found in the first console run) is ticked in the PH-01 pull request; see its [record](r01-f10-idle-keepalive.md). The native media run is recorded under blocker 2.
 
 The [subscription-backed runtime proposal](../design/subscription-backed-runtime.md)
 describes an OpenAI candidate and a later Claude worker. It needs a provider
@@ -57,7 +56,7 @@ loopback boundary finding remain outside the evidence.
    attempt the same evening failed every step with `session-failed`; the key
    prompt had probably received pasted text instead of the key. That output
    was not kept.
-2. **Native run through the console, recorded.** Activation, playback, visible
+2. **Native run through the console, recorded. Cleared 2026-11-19.** Activation, playback, visible
    state, stop and interruption, fail-closed failure with no fallback, and a
    check that client audio cannot bypass the adapter. A maintainer must first
    say which path counts for RT-G01: a real-microphone run under the
@@ -66,9 +65,15 @@ loopback boundary finding remain outside the evidence.
    [proposal](../design/synthetic-voice-console.md), which was never reviewed
    or built. Owner: one maintainer, per [DEC-21](../../descisions.md#dec-21).
    **Path decided 2026-11-19:** the real-microphone run counts
-   ([decisions record](../approvals/r01-10-decisions.md)). A [first, partial
-   run](evidence/r01-10-console-run-20261119T101357Z.md) passed S1, S9 and S10; S3 to S7 are still to run.
-3. **Independent review of the code now on `develop`**, including Gemini mode,
+   ([decisions record](../approvals/r01-10-decisions.md)). The
+   [run record](evidence/r01-10-console-run-20261119T101357Z.md) has S1 and S2
+   by the operator, S3 to S7 by an automated harness with synthetic speech
+   ([JSON](evidence/r01-10-s3-s7-harness-20261119T141536Z.json)), and S8 to
+   S10. The maintainer accepted it as the RT-G01 native-media evidence
+   ([decision 4](../approvals/r01-10-decisions.md#4-evidence-accepted-for-rt-g01-2026-11-19)).
+   It ran at `3fd4e16`; later commits `fa738a2` and `1d9f135` are covered by
+   offline tests and unrecorded self-testing only.
+3. **Independent review of the code now on `develop`. Cleared 2026-11-19.**, including Gemini mode,
    plus a decision on finding F5 and the F2 condition. Both were tied to
    wiring Gemini into a session. Owner: one maintainer decides; an
    independent reviewer agent can do the review. **Review done 2026-11-19;
@@ -79,8 +84,9 @@ loopback boundary finding remain outside the evidence.
    The fix for B1 (F5) is roadmap item R-01.F9 in the PH-01 pull request;
    see the [R-01.F9 record](r01-f9-handshake-proof.md). B2 (F2) is accepted
    for maintainer-only testing.
-4. **Records.** After 2 and 3, update the RT-002 and RT-003 records and tick
-   R-01.10 with links to the saved output and review.
+4. **Records. Cleared 2026-11-19.** The [RT-002](../../tasks/002-local-scaffold-and-boundary.md)
+   and [RT-003](../../tasks/003-native-voice-session.md) records are updated and
+   R-01.10 is ticked.
 
 ## What the evidence covers
 
@@ -192,5 +198,5 @@ record are out of date. The browser console can now construct the Gemini
 adapter (`SUPER_AGENT_ADAPTER=gemini`, merged in
 [PR #41](https://github.com/abhishek3059/super-agent/pull/41) under the
 [testing exception](../approvals/gemini-live-testing-exception.md)), and the
-synthetic-only console proposal was not the route taken. Leave PH-02
-untouched until the PH-01 exit is accepted.
+synthetic-only console proposal was not the route taken. The PH-01 exit
+was accepted on 2026-11-19; PH-02 is next.

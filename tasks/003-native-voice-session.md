@@ -3,8 +3,8 @@
 | Field | Value |
 | --- | --- |
 | Task ID | RT-003 |
-| Status | in progress; adapter, synthetic live check, and opt-in console wiring implemented, native measurements through the application missing |
-| Execution evidence | [Gemini adapter record](../docs/implementation/r01-7-gemini-adapter.md), [synthetic live-check record](../docs/implementation/r01-8-live-check.md), [local microphone test](../docs/approvals/r01-4-microphone-test.md), [criteria table](../docs/implementation/r01-10-acceptance.md#criteria-and-evidence), [offline re-run, 2026-11-15](../docs/implementation/evidence/r01-10-offline-suites-20261115.txt) |
+| Status | accepted (done) 2026-11-19 by `abhishek3059`, with the evidence limits listed below |
+| Execution evidence | [Gemini adapter record](../docs/implementation/r01-7-gemini-adapter.md), [synthetic live-check record](../docs/implementation/r01-8-live-check.md), [local microphone test](../docs/approvals/r01-4-microphone-test.md), [criteria table](../docs/implementation/r01-10-acceptance.md#criteria-and-evidence), [offline re-run, 2026-11-15](../docs/implementation/evidence/r01-10-offline-suites-20261115.txt), [R-01.F9](../docs/implementation/r01-f9-handshake-proof.md) and [R-01.F10](../docs/implementation/r01-f10-idle-keepalive.md) records, [decisions record](../docs/approvals/r01-10-decisions.md), [console run](../docs/implementation/evidence/r01-10-console-run-20261119T101357Z.md) |
 
 ## Scope
 
@@ -13,8 +13,9 @@ the real service exist. Since [PR #41](https://github.com/abhishek3059/super-age
 the browser console can construct the adapter with `SUPER_AGENT_ADAPTER=gemini`,
 for maintainer testing under the
 [testing exception](../docs/approvals/gemini-live-testing-exception.md); the
-fake adapter stays the default. No saved measurement covers the native path
-through the console. The target remains a manually activated path with
+fake adapter stays the default. The
+[console run](../docs/implementation/evidence/r01-10-console-run-20261119T101357Z.md)
+of 2026-11-19 covers the native path through the console. The target remains a manually activated path with
 indicators, backend control ownership, mic/playback stops, and no task workers
 or silent fallback.
 
@@ -24,8 +25,8 @@ No task workers, no silent transport/provider fallback, no assumed native model 
 
 ## Owner
 
-PH-01 implementation owner under the approved sequencing record. Final
-acceptance still depends on RT-002 and RT-G01.
+PH-01 implementation owner under the approved sequencing record. RT-002
+and RT-G01 were accepted with it on 2026-11-19.
 
 ## Prerequisites
 
@@ -62,10 +63,19 @@ holds the criterion-by-criterion table:
   and interruption ordering at the bridge.
 - Met by the standalone live run on 2026-11-15: the revised synthetic live
   run, with barge-in and tool calls.
-- Missing: native stop, interruption, and visible-state behavior measured
-  through the application.
+- Recorded 2026-11-19: native activation, playback, barge-in, mute, stop,
+  restart, no bypass, and fail-closed behavior through the console, in the
+  [console run](../docs/implementation/evidence/r01-10-console-run-20261119T101357Z.md).
+  S1 and S2 were by the operator; S3 to S7 by an automated harness with
+  synthetic speech ([JSON](../docs/implementation/evidence/r01-10-s3-s7-harness-20261119T141536Z.json)).
 
-Task completion and RT-G01 remain open.
+Accepted by `abhishek3059` on 2026-11-19
+([decisions record](../docs/approvals/r01-10-decisions.md#4-evidence-accepted-for-rt-g01-2026-11-19)).
+Residual limits: tool calls were not verified in the console; no latency
+targets were measured (RT-A02 belongs to PH-03); the later commits `fa738a2`
+and `1d9f135` are covered by offline tests and unrecorded self-testing only;
+F2 is accepted for maintainer-only testing and B3 to B8 of the boundary review
+stay open.
 
 ## Navigation
 
