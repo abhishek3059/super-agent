@@ -455,11 +455,14 @@ what the brain needs and what it will do if the answer is no.
 | IR-9 | A `resume_task(job_id)` operation that creates a new linked job (a `resumes` field) starting from the last verified checkpoint. The broker admits it like any task. | A stopped job can continue without replaying completed effects ([RT-A04](../../../prd.md#rt-a04)). Needed by the trip scenario in [evaluation](evaluation.md#12-acceptance-scenario-the-interrupted-trip). | Resuming means a fresh task from the spec, and the planner must skip completed work by itself. |
 | IR-10 | The ledger records the stop reason and actor (`user`, `failure`, `host_sleep`, `emergency_stop`) and keeps verified step checkpoints with the task spec for the OD-18 window. | The butler must say truthfully who stopped a job. | The butler cannot say who stopped it and states only the state name. |
 
-## 12. Roadmap proposal (proposed text only)
+## 12. Roadmap items (now on the roadmap)
 
-This is a proposal for a new parallel track. It is not a roadmap edit. Adding
-it needs a roadmap PR that changes `roadmap.md` and
-`scripts/roadmap-ids.txt` together and that a maintainer approves.
+Track M is in [roadmap.md](../../../roadmap.md), added by the roadmap PR
+recorded in [the roadmap record](../../implementation/roadmap-brain-memory-governance.md).
+R-M.1 to R-M.12 below keep their numbers. R-M.13 to R-M.19 were added in that
+PR (explicit facts, contradiction handling, decay and forget, the result
+handler, persona, and etiquette). The table is the original proposal text; the
+roadmap line is the one of record.
 
 **Parallel track M: brain and memory.** This track gates no phase and moves
 no gate. R-M.1 can happen any time. No item is built before its dependency is
