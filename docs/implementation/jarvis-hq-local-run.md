@@ -19,7 +19,7 @@ Output below is copied from the terminal. Bot ids are omitted.
 ```text
 $ npm run typecheck        (no errors)
 $ npm test
-# pass 15
+# pass 26
 # fail 0
 $ npm run build            (no errors)
 $ npm audit
@@ -29,7 +29,7 @@ $ npm run check            (repository root)
 roadmap self-test: all checks passed
 ```
 
-The self-checks grew from 6 to 15 during review and containment work, with
+The self-checks grew from 6 to 26 during review and containment work, with
 more assertions added inside them in later rounds; the figure above is the final
 run. With `xaiKey` in `env.ts` put back to read the environment, the
 "services stay off" check failed (`# pass 8`, `# fail 1`), so it does guard
@@ -246,6 +246,36 @@ listeners on its gateway and browser ports  none
 The race itself, a process swapping a folder during the delete, was not
 reproduced. The delete now runs inside the sandbox, where it cannot reach
 past the folder.
+
+### Round after the independent security review (R-H.4)
+
+The [security review](../reviews/jarvis-hq-security-review.md) found that
+bots could reach every loopback service through `::ffff:0.0.0.0`, and could
+write the operator's preferences. After the fixes, on 2026-11-19, with real
+bots and the real model:
+
+```text
+ports:  8787 app  8788 bots' tool endpoint  8789 bots' internet proxy
+proxy -> https://example.com              200
+proxy -> http://127.0.0.1:8787/api/health 403
+tool port /api/health                     404 (no app API there)
+
+Jarvis -> Scout: open https://www.iana.org/domains/reserved, report heading
+  Scout: "IANA-managed Reserved Domains"; Jarvis reported it.
+
+Forge's own shell, no proxy:
+  http://[::ffff:0.0.0.0]:8787/api/health     000 exit=7
+  http://[::ffff:0.0.0.0]:8650/health         000 exit=7
+  http://[::ffff:0.0.0.0]:9301/json/version   000 exit=7
+  http://127.0.0.1:8787/api/health            000 exit=7
+  http://127.0.0.1:8651/health                000 exit=7
+  http://127.0.0.1:9302/json/version          000 exit=7
+Forge through the proxy:
+  loopback 000 (refused)    https://example.com 200
+  defaults write com.hqlive.canary            Could not write domain (exit 1)
+  ls /private/var/tmp                         Operation not permitted
+outside: defaults read com.hqlive.canary      Domain not found
+```
 
 Not tested: a deliberate attempt to break out of `sandbox-exec` itself, and
 the memory-edit race itself (the change removes it by design: the edit runs

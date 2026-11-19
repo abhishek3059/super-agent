@@ -39,6 +39,10 @@ function readDotenv(file: string): Record<string, string> {
   return out;
 }
 
+function readJson(file: string): any {
+  try { return JSON.parse(fs.readFileSync(file, 'utf8')); } catch { return null; }
+}
+
 function readYaml(file: string): any {
   try { return YAML.parse(fs.readFileSync(file, 'utf8')) ?? {}; } catch { return {}; }
 }
@@ -59,10 +63,16 @@ const homeFor = (botId: string) => path.join(env.enginesDir, botId);
 
 // ---------- assignment ----------
 
+/**
+ * A port no bot has had before. Never reused: a process a deleted bot left behind keeps the sandbox
+ * of its old ports, and would otherwise reach the next bot given them.
+ */
 function freePort(): number {
-  const used = new Set((db.prepare('SELECT engine_port FROM bots WHERE engine_port IS NOT NULL').all() as any[]).map((r) => r.engine_port as number));
-  let p = env.enginePortBase;
-  while (used.has(p)) p++;
+  db.exec('CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)');
+  const stored = Number((db.prepare("SELECT value FROM meta WHERE key='next_engine_port'").get() as any)?.value ?? 0);
+  const highest = (db.prepare('SELECT MAX(engine_port) p FROM bots').get() as any)?.p ?? 0;
+  const p = Math.max(stored, highest + 1, env.enginePortBase);
+  db.prepare("INSERT OR REPLACE INTO meta(key, value) VALUES ('next_engine_port', ?)").run(String(p + 1));
   return p;
 }
 
@@ -77,12 +87,21 @@ export function assignEngine(botId: string): EngineKind {
 
 // ---------- a managed bot's Hermes home ----------
 
-/** Model credentials a bot's agent may inherit from the operator's Hermes. Never messaging tokens. */
-const SHARED_ENV = [
-  'ANTHROPIC_API_KEY', 'ANTHROPIC_BASE_URL', 'ANTHROPIC_TOKEN', 'CLAUDE_CODE_OAUTH_TOKEN',
-  'OPENAI_API_KEY', 'OPENAI_BASE_URL', 'OPENROUTER_API_KEY', 'XAI_API_KEY', 'GEMINI_API_KEY', 'GOOGLE_API_KEY', 'NOUS_API_KEY',
-  'FIRECRAWL_API_KEY', 'TAVILY_API_KEY', 'EXA_API_KEY', 'PARALLEL_API_KEY',
-];
+/**
+ * The model providers the operator's Hermes is set up to use: its default, its fallbacks and any
+ * custom ones. A bot gets credentials for these only, not every key the operator has.
+ */
+function configuredProviders(cfg: any): Set<string> {
+  const names = [cfg?.model?.provider, ...(Array.isArray(cfg?.fallback_providers) ? cfg.fallback_providers.map((f: any) => f?.provider) : []),
+    ...Object.keys(cfg?.providers ?? {}), ...Object.keys(cfg?.custom_providers ?? {})];
+  return new Set(names.filter((n): n is string => typeof n === 'string' && /^[a-z0-9][a-z0-9._-]{0,60}$/i.test(n)));
+}
+
+/** NVIDIA_API_KEY for "nvidia", CLOUDFLARE_ACCOUNT_ID for "cloudflare-workers-ai": the provider's own variables only. */
+function providerVariable(name: string, providers: Set<string>): boolean {
+  if (!/_(API_KEY|BASE_URL|ACCOUNT_ID)$/.test(name)) return false;
+  return [...providers].some((p) => name.startsWith(`${p.split(/[-_.]/)[0].toUpperCase()}_`));
+}
 
 /** Parts of the operator's Hermes config a bot's agent starts from, so it reaches the same models. */
 const SHARED_CONFIG = ['model', 'providers', 'custom_providers', 'auxiliary', 'fallback_model', 'fallback_providers'];
@@ -145,14 +164,18 @@ function writeHome(botId: string): string {
   writeOwn(home, 'config.yaml', YAML.stringify(cfg));
   writeOwn(home, 'SOUL.md', soul(b), 0o644);
 
-  // Subscription sign-ins live in auth.json, copied from the operator's Hermes each time the bot starts.
-  try { writeOwn(home, 'auth.json', fs.readFileSync(path.join(env.hermesHome, 'auth.json'), 'utf8')); } catch { /* the operator has none */ }
-
-  // Model keys from the operator's Hermes home only. This server's own keys (the voice key) are
-  // never handed to a bot, and messaging tokens never match these names.
+  // Sign-ins (auth.json) and keys (.env) from the operator's Hermes, for the configured providers
+  // only, copied fresh on each start. This server's own keys (the voice key) never reach a bot.
+  const providers = configuredProviders(primary);
+  const auth = readJson(path.join(env.hermesHome, 'auth.json'));
+  if (auth) {
+    const only = (o: any) => Object.fromEntries(Object.entries(o ?? {}).filter(([k]) => providers.has(k)));
+    writeOwn(home, 'auth.json', JSON.stringify({ ...auth, providers: only(auth.providers), credential_pool: only(auth.credential_pool),
+      active_provider: providers.has(auth.active_provider) ? auth.active_provider : null }));
+  }
   const primaryEnv = readDotenv(path.join(env.hermesHome, '.env'));
   const vars: Record<string, string> = {};
-  for (const [k, v] of Object.entries(primaryEnv)) if (v && (SHARED_ENV.includes(k) || /_API_KEY$|_BASE_URL$|^CLOUDFLARE_ACCOUNT_ID$/.test(k))) vars[k] = v;
+  for (const [k, v] of Object.entries(primaryEnv)) if (v && providerVariable(k, providers)) vars[k] = v;
   Object.assign(vars, { API_SERVER_ENABLED: 'true', API_SERVER_KEY: managedKey(botId), API_SERVER_PORT: String(b.engine_port), API_SERVER_HOST: '127.0.0.1', BROWSER_CDP_URL: cdp });
   writeOwn(home, '.env', Object.entries(vars).map(([k, v]) => `${k}=${v}`).join('\n') + '\n');
   return home;
@@ -178,6 +201,13 @@ async function keyAccepted(url: string, key: string): Promise<boolean> {
 const GATEWAY = 'gateway run';
 const gatewayPid = (botId: string) => livePid(`${botId}.gateway`, GATEWAY);
 
+/** The internet, for a confined process: only through the proxy. Loopback stays direct (its own listed ports). */
+export const proxyEnv = (): Record<string, string> => {
+  const proxy = `http://127.0.0.1:${env.egressPort}`;
+  return { HTTPS_PROXY: proxy, HTTP_PROXY: proxy, ALL_PROXY: proxy, https_proxy: proxy, http_proxy: proxy, all_proxy: proxy,
+    NO_PROXY: '127.0.0.1,localhost', no_proxy: '127.0.0.1,localhost', NODE_USE_ENV_PROXY: '1' };
+};
+
 /**
  * Where Hermes' browser helper keeps its socket. Named from the bot id, so a bot that reuses a deleted
  * bot's port never inherits its folder, and kept short: socket paths stop at 104 bytes.
@@ -193,7 +223,7 @@ function hermesContained(botId: string, args: string[]) {
   return contained(hermes, args, {
     read: [hermes, path.join(env.hermesHome, 'hermes-agent'), path.join(env.hermesHome, 'tools')],
     write: [homeFor(botId), path.join(env.filesDir, botId), bhFor(botId)],
-    localPorts: [env.port, botRow(botId).engine_port, cdpPortFor(botId)],
+    localPorts: [env.mcpPort, env.egressPort, botRow(botId).engine_port, cdpPortFor(botId)],
     listen: botRow(botId).engine_port,
   }, `${botId}.g`);
 }
@@ -250,6 +280,7 @@ async function startGateway(botId: string): Promise<void> {
       // Hermes' browser tool talks to a helper process it finds under this folder. With the default
       // (one folder per HOME) every agent on the computer would end up driving the same browser.
       BH_HOME: bh,
+      ...proxyEnv(),
     }),
   });
   fs.closeSync(log);

@@ -15,22 +15,29 @@ const fileFor = (name: string) => path.join(dir, `${name}.pid`);
 // Reserve a bot's ports while its process and file cleanup is in progress.
 export const deletingBots = new Set<string>();
 
+/** When the process started, as ps reports it: with the pid, it names one process even after the pid is reused. */
+function startedAt(pid: number): string | undefined {
+  const r = spawnSync('ps', ['-p', String(pid), '-o', 'lstart='], { encoding: 'utf8', timeout: 3000 });
+  return r.status === 0 ? r.stdout.trim() || undefined : undefined;
+}
+
 export function recordPid(name: string, pid: number | undefined) {
   if (!pid) return;
   fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
-  fs.writeFileSync(fileFor(name), String(pid), { mode: 0o600 });
+  fs.writeFileSync(fileFor(name), JSON.stringify({ pid, started: startedAt(pid) ?? '' }), { mode: 0o600 });
 }
 
 // A null result is stale or missing; undefined means we couldn't establish the process identity.
 function inspectPid(name: string, marker: string): number | null | undefined {
-  let pid: number;
-  try { pid = Number(fs.readFileSync(fileFor(name), 'utf8')); } catch (e) {
-    return (e as NodeJS.ErrnoException).code === 'ENOENT' ? null : undefined;
+  let pid: number, started: string;
+  try { ({ pid, started } = JSON.parse(fs.readFileSync(fileFor(name), 'utf8'))); } catch (e) {
+    return (e as NodeJS.ErrnoException).code === 'ENOENT' ? null : (e instanceof SyntaxError ? null : undefined);
   }
   if (!Number.isInteger(pid) || pid <= 1) return null;
   const result = spawnSync('ps', ['-p', String(pid), '-o', 'command='], { encoding: 'utf8', timeout: 3000 });
   if (result.error || result.signal) return undefined;
-  if (result.status === 0) return result.stdout.includes(marker) ? pid : null;
+  // Same command and same start time: the pid has not been handed to some other process since.
+  if (result.status === 0) return result.stdout.includes(marker) && started && startedAt(pid) === started ? pid : null;
   // With a valid selector and no matching processes, ps exits 1 without output.
   if (result.status === 1 && !result.stdout && !result.stderr) return null;
   return undefined;

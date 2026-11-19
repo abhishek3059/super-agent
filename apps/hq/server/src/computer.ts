@@ -89,7 +89,7 @@ async function startChrome(botId: string): Promise<void> {
   // Lock links from an earlier run point into the system temp folder; a new start makes its own.
   for (const f of ['SingletonLock', 'SingletonSocket', 'SingletonCookie']) fs.rmSync(path.join(profileDir(botId), f), { force: true });
   // The bot drives this browser freely (file:// pages, uploads, downloads), so the browser itself is
-  // confined: its own profile and the bot's working folder, the internet, and no local ports.
+  // confined: its own profile and the bot's working folder, and the internet through the proxy.
   // Chrome cannot start its own inner sandbox inside ours, hence --no-sandbox; ours covers every
   // process it starts. The Keychain is closed to it, hence the mock one.
   // shortcut: pages lose Chrome's per-site process isolation from each other; upgrade when Chrome
@@ -97,8 +97,10 @@ async function startChrome(botId: string): Promise<void> {
   const run = contained(bin, [
     '--headless=new', '--no-sandbox', '--use-mock-keychain', `--remote-debugging-port=${cdpPortFor(botId)}`, '--remote-debugging-address=127.0.0.1',
     `--user-data-dir=${profileDir(botId)}`, `--window-size=${SCREEN.width},${SCREEN.height + CHROME_UI}`,
-    '--no-first-run', '--no-default-browser-check', '--disable-background-networking', '--hide-scrollbars', home,
-  ], { read: [], write: [profileDir(botId), path.join(env.filesDir, botId)], localPorts: [], listen: cdpPortFor(botId), tempPrefix: bundleId(bin) }, `${botId}.c`);
+    '--no-first-run', '--no-default-browser-check', '--disable-background-networking', '--hide-scrollbars',
+    // The internet only through the proxy, which refuses loopback and private addresses.
+    `--proxy-server=http://127.0.0.1:${env.egressPort}`, '--proxy-bypass-list=<-loopback>', home,
+  ], { read: [], write: [profileDir(botId), path.join(env.filesDir, botId)], localPorts: [env.egressPort], listen: cdpPortFor(botId), tempPrefix: bundleId(bin) }, `${botId}.c`);
   // Nothing of this server's environment (the voice key lives there) reaches the browser.
   const child = spawn(run.bin, run.args, { detached: true, stdio: 'ignore', env: confinedEnv(`${botId}.c`) });
   let failed = '';

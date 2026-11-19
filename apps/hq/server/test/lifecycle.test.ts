@@ -46,14 +46,14 @@ test('a failing ps leaves the pid record and the bot available for a later delet
     recordPid(name, process.pid);
     assert.equal(livePid(name, 'node'), null);
     await assert.rejects(stopPid(name, 'node'), /could not verify/i);
-    assert.equal(fs.readFileSync(record, 'utf8'), String(process.pid));
+    assert.equal(JSON.parse(fs.readFileSync(record, 'utf8')).pid, process.pid);
     const request = () => api.request(`/bots/${botId}`, {
       method: 'DELETE', headers: { authorization },
     });
     const blocked = await request();
     assert.equal(blocked.status, 503);
     assert.ok(db.prepare('SELECT 1 FROM bots WHERE id=?').get(botId));
-    assert.equal(fs.readFileSync(record, 'utf8'), String(process.pid));
+    assert.equal(JSON.parse(fs.readFileSync(record, 'utf8')).pid, process.pid);
     assert.equal(deletingBots.has(botId), false, 'deletion releases the guard on failure');
 
     // Neither lifecycle entry point can start a marked bot.

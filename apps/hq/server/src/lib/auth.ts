@@ -40,5 +40,6 @@ export const requireUser: MiddlewareHandler<AuthVars> = async (c, next) => {
 };
 
 export function ownerProof(side: 'server' | 'client', client: string, server: string): string {
-  return crypto.createHmac('sha256', env.sessionSecret).update(`hq-owner:${side}:${client}:${server}`).digest('hex');
+  // Bound to this server's own address, so a process listening on another port cannot relay the exchange.
+  return crypto.createHmac('sha256', env.sessionSecret).update(`hq-owner:${new URL(env.appUrl).origin}:${side}:${client}:${server}`).digest('hex');
 }

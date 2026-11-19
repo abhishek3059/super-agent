@@ -76,6 +76,8 @@ All optional, read from the environment or from `~/.super-agent/hq/.env`.
 | Variable | Default | Meaning |
 | --- | --- | --- |
 | `PORT` | `8787` | Server port on 127.0.0.1 |
+| `HQ_MCP_PORT` | `PORT + 1` | The bots' tool endpoint, the only app port bots can reach |
+| `HQ_EGRESS_PORT` | `PORT + 2` | The bots' internet proxy |
 | `HQ_DATA_DIR` | `~/.super-agent/hq` | Database, bot homes, browser profiles, files |
 | `OPENAI_API_KEY` | none | Turns on voice, dictation and voice preview |
 | `OPENAI_VOICE_MODEL` | `gpt-realtime-2.1` | Realtime model |
@@ -91,8 +93,10 @@ Nothing is written into the repository. Under `~/.super-agent/hq` (mode 0700):
 Library) and `server.log`.
 
 A new bot's Hermes home starts from your own `~/.hermes`: the model settings,
-`auth.json`, and the provider keys in `.env` (names ending `_API_KEY` or
-`_BASE_URL`). Messaging tokens are not copied. The voice key in the data
+and the sign-ins (`auth.json`) and keys (`.env`, names such as `NVIDIA_API_KEY`
+or `CLOUDFLARE_ACCOUNT_ID`) of the providers that settings name as default,
+fallback or custom. Keys for other providers, and messaging tokens, are not
+copied. For real use, give bots dedicated, revocable, spend-capped keys. The voice key in the data
 folder is not handed to bots. Your own Hermes gateway and its files are
 never changed. To add a sign-in, run `hermes auth add <provider>` in your own
 terminal and restart the bot; the in-app sign-in button is off because it
@@ -105,7 +109,10 @@ sign out your own Hermes when a copy refreshes.
   is not the loopback address and any browser request from another origin.
 - The launcher authenticates the local server using a fresh challenge.
   Only the holder of `session-secret` can complete sign-in and mint a
-  one-time link. The session cookie is `HttpOnly` and `SameSite=Strict`.
+  one-time link. The proofs name the server's own address, so a process on
+  another port cannot relay them. The browser then holds a bearer token in
+  its session storage, stored hashed on the server. The app page sends a
+  content security policy that allows only its own scripts.
 - A watch-mode viewer cannot send input. A control-mode viewer can send only
   mouse and key events.
 - Approval cards accept only an explicit allow. Anything else is refused.
@@ -125,13 +132,17 @@ Each bot's Hermes gateway and its browser run inside the macOS sandbox
   folder, the app's data folder (session secret, database, other bots'
   folders), the shared temporary folders, other users' folders or other
   disks;
-- can reach the internet, this server's tool endpoint and its own browser,
-  and no other local port or local socket (so not another bot, and not your
-  `ssh-agent`);
+- has no direct network access. It reaches its own browser, the app's tool
+  endpoint and an internet proxy, each on a loopback port of its own; it
+  never reaches the app's own API. The proxy resolves each name itself and
+  refuses loopback, private, link-local and other non-public addresses, so
+  the internet is open and local services are not (not another bot, not your
+  own browser's debugging port, not your `ssh-agent`);
 - can listen only on its own port and in its own folders, so it cannot take
   another bot's port before that bot starts;
-- cannot open apps, send Apple events, start launchd jobs, read the Keychain
-  or the clipboard, or see or signal other processes.
+- cannot open apps, send Apple events, start launchd jobs, change your
+  default apps, read or write your preferences, read the Keychain or the
+  clipboard, or see or signal other processes.
 
 The server itself is not sandboxed, so it does not trust anything a bot can
 write:
@@ -142,8 +153,9 @@ write:
   a sandbox that can reach only that folder. A link or folder a bot swaps in
   inside it can only lead back into that folder, and the server refuses to
   use a bot folder that is itself a link.
-- The ids of the processes it started are kept in its own folder, so a bot
-  cannot point the server at another process to stop.
+- The ids of the processes it started are kept in its own folder with their
+  start times, so a bot cannot point the server at another process to stop,
+  and a reused id is not mistaken for one of them.
 - A process on a bot's port that the server did not start is refused, not
   adopted. The live view and screenshots connect only to the browser the
   server started, and only to a page address on that browser's own port.
@@ -151,7 +163,8 @@ write:
   contents are deleted from inside the bot's sandbox, so a link left in them
   is removed, never followed. A bot that locked files in its own folder
   (`chmod`, `chflags`) can stop that delete; the folder is then left behind
-  and the server logs it. A new bot never reuses those folders.
+  and the server logs it. A new bot never reuses those folders, or a
+  deleted bot's ports.
 - Before listening, the server stops the recorded gateways and browsers
   left by earlier runs. If process identity cannot be checked, the server
   retains the PID record and fails startup. A bot delete stays retryable

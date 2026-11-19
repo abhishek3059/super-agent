@@ -70,7 +70,7 @@ test('owner sign-in consumes a distinct, single-use client proof', async () => {
   assert.equal(challenge.status, 200);
   const { proof: serverProof, server } = await challenge.json();
   const hmac = (side: string) => crypto.createHmac('sha256', env.sessionSecret)
-    .update(`hq-owner:${side}:${client}:${server}`).digest('hex');
+    .update(`hq-owner:${new URL(env.appUrl).origin}:${side}:${client}:${server}`).digest('hex');
   assert.equal(serverProof, hmac('server'));
   const post = (proof: string) => api.request('/auth/owner', {
     method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ server, proof }),
@@ -192,7 +192,10 @@ test('a bot sandbox closes reads, writes and local sockets outside what it is gi
   const reads = p.split('\n').find((l) => l.startsWith('(deny file-read*'))!;
   for (const d of [os.homedir(), real, '/private/tmp', '/private/var/folders', '/Volumes']) assert.ok(reads.includes(`(subpath "${fs.realpathSync(d)}")`), d);
   assert.ok(at('(deny network-outbound (remote unix-socket))') < at(`(remote unix-socket (subpath "${real}/files/bot_a"))`));
-  assert.ok(at('(deny network-outbound (remote ip "localhost:*"))') < at('(allow network-outbound (remote ip "localhost:8787"))'));
+  assert.ok(at('(deny network-outbound (remote ip "*:*"))') < at('(allow network-outbound (remote ip "localhost:8787"))'), 'all network denied first, then its own ports');
+  at('(deny user-preference-read user-preference-write)');
+  at('com.apple.lsd.modifydb');
+  assert.ok(reads.includes('(subpath "/private/var/tmp")'), 'the shared /var/tmp is closed');
   for (const rule of ['(deny lsopen)', '(deny appleevent-send)', '(deny job-creation)', '(deny process-info* (target others))', 'com.apple.SecurityServer']) at(rule);
   assert.ok(!sandboxProfile({ read: [], write: ['/tmp/a"b'], localPorts: [] }).includes('a"b'), 'quotes in a path cannot end the string');
   const bad = sandboxProfile({ read: [], write: [], localPorts: [], tempPrefix: 'x")) (allow default' });
@@ -315,4 +318,35 @@ test('deleting a bot folder removes what is inside it and never what a link insi
   fs.symlinkSync(outside, root);
   await removeOwn(root);
   assert.equal(fs.existsSync(path.join(outside, 'precious.txt')), true);
+});
+
+test('inside the sandbox no loopback address form reaches an unlisted port, and preferences are closed', { skip: process.platform !== 'darwin' }, async (t) => {
+  const net = await import('node:net');
+  const { contained, confinedEnv } = await import('../src/sandbox.js');
+  const { execFileSync } = await import('node:child_process');
+  let hits = 0;
+  const canary = net.createServer((sock) => { hits++; sock.end('CANARY'); });
+  await new Promise<void>((r) => canary.listen(0, '127.0.0.1', r));
+  t.after(() => canary.close()); // a failed assertion must not leave the test process waiting on this server
+  const port = (canary.address() as any).port;
+  const own = path.join(env.dataDir, 'files', 'bot_net');
+  fs.mkdirSync(own, { recursive: true });
+  // The system curl runs inside the sandbox (a python shim does not). Exit 7 is "could not connect",
+  // returned at once when the sandbox denies it; the old localhost-only rule let ::ffff:0.0.0.0 through
+  // to a connection attempt instead (exit 28 here, a full connection in the security review).
+  for (const host of ['127.0.0.1', '0.0.0.0', '[::1]', '[::]', '[::ffff:127.0.0.1]', '[::ffff:0.0.0.0]']) {
+    const run = contained('/usr/bin/curl', ['-s', '-m', '3', '-o', '/dev/null', `http://${host}:${port}/`], { read: [], write: [own], localPorts: [] }, 'bot_net.t');
+    let code = 0;
+    try { execFileSync(run.bin, run.args, { cwd: own, env: confinedEnv('bot_net.t'), stdio: 'ignore', timeout: 15000 }); } catch (e: any) { code = e.status; }
+    assert.equal(code, 7, `${host} must be refused outright`);
+  }
+  assert.equal(hits, 0, 'nothing reached the canary');
+  // Preferences live outside the sandbox and are written by cfprefsd: closed.
+  const domain = `com.hqselfcheck.${process.pid}`;
+  const run = contained('/usr/bin/defaults', ['write', domain, 'k', 'v'], { read: [], write: [own], localPorts: [] }, 'bot_net.t');
+  try { execFileSync(run.bin, run.args, { env: confinedEnv('bot_net.t'), stdio: 'ignore' }); } catch { /* refused */ }
+  let written = true;
+  try { execFileSync('/usr/bin/defaults', ['read', domain, 'k'], { stdio: 'ignore' }); } catch { written = false; }
+  if (written) execFileSync('/usr/bin/defaults', ['delete', domain]);
+  assert.equal(written, false, 'the preference was not written');
 });

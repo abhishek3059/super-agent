@@ -58,6 +58,14 @@ screen relay in place of VNC, OpenAI Realtime in place of xAI voice.
 - Chromium ignores `TMPDIR` for its profile lock on macOS and puts it in the
   per-user temporary folder, with a socket path limit of 104 bytes.
 
+- An address filter written as `localhost:*` in a macOS sandbox profile did
+  not cover `::ffff:0.0.0.0`, which still reaches 127.0.0.1. Deny all
+  outbound network first, allow the exact loopback ports, and give the
+  internet back through a proxy that checks addresses after resolving.
+- A sandbox check that runs a program which cannot start inside the sandbox
+  passes without testing anything. Check the program ran, and make sure the
+  check fails against the old rule.
+
 ## What to do differently
 
 - Check for an existing licensed implementation before building in parallel

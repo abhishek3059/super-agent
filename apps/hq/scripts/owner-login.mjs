@@ -12,7 +12,7 @@ export async function ownerLogin(base, dataDir, signal = AbortSignal.timeout(500
   const secret = process.env.SESSION_SECRET ?? fs.readFileSync(path.join(dataDir, 'session-secret'), 'utf8').trim();
   if (!secret) throw new Error('Owner sign-in secret is missing');
   const client = crypto.randomBytes(32).toString('hex');
-  const hmac = (side, server) => crypto.createHmac('sha256', secret).update(`hq-owner:${side}:${client}:${server}`).digest('hex');
+  const hmac = (side, server) => crypto.createHmac('sha256', secret).update(`hq-owner:${url.origin}:${side}:${client}:${server}`).digest('hex');
   const endpoint = `${base}/api/auth/owner`;
   const options = { redirect: 'error', signal };
   const challenge = await fetch(`${endpoint}?client=${client}`, options);

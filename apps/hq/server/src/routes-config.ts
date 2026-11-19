@@ -5,6 +5,7 @@ import { newId } from './lib/ids.js';
 import { hub } from './lib/hub.js';
 import { requireUser, type AuthVars } from './lib/auth.js';
 import { listOwn, streamOwn } from './lib/own.js';
+import { deletingBots } from './lib/procs.js';
 import fs from 'node:fs';
 import { Readable } from 'node:stream';
 import { env } from './env.js';
@@ -24,7 +25,8 @@ for (const p of ['/bots/*', '/skills/*', '/computer/*']) configApi.use(p, requir
 
 const ownBot = (userId: string, id: string) => {
   const b = getBotRow(id);
-  return b && b.user_id === userId ? b : null;
+  // A bot being deleted is gone already: nothing may recreate its folders.
+  return b && b.user_id === userId && !deletingBots.has(id) ? b : null;
 };
 
 const toSkill = (s: any): Skill => ({ id: s.id, botId: s.bot_id, name: s.name, description: s.description ?? '', body: s.body, createdAt: s.created_at, updatedAt: s.updated_at ?? s.created_at });

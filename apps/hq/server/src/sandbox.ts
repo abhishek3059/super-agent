@@ -44,7 +44,7 @@ function ancestors(p: string): string[] {
  * wherever settings put them.
  */
 const closed = () => [
-  os.homedir(), '/Users', '/Volumes', '/Network', '/private/var/root', '/private/tmp', '/private/var/folders',
+  os.homedir(), '/Users', '/Volumes', '/Network', '/private/var/root', '/private/tmp', '/private/var/tmp', '/private/var/folders',
   env.dataDir, env.enginesDir, env.profilesDir, env.filesDir, path.dirname(env.dbPath), env.hermesHome,
 ];
 
@@ -59,6 +59,7 @@ const SERVICES = [
   'com.apple.SecurityServer', 'com.apple.securityd', 'com.apple.secd', 'com.apple.security.agent', // Keychain
   'com.apple.pasteboard.1', // clipboard
   'com.apple.coreservices.quarantine-resolver',
+  'com.apple.lsd.modifydb', // changing the operator's default apps
   'com.apple.tccd', 'com.apple.tccd.system',
 ];
 
@@ -76,6 +77,9 @@ export function sandboxProfile(c: Confinement): string {
     `(deny mach-lookup ${SERVICES.map((s) => `(global-name ${q(s)})`).join(' ')})`,
     // Other processes: not their environment (it can hold keys), not their signals.
     '(deny process-info* (target others))', '(deny signal (target others))',
+    // Preferences go through cfprefsd, which runs outside the sandbox and would write any of the
+    // operator's preference domains for it.
+    '(deny user-preference-read user-preference-write)',
     // Files. Writes: nowhere but its own folders, so it cannot replace a program the operator runs
     // later (Homebrew, /Applications, /usr/local). Reads: nothing under the closed folders.
     '(deny file-write* (subpath "/"))',
@@ -92,8 +96,11 @@ export function sandboxProfile(c: Confinement): string {
     '(deny network-bind)',
     c.listen ? `(allow network-bind (local ip "localhost:${Math.trunc(c.listen)}"))` : '',
     write.length ? `(allow network-bind ${write.map((d) => `(local unix-socket (subpath ${q(d)}))`).join(' ')})` : '',
-    // Local network: only its own ports. Another bot's browser and gateway listen on loopback too.
-    '(deny network-outbound (remote ip "localhost:*"))',
+    // Network: nothing direct, then only its listed loopback ports (the app's tool endpoint, the
+    // internet proxy, its own browser). A `localhost` filter alone missed ::ffff:0.0.0.0, which the
+    // kernel routes to 127.0.0.1, so everything is denied first. The internet goes through the proxy,
+    // which refuses loopback and private addresses after resolving the name.
+    '(deny network-outbound (remote ip "*:*"))',
     // Local sockets: only its own (the browser helper's, Chrome's lock) and the system's name lookup
     // and log, not the operator's ssh-agent or anyone else's.
     '(deny network-outbound (remote unix-socket))',
