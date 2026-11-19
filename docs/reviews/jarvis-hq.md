@@ -191,4 +191,22 @@ On `e71f06f`, after the Codex session's work (R-H.1 approval record, bearer sign
 | --- | --- | --- | --- | --- |
 | 9 | 8 | 8 | 8 | 8 |
 
-All pass 10 fixes verified in code and docs; `npm test` 30 of 30. Remaining findings were wording and records: the run record's test count, passes 10 and 11 missing from this file, the PR body pointing at a review comment that did not exist, the README and approval record miscounting the security findings. All corrected. A note: bots created before the port fix keep their ports, which matters only after more than about 130 bot creations.
+All pass 10 fixes verified in code and docs; `npm test` 30 of 30. Remaining findings were wording and records: the run record's test count, passes 10 and 11 missing from this file, the PR body pointing at a review comment that did not exist, the README and approval record miscounting the security findings. Corrected, except the PR body, which was fixed only after pass 13 (see below). A note: bots created before the port fix keep their ports, which matters only after more than about 130 bot creations.
+
+## Pass 12: REVISE (average 8.2)
+
+| Correctness | Security | Honesty | Scope | Clarity |
+| --- | --- | --- | --- | --- |
+| 9 | 8 | 8 | 8 | 8 |
+
+On `f96184e` (documentation only). The pass 11 corrections were verified; `npm test` 30 of 30. Findings: the PR body still pointed at a review comment that did not exist; the run record still said CI had not run; a README bullet said `sandbox-exec` had no independent review, contradicting the review scope stated above it. The run record and README were corrected; the PR body was fixed after pass 13.
+
+Before pass 13 the branch also took in the latest `develop` (PH-01 closed, the governance gate and other merged work). The only conflict was the learnings index, where both rows were kept.
+
+## Pass 13: REVISE (average 8.4)
+
+| Correctness | Security | Honesty | Scope | Clarity |
+| --- | --- | --- | --- | --- |
+| 9 | 8 | 8 | 8 | 9 |
+
+On `4f353af`. The merge was verified to keep both sides: every file outside this PR is identical to `develop`, `develop`'s PH-01 close and current phase PH-02 are kept, and ticks in parallel track H are allowed by the roadmap check. `npm test` 30 of 30; the Jarvis HQ CI workflow passed. Findings: this file lacked passes 12 and 13 and overstated pass 11; the PR body still lacked the pasted report; a README line ("There are no workers") could be read as contradicting Jarvis HQ; the disabled Composio and xAI code is still present (disclosed, accepted earlier as low). The first three were fixed; the PR body now carries the pass 13 report.
