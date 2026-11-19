@@ -10,6 +10,7 @@ $webPackage = Join-Path $repoRoot "apps\web\package.json"
 $voiceVenv = Join-Path $env:LOCALAPPDATA "Temp\super-agent-voice-venv"
 $voicePython = Join-Path $voiceVenv "Scripts\python.exe"
 $backend = $null
+$tokenCopied = $false
 $previousPythonPath = [Environment]::GetEnvironmentVariable("PYTHONPATH", "Process")
 $previousLocalToken = [Environment]::GetEnvironmentVariable("SUPER_AGENT_LOCAL_TOKEN", "Process")
 $previousGeminiKey = [Environment]::GetEnvironmentVariable("GEMINI_API_KEY", "Process")
@@ -107,6 +108,7 @@ try {
     # over through the clipboard for pasting. Never print it.
     try {
         Get-Content -Raw -LiteralPath (Join-Path $HOME ".super-agent\voice-token") | Set-Clipboard
+        $tokenCopied = $true
         Write-Host "Local token copied to the clipboard. Paste it into the console settings."
     } catch {
         Write-Host "Could not copy the local token to the clipboard. Copy it from the token file."
@@ -117,6 +119,8 @@ try {
     & $npm start --prefix (Join-Path $repoRoot "apps\web")
     if ($LASTEXITCODE -ne 0) { throw "The frontend exited with an error." }
 } finally {
+    # The token must not outlive the launcher on the clipboard.
+    if ($tokenCopied) { try { Set-Clipboard -Value $null } catch { } }
     if ($null -ne $backend -and -not $backend.HasExited) {
         Stop-Process -Id $backend.Id -ErrorAction SilentlyContinue
     }

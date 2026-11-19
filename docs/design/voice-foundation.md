@@ -295,7 +295,7 @@ Error categories:
 | `invalid-control` | Malformed JSON, unknown event, or missing field. |
 | `invalid-audio` | Odd length, oversized frame, or audio before ready. |
 | `max-duration` | Code-level 15-minute limit reached. |
-| `session-timeout` | 60-second idle limit reached. The console shows it as a plain notice ("Session ended after 60 s idle") and returns to the ready state, not as an error. |
+| `session-timeout` | 60-second idle limit reached. The console shows it as a plain notice ("Session ended after the idle limit") and returns to the ready state, not as an error. |
 | `session-busy` | One active session already exists. |
 | `provider-unavailable` | Connection, DNS, TLS, or network failure. |
 | `provider-limits` | Quota or rate limit. |
@@ -430,7 +430,7 @@ Threat model:
 | Another OS user on the same machine | Yes | Loopback is shared by every local user, so the token file is mode 0600 in the owner's home directory. |
 | Malicious process running as the same user | **Out of scope** | It can read the token file, environment, and process memory. Stated, not defended. |
 | Browser extension with page access | Partly | Can read the password field and page memory. Mitigated by the cookie flow, a strict CSP, and zeroing the in-memory token after use. |
-| Shoulder surfing, clipboard, shell history | Yes | Token never shown after generation, never typed inline in a shell command; clipboard copy is optional and documented as a leak path. |
+| Shoulder surfing, clipboard, shell history | Yes | Token never shown after generation, never typed inline in a shell command; the launchers copy it to the clipboard and clear it on exit; clipboard sync and history are documented leak paths. |
 | Logs, error bodies, close reasons, crash dumps | Yes | Token never logged or echoed; fixed error text; secret-scan tests. |
 | Remote network attacker | **Out of scope** | The server binds only to `127.0.0.1`. |
 

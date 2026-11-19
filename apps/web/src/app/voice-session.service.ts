@@ -243,7 +243,7 @@ export class VoiceSessionService {
       // The idle limit (60 s without audio frames, enforced by the backend)
       // is an expected end, not a failure: the console returns to ready.
       if (category === 'session-timeout') {
-        this.notice.set('Session ended after 60 s idle. Start again when ready.');
+        this.notice.set('Session ended after the idle limit. Start again when ready.');
         void this.cleanup('stopped', generation);
       } else {
         this.fail(`Voice session failed: ${category}`);

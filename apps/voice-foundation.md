@@ -73,8 +73,10 @@ SUPER_AGENT_MEMORY=on SUPER_AGENT_T1=files SUPER_AGENT_T1_FOLDERS="$HOME/super-a
 ```
 
 Open <http://127.0.0.1:4200>. The launcher copies the local token to the
-clipboard (it never prints it), so paste it into the connection settings and
-connect. Use `cascade` instead of `lfm3` for whisper.cpp and
+clipboard (it never prints it) and clears the clipboard when it exits, so
+paste it into the connection settings and connect. Turn off clipboard sync
+(Universal Clipboard on a Mac, "Sync across your devices" in Windows clipboard
+settings), or the token leaves this machine. Use `cascade` instead of `lfm3` for whisper.cpp and
 `say`.
 
 Memory: the launcher keeps one Ollama model loaded at a time. LFM3-Audio and
@@ -165,8 +167,11 @@ From any PowerShell working directory, call the launcher by its path. It uses
 its own location to find the repository, installs the locked dependencies,
 creates a fresh local token, starts the backend, waits for its health check,
 and then runs the frontend. It copies the local token to the clipboard with
-`Set-Clipboard` and says so, without printing the token; paste it into the
-console's connection settings. `Ctrl+C` stops both services.
+`Set-Clipboard` and says so, without printing the token, and clears the
+clipboard when it exits; paste it into the console's connection settings.
+Turn off "Sync across your devices" in Windows clipboard settings, or the
+token leaves this machine. Clipboard history (Win+V) can still keep a copy
+while the launcher runs. `Ctrl+C` stops both services.
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\start-voice-windows.ps1

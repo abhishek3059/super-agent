@@ -786,7 +786,7 @@ await (async function idleTimeoutIsNotAFailure() {
   await flushed();
   assert.equal(service.status(), 'stopped');
   assert.equal(service.error(), '');
-  assert.equal(service.notice(), 'Session ended after 60 s idle. Start again when ready.');
+  assert.equal(service.notice(), 'Session ended after the idle limit. Start again when ready.');
   assert.equal(socket.readyState, FakeWebSocket.CLOSED);
   assert.ok(stream.track.stopped);
   micResolved();
