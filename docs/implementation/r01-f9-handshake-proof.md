@@ -72,16 +72,24 @@ server. Stop, mute, and interrupt send nothing until step 3 has passed.
   not new: a wrong token was already counted. What changes is that a squatter
   or attacker cannot learn anything useful per attempt. A local process that
   forges Origin can still hold the 4 pre-auth sockets, and idle holders are
-  not counted as failures. The per-step deadlines allow a holder up to about
-  twice `auth_timeout_seconds` (10 s, was 5 s) per socket before it is cut
-  off, a small widening. The existing
+  not counted as failures. One `auth_timeout_seconds` deadline (5 s) covers
+  the whole handshake, the same hold time as before. The existing
   [F2 risk acceptance](../approvals/r01-6-f2-risk-acceptance.md) is unchanged.
 - The server answers `proof_s` for any client nonce it is sent. That gives an
-  offline guessing oracle only if the token is guessable; it is a 256-bit
-  random value (`generate_token`), so this is accepted.
+  offline guessing oracle only if the token is guessable. A generated token
+  is a 256-bit random value (`generate_token`), so this is accepted for it. A
+  hand-set `SUPER_AGENT_LOCAL_TOKEN` only has to pass the 32-byte and
+  16-distinct-character check (`config.py`), and a client that sends hello and
+  disconnects is not counted by the throttle, so a weak hand-set token can be
+  guessed offline. Use the launcher's generated token.
 - A process that already has the token (same user, or reads the 0600 token
   file or process environment) can still authenticate. This fix does not
   change that.
+- The handshake has no channel binding. If the real backend were reachable
+  on another port, a squatter on :8000 could relay hello, challenge and auth
+  between the console and it, then read the session. The Host header can be
+  forged outside a browser. Only the launcher's single loopback backend is in
+  scope.
 - The proof does not encrypt or sign later traffic. A process in the middle
   after authentication on loopback can still read or alter frames. Local
   loopback `ws://` is the existing accepted scope.
@@ -92,7 +100,7 @@ server. Stop, mute, and interrupt send nothing until step 3 has passed.
 API (`PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=apps/api/src`, `-p no:cacheprovider --tb=no`):
 
 ```
-1 failed, 1103 passed, 109 skipped, 1 warning in 79.65s
+1 failed, 1104 passed, 109 skipped, 1 warning in 55.51s
 FAILED apps\api\tests\test_memory.py::test_files_are_private_even_when_they_already_existed
 ```
 
@@ -102,7 +110,8 @@ the server proof is correct and never contains the token; server nonces are
 fresh; a replayed client proof is rejected and the next failure is delayed; a
 missing, null, wrong, oversized, raw-token, and second-hello answer are each
 rejected, throttled, and create no adapter; each handshake step times out and
-fails closed. `test_voice_api.py` gained malformed-hello cases and the
+fails closed, and one deadline covers the whole handshake (a late hello does
+not restart the clock). `test_voice_api.py` gained malformed-hello cases and the
 never-leaks test now also checks the challenge. `test_server_logging.py` runs
 the real uvicorn handshake and checks the token is absent from the wire and
 the logs.

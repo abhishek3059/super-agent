@@ -466,11 +466,11 @@ async def _authenticate(
     """
     loop = asyncio.get_running_loop()
 
-    # CT-04: every step has its own explicit deadline and is still bounded by
-    # whatever remains of the total session budget, so that budget is never
-    # dropped during auth.
+    # CT-04: one auth deadline covers the whole handshake (a pre-auth socket is
+    # held no longer than before) and is still bounded by the session budget.
+    effective = min(deadline, loop.time() + settings.auth_timeout_seconds)
+
     async def step(operation):
-        effective = min(deadline, loop.time() + settings.auth_timeout_seconds)
         try:
             return await asyncio.wait_for(operation, timeout=effective - loop.time())
         except TimeoutError:
