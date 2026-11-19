@@ -32,7 +32,7 @@ the 25 s model timeout. Three runs is not a quality measure. I read this from th
 
 | Group | Gap | Roadmap | Effort |
 | --- | --- | --- | --- |
-| Memory | No cross-session recap; history is 12 messages in RAM (unverified, from the session) | BR-6 brief in R-M.19; day book R-M.8; no plain recap item | M |
+| Memory | No cross-session recap; history is the last 12 messages in RAM ([local_adapter.py](../../apps/api/src/super_agent_voice/local_adapter.py) line 236) | BR-6 brief in R-M.19; day book R-M.8; no plain recap item | M |
 | Memory | Retrieval is word overlap, so "my sister" misses "Priya" | OD-4 (full-text search first), R-M.1 | S-M |
 | Memory | No contradiction, decay, or supersede | R-M.14 [human], R-M.15, R-M.16 | M |
 | Understanding | No intent or emotion reading to pick the response type; GR-1 blocked | OD-G5 open, slice 2b | M |
