@@ -68,7 +68,11 @@ loopback boundary finding remain outside the evidence.
 3. **Independent review of the code now on `develop`**, including Gemini mode,
    plus a decision on finding F5 and the F2 condition. Both were tied to
    wiring Gemini into a session. Owner: one maintainer decides; an
-   independent reviewer agent can do the review.
+   independent reviewer agent can do the review. **Review done 2026-11-19;
+   maintainer decision pending.** The
+   [boundary review](../reviews/r01-10-boundary-review.md) of `d52d894`
+   raises F5 to MEDIUM and recommends a fix or a testing-only acceptance;
+   the decision on F5 and the F2 condition is still open.
 4. **Records.** After 2 and 3, update the RT-002 and RT-003 records and tick
    R-01.10 with links to the saved output and review.
 
@@ -76,7 +80,7 @@ loopback boundary finding remain outside the evidence.
 
 | Check | Evidence and limit |
 | --- | --- |
-| Local loopback boundary | [Independent review and disposition](../reviews/r01-6-security-review.md) and the [Windows launcher record](r01-f4-windows-launcher.md). Review of the deployed fake console does not approve native provider wiring. |
+| Local loopback boundary | [Independent review and disposition](../reviews/r01-6-security-review.md) and the [Windows launcher record](r01-f4-windows-launcher.md). Review of the deployed fake console does not approve native provider wiring. The [R-01.10 boundary review](../reviews/r01-10-boundary-review.md) covers `d52d894` with Gemini mode; its F5 and F2 recommendation awaits a maintainer. |
 | Human microphone controls | [Jeevesh's test record](../approvals/r01-4-microphone-test.md) covers the revised fake scaffold at `a790530`. Manual Stop playback feedback was inconclusive. PR #34's rebuilt console was not the one used for this test. |
 | Rebuilt console | Chromium smoke check at `3025155` covered the connection dialog. The later [browser verification](#browser-verification) exercised authenticated local echo, playback stop, mute, and session end with generated input. |
 | Live provider | [Saved synthetic run](r01-8-live-check.md) measured a reply and an unsupported-model refusal through the standalone adapter. The reply ended naturally. It did not demonstrate barge-in or browser-to-provider controls. |
