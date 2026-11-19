@@ -494,7 +494,9 @@ def test_cancel_from_a_stale_session_is_refused(services):
     service.open_session("new")
     assert service.cancel(job_id, "old") == {"refused": "session_stale"}
     assert ledger.get_job(job_id).state in ("queued", "running")
-    assert service.cancel(job_id, "new")["state"] in ("cancelled", "cancel_requested")
+    assert service.cancel(job_id, "new") == {"refused": "session_stale"}  # not that session's job
+    service.open_session("old")
+    assert service.cancel(job_id, "old")["state"] in ("cancelled", "cancel_requested")
 
 
 def test_the_adapter_opens_and_closes_its_session(monkeypatch, services):
@@ -528,7 +530,7 @@ def test_hung_tool_fails_the_step_and_frees_the_job(monkeypatch, services):
             never.wait(30)
         return "4"
 
-    monkeypatch.setattr(graph, "_stuck", [])
+    monkeypatch.setattr(graph, "_stuck", set())
     monkeypatch.setattr(delegation, "run_read_tool", run_tool)
     service = services(ScriptedModel([PLAN, PLAN]), limits=Limits(step_deadline_s=1, concurrent_jobs=1))
     first = service.delegate("answer", "one", "k1")["job_id"]
@@ -545,26 +547,47 @@ def test_abandoned_tool_threads_are_capped(monkeypatch):
     from super_agent_voice import graph
     from super_agent_voice.policy import PolicyError
     release = threading.Event()
-    monkeypatch.setattr(graph, "_stuck", [])
+    monkeypatch.setattr(graph, "_stuck", set())
     monkeypatch.setattr(graph, "_ABANDONED_CAP", 2)
     for _ in range(2):
         with pytest.raises(PolicyError) as err:
             graph._call(release.wait, 0.05, 30)
         assert err.value.code == "step_deadline"
-    with pytest.raises(PolicyError) as err:
+    with pytest.raises(PolicyError) as err:  # the cap counts threads in flight
         graph._call(lambda: "x", 1)
     assert err.value.code == "tool_threads_stuck"
     release.set()
     deadline = time.monotonic() + WAIT
-    while time.monotonic() < deadline and any(t.is_alive() for t in graph._stuck):
+    while time.monotonic() < deadline and graph._stuck:
         time.sleep(0.01)
-    assert graph._call(lambda: "x", 1) == "x"
+    assert graph._call(lambda: "x", 1) == "x"  # a finished thread freed its slot
+
+
+def test_the_cap_is_atomic_for_concurrent_calls(monkeypatch):
+    from super_agent_voice import graph
+    from super_agent_voice.policy import PolicyError
+    release, start, out = threading.Event(), threading.Barrier(12), []
+    monkeypatch.setattr(graph, "_stuck", set())
+    monkeypatch.setattr(graph, "_ABANDONED_CAP", 3)
+
+    def one():
+        start.wait()
+        try:
+            graph._call(release.wait, 0.3, 30)
+        except PolicyError as err:
+            out.append(err.code)
+
+    threads = [threading.Thread(target=one) for _ in range(12)]
+    [t.start() for t in threads]
+    [t.join() for t in threads]
+    release.set()
+    assert out.count("tool_threads_stuck") == 9 and out.count("step_deadline") == 3
 
 
 def test_concurrent_admit_respects_queue_cap():
     limits = Limits(concurrent_jobs=1, queued_jobs=2)
     spec = {"task_type": "answer", "instruction": "hi", "data_class": "synthetic"}
-    start, results = threading.Barrier(12), []
+    start, results = threading.Barrier(20), []
 
     def one(i):
         start.wait()
@@ -574,9 +597,9 @@ def test_concurrent_admit_respects_queue_cap():
         except policy.PolicyError as err:
             results.append(err.code)
 
-    with ThreadPoolExecutor(12) as pool:
-        list(pool.map(one, range(12)))
-    assert results.count("ok") == 3 and results.count("queue_full") == 9
+    with ThreadPoolExecutor(20) as pool:  # 20 workers all waiting at the barrier: fails without _ADMIT_LOCK
+        list(pool.map(one, range(20)))
+    assert results.count("ok") == 3 and results.count("queue_full") == 17
     assert len(ledger.list_jobs()) == 3
 
 
@@ -699,3 +722,32 @@ def test_limits_ignore_environment(monkeypatch):
     for key in ("STEP_DEADLINE", "STEP_DEADLINE_S", "JOB_DEADLINE", "STEPS_PER_JOB", "QUEUED_JOBS", "CONCURRENT_JOBS"):
         monkeypatch.setenv(f"SUPER_AGENT_{key}", "1")
     assert Limits() == before
+
+
+def test_a_closed_session_does_not_accept_no_session(services):
+    service = services(Gate([PLAN]))
+    service.open_session("s1")
+    service.close_session("s1")
+    assert service.delegate("answer", "hello", "k1", None) == {"refused": "session_stale"}
+    assert service.cancel("x", None) == {"refused": "session_stale"}
+
+
+def test_closing_a_stale_session_leaves_the_live_one_working(services):
+    service = services(Gate([PLAN]))
+    service.open_session("A")
+    service.open_session("B")
+    service.close_session("A")
+    assert "job_id" in service.delegate("answer", "hello", "k1", "B")
+
+
+def test_only_the_jobs_own_session_can_cancel_it(services):
+    service = services(Gate([PLAN]))
+    service.open_session("A")
+    mine = service.delegate("answer", "hello", "k1", "A")["job_id"]
+    service.open_session("B")
+    assert service.cancel(mine, "B") == {"refused": "session_stale"}  # another session's job
+    legacy = ledger.create_job({"task_type": "answer", "instruction": "x", "data_class": "synthetic"}, "nosession")
+    assert service.cancel(legacy.id, "B") == {"refused": "session_stale"}  # a job with no session
+    assert ledger.get_job(legacy.id).state == "queued"
+    service.open_session("A")
+    assert service.cancel(mine, "A")["state"] in ("cancelled", "cancel_requested")

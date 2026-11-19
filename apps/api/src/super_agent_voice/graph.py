@@ -48,18 +48,15 @@ def _check_args(tool: str, text: str) -> None:
 
 
 _ABANDONED_CAP = 4
-_stuck: list[threading.Thread] = []
+_stuck: set[threading.Thread] = set()  # tool threads in flight, hung or not
 _stuck_lock = threading.Lock()
 
 
 def _call(fn, seconds: float, *args):
     """Run fn in a daemon thread and wait at most `seconds`; a tool that hangs fails the step, not the job thread.
     shortcut: Python threads cannot be killed, a stuck tool thread lives until it returns; upgrade to a
-    subprocess worker if this cap is ever hit in practice."""
-    with _stuck_lock:
-        _stuck[:] = [t for t in _stuck if t.is_alive()]
-        if len(_stuck) >= _ABANDONED_CAP:
-            raise PolicyError("tool_threads_stuck")
+    subprocess worker if this cap is ever hit in practice. A hung network mount inside a T1 root (macOS) can
+    fill the cap; tools then refuse until the threads return or the process restarts (fail closed)."""
     box: list = []
 
     def target():
@@ -67,13 +64,18 @@ def _call(fn, seconds: float, *args):
             box.append((True, fn(*args)))
         except BaseException as err:  # re-raised in the caller
             box.append((False, err))
+        finally:
+            with _stuck_lock:
+                _stuck.discard(threading.current_thread())
 
     thread = threading.Thread(target=target, daemon=True, name="tool-call")
+    with _stuck_lock:  # the cap check and the registration are one step
+        if len(_stuck) >= _ABANDONED_CAP:
+            raise PolicyError("tool_threads_stuck")
+        _stuck.add(thread)
     thread.start()
     thread.join(max(seconds, 0.001))
     if thread.is_alive():
-        with _stuck_lock:
-            _stuck.append(thread)
         raise PolicyError("step_deadline")
     ok, value = box[0]
     if not ok:

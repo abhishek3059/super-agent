@@ -80,7 +80,10 @@ class Service:
     def _check_session(self, session_id: object) -> None:
         # Once any session has been opened, a caller must name the live one. Before that, only "no session".
         with self._session_lock:
-            if session_id != self._session if self._gated else session_id is not None:
+            if self._gated:  # a live session must be named: None never matches, even after a close
+                if session_id is None or session_id != self._session:
+                    raise PolicyError("session_stale")
+            elif session_id is not None:
                 raise PolicyError("session_stale")
 
     def delegate(self, task_type: object, instruction: object, call_key: object, session_id: object = None) -> dict:
@@ -100,9 +103,12 @@ class Service:
         return {"job_id": adm.job.id, "state": adm.job.state, "revision": adm.job.revision}
 
     def cancel(self, job_id: object, session_id: object = None) -> dict:
-        """The job's receipt {job_id, state, revision}, or {"refused": <code>}. Only the live session may cancel."""
+        """The job's receipt {job_id, state, revision}, or {"refused": <code>}. Only the live session that started the job may cancel it."""
         try:
             self._check_session(session_id)
+            found = ledger.get_job(job_id)
+            if found is None or session_id is None or found.spec.get("session") != session_id:
+                raise PolicyError("session_stale")  # only the job's own session may cancel it
             job = self._runner.cancel(job_id)
         except PolicyError as err:
             return {"refused": err.code}
