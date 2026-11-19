@@ -459,12 +459,12 @@ what the brain needs and what it will do if the answer is no.
 
 Track M is in [roadmap.md](../../../roadmap.md), added by the roadmap PR
 recorded in [the roadmap record](../../implementation/roadmap-brain-memory-governance.md).
-R-M.1 to R-M.12 below keep their numbers. R-M.13 to R-M.19 were added in that
-PR (explicit facts, contradiction handling, decay and forget, the result
-handler, persona, and etiquette). The table is the original proposal text; the
+R-M.1 to R-M.12 below keep their numbers. R-M.13 to R-M.17 and R-M.19 were added in
+that PR (explicit facts, contradiction handling, decay and forget, the result
+handler, and etiquette). R-M.18 is not used; the persona choice stays in R-M.1. The table is the original proposal text; the
 roadmap line is the one of record.
 
-**Parallel track M: brain and memory.** This track gates no phase and moves
+**Parallel track M: memory and brain.** This track gates no phase and moves
 no gate. R-M.1 can happen any time. No item is built before its dependency is
 ticked.
 
