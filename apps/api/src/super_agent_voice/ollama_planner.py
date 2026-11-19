@@ -10,7 +10,7 @@ import json
 
 from .planner import MAX_REPLY_CHARS, ModelError
 
-TIMEOUT_S = 25  # inside the 30 s step deadline in policy.Limits
+TIMEOUT_S = 60  # inside the 75 s step deadline in policy.Limits
 
 
 class OllamaPlanner:

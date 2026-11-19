@@ -11,7 +11,7 @@ behind a replaceable seam, and a real API test that sends a delegated task throu
   `is_local` is True only when `local_model()` and the `/api/show` check both pass; any error gives False,
   so admission refuses personal data. Failures raise `ModelError` with the seam's fixed codes
   (`unavailable`, `timeout`, `malformed`). The reply is untrusted and is still validated by `planner.py`.
-  Timeout 25 s, inside the 30 s step deadline.
+  Timeout 60 s, inside a 75 s step deadline (`policy.Limits.step_deadline_s`). The first three runs below used a 25 s timeout inside a 30 s deadline.
 - `local_adapter._delegate` builds `delegation.Service(OllamaPlanner())` (still only with
   `SUPER_AGENT_DELEGATE=on`; off by default).
 - `graph._plan_prompt` now lists each allowed tool's parameter keys and says to end with `finish`.
@@ -39,6 +39,8 @@ Task: "What is 17 times 23, and what time is it?" via `Service(OllamaPlanner(), 
 | 1 | succeeded | 31.1 s | steps read_tool, read_tool, summarize, finish; result contained 391 and the date |
 | 2 | succeeded | 28.6 s | same steps; result contained 391 and the date |
 | 3 | failed | 25.5 s | code `model_error` (the 25 s model timeout) |
+
+Runs 1 to 3 were at the old 25 s timeout (30 s step deadline). The timeout is now 60 s inside a 75 s step deadline, and has not been re-measured.
 
 Before the prompt change, two runs failed (`model_error` timeout, `tool_args_invalid`).
 

@@ -262,7 +262,7 @@ def test_step_deadline_fails_the_step():
     now = [NOW]
 
     def slow():
-        now[0] += timedelta(seconds=31)
+        now[0] += timedelta(seconds=76)
         return "4"
 
     env = Env([GOOD], tools=Tools(calculate=slow), clock=lambda: now[0])
