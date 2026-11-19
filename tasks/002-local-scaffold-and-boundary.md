@@ -3,8 +3,8 @@
 | Field | Value |
 | --- | --- |
 | Task ID | RT-002 |
-| Status | in progress; boundary implemented and independently reviewed for the fake adapter, not accepted |
-| Execution evidence | [Streaming implementation record](../docs/implementation/voice-streaming-slice.md); [credential review](../docs/reviews/r01-5-credential-design.md); [implemented-boundary security review](../docs/reviews/r01-6-security-review.md); [criteria table](../docs/implementation/r01-10-acceptance.md#criteria-and-evidence); [offline re-run, 2026-11-15](../docs/implementation/evidence/r01-10-offline-suites-20261115.txt) |
+| Status | accepted (done) 2026-11-19 by `abhishek3059`, with residual limits listed below |
+| Execution evidence | [Streaming implementation record](../docs/implementation/voice-streaming-slice.md); [credential review](../docs/reviews/r01-5-credential-design.md); [implemented-boundary security review](../docs/reviews/r01-6-security-review.md); [criteria table](../docs/implementation/r01-10-acceptance.md#criteria-and-evidence); [offline re-run, 2026-11-15](../docs/implementation/evidence/r01-10-offline-suites-20261115.txt); [boundary review of `d52d894`](../docs/reviews/r01-10-boundary-review.md); [R-01.F9](../docs/implementation/r01-f9-handshake-proof.md) and [R-01.F10](../docs/implementation/r01-f10-idle-keepalive.md) records; [decisions record](../docs/approvals/r01-10-decisions.md); [console run](../docs/implementation/evidence/r01-10-console-run-20261119T101357Z.md) |
 
 ## Scope
 
@@ -13,11 +13,12 @@ was independently reviewed at commits `5de7293` and `d5808c6`. Authentication,
 throttling, expiry, Host/Origin checks, CSP, and bounded teardown exist. The
 console now also accepts an opt-in Gemini adapter and a local adapter
 (`SUPER_AGENT_ADAPTER`); the fake adapter stays the default. That code, and
-the other adapters and tools merged after the review, has no independent
-review record. Development commands are in
+the other adapters and tools merged after the review, were reviewed in the
+[R-01.10 boundary review](../docs/reviews/r01-10-boundary-review.md) on
+2026-11-19. Development commands are in
 [apps/voice-foundation.md](../apps/voice-foundation.md).
-This task remains unaccepted until the blockers in the
-[R-01.10 record](../docs/implementation/r01-10-acceptance.md#blockers) clear.
+The task was accepted on 2026-11-19 when the blockers in the
+[R-01.10 record](../docs/implementation/r01-10-acceptance.md#blockers) cleared.
 
 ## Original obligation
 
@@ -58,13 +59,14 @@ Status of each criterion, with evidence, as of 2026-11-15
 - Scaffold and command contract: met.
 - Fail-closed Host, Origin, and authentication: met offline and by the independent review of the fake-adapter boundary.
 - Credential design and implementation: met, with the recorded Windows ACL and directory-mode limits.
-- Not met: independent review of the boundary as it now exists on `develop`, and the open review finding F5 and the F2 acceptance condition, both tied to wiring Gemini into a session.
+- Independent review of the boundary as it exists on `develop`: done on 2026-11-19 ([boundary review](../docs/reviews/r01-10-boundary-review.md)). F5 was fixed in R-01.F9. F2 is accepted for maintainer-only testing only and must be fixed before real voice to a cloud provider beyond maintainers (R-A.2), a multi-user, always-on, or remote host, or job control from a voice session.
+- Residual: boundary review findings B3 to B8 stay open for later roadmap items.
 
 ## Failure considerations
 
-Do not accept the scaffold boundary before its credential and independent
-security review obligations are met. The runnable local development scaffold
-does not authorize provider egress or close RT-G01.
+The scaffold boundary was accepted only after its credential and independent
+security review obligations were met. The runnable local development scaffold
+does not authorize provider egress.
 
 ## Evidence
 
@@ -73,8 +75,8 @@ The local fake slice passed its code reviews. The implemented boundary later
 received an independent ACCEPT WITH CONDITIONS review; its blocking conditions
 were closed, and both maintainers accepted the bounded F2 risk through the
 recorded route. The offline suites passed again on 2026-11-15 (492 backend
-tests, 112 frontend self-test cases). The task remains in progress because the
-blockers above and RT-G01 are still open.
+tests, 112 frontend self-test cases). The task was accepted on 2026-11-19
+([decisions record](../docs/approvals/r01-10-decisions.md)).
 
 ## Navigation
 

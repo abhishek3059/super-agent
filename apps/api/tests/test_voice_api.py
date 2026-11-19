@@ -20,6 +20,7 @@ from super_agent_voice.adapter import (
     Interrupted,
     TurnComplete,
 )
+from handshake import proof, send_auth
 from super_agent_voice import config as config_module
 from super_agent_voice import generate_token
 from super_agent_voice.app import create_app
@@ -172,7 +173,7 @@ def connect(client: TestClient):
 
 
 def authenticate(websocket) -> None:
-    websocket.send_json({"type": "session.auth", "token": TOKEN})
+    send_auth(websocket, TOKEN)
     assert websocket.receive_json() == READY
 
 
@@ -203,7 +204,7 @@ def test_only_one_active_session_is_allowed() -> None:
             # CR-06: the slot is taken after authentication, so the second
             # client authenticates and is then refused with 1013.
             with connect(client) as second:
-                second.send_json({"type": "session.auth", "token": TOKEN})
+                send_auth(second, TOKEN)
                 with pytest.raises(WebSocketDisconnect) as rejected:
                     second.receive_json()
                 assert rejected.value.code == 1013
@@ -310,7 +311,7 @@ def test_rejects_bad_origin_and_token() -> None:
         assert bad_host.value.code == 1008
 
         with connect(client) as websocket:
-            websocket.send_json({"type": "session.auth", "token": "wrong"})
+            send_auth(websocket, "wrong", verify=False)
             with pytest.raises(WebSocketDisconnect) as bad_token:
                 websocket.receive_json()
             assert bad_token.value.code == 1008
@@ -344,7 +345,7 @@ def test_adapter_never_created_without_valid_auth() -> None:
             ):
                 pass
         with connect(client) as websocket:
-            websocket.send_json({"type": "session.auth", "token": "wrong"})
+            send_auth(websocket, "wrong", verify=False)
             with pytest.raises(WebSocketDisconnect):
                 websocket.receive_json()
         assert created == 0
@@ -362,9 +363,14 @@ def test_adapter_never_created_without_valid_auth() -> None:
         '"text"',
         '{"type": "capture.mute"}',
         '{"type": "capture.mute", "token": "%s"}' % TOKEN,
+        '{"type": "session.keepalive"}',
         '{"type": "session.auth"}',
-        '{"type": "session.auth", "token": null}',
-        '{"type": "session.auth", "token": 40}',
+        '{"type": "session.auth", "token": "%s"}' % TOKEN,
+        '{"type": "session.hello"}',
+        '{"type": "session.hello", "nonce": null}',
+        '{"type": "session.hello", "nonce": "short"}',
+        '{"type": "session.hello", "nonce": "%s"}' % ("A" * 32),
+        '{"type": "session.hello", "nonce": "%s"}' % ("a" * 64),
         pytest.param("x" * (65 * 1024), id="oversized-text"),
     ],
 )
@@ -399,7 +405,7 @@ def test_total_budget_expiring_during_adapter_start_reports_max_duration() -> No
     adapter = SlowStartAdapter()
     settings = VoiceConfig(local_token=TOKEN, max_session_seconds=0.4)
     with make_client(adapter, settings) as client, connect(client) as websocket:
-        websocket.send_json({"type": "session.auth", "token": TOKEN})
+        send_auth(websocket, TOKEN)
         assert websocket.receive_json() == {
             "type": "session.error",
             "category": "max-duration",
@@ -439,7 +445,7 @@ def test_failing_adapter_start_never_reaches_ready() -> None:
 
     adapter = NoStartAdapter()
     with make_client(adapter) as client, connect(client) as websocket:
-        websocket.send_json({"type": "session.auth", "token": TOKEN})
+        send_auth(websocket, TOKEN)
         assert websocket.receive_json() == {
             "type": "session.error",
             "category": "provider-unavailable",
@@ -454,7 +460,7 @@ def test_adapter_error_category_passes_through_on_start() -> None:
             raise AdapterError("provider-limits")
 
     with make_client(RefusingAdapter()) as client, connect(client) as websocket:
-        websocket.send_json({"type": "session.auth", "token": TOKEN})
+        send_auth(websocket, TOKEN)
         assert websocket.receive_json() == {
             "type": "session.error",
             "category": "provider-limits",
@@ -481,7 +487,7 @@ def test_ready_reports_the_adapters_rate_and_name() -> None:
         output_rate_hz = 24000
 
     with make_client(GeminiLike([])) as client, connect(client) as websocket:
-        websocket.send_json({"type": "session.auth", "token": TOKEN})
+        send_auth(websocket, TOKEN)
         assert websocket.receive_json() == {
             "type": "session.ready",
             "playbackEpoch": 0,
@@ -504,6 +510,33 @@ def test_mute_ends_the_adapter_audio_stream() -> None:
         websocket.send_json({"type": "capture.mute"})
         assert websocket.receive_json() == {"type": "session.state", "muted": True}
         assert ends == 1
+
+
+def test_keepalive_refreshes_the_idle_deadline_then_idle_still_ends_it() -> None:
+    settings = VoiceConfig(local_token=TOKEN, idle_timeout_seconds=0.6)
+    with make_client(FakeVoiceAdapter(), settings) as client, connect(client) as websocket:
+        authenticate(websocket)
+        started = time.monotonic()
+        for _ in range(5):
+            time.sleep(0.25)
+            websocket.send_json({"type": "session.keepalive"})
+        # More than twice the idle limit has passed and the session is alive.
+        assert time.monotonic() - started > 1.2
+        assert websocket.receive_json() == {
+            "type": "session.error",
+            "category": "session-timeout",
+        }
+
+
+@pytest.mark.parametrize(
+    "message",
+    ['{"type": "session.keepalive", "extra": 1}', '{"type": "session.keepalive", "token": "x"}'],
+)
+def test_keepalive_with_a_payload_fails_closed(message: str) -> None:
+    with make_client() as client, connect(client) as websocket:
+        authenticate(websocket)
+        websocket.send_text(message)
+        assert websocket.receive_json() == {"type": "session.error", "category": "invalid-control"}
 
 
 def test_silent_adapter_times_out_and_is_closed() -> None:
@@ -616,7 +649,7 @@ def test_permanent_close_failure_holds_gate() -> None:
             assert broken.close_calls == 2
         # Fail closed: the slot is retained, the next connection is refused.
         with connect(client) as refused:
-            refused.send_json({"type": "session.auth", "token": TOKEN})
+            send_auth(refused, TOKEN)
             with pytest.raises(WebSocketDisconnect) as held:
                 refused.receive_json()
             assert held.value.code == 1013
@@ -644,7 +677,7 @@ def test_hanging_close_is_bounded_and_gate_released_only_at_confirmed_close() ->
             # gate is proven still held.
             time.sleep(0.8)
             with connect(client) as second:
-                second.send_json({"type": "session.auth", "token": TOKEN})
+                send_auth(second, TOKEN)
                 with pytest.raises(WebSocketDisconnect) as held:
                     second.receive_json()
                 assert held.value.code == 1013
@@ -952,7 +985,7 @@ def test_gemini_drops_old_turn_audio_between_local_interrupt_and_provider_ack(fr
 
     config = VoiceConfig(local_token=TOKEN, max_audio_frame_bytes=frame_limit)
     with make_client(config=config, factory=factory) as client, connect(client) as websocket:
-        websocket.send_json({"type": "session.auth", "token": TOKEN})
+        send_auth(websocket, TOKEN)
         assert websocket.receive_json() == {**READY, "provider": "gemini-live", "outputRateHz": 24000}
         websocket.send_bytes(first_pcm)
         assert websocket.receive_json()["playbackEpoch"] == 0
@@ -1037,7 +1070,13 @@ def test_invalid_control_and_oversized_audio_fail_closed() -> None:
 
 
 def wrong_auth(websocket, token: object = "wrong") -> None:
-    websocket.send_json({"type": "session.auth", "token": token})
+    """A string is the key of a wrong proof; any other value is sent as the proof itself."""
+    if isinstance(token, str):
+        send_auth(websocket, token, verify=False)
+        return
+    websocket.send_json({"type": "session.hello", "nonce": "a" * 32})
+    assert websocket.receive_json()["type"] == "session.challenge"
+    websocket.send_json({"type": "session.auth", "proof": token})
 
 
 def expect_close(websocket, code: int) -> None:
@@ -1110,7 +1149,9 @@ def test_lone_surrogate_token_is_a_failed_attempt_not_an_error() -> None:
     created, factory = counting_factory()
     with make_client(factory=factory) as client:
         with connect(client) as websocket:
-            websocket.send_text('{"type":"session.auth","token":"\\ud800"}')
+            websocket.send_json({"type": "session.hello", "nonce": "b" * 32})
+            websocket.receive_json()
+            websocket.send_text('{"type":"session.auth","proof":"\\ud800"}')
             expect_close(websocket, 1008)
         with connect(client) as websocket:
             authenticate(websocket)
@@ -1175,7 +1216,7 @@ def test_unauthenticated_connection_does_not_hold_the_session_slot() -> None:
                 # The slot is taken only after authentication, so the next
                 # authenticated client is the one refused, with 1013.
                 with connect(client) as second:
-                    second.send_json({"type": "session.auth", "token": TOKEN})
+                    send_auth(second, TOKEN)
                     expect_close(second, 1013)
                 assert len(created) == 1
 
@@ -1427,7 +1468,7 @@ def test_tokens_never_appear_in_logs_output_or_client_messages(caplog, capsys) -
                 websocket.receive_json()
             seen += [str(closed.value), repr(closed.value.reason), str(closed.value.code)]
         with connect(client) as websocket:
-            websocket.send_json({"type": "session.auth", "token": secret})
+            seen.append(repr(send_auth(websocket, secret)))  # the challenge is server output too
             seen.append(repr(websocket.receive_json()))
             websocket.send_json({"type": "session.stop"})
             seen.append(repr(websocket.receive_json()))

@@ -6,7 +6,7 @@
 | Design | [Voice-foundation design](../design/voice-foundation.md) |
 | Review | [Initial review and correction disposition](../reviews/voice-foundation-scaffold.md) |
 | Delivery | Design PR #12 merged; implementation PR #13 merged into `develop` and also carries the later maintainer-confirmation record |
-| Status | Offline scaffold merged in PR #13. Later PH-01 work added the local streaming boundary and a separate Gemini adapter and live check. The browser constructs the fake adapter. The [R-01.4 test](../approvals/r01-4-microphone-test.md) is recorded. RT-G01 remains open. |
+| Status | Offline scaffold merged in PR #13. Later PH-01 work added the local streaming boundary and a separate Gemini adapter and live check. The browser constructs the fake adapter. The [R-01.4 test](../approvals/r01-4-microphone-test.md) is recorded. RT-G01 was evidenced on 2026-11-19 ([R-01.10 record](r01-10-acceptance.md)). |
 
 ## Implemented scope
 
@@ -103,7 +103,8 @@ microphone errors, disabled audio tracks while muted, and removal of unused
   not implemented.
 - Local development uses `ws://` on loopback. Remote deployment and TLS are out
   of scope.
-- Authentication is a first `session.auth` control message and audio uses
+- Authentication is a `session.hello` then `session.auth` mutual-proof exchange
+  (R-01.F9), and audio uses
   bounded binary frames preceded by epoch metadata. This differs in naming
   from the conceptual design but retains the same security and lifecycle intent.
 - Mute sets every microphone track `enabled=false` and drops processor frames.

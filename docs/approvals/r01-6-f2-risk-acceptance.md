@@ -24,6 +24,8 @@ authenticate during the WebSocket handshake (a token in
 `Sec-WebSocket-Protocol` checked before accept, or the cookie flow) so that no
 unauthenticated socket is ever accepted.
 
+> **2026-11-19:** the [R-01.10 decisions record](r01-10-decisions.md) confirms this acceptance for maintainer-only Gemini testing and restates the condition. F5 is fixed in R-01.F9.
+
 ## Not accepted by this record
 
 This record accepts F2 only. It does not accept, and the review lists as still

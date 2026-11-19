@@ -7,7 +7,7 @@
 | Status | Proposal for review. No implementation, dependency installation, provider call, microphone transmission, or runtime approval. |
 | Product context | [Personal-agent architecture](../product/personal-agent-architecture.md) |
 | Maintainer confirmation | [Decision record](../approvals/voice-foundation-confirmation.md) |
-| Runtime gate | [RT-G00](../approvals/rt-g00-resolution.md) is resolved; [RT-001](../../tasks/001-runtime-consent-and-feasibility.md) is complete. RT-G01 remains open. |
+| Runtime gate | [RT-G00](../approvals/rt-g00-resolution.md) is resolved; [RT-001](../../tasks/001-runtime-consent-and-feasibility.md) is complete. RT-G01 was evidenced on 2026-11-19 ([R-01.10 record](../implementation/r01-10-acceptance.md)). |
 | Revision 1 | Preserved verbatim in [voice-foundation-revision-1.md](voice-foundation-revision-1.md). |
 | Revision 2.1 | 2026-11-10: section 7 credential design and the section 9 bad-token row updated for the [R-01.5 review](../reviews/r01-5-credential-design.md). |
 
@@ -236,9 +236,11 @@ Client events:
 
 | Event | Payload | Rule |
 | --- | --- | --- |
-| `session.auth` | `{ "type": "session.auth", "token": "..." }` | First message. Required before any audio. |
+| `session.hello` | `{ "type": "session.hello", "nonce": "<32 hex>" }` | First message. Starts the mutual proof (section 5.1). Carries no token. |
+| `session.auth` | `{ "type": "session.auth", "proof": "<64 hex>" }` | Second message, only after the server proof verified. Required before any audio. |
 | `capture.mute` | `{ "type": "capture.mute" }` | Stops browser capture and ends the provider audio stream. |
 | `capture.unmute` | `{ "type": "capture.unmute" }` | Starts a new provider audio stream. |
+| `session.keepalive` | `{ "type": "session.keepalive" }` | Sent every 20 s by a muted, ready console, which ships no audio. Only refreshes the idle deadline. Any extra field fails closed as `invalid-control`. |
 | `playback.interrupt` | `{ "type": "playback.interrupt" }` | Local barge-in. Stops playback and bumps the epoch. |
 | `session.stop` | `{ "type": "session.stop" }` | Ends the session and closes the provider. |
 
@@ -271,14 +273,25 @@ Binary rules:
 Startup sequence:
 
 1. Browser connects to `/ws/voice` with the allowed Host and Origin.
-2. Browser sends `session.auth`.
-3. Backend validates the token, acquires the one-session gate, creates the
+2. Browser and backend run the mutual proof below. The raw token never
+   crosses the wire.
+3. Backend verifies the browser proof, acquires the one-session gate, creates the
    adapter, and calls `adapter.start()`.
 4. On provider failure, backend sends `session.error` and closes. No
    microphone capture starts.
 5. On success, backend sends `session.ready` with `outputRateHz`.
 6. Browser requests microphone permission and starts capture.
 7. Audio flows in both directions until stop, timeout, provider end, or error.
+
+Mutual proof (R-01.F9, [record](../implementation/r01-f9-handshake-proof.md)):
+`session.hello` carries a random 128-bit client nonce. The backend answers
+`session.challenge` with its own nonce and
+`HMAC-SHA256(token, "server-proof|" + client_nonce + "|" + server_nonce)`.
+The browser verifies it with WebCrypto and, on mismatch, closes and sends
+nothing more. It then sends `session.auth` with
+`HMAC-SHA256(token, "client-proof|" + server_nonce + "|" + client_nonce)`,
+which the backend compares with `hmac.compare_digest`. A wrong, missing, or
+replayed browser proof counts as a failed attempt for the throttle.
 
 Shutdown sequence:
 
@@ -295,7 +308,7 @@ Error categories:
 | `invalid-control` | Malformed JSON, unknown event, or missing field. |
 | `invalid-audio` | Odd length, oversized frame, or audio before ready. |
 | `max-duration` | Code-level 15-minute limit reached. |
-| `session-timeout` | 60-second idle limit reached. The console shows it as a plain notice ("Session ended after the idle limit") and returns to the ready state, not as an error. |
+| `session-timeout` | 60 seconds with no incoming frame (audio or control). A muted console sends `session.keepalive` so a long mute does not trip it (R-01.F10); the limit and the 15-minute maximum are unchanged. The console shows it as a plain notice ("Session ended after the idle limit") and returns to the ready state, not as an error. |
 | `session-busy` | One active session already exists. |
 | `provider-unavailable` | Connection, DNS, TLS, or network failure. |
 | `provider-limits` | Quota or rate limit. |
@@ -488,8 +501,8 @@ Failed-auth throttling (CR-01):
 Browser flow, minimal (development only):
 
 - The user pastes the token into a password field. The page keeps it only until
-  the first `session.auth` message is sent, then zeroes it in the service and
-  the field. It is never written to `localStorage` or `sessionStorage`.
+  the handshake proof is sent, then zeroes it in the field. It is used only
+  as an HMAC key and is never sent (R-01.F9). It is never written to `localStorage` or `sessionStorage`.
 - A strict Content-Security-Policy is required: no inline scripts, no
   third-party scripts.
 - A bad token closes the socket with code 1008.

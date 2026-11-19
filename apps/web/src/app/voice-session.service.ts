@@ -17,6 +17,23 @@ const ERROR_CATEGORIES = new Set([
   'invalid-control',
 ]);
 
+const HANDSHAKE_TIMEOUT_MS = 5000;
+const HANDSHAKE_REFUSED = 'The local voice backend did not prove it holds the session token. Nothing was sent and the microphone stays off.';
+/** Must stay well under the backend idle limit (60 s); a muted session ships no audio. */
+const KEEPALIVE_MS = 20000;
+const MIC_PAUSED = 'Microphone paused by the browser or system. Trying to resume.';
+const NONCE_PATTERN = /^[0-9a-f]{32}$/;
+const PROOF_PATTERN = /^[0-9a-f]{64}$/;
+
+function randomHex(byteCount: number): string {
+  const bytes = crypto.getRandomValues(new Uint8Array(byteCount));
+  return [...bytes].map((byte) => byte.toString(16).padStart(2, '0')).join('');
+}
+
+function hexBytes(hex: string): Uint8Array<ArrayBuffer> {
+  return Uint8Array.from(hex.match(/../g) ?? [], (pair) => parseInt(pair, 16));
+}
+
 const MAX_CONVERSATION_ENTRIES = 50;
 const MAX_MESSAGE_CHARS = 500;
 // Bounds one merged assistant bubble; the per-message cap alone would let a
@@ -43,6 +60,11 @@ export class VoiceSessionService {
   readonly conversation = signal<readonly ConversationEntry[]>([]);
 
   private socket?: WebSocket;
+  /** True only after the server proved the token and our proof was sent (R-01.F9). */
+  private authenticated = false;
+  private challenged = false;
+  private handshakeTimer?: ReturnType<typeof setTimeout>;
+  private keepaliveTimer?: ReturnType<typeof setInterval>;
   private stream?: MediaStream;
   private context?: AudioContext;
   private processor?: ScriptProcessorNode;
@@ -97,12 +119,29 @@ export class VoiceSessionService {
     const socket = new WebSocket('ws://127.0.0.1:8000/ws/voice');
     socket.binaryType = 'arraybuffer';
     this.socket = socket;
+    // R-01.F9: mutual proof. The raw token never leaves this closure; only
+    // nonces and HMAC proofs cross the wire, and nothing else is sent until
+    // the server has proven it holds the token.
+    const clientNonce = randomHex(16);
+    this.authenticated = false;
+    this.challenged = false;
     socket.onopen = () => {
       if (this.socket !== socket || this.generation !== generation) return;
-      socket.send(JSON.stringify({ type: 'session.auth', token }));
+      this.handshakeTimer = setTimeout(() => {
+        if (this.socket === socket && this.generation === generation && !this.authenticated) {
+          this.fail(HANDSHAKE_REFUSED);
+        }
+      }, HANDSHAKE_TIMEOUT_MS);
+      socket.send(JSON.stringify({ type: 'session.hello', nonce: clientNonce }));
     };
     socket.onmessage = (event) => {
       if (this.socket !== socket || this.generation !== generation) return;
+      if (!this.authenticated) {
+        void this.answerChallenge(event, socket, generation, token, clientNonce).catch(() => {
+          if (this.socket === socket && this.generation === generation) this.fail(HANDSHAKE_REFUSED);
+        });
+        return;
+      }
       void this.handleMessage(event, socket, generation).catch(() => {
         if (this.socket === socket && this.generation === generation) {
           this.fail('Invalid local voice response.');
@@ -123,7 +162,7 @@ export class VoiceSessionService {
 
   setMuted(value: boolean): void {
     const socket = this.socket;
-    if (!socket || socket.readyState !== WebSocket.OPEN) return;
+    if (!socket || !this.authenticated || socket.readyState !== WebSocket.OPEN) return;
     this.muted.set(value);
     if (value) {
       this.inputLevel.set(0);
@@ -138,12 +177,13 @@ export class VoiceSessionService {
       track.enabled = !value;
     }
     socket.send(JSON.stringify({ type: value ? 'capture.mute' : 'capture.unmute' }));
+    this.syncKeepalive(socket);
     this.status.set(value ? 'muted' : this.playing.size ? 'speaking' : 'listening');
   }
 
   interrupt(): void {
     const socket = this.socket;
-    if (!socket || socket.readyState !== WebSocket.OPEN) return;
+    if (!socket || !this.authenticated || socket.readyState !== WebSocket.OPEN) return;
     this.epochs.onLocalInterrupt();
     this.interruptPending = true;
     this.pendingRateHz = undefined;
@@ -153,10 +193,72 @@ export class VoiceSessionService {
 
   stop(): void {
     const socket = this.socket;
-    if (socket?.readyState === WebSocket.OPEN) {
+    if (this.authenticated && socket?.readyState === WebSocket.OPEN) {
       socket.send(JSON.stringify({ type: 'session.stop' }));
     }
     void this.cleanup('stopped', this.generation);
+  }
+
+  /**
+   * A muted session sends no audio, so the backend would end it at the idle
+   * limit. While connected, ready and muted, a small control refreshes that
+   * deadline; unmuted sessions already send audio frames.
+   */
+  private syncKeepalive(socket: WebSocket): void {
+    clearInterval(this.keepaliveTimer);
+    this.keepaliveTimer = undefined;
+    if (!this.muted() || !this.captureReady) return;
+    this.keepaliveTimer = setInterval(() => {
+      if (this.socket === socket && socket.readyState === WebSocket.OPEN) {
+        socket.send(JSON.stringify({ type: 'session.keepalive' }));
+      }
+    }, KEEPALIVE_MS);
+  }
+
+  /**
+   * Before authentication the only accepted frames are the server challenge
+   * or a fixed `session.error`. Anything else, or a proof that does not match
+   * the token, closes the socket with nothing more sent and capture off.
+   */
+  private async answerChallenge(
+    event: MessageEvent,
+    socket: WebSocket,
+    generation: number,
+    token: string,
+    clientNonce: string,
+  ): Promise<void> {
+    if (typeof event.data !== 'string') throw new Error('binary before auth');
+    const message = JSON.parse(event.data) as { type?: string; nonce?: unknown; proof?: unknown; category?: string };
+    if (message.type === 'session.error') {
+      const category = message.category !== undefined
+        && ERROR_CATEGORIES.has(message.category) ? message.category : 'unknown';
+      this.fail(`Voice session failed: ${category}`);
+      return;
+    }
+    const { nonce, proof } = message;
+    if (message.type !== 'session.challenge' || typeof nonce !== 'string' || typeof proof !== 'string'
+      || !NONCE_PATTERN.test(nonce) || nonce === clientNonce || !PROOF_PATTERN.test(proof)) {
+      throw new Error('bad challenge');
+    }
+    if (this.challenged) throw new Error('second challenge');
+    this.challenged = true;
+    const key = await crypto.subtle.importKey(
+      'raw', new TextEncoder().encode(token), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign', 'verify'],
+    );
+    const text = new TextEncoder();
+    // subtle.verify compares the full digest in constant time.
+    const serverOk = await crypto.subtle.verify(
+      'HMAC', key, hexBytes(proof), text.encode(`server-proof|${clientNonce}|${nonce}`),
+    );
+    if (!serverOk) throw new Error('server did not prove the token');
+    const mac = await crypto.subtle.sign('HMAC', key, text.encode(`client-proof|${nonce}|${clientNonce}`));
+    if (this.socket !== socket || this.generation !== generation) return;
+    this.authenticated = true;
+    clearTimeout(this.handshakeTimer);
+    socket.send(JSON.stringify({
+      type: 'session.auth',
+      proof: [...new Uint8Array(mac)].map((byte) => byte.toString(16).padStart(2, '0')).join(''),
+    }));
   }
 
   private async handleMessage(
@@ -317,6 +419,7 @@ export class VoiceSessionService {
       };
       source.connect(processor);
       processor.connect(context.destination);
+      this.watchCapture(stream, context, socket, generation);
     } catch {
       // Local capture setup failed; the message names the local capture
       // stage and never exposes any underlying detail.
@@ -340,6 +443,36 @@ export class VoiceSessionService {
     // Start in the meantime must not become ready or fail from it.
     if (this.socket !== socket || this.generation !== generation) return;
     this.captureReady = true;
+    this.syncKeepalive(socket);
+  }
+
+  /** Without these a stalled microphone silently idles into the backend timeout. */
+  private watchCapture(
+    stream: MediaStream,
+    context: AudioContext,
+    socket: WebSocket,
+    generation: number,
+  ): void {
+    const live = () => this.socket === socket && this.generation === generation;
+    for (const track of stream.getAudioTracks()) {
+      track.onended = () => {
+        if (live()) this.fail('Microphone stopped by the browser or system. Start again to retry.');
+      };
+      // "muted" is the source going silent (OS or browser); enabled=false is not.
+      track.onmute = () => { if (live()) this.notice.set(MIC_PAUSED); };
+      track.onunmute = () => { if (live() && this.notice() === MIC_PAUSED) this.notice.set(''); };
+    }
+    context.onstatechange = () => {
+      if (!live() || this.context !== context) return;
+      if (context.state === 'running') {
+        if (this.notice() === MIC_PAUSED) this.notice.set('');
+      } else if (context.state === 'suspended' || context.state === ('interrupted' as AudioContextState)) {
+        this.notice.set(MIC_PAUSED);
+        context.resume().catch(() => {
+          if (live()) this.fail('Audio capture was paused and could not resume. Start again to retry.');
+        });
+      }
+    };
   }
 
   private onAudioProcess(socket: WebSocket, audioEvent: AudioProcessingEvent): void {
@@ -436,7 +569,12 @@ export class VoiceSessionService {
     this.interruptPending = false;
     this.capturing = false;
     this.captureReady = false;
+    this.authenticated = false;
+    clearTimeout(this.handshakeTimer);
+    clearInterval(this.keepaliveTimer);
+    this.keepaliveTimer = undefined;
     const context = this.context;
+    if (context) context.onstatechange = null;
     this.context = undefined;
     const socket = this.socket;
     this.socket = undefined;

@@ -215,7 +215,7 @@ copied standalone reference is a design artifact only; its simulated research
 states, browser token persistence, and external assets are not used.
 
 The current browser audio processor is a scaffold seam, not accepted audio
-quality. Mute suppresses outbound PCM. The spectrum is an input-level display,
+quality. Mute suppresses outbound PCM. While muted the console sends a small `session.keepalive` every 20 s so the backend 60-second idle limit does not end the session. The spectrum is an input-level display,
 not speech detection and not voice activity detection. A loud input
 while model audio plays barges in automatically and advances the backend
 playback epoch; the separate **Stop playback** button is a manual fallback.

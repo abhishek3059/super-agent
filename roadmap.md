@@ -2,9 +2,9 @@
 
 | Field | Value |
 | --- | --- |
-| Date | 2026-11-16 |
-| Current phase | PH-01 |
-| Current phase PR | [PR #42](https://github.com/abhishek3059/super-agent/pull/42) merged the R-01.4 evidence recovery and closed defects R-01.F5 through R-01.F8. PH-01 remains open with R-01.10 pending. Details: [phase PR log](docs/implementation/phase-prs.md). |
+| Date | 2026-11-19 |
+| Current phase | PH-02 |
+| Current phase PR | [PR #58](https://github.com/abhishek3059/super-agent/pull/58) closed PH-01 (R-01.F9, R-01.F10, R-01.10) on 2026-11-19. PH-02 starts. Details: [phase PR log](docs/implementation/phase-prs.md). |
 | Gate definitions | [phases.md](phases.md) (entry prerequisites and exit gates stay defined there) |
 | Task records | [tasks/](tasks/README.md) |
 | Enforced by | `npm run check` ([scripts/check-roadmap.mjs](scripts/check-roadmap.mjs), form only), the shared reviewer ([.claude/agents/reviewer.md](.claude/agents/reviewer.md), [DEC-19](descisions.md#dec-19)), and [AGENTS.md](AGENTS.md) section 11 |
@@ -62,7 +62,7 @@ Maps to [RT-001](tasks/001-runtime-consent-and-feasibility.md) and RT-G00. Nothi
 
 ## PH-01: local boundary and native voice connection
 
-**Status:** in progress
+**Status:** done
 
 Maps to [RT-002](tasks/002-local-scaffold-and-boundary.md), [RT-003](tasks/003-native-voice-session.md), and RT-G01. Design: [voice foundation](docs/design/voice-foundation.md). Item order below follows the [PH-01 sequencing record](docs/approvals/ph-01-sequencing.md); every item is still required to close PH-01.
 
@@ -83,7 +83,9 @@ Maps to [RT-002](tasks/002-local-scaffold-and-boundary.md), [RT-003](tasks/003-n
 - [x] R-01.F6 Require a clean SDK exit before reporting an established Gemini session closed. Evidence: [PH-01 acceptance record](docs/implementation/r01-10-acceptance.md#offline-fixes)
 - [x] R-01.F7 Refuse an unexpected or missing provider before the local echo console requests microphone capture. Evidence: [browser verification](docs/implementation/r01-10-acceptance.md#browser-verification)
 - [x] R-01.F8 Keep the synthetic Live adapter on the approved Gemini Developer API destination. Evidence: [provider destination check](docs/implementation/r01-10-acceptance.md#provider-destination)
-- [ ] R-01.10 RT-002 and RT-003 records complete and RT-G01 evidenced. Evidence: none yet
+- [x] R-01.F9 Make the server prove it holds the session token before the console sends any credential, so a process squatting the port cannot capture it (review finding B1, old F5). Evidence: [R-01.F9 record](docs/implementation/r01-f9-handshake-proof.md)
+- [x] R-01.F10 Keep a connected console session alive while muted and report a stalled microphone instead of idling into the 60-second timeout, found in the R-01.10 console run. Evidence: [R-01.F10 record](docs/implementation/r01-f10-idle-keepalive.md)
+- [x] R-01.10 RT-002 and RT-003 records complete and RT-G01 evidenced. Evidence: [R-01.10 acceptance record](docs/implementation/r01-10-acceptance.md), [decisions record](docs/approvals/r01-10-decisions.md)
 
 ## PH-02: ledger, policy, and two fixed workers
 
