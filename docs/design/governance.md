@@ -2,7 +2,7 @@
 
 | Field | Value |
 | --- | --- |
-| Status | **Proposal, accepted in part.** OD-G1 is approved ([decisions record](../approvals/governance-decisions.md)); OD-G2 to OD-G5 are open. Design only, no code. |
+| Status | **Proposal, accepted in part.** OD-G1 to OD-G4 are approved ([decisions record](../approvals/governance-decisions.md)); OD-G5 is open with a direction from the owner and blocks only slice 2b. Design only, no code. |
 | Date | 2026-11-18 |
 | Requested by | Maintainer `abhishek3059`, in chat, 2026-11-18 |
 | Roadmap | On the roadmap as R-02.7 in PH-02, the current phase since PR #58 merged on 2026-11-19 (section 6.2). |
@@ -248,13 +248,13 @@ historical.
 - **OD-G1.** Accept `policy.py` as the gate, instead of a new
   `governance.py`. Decided: approved on 2026-11-19, see the
   [decisions record](../approvals/governance-decisions.md).
-- **OD-G2.** Whether a brain tone signal may tighten a decision (allow to
+- **OD-G2.** Decided 2026-11-19: tighten only; confirm in voice is a refusal until T3. Whether a brain tone signal may tighten a decision (allow to
   confirm), and what confirmation means in voice before T3 exists.
-- **OD-G3.** `Runner.claim_and_run` bypasses `admit` and hardcodes a local
+- **OD-G3.** Decided 2026-11-19: route it through the gate. `Runner.claim_and_run` bypasses `admit` and hardcodes a local
   planner. Delete it, or route it through the gate. Its worker tool names
   need fixing either way.
-- **OD-G4.** Whether HQ jobs in PR #56 must pass `admit`.
-- **OD-G5.** The GR-1 request pattern. A fixed word list misses some real
+- **OD-G4.** Decided 2026-11-19: yes. Whether HQ jobs in PR #56 must pass `admit`.
+- **OD-G5.** Open, blocks slice 2b only. The owner asked for a design that understands the user's intent and emotional meaning and picks the type of response, instead of a word list. The GR-1 request pattern. A fixed word list misses some real
   requests (the user must rephrase) and is English only.
 - **OD-G6.** The roadmap item, its phase, and whether an exception is needed.
   Answered as a proposal by the roadmap PR: R-02.7 in PH-02, no exception.
