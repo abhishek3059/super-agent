@@ -67,4 +67,6 @@ The same reviewer re-ran every reproduction on `553b8a6` (plus the then-uncommit
 | C8 | `auth.json` for a bot holds only `version`, `providers`, `credential_pool` and `active_provider`, each filtered to configured providers. | Code; live bot home inspected by name only. |
 | C9 | The CSP is set in the middleware that wraps every page response, so the static handler cannot skip it. | Live: the header on `/`, `/index.html` and `/assets/`; the app loaded and every request returned 200 with no policy violations. |
 
+**Who verified C6 to C9.** The auditor did not re-run C6 to C9. They were made and checked by the coordinating agent (self-checks and the live runs above), and C6, new process-stopping code, was then read by the shared reviewer in its pass 10, which found no security flaw in it. Ticking R-H.4 on that basis is the coordinating agent's judgment that the auditor's three conditions are met.
+
 With the conditions met, R-H.4 is ticked. The macOS sandbox itself was not attacked directly, and `sandbox-exec` is deprecated by Apple; both stay in the README's list of what containment does not cover.

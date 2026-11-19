@@ -45,11 +45,12 @@ permission to build it.
   and independent security reviews that T1 to T3 require have not been done
   for this app. The code does give the workers that capability. DEC-23
   records a bounded exception for it. No tier is enabled.
-- **Containment is new and unreviewed.** Each bot now runs inside the
-  macOS sandbox and cannot read the operator's files, the session secret or
-  another bot's folder ([run record](../implementation/jarvis-hq-local-run.md#containment)).
-  A bot still holds its own copied model keys and can reach the internet.
-- **No independent security review** of `apps/hq` has happened.
+- **Containment** (updated 2026-11-19). Each bot runs inside the macOS
+  sandbox and cannot read the operator's files, the session secret or
+  another bot's folder; it reaches the internet only through a proxy that
+  refuses local addresses. An [independent security review](../reviews/jarvis-hq-security-review.md)
+  found and closed eleven issues. A bot still holds its own copied model
+  keys for the configured providers.
 - **Data boundary.** The [PH-00 boundary](ph-00-setup-decisions.md) kept
   personal microphone audio local, and roadmap item R-A.2 (real voice and
   personal data to a cloud provider) is still unticked. Turning on voice

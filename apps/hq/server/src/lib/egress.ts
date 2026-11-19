@@ -135,7 +135,9 @@ export function startEgressProxy(port: number, host = '127.0.0.1'): Promise<{ po
       const m = /^(\[[^\]]+\]|[^:[\]]+):(\d{1,5})$/.exec(req.url ?? '');
       if (!m) throw new Refusal(400, 'bad-target');
       const t = target(m[1], m[2]);
-      const upstream = dial(await checkedAddress(t.host), t.port);
+      const address = await checkedAddress(t.host);
+      if (client.destroyed) return; // gone while the name was resolved: nothing to dial for
+      const upstream = dial(address, t.port);
       let open = false;
       const kill = () => { upstream.destroy(); client.destroy(); };
       upstream.on('error', () => { if (open) kill(); else client.end(`HTTP/1.1 ${refused(null).status} Refused\r\n\r\n`); });

@@ -80,6 +80,9 @@ const signInLinks = new Map<string, { token: string; expires: number }>();
 const ownerChallenges = new Map<string, { client: string; expires: number }>();
 const nonce = /^[0-9a-f]{64}$/;
 api.get('/auth/owner', (c) => {
+  // Only the launcher asks for a challenge. A browser (any web page) marks its requests with
+  // Sec-Fetch-Site; refusing those keeps pages from crowding out the launcher's challenge.
+  if (c.req.header('sec-fetch-site') || c.req.header('origin')) return c.json({ error: 'forbidden' }, 403);
   const client = c.req.query('client') ?? '';
   if (!nonce.test(client)) return c.json({ error: 'invalid challenge' }, 400);
   if (ownerChallenges.size >= 32) ownerChallenges.delete(ownerChallenges.keys().next().value!);

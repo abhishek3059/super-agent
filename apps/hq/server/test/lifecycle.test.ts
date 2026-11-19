@@ -165,3 +165,17 @@ test('a relaunched gateway is found by its own port and home, and nothing else o
   assert.equal(await alive(ours), false, 'the relaunched gateway is stopped');
   assert.equal(await alive(stranger), true, 'a process that is not the bot\'s gateway is left alone');
 });
+
+test('a new bot never gets the app\'s own ports, even when the counter reaches them', async () => {
+  const { assignEngine } = await import('../src/engine.js');
+  const { env } = await import('../src/env.js');
+  db.exec('CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)');
+  // Earlier tests here put bots on high ephemeral ports, which would (rightly) exhaust the range.
+  db.prepare('UPDATE bots SET engine_port=NULL WHERE engine_port >= ?').run(env.cdpPortBase);
+  db.prepare("INSERT OR REPLACE INTO meta(key, value) VALUES ('next_engine_port', ?)").run(String(env.port));
+  db.prepare("INSERT INTO bots (id, user_id, name, created_at, updated_at) VALUES ('bot_ports', 'usr_test', 'P', ?, ?)").run(Date.now(), Date.now());
+  assignEngine('bot_ports');
+  const port = (db.prepare("SELECT engine_port p FROM bots WHERE id='bot_ports'").get() as any).p as number;
+  assert.ok(![env.port, env.mcpPort, env.egressPort].includes(port), `got ${port}`);
+  assert.ok(port < env.cdpPortBase);
+});

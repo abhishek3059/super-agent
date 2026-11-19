@@ -2,14 +2,15 @@
 
 The [2026-11-17 approval](../approvals/jarvis-hq-dec-23-approval.md) closes R-H.1
 and authorizes the [synthetic OpenAI voice check](jarvis-hq-voice-check.md).
-The run below predates it.
+The record grew over several sessions: the 2026-11-17 runs come first, the
+2026-11-19 security round last. Each section names its own date.
 
 | Field | Value |
 | --- | --- |
-| Date | 2026-11-17 |
+| Date | 2026-11-17 to 2026-11-19 |
 | Host | macOS, Node 22.22.3, Hermes Agent v0.22.2, Google Chrome |
 | Model | The operator's Hermes default (`nvidia/nemotron-3-super-120b-a12b`, provider `nvidia`) |
-| Run by | Claude Code (`claude-fable-5-2`) for `jeevesh2515`, against a scratch data folder with synthetic requests |
+| Run by | Claude Code (`claude-fable-5-2`, later `claude-opus-5-5`) for `jeevesh2515`, against a scratch data folder with synthetic requests |
 | App | [apps/hq](../../apps/hq/README.md) |
 
 Output below is copied from the terminal. Bot ids are omitted.
@@ -23,7 +24,7 @@ $ npm test
 # fail 0
 $ npm run build            (no errors)
 $ npm audit
-found 0 vulnerabilities
+found 0 vulnerabilities   (2026-11-19, at e71f06f)
 $ npm run check            (repository root)
 "errors": 0
 roadmap self-test: all checks passed

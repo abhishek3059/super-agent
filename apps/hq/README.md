@@ -6,9 +6,10 @@ Each one is a [Hermes](https://github.com/NousResearch/hermes-agent) agent with
 its own memory, working folder and browser.
 
 This app is adapted from [Bot HQ](https://github.com/nickvasilescu/bot-hq)
-(MIT). See [third-party notices](THIRD_PARTY_NOTICES.md). It is experimental
-and has had no independent security review. Bots run inside the macOS
-sandbox. It runs under a bounded
+(MIT). See [third-party notices](THIRD_PARTY_NOTICES.md). It is experimental.
+Bots run inside the macOS sandbox, which had an
+[independent security review](../../docs/reviews/jarvis-hq-security-review.md)
+on 2026-11-19 (all findings closed; the sandbox itself was not attacked). It runs under a bounded
 exception, [DEC-23](../../descisions.md#dec-23). The maintainer's direction is
 [recorded here](../../docs/approvals/jarvis-hq-local-team.md).
 
@@ -200,7 +201,8 @@ none of the protections above apply, including the server's file handling.
 - `sandbox-exec` is a macOS tool that Apple marks as deprecated. It has had
   no independent review here.
 
-Use synthetic speech and data while R-A.2 and R-H.4 are open. The
+Use synthetic speech and data while R-A.2 (real voice and personal data to
+a cloud provider) is open. The
 [maintainer approval](../../docs/approvals/jarvis-hq-dec-23-approval.md)
 authorizes up to US$5 per month in OpenAI voice spend. The app does not enforce
 that account limit.

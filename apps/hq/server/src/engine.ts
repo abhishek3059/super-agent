@@ -71,7 +71,14 @@ function freePort(): number {
   db.exec('CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)');
   const stored = Number((db.prepare("SELECT value FROM meta WHERE key='next_engine_port'").get() as any)?.value ?? 0);
   const highest = (db.prepare('SELECT MAX(engine_port) p FROM bots').get() as any)?.p ?? 0;
-  const p = Math.max(stored, highest + 1, env.enginePortBase);
+  // Never a port the app itself uses, nor one whose browser port would be: a bot allowed to reach its
+  // own engine port would otherwise be allowed to reach the app API or another service.
+  const taken = new Set([env.port, env.mcpPort, env.egressPort]);
+  const cdpFor = (p: number) => env.cdpPortBase + (p - env.enginePortBase) + 1;
+  let p = Math.max(stored, highest + 1, env.enginePortBase);
+  while (taken.has(p) || taken.has(cdpFor(p))) p++;
+  // Engine ports must stay below the browser ports, or one bot's engine port could be another's browser port.
+  if (p >= env.cdpPortBase || cdpFor(p) > 65535) throw new Error('No free bot ports left.');
   db.prepare("INSERT OR REPLACE INTO meta(key, value) VALUES ('next_engine_port', ?)").run(String(p + 1));
   return p;
 }
@@ -246,7 +253,11 @@ function hermesContained(botId: string, args: string[]) {
   }, `${botId}.g`);
 }
 
+/** When each bot's gateway was last confirmed as ours (see engineFor). */
+const confirmed = new Map<string, number>();
+
 async function stopGateway(botId: string): Promise<void> {
+  confirmed.delete(botId);
   await stopPid(`${botId}.gateway`, GATEWAY); // the launcher, while it still runs
   const pid = gatewayPid(botId); // and the relaunched gateway itself
   if (!pid) return;
@@ -358,7 +369,10 @@ export async function engineFor(botId: string): Promise<Engine> {
     kind = assignEngine(botId);
   }
   const url = managedUrl(botId);
-  if (!(await healthy(url, 1500)) || !gatewayPid(botId)) await ensureManaged(botId);
+  // The process check (lsof, ps) blocks briefly, so a gateway confirmed in the last minute is trusted.
+  const recent = Date.now() - (confirmed.get(botId) ?? 0) < 60_000;
+  if (!(await healthy(url, 1500)) || (!recent && !gatewayPid(botId))) { confirmed.delete(botId); await ensureManaged(botId); }
+  confirmed.set(botId, Date.now());
   if (deletingBots.has(botId) || !botRow(botId)) throw new Error('bot unavailable');
   return { kind, url, key: managedKey(botId), home: homeFor(botId) };
 }

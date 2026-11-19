@@ -364,3 +364,12 @@ test('a process recorded by an earlier version (bare pid) is still found and sto
   try { process.kill(child.pid!, 0); } catch { alive = false; }
   assert.equal(alive, false, 'and its process is stopped, not left running under old rules');
 });
+
+test('a web page cannot ask for an owner sign-in challenge', async () => {
+  const { api } = await import('../src/routes.js');
+  const client = crypto.randomBytes(32).toString('hex');
+  for (const headers of [{ 'sec-fetch-site': 'cross-site' }, { 'sec-fetch-site': 'same-origin' }, { origin: 'https://evil.example' }]) {
+    assert.equal((await api.request(`/auth/owner?client=${client}`, { headers })).status, 403, JSON.stringify(headers));
+  }
+  assert.equal((await api.request(`/auth/owner?client=${client}`)).status, 200, 'the launcher (no browser headers) still can');
+});

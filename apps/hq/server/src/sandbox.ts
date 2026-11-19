@@ -10,7 +10,8 @@ import { env } from './env.js';
  * bot's folder, and this app's session secret (and with that sign in as the operator). Inside the
  * profile a process and everything it starts can write only the folders it is given, read nothing
  * of the operator's or this app's beyond those, reach only the local ports and sockets it is given,
- * and cannot hand work to an unsandboxed app. It can still read system files and reach the internet.
+ * and cannot hand work to an unsandboxed app. It can still read system files, and reaches the
+ * internet only through the egress proxy (lib/egress.ts), on one of its listed ports.
  */
 
 export interface Confinement {
@@ -18,7 +19,7 @@ export interface Confinement {
   read: string[];
   /** Folders it may read and write. */
   write: string[];
-  /** Loopback TCP ports it may connect to. The internet stays reachable. */
+  /** Loopback TCP ports it may connect to. Nothing else: the internet is reached through the proxy's port. */
   localPorts: number[];
   /** The one loopback TCP port it may listen on (its own API or debugging port), if any. */
   listen?: number;
