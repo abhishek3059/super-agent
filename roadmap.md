@@ -103,6 +103,8 @@ Maps to [RT-004](tasks/004-task-ledger-and-policy.md), [RT-005](tasks/005-fixed-
 - [ ] R-02.F2 If PR #56 merges, HQ job submission must go through the ledger and the policy gate, not call `validate_spec` and `ledger.create_job` directly. Evidence: none yet
 - [ ] R-02.F3 Reconcile the two ledger paths: the SQLite owner ledger is the one application-owned truth, and the PostgreSQL seam and the Hermes worker definitions from PR #55 either sit behind it with the same states, idempotency, and policy admission, or are removed. Evidence: none yet
 - [ ] R-02.F4 Close F2 (accept-before-auth denial of service) by handshake-time authentication before any of: R-A.2 allows real voice to a cloud provider beyond maintainer testing; a multi-user, shared, always-on, or remote host; job control reachable from a voice session ([decisions](docs/approvals/r01-10-decisions.md), [risk acceptance](docs/approvals/r01-6-f2-risk-acceptance.md)). Evidence: none yet
+- [ ] R-02.F5 Stale-session rejection: each job records its voice session, and delegate or cancel from a closed or replaced session is refused (`session_stale`). Evidence: none yet
+- [ ] R-02.F6 Hung tools cannot stall jobs: each tool call has a hard timeout inside the step deadline, abandoned threads are capped, app-read subprocesses time out, and this holds on Windows. Evidence: none yet
 - [ ] R-02.6 RT-004 and RT-005 records complete and RT-G02 evidenced. Evidence: none yet
 
 ## PH-03: steering, stops, recovery, and validation
