@@ -11,8 +11,14 @@ background task delegation.
 > calendar, notes, and mail tools (T1, PR #43) and local memory and reminders
 > (T2, PR #45) are merged. An opt-in Gemini Live adapter and console testing
 > mode with calculator and clock tools exist under an exception (PR #41).
-> Nothing leaves the machine on the local path. There are no workers,
-> stored audio, or complete assistant. RT-G01 is evidenced (PH-01 done, 2026-11-19); RT-G02 and later runtime gates remain open.
+> Nothing leaves the machine on the local path. The main assistant has no workers and
+> no stored audio, and is not yet complete. RT-G01 is evidenced (PH-01 done, 2026-11-19); RT-G02 and later runtime gates remain open.
+
+> **Jarvis HQ (experimental).** A local multi-bot workspace is in
+> [`apps/hq`](apps/hq/README.md): Jarvis plus four Hermes workers, each with
+> its own browser, chat and memory, run inside the macOS sandbox, which had an
+> [independent security review](docs/reviews/jarvis-hq-security-review.md). It runs under the approved [DEC-23](descisions.md#dec-23)
+> exception. See the [maintainer approval](docs/approvals/jarvis-hq-dec-23-approval.md).
 
 ## Start here
 
@@ -24,7 +30,7 @@ background task delegation.
 | [Phases](phases.md) | Milestone plan PH-DOC–PH-07 with entry and exit gates |
 | [Progress](progress.md) | Dated documentation milestone and dispositions |
 | [Build](build.md) | Current app-specific commands and the historical repository-root command proposal |
-| [Decisions](descisions.md) | Decision register DEC-01–DEC-22 |
+| [Decisions](descisions.md) | Decision register DEC-01–DEC-23 |
 | [Flows](flow.md) | Ten numbered workflows WF-01–WF-10 |
 | [Tasks](tasks/README.md) | Twelve task records; RT-001 is complete, RT-002 and RT-003 are in progress, and RT-004 and later tasks are `not started` |
 | [Council meetings](council%20meetings/README.md) | Three archived deliberation records |

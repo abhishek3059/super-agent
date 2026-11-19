@@ -211,6 +211,16 @@ Tiers are defined in [DEC-18](descisions.md#dec-18). R-A.1 and R-A.2 can happen 
 - [ ] R-A.8 [human] T3 consequential-action design (on-device approval, shell and recipient allowlists, kill switch) approved after independent security review. Evidence: none yet
 - [ ] R-A.9 T3 consequential actions built behind the policy layer, with negative tests. Evidence: none yet
 
+## Parallel track H: Jarvis HQ local team (DEC-23)
+
+`apps/hq` is an experimental local multi-bot workspace built at a maintainer's direction under [DEC-23](descisions.md#dec-23). Its workers run inside the macOS sandbox, outside the capability ladder, as a [bounded exception approved by a maintainer](docs/approvals/jarvis-hq-dec-23-approval.md). This track gates no phase and moves no gate. Every item must be ticked before any release to `main` users or any public distribution of the app.
+
+- [x] R-H.1 [human] A maintainer approves DEC-23, the AGENTS.md section 5 exception and the OpenAI voice spend. Evidence: [maintainer approval in chat, 2026-11-17](docs/approvals/jarvis-hq-dec-23-approval.md)
+- [ ] R-H.2 `apps/hq` merged with its self-checks green in CI. Evidence: none yet
+- [x] R-H.3 Live voice run recorded with synthetic speech: connect, tool call handed to a bot, spoken result, interrupt, end. Evidence: [voice check record](docs/implementation/jarvis-hq-voice-check.md#live-run-2026-11-19), [saved output](docs/implementation/evidence/rh3-voice-check-output-20261119.txt)
+- [x] R-H.4 Independent security review of `apps/hq`: loopback boundary, screen relay, the sandbox profile, credentials copied into bot homes, internet egress. Evidence: [security review and closure](docs/reviews/jarvis-hq-security-review.md)
+- [x] R-H.5 Workers contained so one bot cannot read the operator's files, the session secret or another bot's folder. Evidence: [containment run and attacks through the server](docs/implementation/jarvis-hq-local-run.md#containment), [self-checks](apps/hq/server/test/hq.test.ts)
+
 ## Parallel track C: community and launch
 
 Starts after the PH-03 exit, except R-C.1 and R-C.2, which can happen any time.

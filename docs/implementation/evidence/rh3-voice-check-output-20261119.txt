@@ -1,0 +1,16 @@
+[1971 ms] synthetic PCM ready
+[2003 ms] fresh synthetic owner and team verified
+[2350 ms] ephemeral session minted
+[3342 ms] Realtime session updated
+[8480 ms] synthetic request streamed
+[9695 ms] send_task relayed and voice-sourced Jarvis message verified
+[9695 ms] waiting for Scout handoff and result
+[62485 ms] Jarvis handoff in Scout chat verified
+[116509 ms] Scout returned the title and Jarvis replied
+[118032 ms] spoken Scout result verified
+[119105 ms] interruption speech_started received
+[119106 ms] response.cancel sent
+[123459 ms] cancellation confirmed with no further audio from that response
+[123462 ms] voice call ended
+[123464 ms] PASS
+exit 0

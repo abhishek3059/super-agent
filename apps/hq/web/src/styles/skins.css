@@ -1,0 +1,84 @@
+/* Skins: each one overrides the colour tokens on top of the light or dark base theme. */
+
+/* Arc: the Jarvis look. Deep navy, cyan light, a faint HUD grid. */
+:root[data-skin='arc'] {
+  --color-bg-chrome: #050B12;
+  --color-bg-sidebar: #040910;
+  --color-bg-pane: #07101A;
+  --color-bg-elevated: #0C1826;
+  --color-bg-elevated-hover: #12233A;
+  --color-bg-active: #39D0FF1F;
+  --color-bg-active-solid: #0F2436;
+  --color-bg-hover: #39D0FF14;
+  --color-bg-tertiary: #39D0FF0D;
+  --color-text-primary: #DDF4FF;
+  --color-text-secondary: #A9D4EBD9;
+  --color-text-tertiary: #7FB2CCB8;
+  --color-text-quaternary: #5C8AA38F;
+  --color-icon-secondary: #7FD6F5C7;
+  --color-border-secondary: #39D0FF33;
+  --color-border-tertiary: #39D0FF1F;
+  --color-border-primary: #39D0FF66;
+  --color-border-focus: #39D0FF;
+  --color-primary: #39D0FF;
+  --color-bg-primary-hover: #7FE2FF;
+  --color-on-primary: #03121C;
+  --color-bubble-agent: #39D0FF12;
+  --color-bubble-user: #0E3A52;
+  --shadow-card: #39D0FF33 0 0 0 0.5px, #39D0FF14 0 0 24px;
+  --shadow-composer: #39D0FF40 0 0 0 0.5px, #39D0FF1A 0 0 28px;
+  --shadow-pill: #39D0FF40 0 0 0 0.5px;
+  --shadow-popover: #39D0FF40 0 0 0 0.5px, #000000 0 12px 32px -8px;
+}
+:root[data-skin='arc'] body {
+  background-image: linear-gradient(#39D0FF08 1px, transparent 1px), linear-gradient(90deg, #39D0FF08 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+
+/* Ember: warm charcoal with an orange accent. */
+:root[data-skin='ember'] {
+  --color-bg-chrome: #14100D;
+  --color-bg-sidebar: #100C0A;
+  --color-bg-pane: #191310;
+  --color-bg-elevated: #231A15;
+  --color-bg-elevated-hover: #30231B;
+  --color-bg-active: #FF7A2E24;
+  --color-bg-active-solid: #2E1F16;
+  --color-text-primary: #FBEDE3;
+  --color-border-focus: #FF7A2E;
+  --color-primary: #FF7A2E;
+  --color-bg-primary-hover: #FF9A5C;
+  --color-on-primary: #1A0D05;
+  --color-bubble-user: #5A2A0F;
+}
+
+/* Carbon: neutral near-black, high contrast, no colour. */
+:root[data-skin='carbon'] {
+  --color-bg-chrome: #0A0A0A;
+  --color-bg-sidebar: #050505;
+  --color-bg-pane: #0D0D0D;
+  --color-bg-elevated: #171717;
+  --color-text-primary: #FFFFFF;
+  --color-border-secondary: #FFFFFF2E;
+}
+
+/* Paper: warm off-white for long reading. */
+:root[data-skin='paper'] {
+  --color-bg-chrome: #FBF8F1;
+  --color-bg-sidebar: #F3EEE2;
+  --color-bg-pane: #FFFDF8;
+  --color-bg-elevated: #FFFDF8;
+  --color-text-primary: #2A2420;
+  --color-primary: #2A2420;
+  --color-bubble-user: #2A2420;
+}
+
+/* Skin previews in Settings. */
+.theme-tile__art.is-arc .theme-tile__side { background: #040910; } .theme-tile__art.is-arc .theme-tile__pane { background: #07101A; }
+.theme-tile__art.is-arc i { background: #39D0FF33; } .theme-tile__art.is-arc b { background: #39D0FF; }
+.theme-tile__art.is-ember .theme-tile__side { background: #100C0A; } .theme-tile__art.is-ember .theme-tile__pane { background: #191310; }
+.theme-tile__art.is-ember i { background: #FBEDE326; } .theme-tile__art.is-ember b { background: #FF7A2E; }
+.theme-tile__art.is-carbon .theme-tile__side { background: #050505; } .theme-tile__art.is-carbon .theme-tile__pane { background: #0D0D0D; }
+.theme-tile__art.is-carbon i { background: #FFFFFF2E; } .theme-tile__art.is-carbon b { background: #FFFFFF; }
+.theme-tile__art.is-paper .theme-tile__side { background: #F3EEE2; } .theme-tile__art.is-paper .theme-tile__pane { background: #FFFDF8; }
+.theme-tile__art.is-paper b { background: #2A2420; }
