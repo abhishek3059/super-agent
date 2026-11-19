@@ -71,6 +71,7 @@ def _call(fn, seconds: float, *args):
 
     thread = threading.Thread(target=target, daemon=True, name="tool-call")
     with _stuck_lock:
+        _stuck.difference_update([t for t in _stuck if not t.is_alive()])  # a thread can still look alive just after its finally ran
         if len(_stuck) >= _ABANDONED_CAP:
             raise PolicyError("tool_threads_stuck")
     thread.start()  # nothing is registered before this, so a failed start leaves nothing behind
@@ -78,8 +79,6 @@ def _call(fn, seconds: float, *args):
     if thread.is_alive():
         with _stuck_lock:
             _stuck.add(thread)
-            if not thread.is_alive():  # it returned between the join and here: its own discard already ran
-                _stuck.discard(thread)
         raise PolicyError("step_deadline")
     ok, value = box[0]
     if not ok:

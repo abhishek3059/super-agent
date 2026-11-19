@@ -563,6 +563,19 @@ def test_abandoned_tool_threads_are_capped(monkeypatch):
     assert graph._call(lambda: "x", 1) == "x"  # a finished thread freed its slot
 
 
+def test_a_dead_thread_left_in_the_set_is_pruned(monkeypatch):
+    from super_agent_voice import graph
+    monkeypatch.setattr(graph, "_stuck", set())
+    monkeypatch.setattr(graph, "_ABANDONED_CAP", 2)
+    for _ in range(2):
+        done = threading.Thread(target=lambda: None)
+        done.start()
+        done.join()
+        graph._stuck.add(done)  # finished, but still registered
+    assert graph._call(lambda: "x", 1) == "x"
+    assert not graph._stuck
+
+
 def test_the_cap_counts_abandoned_threads_across_concurrent_calls(monkeypatch):
     from super_agent_voice import graph
     from super_agent_voice.policy import PolicyError
