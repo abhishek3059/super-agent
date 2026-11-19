@@ -11,6 +11,7 @@ from __future__ import annotations
 import dataclasses
 import json
 import re
+import threading
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Literal
@@ -28,6 +29,7 @@ REASONS = frozenset({
     "plan_invalid", "tool_out_of_scope", "model_error",
     "tool_args_invalid", "clarify_unsupported", "tracing_enabled", "model_reply_invalid", "step_failed",
     "verify_failed", "delegation_unavailable", "untrusted_read_in_turn", "not_asked",
+    "session_stale", "tool_threads_stuck",
 })
 
 
@@ -145,15 +147,50 @@ def _spec(spec: object, limits: Limits) -> dict:
     return spec
 
 
+def _vetted(spec: object, planner_is_local: bool, lim: Limits) -> dict:
+    """The spec schema and the data-class rule. Shared by admit and the runner's claim path."""
+    spec = _spec(spec, lim)
+    if not planner_is_local and spec["data_class"] == "personal":
+        raise PolicyError("personal_data_cloud_planner")
+    return spec
+
+
+def _scope(task: str, planner_is_local: bool, memory_is_synthetic: bool = False,
+           tier1_is_synthetic: bool = False) -> frozenset[str]:
+    tools = TOOL_SCOPE[task]
+    if planner_is_local or tier1_is_synthetic:
+        tools |= TIER1_FILE_TOOLS[task]
+    if planner_is_local:
+        tools |= TIER1_APP_TOOLS[task]
+    # Memory now holds inferred records from real speech, so memory_is_synthetic must never be True for real memory.
+    if planner_is_local or memory_is_synthetic:
+        tools |= MEMORY_TOOLS[task]
+    return tools
+
+
+def _deadline_of(job: Job, lim: Limits) -> datetime:
+    """The job's deadline counts from its creation, so a retry or a late claim never extends it."""
+    try:
+        return datetime.fromisoformat(job.created_at) + timedelta(seconds=lim.job_deadline_s)
+    except ValueError:
+        raise PolicyError("ledger_error") from None
+    except OverflowError:
+        raise PolicyError("clock_invalid") from None
+
+
+_ADMIT_LOCK = threading.Lock()  # shortcut: one process only; a shared database needs its own cap, upgrade then
+
+
 def admit(spec: object, idempotency_key: object, planner_is_local: object, limits: object,
           ledger, now: object, *, memory_is_synthetic: object = False,
-          tier1_is_synthetic: object = False) -> Admission:
+          tier1_is_synthetic: object = False, session: str | None = None) -> Admission:
     """Validate, apply the data-class rule and queue cap, then create the job in the ledger.
 
     planner_is_local, memory_is_synthetic and tier1_is_synthetic come from trusted code
     (deployment configuration) and must be exactly bool; anything else is a refusal. The spec's
-    data_class can only make admission stricter, never unlock a personal-data source. Refusals write nothing. Not atomic with the ledger: two
-    concurrent admissions can both pass the cap check (see the implementation record)."""
+    data_class can only make admission stricter, never unlock a personal-data source. Refusals write nothing.
+    `session` (trusted, optional) is stored beside the spec. The cap check and the job creation run under one
+    lock, so concurrent admissions in this process cannot both pass the cap."""
     lim = _limits(limits)
     if not _aware(now):
         raise PolicyError("clock_invalid")
@@ -171,37 +208,35 @@ def admit(spec: object, idempotency_key: object, planner_is_local: object, limit
         raise PolicyError("planner_locality_invalid")
     if type(memory_is_synthetic) is not bool or type(tier1_is_synthetic) is not bool:
         raise PolicyError("memory_flag_invalid")
-    spec = _spec(spec, lim)
-    if not planner_is_local and spec["data_class"] == "personal":
-        raise PolicyError("personal_data_cloud_planner")
-    try:
-        jobs = ledger.list_jobs()
-        known = any(j.idempotency_key == idempotency_key for j in jobs)  # a repeat is not new load
-        if not known and sum(j.state not in TERMINAL for j in jobs) >= lim.concurrent_jobs + lim.queued_jobs:
-            raise PolicyError("queue_full")
-    except LedgerError:
-        raise PolicyError("ledger_error") from None
-    try:
-        job = ledger.create_job(spec, idempotency_key)
-    except LedgerError:
-        raise PolicyError("ledger_rejected") from None
-    if known:  # a repeat must not extend the job's deadline: budgets are not reset by a retry
+    spec = _vetted(spec, planner_is_local, lim)
+    with _ADMIT_LOCK:
         try:
-            deadline = datetime.fromisoformat(job.created_at) + timedelta(seconds=lim.job_deadline_s)
-        except ValueError:
+            jobs = ledger.list_jobs()
+            known = any(j.idempotency_key == idempotency_key for j in jobs)  # a repeat is not new load
+            if not known and sum(j.state not in TERMINAL for j in jobs) >= lim.concurrent_jobs + lim.queued_jobs:
+                raise PolicyError("queue_full")
+        except LedgerError:
             raise PolicyError("ledger_error") from None
-        except OverflowError:
-            raise PolicyError("clock_invalid") from None
+        try:
+            job = ledger.create_job(spec if session is None else {**spec, "session": session}, idempotency_key)
+        except LedgerError:
+            raise PolicyError("ledger_rejected") from None
+    if known:  # a repeat must not extend the job's deadline: budgets are not reset by a retry
+        deadline = _deadline_of(job, lim)
     task = spec["task_type"]
-    tools = TOOL_SCOPE[task]
-    if planner_is_local or tier1_is_synthetic:
-        tools |= TIER1_FILE_TOOLS[task]
-    if planner_is_local:
-        tools |= TIER1_APP_TOOLS[task]
-    # Memory now holds inferred records from real speech, so memory_is_synthetic must never be True for real memory.
-    if planner_is_local or memory_is_synthetic:
-        tools |= MEMORY_TOOLS[task]
+    tools = _scope(task, planner_is_local, memory_is_synthetic, tier1_is_synthetic)
     return Admission(job, tools, planner_is_local or memory_is_synthetic, deadline, planner_is_local)
+
+
+def admit_claimed(job: Job, allowed: frozenset[str], planner_is_local: bool, limits: Limits) -> Admission:
+    """The same checks as admit for a job another path already created and claimed. The tools are the
+    worker's own names cut down to the scope of the job's task type. Raises PolicyError; the caller fails the job."""
+    lim = _limits(limits)
+    if type(planner_is_local) is not bool:
+        raise PolicyError("planner_locality_invalid")
+    spec = _vetted({k: v for k, v in job.spec.items() if k != "session"}, planner_is_local, lim)
+    tools = _scope(spec["task_type"], planner_is_local) & allowed
+    return Admission(job, tools, False, _deadline_of(job, lim), planner_is_local)
 
 
 # --- step-level checks: pure, each returns True or raises PolicyError --------

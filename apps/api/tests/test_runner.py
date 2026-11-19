@@ -400,7 +400,7 @@ def test_claim_and_run_executes_claimed_job(made):
 
     runner = made(work)
     # create a job directly in queued state
-    job = ledger.create_job({"task": "research something"}, "k-runner-claim-1")
+    job = ledger.create_job(dict(SPEC), "k-runner-claim-1")
 
     claimed = runner.claim_and_run("researcher")
     assert claimed is not None
@@ -414,3 +414,27 @@ def test_claim_and_run_executes_claimed_job(made):
     # Empty claim returns None
     assert runner.claim_and_run("coder") is None
 
+
+
+def test_claim_and_run_goes_through_admit(made):
+    ran = []
+    runner = made(lambda job, adm, stop: ran.append(adm.tools) or {"result": "x"})
+    bad = ledger.create_job({"task": "no schema"}, "k-bad")
+    assert runner.claim_and_run("researcher").id == bad.id
+    personal = ledger.create_job({**SPEC, "data_class": "personal"}, "k-personal")  # cloud planner by default
+    assert runner.claim_and_run("researcher").id == personal.id
+    for job in (bad, personal):
+        assert state(job) == "failed"
+        assert ledger.list_events(job.id)[-1].receipt["executed"] is False
+    assert ledger.list_events(personal.id)[-1].reason == "policy_personal_data_cloud_planner"
+    assert ran == []
+    ok = ledger.create_job(dict(SPEC), "k-ok")
+    runner.claim_and_run("librarian")  # memory reads are outside the answer scope for a cloud planner
+    wait_state(ok, "succeeded")
+    assert ran == [frozenset()]
+    local = Runner(ledger, policy.Limits(), lambda job, adm, stop: ran.append(adm.tools) or {"r": 1}, lambda: NOW, True)
+    mine = ledger.create_job({**SPEC, "data_class": "personal"}, "k-mine")
+    local.claim_and_run("librarian")
+    wait_state(mine, "succeeded")
+    assert ran[-1] == frozenset({"list_memory", "list_reminders"}) - (memory.NAMES if not memory.enabled() else set())
+    local.close()
