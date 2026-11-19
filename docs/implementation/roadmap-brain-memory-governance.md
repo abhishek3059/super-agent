@@ -17,7 +17,7 @@ PR before it starts. [PR 59](https://github.com/abhishek3059/super-agent/pull/59
 
 | Item | Source |
 | --- | --- |
-| R-02.7 governance gate, slices 1 to 4, GR-1 | [governance design](../design/governance.md) section 5 and 6.2 (added by [PR 59](https://github.com/abhishek3059/super-agent/pull/59)). No exception tag: PH-02 is current and policy limits already live in R-02.3. OD-G1 approved, OD-G2 to OD-G5 open, OD-G6 proposed: see the [decisions record](../approvals/governance-decisions.md) |
+| R-02.7 governance gate, slices 1 to 4, GR-1 | [governance design](../design/governance.md) section 5 and 6.2 (added by [PR 59](https://github.com/abhishek3059/super-agent/pull/59)). No exception tag: PH-02 is current and policy limits already live in R-02.3. OD-G1 to OD-G4 approved, OD-G5 open and blocking slice 2b only, OD-G6 answered: see the [decisions record](../approvals/governance-decisions.md) |
 | R-02.F1 `claim_and_run` bypass | [boundary review](../reviews/r01-10-boundary-review.md) B4; governance OD-G3 |
 | R-02.F2 HQ jobs bypass | governance design section 6.1 (PR #56), OD-G4; conditional on PR #56 merging |
 | R-02.F3 two ledger paths | inventory gap 6; PR #55 next to the SQLite ledger in [agent backend](../design/agent-backend.md) |
