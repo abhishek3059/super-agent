@@ -6,7 +6,7 @@ import YAML from 'yaml';
 import { cdpPortFor, cdpUrlFor } from './computer.js';
 import { confinedEnv, contained, realFolder, which } from './sandbox.js';
 import { removeOwn, writeOwn } from './lib/own.js';
-import { livePid, recordPid, stopPid } from './lib/procs.js';
+import { deletingBots, livePid, recordPid, stopPid } from './lib/procs.js';
 import { db } from './db.js';
 import { env } from './env.js';
 import type { EngineInfo, EngineProvider } from './types.js';
@@ -101,7 +101,7 @@ function soul(b: any): string {
 /** Rewrite the persona file after a rename or a new description. */
 export function syncPersona(botId: string) {
   const b = botRow(botId);
-  if (!b || b.engine !== 'managed' || !fs.existsSync(homeFor(botId))) return;
+  if (deletingBots.has(botId) || !b || b.engine !== 'managed' || !fs.existsSync(homeFor(botId))) return;
   writeOwn(homeFor(botId), 'SOUL.md', soul(b), 0o644);
 }
 
@@ -227,6 +227,7 @@ async function startGateway(botId: string): Promise<void> {
   await stopGateway(botId);
   if (await healthy(url)) throw new Error(`Port ${b.engine_port} is taken by a process this app did not start.`);
 
+  if (deletingBots.has(botId)) throw new Error('bot unavailable');
   const home = writeHome(botId);
 
   // The log is ours, outside the bot's home: a file we open there could be a link to anywhere.
@@ -271,6 +272,7 @@ async function startGateway(botId: string): Promise<void> {
 
 /** Start (or adopt) the bot's gateway. Safe to call often; concurrent calls share one start. */
 function ensureManaged(botId: string): Promise<void> {
+  if (deletingBots.has(botId) || !botRow(botId)) return Promise.reject(new Error('bot unavailable'));
   let p = starting.get(botId);
   if (!p) {
     p = startGateway(botId)
@@ -289,6 +291,7 @@ function ensureManaged(botId: string): Promise<void> {
 
 /** Where to send this bot's turns. Starts its gateway if it is not running. */
 export async function engineFor(botId: string): Promise<Engine> {
+  if (deletingBots.has(botId)) throw new Error('bot unavailable');
   let kind = engineKind(botId);
   if (!kind) {
     const b = botRow(botId);
@@ -298,6 +301,7 @@ export async function engineFor(botId: string): Promise<Engine> {
   }
   const url = managedUrl(botId);
   if (!(await healthy(url, 1500)) || !gatewayPid(botId)) await ensureManaged(botId);
+  if (deletingBots.has(botId) || !botRow(botId)) throw new Error('bot unavailable');
   return { kind, url, key: managedKey(botId), home: homeFor(botId) };
 }
 
@@ -313,34 +317,39 @@ export function provisionEngine(botId: string) {
 }
 
 export async function restartEngine(botId: string): Promise<void> {
-  if (engineKind(botId) !== 'managed') return;
+  if (engineKind(botId) !== 'managed' || deletingBots.has(botId)) return;
   await starting.get(botId)?.catch(() => {});
+  if (deletingBots.has(botId) || !botRow(botId)) return;
   await stopGateway(botId);
   optionsCache.delete(botId);
   provisionEngine(botId);
 }
 
-/** The bot is gone: stop its gateway and delete its home. */
-export async function removeEngine(botId: string): Promise<void> {
-  // Even if the bot deleted its own home: its gateway and helper folder still have to go.
-  const home = homeFor(botId);
+export async function stopEngine(botId: string): Promise<void> {
   await starting.get(botId)?.catch(() => {});
   await stopGateway(botId);
+}
+
+export async function forgetEngineFiles(botId: string): Promise<void> {
+  const home = homeFor(botId);
   failures.delete(botId);
   optionsCache.delete(botId);
   try {
-    if (path.resolve(home).startsWith(path.resolve(env.enginesDir) + path.sep)) removeOwn(home);
+    if (path.resolve(home).startsWith(path.resolve(env.enginesDir) + path.sep)) await removeOwn(home);
   } finally {
-    removeOwn(bhFor(botId)); // even when a bot locked its home against the delete
+    await removeOwn(bhFor(botId)); // even when a bot locked its home against the delete
   }
 }
 
+/** Stop gateways from earlier runs before handling requests under the current rules. */
+export async function stopAllGateways(): Promise<void> {
+  const bots = db.prepare("SELECT id FROM bots WHERE engine='managed'").all() as { id: string }[];
+  await Promise.all(bots.map((b) => stopGateway(b.id)));
+}
+
 /** On server start: give older bots an engine, then bring the managed gateways up. */
-export async function initEngines() {
+export function initEngines() {
   fs.mkdirSync(env.enginesDir, { recursive: true });
-  // A gateway left running by an earlier version of this server runs under that version's rules.
-  // Stop them all, so each starts again under the rules of this one.
-  for (const b of db.prepare("SELECT id FROM bots WHERE engine='managed'").all() as any[]) await stopGateway(b.id);
   const bots = db.prepare("SELECT id, is_primary FROM bots WHERE engine IS NULL AND COALESCE(kind,'agent') <> 'room' AND COALESCE(hidden,0)=0 ORDER BY is_primary DESC, created_at ASC").all() as any[];
   for (const b of bots) assignEngine(b.id);
   for (const b of db.prepare("SELECT id FROM bots WHERE engine='managed'").all() as any[]) provisionEngine(b.id);

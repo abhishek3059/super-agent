@@ -127,6 +127,7 @@ export class PcmPlayer {
   }
 
   get playing() { return this.sources.size > 0; }
+  get queuedMs() { return this.playing ? Math.max(0, this.nextTime - this.ctx.currentTime) * 1000 : 0; }
 
   push(pcm: Int16Array, rate = RATE) {
     if (!pcm.length) return;

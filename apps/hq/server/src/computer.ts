@@ -5,7 +5,7 @@ import { WebSocket } from 'ws';
 import { db } from './db.js';
 import { env } from './env.js';
 import { confinedEnv, contained, tmpFor } from './sandbox.js';
-import { livePid, recordPid, stopPid } from './lib/procs.js';
+import { deletingBots, livePid, recordPid, stopPid } from './lib/procs.js';
 import { removeOwn } from './lib/own.js';
 import type { ComputerState } from './types.js';
 
@@ -75,6 +75,7 @@ async function startChrome(botId: string): Promise<void> {
     if (chromePid(botId)) return;
     throw new Error(`Port ${cdpPortFor(botId)} is taken by a browser this app did not start. Close it and try again.`);
   }
+  if (deletingBots.has(botId)) throw new Error('bot unavailable');
   const bin = chromeBin();
   if (!bin) throw new Error('No Chrome found. Install Google Chrome or set CHROME_BIN.');
   if (!validId(botId)) throw new Error('bad bot id');
@@ -116,6 +117,9 @@ async function startChrome(botId: string): Promise<void> {
 
 /** The bot's Chrome is up. Safe to call often; concurrent calls share one start. */
 export function readyScreen(_userId: string, botId: string): Promise<void> {
+  if (deletingBots.has(botId) || !db.prepare('SELECT 1 FROM bots WHERE id=?').get(botId)) {
+    return Promise.reject(new Error('bot unavailable'));
+  }
   let p = starting.get(botId);
   if (!p) {
     p = startChrome(botId).finally(() => starting.delete(botId));
@@ -131,26 +135,31 @@ const stopChrome = (botId: string) => stopPid(`${botId}.chrome`, chromeMarker(bo
 
 /** Close everything in the bot's browser and bring it back to its start page. Logins stay. */
 export async function resetBotScreen(userId: string, botId: string): Promise<void> {
+  if (deletingBots.has(botId)) throw new Error('bot unavailable');
   await stopChrome(botId);
   await readyScreen(userId, botId);
 }
 
-export const releaseScreen = stopChrome;
+export async function releaseScreen(botId: string): Promise<void> {
+  await starting.get(botId)?.catch(() => {});
+  await stopChrome(botId);
+}
 
 /** A deleted bot leaves nothing behind: its browser profile and its Library folder go. */
 export async function forgetBotFiles(botId: string): Promise<void> {
   if (!validId(botId)) return;
   for (const root of [env.profilesDir, env.filesDir]) {
     const dir = path.join(root, botId);
-    if (path.dirname(dir) === root) removeOwn(dir);
+    if (path.dirname(dir) === root) await removeOwn(dir);
   }
   // Its temporary folders too, so a later bot never inherits one (they are named from the bot id).
-  for (const name of [`${botId}.g`, `${botId}.c`]) removeOwn(tmpFor(name));
+  for (const name of [`${botId}.g`, `${botId}.c`]) await removeOwn(tmpFor(name));
 }
 
 /** On server start: stop every browser an earlier run left, so each starts again under current rules. */
 export async function stopAllBrowsers(): Promise<void> {
-  for (const b of db.prepare("SELECT id FROM bots WHERE COALESCE(kind,'agent') <> 'room'").all() as any[]) await stopChrome(b.id);
+  const bots = db.prepare("SELECT id FROM bots WHERE COALESCE(kind,'agent') <> 'room'").all() as { id: string }[];
+  await Promise.all(bots.map((b) => stopChrome(b.id)));
 }
 
 // ---------- DevTools helpers ----------

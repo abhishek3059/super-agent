@@ -1,8 +1,9 @@
-import { execFileSync, spawn } from 'node:child_process';
+import { execFile, execFileSync, spawn } from 'node:child_process';
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import type { Readable } from 'node:stream';
 import path from 'node:path';
+import { promisify } from 'node:util';
 import { confinedEnv, contained, tmpFor } from '../sandbox.js';
 
 /**
@@ -68,15 +69,32 @@ export function streamOwn(root: string, rel: string): Readable | null {
  * so the contents are deleted from inside the sandbox (where any link leads back into the folder)
  * and the server itself only removes the folder once it is empty. Never recursive outside it.
  */
-export function removeOwn(root: string): void {
+const exec = promisify(execFile);
+
+export async function removeOwn(root: string): Promise<void> {
   let st: fs.Stats;
-  try { st = fs.lstatSync(root); } catch { return; }
-  if (!st.isDirectory()) { fs.unlinkSync(root); return; } // a link or file in a folder's place: the entry only
-  for (let i = 0; i < 5; i++) {
-    try { inSandbox(root, 'find . -mindepth 1 -delete', []); } catch { /* retry: something is still writing */ }
-    try { fs.rmdirSync(root); break; } catch (e: any) { if (e?.code !== 'ENOTEMPTY' || i === 4) throw e; }
+  try { st = fs.lstatSync(root); } catch (e) {
+    if ((e as NodeJS.ErrnoException).code === 'ENOENT') return;
+    throw e;
   }
-  fs.rmSync(tmpFor(tmpName(root)), { recursive: true, force: true }); // ours: no bot process ever writes it
+  if (!st.isDirectory()) { await fs.promises.unlink(root); return; } // only the entry, even if it is a link
+  const name = tmpName(root);
+  try {
+    for (let i = 0; i < 5; i++) {
+      try {
+        const run = contained('/usr/bin/find', ['.', '-mindepth', '1', '-delete'], { read: [], write: [root], localPorts: [] }, name);
+        await exec(run.bin, run.args, { cwd: root, env: confinedEnv(name), timeout: 10_000 });
+      } catch { /* retry: something may still be writing */ }
+      try { await fs.promises.rmdir(root); return; } catch (e) {
+        const code = (e as NodeJS.ErrnoException).code;
+        if (code === 'ENOENT') return;
+        if (code !== 'ENOTEMPTY' || i === 4) throw e;
+      }
+    }
+  } finally {
+    // This folder belongs to the file helper, outside the bot's sandbox.
+    await fs.promises.rm(tmpFor(name), { recursive: true, force: true });
+  }
 }
 
 /** The plain files and folders directly in `rel` ('' for the folder itself), listed inside the sandbox. */

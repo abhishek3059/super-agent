@@ -30,10 +30,13 @@ export function LibraryTab({ bot }: { bot: Bot }) {
     const rel = path ? `${path}/${f.name}` : f.name;
     setBusyFile(f.name); setError(null);
     try {
-      const { url } = await configApi.downloadFile(bot.id, rel);
+      const blob = await configApi.downloadFile(bot.id, rel);
+      const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url; a.download = f.name; a.rel = 'noopener';
-      document.body.appendChild(a); a.click(); a.remove();
+      document.body.appendChild(a);
+      try { a.click(); }
+      finally { a.remove(); setTimeout(() => URL.revokeObjectURL(url), 1000); }
     } catch (e) { setError(`Couldn’t download ${f.name}: ${(e as Error).message}`); }
     finally { setBusyFile(null); }
   };

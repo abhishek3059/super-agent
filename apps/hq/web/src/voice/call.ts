@@ -1,4 +1,4 @@
-// The in-browser voice agent. Grok Bot runs calls as a second, lightweight agent against the xAI realtime
+// The in-browser voice agent. Jarvis HQ runs calls as a second, lightweight agent against the OpenAI Realtime
 // API that speaks as the bot and relays real work to the bot's main text agent (send_task). Results come
 // back through the normal transcript stream and are injected into the call as [work_landed] notes.
 import { create } from 'zustand';
@@ -72,6 +72,7 @@ class VoiceCall {
   private responseId: string | null = null;
   /** Response the user talked over; its late audio deltas are dropped. */
   private interruptedId: string | null = null;
+  private audioItem: { id: string; index: number; durationMs: number } | null = null;
   private userSpeaking = false;
   private inflight = new Map<string, { name: string; promise: Promise<string> }>();
   private handledCalls = new Set<string>();
@@ -81,7 +82,7 @@ class VoiceCall {
   private unsubStore: (() => void) | null = null;
   private checkTimer: ReturnType<typeof setTimeout> | null = null;
   private connectTimer: ReturnType<typeof setTimeout> | null = null;
-  private onUnload = () => { if (this.sess && !this.ended) voiceApi.endBeacon(this.botId, this.sess.callId, this.transcript()); };
+  private onUnload = () => { if (this.sess && !this.ended) voiceApi.endOnPageHide(this.botId, this.sess.callId, this.transcript()); };
 
   constructor(readonly botId: string) {
     // Created synchronously inside the click so autoplay policy lets it run.
@@ -123,11 +124,11 @@ class VoiceCall {
     ws.onopen = () => this.send({ type: 'session.update', session: sess.session });
     ws.onmessage = (m) => {
       if (typeof m.data !== 'string') return;
-      try { this.handle(JSON.parse(m.data)); } catch (e) { console.warn('[voice] bad event', e); }
+      try { this.handle(JSON.parse(m.data)); } catch { console.warn('[voice] invalid realtime event'); }
     };
-    ws.onclose = (e) => {
+    ws.onclose = () => {
       if (this.ended) return;
-      this.end(this.ready ? 'Call dropped' : `Couldn’t connect the call${e.reason ? ` (${e.reason})` : ''}`);
+      this.end(this.ready ? 'Call dropped' : 'Couldn’t connect the call');
     };
   }
 
@@ -163,12 +164,20 @@ class VoiceCall {
       case 'input_audio_buffer.speech_started':
         this.userSpeaking = true;
         setV({ listening: true });
-        // Barge-in: stop talking and listen.
-        if (this.player.playing) this.player.clear();
-        if (this.responseActive) {
+        const item = this.audioItem;
+        const playedMs = Math.max(0, Math.floor((item?.durationMs ?? 0) - this.player.queuedMs));
+        if (this.responseActive && this.responseId) {
           this.interruptedId = this.responseId;
-          this.send({ type: 'response.cancel' });
+          this.send({ type: 'response.cancel', response_id: this.responseId });
         }
+        if (this.player.playing) {
+          this.player.clear();
+          if (item) this.send({
+            type: 'conversation.item.truncate', item_id: item.id,
+            content_index: item.index, audio_end_ms: playedMs,
+          });
+        }
+        this.audioItem = null;
         return;
       case 'input_audio_buffer.speech_stopped':
       case 'input_audio_buffer.committed':
@@ -221,17 +230,27 @@ class VoiceCall {
       case 'response.audio.delta':
         if (ev.delta && !(this.interruptedId && ev.response_id === this.interruptedId)) {
           this.responseSpoke = true;
-          this.player.push(base64ToPcm(ev.delta), this.sess?.sampleRate);
+          const rate = this.sess!.sampleRate;
+          const pcm = base64ToPcm(ev.delta);
+          if (ev.item_id && this.audioItem?.id !== ev.item_id) {
+            this.audioItem = { id: ev.item_id, index: ev.content_index ?? 0, durationMs: 0 };
+          }
+          if (this.audioItem) this.audioItem.durationMs += pcm.length * 1000 / rate;
+          this.player.push(pcm, rate);
         }
         return;
 
-      case 'response.function_call_arguments.done':
-        this.startTool(ev.call_id, ev.name, ev.arguments);
-        return;
       case 'response.done': {
         this.responseActive = false;
         setV({ thinking: false });
-        for (const o of (ev.response?.output ?? []) as Json[]) if (o?.type === 'function_call') this.startTool(o.call_id, o.name, o.arguments);
+        // Argument-done events also arrive on cancellation. Only a completed response can delegate.
+        if (ev.response?.status === 'completed' && ev.response.id !== this.interruptedId) {
+          for (const item of (ev.response.output ?? []) as Json[]) {
+            if (item.type === 'function_call' && item.status === 'completed') {
+              this.startTool(item.call_id, item.name, item.arguments);
+            }
+          }
+        }
         if (this.inflight.size) void this.finishTools(this.responseSpoke);
         else this.flushNotes();
         return;
@@ -240,8 +259,8 @@ class VoiceCall {
       case 'error': {
         const code = ev.error?.code ?? ev.code ?? '';
         if (/cancel/i.test(String(code)) || /no active response/i.test(String(ev.error?.message ?? ''))) return;
-        console.warn('[voice] realtime error', ev.error ?? ev);
-        if (!this.ready) this.end(ev.error?.message ?? 'Voice service error');
+        console.warn('[voice] realtime error');
+        if (!this.ready) this.end('Voice service error');
         return;
       }
     }
@@ -301,7 +320,7 @@ class VoiceCall {
     this.inflight.clear();
     const outputs = await Promise.all(batch.map(([, b]) => b.promise));
     if (this.ended) return;
-    // Every output first, then a single response.create (xAI parallel-call rule).
+    // Return every tool output before asking the model to continue.
     batch.forEach(([callId], i) => this.send({ type: 'conversation.item.create', item: { type: 'function_call_output', call_id: callId, output: outputs[i] } }));
     if (batch.some(([, b]) => b.name === 'end_the_call')) {
       await this.player.whenIdle(8000);

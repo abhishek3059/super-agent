@@ -1,7 +1,8 @@
 # Jarvis HQ: local run record
 
 The [2026-11-17 approval](../approvals/jarvis-hq-dec-23-approval.md) closes R-H.1
-and authorizes the synthetic OpenAI voice check. The run below predates it.
+and authorizes the [synthetic OpenAI voice check](jarvis-hq-voice-check.md).
+The run below predates it.
 
 | Field | Value |
 | --- | --- |

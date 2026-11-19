@@ -45,21 +45,29 @@ A bot's Hermes gateway starts the first time you use that bot.
 
 ## Voice
 
-Voice is off until the server has an OpenAI key. Put it in the data folder,
-not in the repository:
+Voice is off until the server has an OpenAI key. Save
+`OPENAI_API_KEY` in the owner-only file `~/.super-agent/hq/.env` (mode
+0600) and restart the server. The browser gets a five-minute client
+secret. The long-lived key stays on the server.
+
+For the opt-in check, build HQ and start it with a new `HQ_DATA_DIR`
+outside the repository and the default HQ directory. Set
+`HQ_OWNER_NAME="Voice Check"`, `HQ_NO_SCHEDULER=1` and matching
+`PORT` and `APP_URL` on the loopback host. Use a Hermes seed with only
+the intended test model credentials. Load the OpenAI key from the
+owner-only file into the server process. Do not sign in or seed chat
+before the probe. From `apps/hq`, with the same directory and port, run:
 
 ```bash
-mkdir -p ~/.super-agent/hq && umask 077 && printf 'OPENAI_API_KEY=%s\n' 'paste-key-here' > ~/.super-agent/hq/.env
+node scripts/voice-check.mjs
 ```
 
-Restart the server after that. OpenAI bills voice by usage. The browser gets
-a key that expires in five minutes. The long-lived key stays on the server.
-**Status: the voice path has not been run against OpenAI yet.** The
-client-secret request was compared with `src/resources/realtime/client-secrets.ts`
-in [openai-node](https://github.com/openai/openai-node) and with the
-[Realtime WebRTC guide](https://developers.openai.com/api/docs/guides/realtime-webrtc)
-on 2026-11-17. The model names and the tool-call event names are unverified
-until a real call is made.
+Use synthetic speech and a fresh workspace. A populated workspace can
+include owner identity, chat, bot memory and routines in the call prompt.
+`node scripts/voice-check.mjs --self-check` runs the offline audio and
+request checks. The paid probe runs separately from `npm test` and CI.
+See the [voice run record](../../docs/implementation/jarvis-hq-voice-check.md)
+for current results and the provider contract.
 
 ## Settings
 
@@ -95,9 +103,9 @@ sign out your own Hermes when a copy refreshes.
 
 - The server listens on 127.0.0.1 only. It refuses any request whose `Host`
   is not the loopback address and any browser request from another origin.
-- Sign-in is a one-time link. Only someone who can read `session-secret` in
-  the data folder can mint one. The session cookie is `HttpOnly` and
-  `SameSite=Strict`.
+- The launcher authenticates the local server using a fresh challenge.
+  Only the holder of `session-secret` can complete sign-in and mint a
+  one-time link. The session cookie is `HttpOnly` and `SameSite=Strict`.
 - A watch-mode viewer cannot send input. A control-mode viewer can send only
   mouse and key events.
 - Approval cards accept only an explicit allow. Anything else is refused.
@@ -144,8 +152,10 @@ write:
   is removed, never followed. A bot that locked files in its own folder
   (`chmod`, `chflags`) can stop that delete; the folder is then left behind
   and the server logs it. A new bot never reuses those folders.
-- When the server starts, it stops every gateway and browser an earlier run
-  left, so each starts again under the current rules.
+- Before listening, the server stops the recorded gateways and browsers
+  left by earlier runs. If process identity cannot be checked, the server
+  retains the PID record and fails startup. A bot delete stays retryable
+  when its process cannot be checked or stopped.
 
 Without a sandbox the app refuses to start a bot. That means macOS only,
 unless you set `HQ_UNCONTAINED=1` and accept uncontained bots. In that mode
@@ -182,7 +192,8 @@ that account limit.
 ## What has been tested
 
 See the [local run record](../../docs/implementation/jarvis-hq-local-run.md).
-Voice has not been run. Connected apps (Composio) and X search (xAI) come
+See the [voice run record](../../docs/implementation/jarvis-hq-voice-check.md)
+for the synthetic check. Connected apps (Composio) and X search (xAI) come
 from upstream and are switched off in code: DEC-23 does not approve a second
 paid service or real accounts. Their code is still present and untested here.
 

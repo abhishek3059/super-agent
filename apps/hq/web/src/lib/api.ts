@@ -1,13 +1,13 @@
 import type { Bot, ComputerState, LiveState, Routine, Row, Toolkit, User } from '@shared/types';
+import { clearSession, hqFetch } from './auth';
 
 export class ApiError extends Error {
   constructor(public status: number, message: string) { super(message); }
 }
 
-async function req<T>(method: string, path: string, body?: unknown): Promise<T> {
-  const res = await fetch(`/api${path}`, {
+export async function req<T>(method: string, path: string, body?: unknown): Promise<T> {
+  const res = await hqFetch(`/api${path}`, {
     method,
-    credentials: 'include',
     headers: body !== undefined ? { 'Content-Type': 'application/json' } : undefined,
     body: body !== undefined ? JSON.stringify(body) : undefined,
   });
@@ -26,7 +26,10 @@ export interface RoomMember { id: string; name: string; label: string; avatarSha
 
 export const api = {
   me: () => req<{ user: User | null }>('GET', '/auth/me'),
-  logout: () => req<{ ok: true }>('POST', '/auth/logout'),
+  logout: async () => {
+    try { return await req<{ ok: true }>('POST', '/auth/logout'); }
+    finally { clearSession(); }
+  },
 
   bots: () => req<{ bots: Bot[]; live: LiveState[] }>('GET', '/bots'),
   createBot: (b: Pick<Bot, 'name' | 'avatarShape' | 'avatarColor' | 'mode'>) => req<{ bot: Bot }>('POST', '/bots', b),

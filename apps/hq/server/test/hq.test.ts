@@ -1,7 +1,9 @@
 // Self-checks for the parts that guard a boundary: who may call the server, what a viewer may send
 // to a bot's browser, and that a handoff between bots always comes back.
 import assert from 'node:assert/strict';
+import crypto from 'node:crypto';
 import fs from 'node:fs';
+import { createServer } from 'node:http';
 import os from 'node:os';
 import path from 'node:path';
 import { test } from 'node:test';
@@ -14,8 +16,8 @@ process.env.COMPOSIO_API_KEY = 'y';
 const { allowedHost, allowedOrigin } = await import('../src/lib/guard.js');
 const { inputCommand, sameOrigin } = await import('../src/screen.js');
 const { autoReply } = await import('../src/agent/loop.js');
-const { isOwnerKey } = await import('../src/lib/auth.js');
 const { env } = await import('../src/env.js');
+const { createSession } = await import('../src/lib/auth.js');
 
 test('only loopback hosts are served', () => {
   assert.ok(allowedHost('127.0.0.1:8787'));
@@ -61,12 +63,60 @@ test('a handoff always returns a result or a failure, and a reply never bounces'
   assert.equal(autoReply({ type: 'user', text: 'hi' } as any, turn(), null), null);
 });
 
-test('the owner key is derived from the session secret and nothing else passes', async () => {
-  const crypto = await import('node:crypto');
-  assert.ok(isOwnerKey(crypto.createHmac('sha256', env.sessionSecret).update('owner-login').digest('hex')));
-  for (const k of ['', 'abc', '00'.repeat(32), crypto.createHmac('sha256', 'other').update('owner-login').digest('hex')]) assert.equal(isOwnerKey(k), false);
+test('owner sign-in consumes a distinct, single-use client proof', async () => {
+  const { api } = await import('../src/routes.js');
+  const client = crypto.randomBytes(32).toString('hex');
+  const challenge = await api.request(`/auth/owner?client=${client}`);
+  assert.equal(challenge.status, 200);
+  const { proof: serverProof, server } = await challenge.json();
+  const hmac = (side: string) => crypto.createHmac('sha256', env.sessionSecret)
+    .update(`hq-owner:${side}:${client}:${server}`).digest('hex');
+  assert.equal(serverProof, hmac('server'));
+  const post = (proof: string) => api.request('/auth/owner', {
+    method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ server, proof }),
+  });
+  assert.equal((await post(serverProof)).status, 403);
+  const granted = await post(hmac('client'));
+  assert.equal(granted.status, 200);
+  assert.equal((await post(hmac('client'))).status, 403);
+  const { initRooms } = await import('../src/agent/rooms.js');
+  const { initSubagents } = await import('../src/agent/subagents.js');
+  initSubagents();
+  initRooms();
+  const { url } = await granted.json();
+  const linkPath = new URL(url).pathname.slice('/api'.length);
+  const signedIn = await api.request(linkPath, { headers: { accept: 'application/json' } });
+  assert.equal(signedIn.status, 200);
+  assert.equal(signedIn.headers.has('set-cookie'), false);
+  assert.equal(signedIn.headers.get('cache-control'), 'no-store');
+  assert.equal((await api.request(linkPath)).status, 410);
+  const { token } = await signedIn.json();
+  const headers = { authorization: `Bearer ${token}` };
+  assert.equal((await api.request('/bots', { headers })).status, 200);
+  assert.equal((await api.request('/bots', { headers: { cookie: `hq_session=${token}` } })).status, 401);
+  assert.equal((await api.request('/auth/logout', { method: 'POST', headers })).status, 200);
+  assert.equal((await api.request('/bots', { headers })).status, 401);
   assert.equal(fs.statSync(path.join(env.dataDir, 'session-secret')).mode & 0o777, 0o600);
   assert.equal(fs.statSync(env.dataDir).mode & 0o777, 0o700);
+});
+
+test('the owner launcher sends no credential to an impostor listener', async () => {
+  const { ownerLogin } = await import('../../scripts/owner-login.mjs');
+  const received: { method?: string; authorization?: string }[] = [];
+  const impostor = createServer((req, res) => {
+    received.push({ method: req.method, authorization: req.headers.authorization });
+    res.setHeader('Content-Type', 'application/json');
+    res.end(JSON.stringify({ server: 'ab'.repeat(32), proof: 'cd'.repeat(32) }));
+  });
+  await new Promise<void>((resolve) => { impostor.listen(0, '127.0.0.1', resolve); });
+  try {
+    const addr = impostor.address();
+    assert.ok(addr && typeof addr !== 'string');
+    await assert.rejects(ownerLogin(`http://127.0.0.1:${addr.port}`, env.dataDir), /authenticate/);
+    assert.deepEqual(received, [{ method: 'GET', authorization: undefined }]);
+  } finally {
+    await new Promise<void>((resolve) => { impostor.close(() => resolve()); });
+  }
 });
 
 test('an approval card accepts only its three answers', async () => {
@@ -87,13 +137,47 @@ test('the approval route refuses anything but a real answer', async () => {
   const { api } = await import('../src/routes.js');
   const { db } = await import('../src/db.js');
   db.prepare('INSERT INTO users(id,email,name,created_at) VALUES (?,?,?,?)').run('usr_t', 't@localhost', 'T', Date.now());
-  db.prepare('INSERT INTO auth_sessions(token,user_id,created_at,expires_at) VALUES (?,?,?,?)').run('tok_t', 'usr_t', Date.now(), Date.now() + 60_000);
-  const post = (body: string) => api.request('/approvals/ap_none', { method: 'POST', headers: { cookie: 'hq_session=tok_t', 'content-type': 'application/json' }, body });
+  const authorization = `Bearer ${createSession('usr_t')}`;
+  const post = (body: string) => api.request('/approvals/ap_none', { method: 'POST', headers: { authorization, 'content-type': 'application/json' }, body });
   for (const body of ['{}', '{"decision":null}', '{"decision":"x"}', 'not json']) {
     assert.equal((await post(body)).status, 400, body);
   }
   assert.equal((await post('{"decision":"allow"}')).status, 404, 'a real answer for an unknown card is not found');
   assert.equal((await api.request('/approvals/ap_none', { method: 'POST', body: '{"decision":"allow"}' })).status, 401, 'no session');
+});
+
+test('voice tools require an active call for the signed-in bot', async (t) => {
+  const { api } = await import('../src/routes.js');
+  const { initRooms } = await import('../src/agent/rooms.js');
+  const { initSubagents } = await import('../src/agent/subagents.js');
+  initSubagents();
+  initRooms();
+  const authorization = `Bearer ${createSession('usr_t')}`;
+  const post = (route: string, body: object) => api.request(route, { method: 'POST',
+    headers: { authorization, 'content-type': 'application/json' }, body: JSON.stringify(body) });
+  const create = async (name: string) => {
+    const res = await post('/bots', { name });
+    assert.equal(res.status, 200);
+    return (await res.json()).bot.id;
+  };
+  const [botId, otherBot] = [await create('Voice Test'), await create('Other Test')];
+  const originalKey = env.openaiKey;
+  env.openaiKey = 'stub-for-local-test';
+  t.mock.method(globalThis, 'fetch', async () => Response.json({ value: 'stub-client-secret' }));
+  try {
+    const minted = await post('/voice/session', { botId });
+    assert.equal(minted.status, 200);
+    const { callId } = await minted.json();
+    const tool = (id: string, call?: string) => post('/voice/tool', { botId: id, callId: call, name: 'recall_text_messages' });
+    assert.equal((await tool(botId)).status, 400);
+    assert.equal((await tool(botId, 'unknown')).status, 409);
+    assert.equal((await tool(otherBot, callId)).status, 409);
+    assert.equal((await tool(botId, callId)).status, 200);
+    assert.equal((await post('/voice/end', { botId, callId })).status, 200);
+    assert.equal((await tool(botId, callId)).status, 409);
+  } finally {
+    env.openaiKey = originalKey;
+  }
 });
 
 test('a bot sandbox closes reads, writes and local sockets outside what it is given', async () => {
@@ -222,11 +306,13 @@ test('deleting a bot folder removes what is inside it and never what a link insi
   fs.writeFileSync(path.join(outside, 'precious.txt'), 'keep me');
   fs.symlinkSync(outside, path.join(root, 'link-to-operator'));
   fs.symlinkSync(path.join(outside, 'precious.txt'), path.join(root, 'sub', 'file-link'));
-  removeOwn(root);
+  const removal = removeOwn(root);
+  assert.equal(fs.existsSync(root), true, 'delete yields while the confined command runs');
+  await removal;
   assert.equal(fs.existsSync(root), false, 'the bot folder is gone');
   assert.equal(fs.readFileSync(path.join(outside, 'precious.txt'), 'utf8'), 'keep me', 'what the links pointed to is untouched');
   // A link left in a folder's place: only the link goes.
   fs.symlinkSync(outside, root);
-  removeOwn(root);
+  await removeOwn(root);
   assert.equal(fs.existsSync(path.join(outside, 'precious.txt')), true);
 });

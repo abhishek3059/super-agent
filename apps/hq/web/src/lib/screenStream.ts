@@ -15,12 +15,15 @@ export class ScreenStream {
   private onDisconnect: Listener[] = [];
   private closed = false;
 
-  constructor(el: HTMLElement, url: string, control: boolean) {
+  constructor(el: HTMLElement, botId: string, control: boolean, token: string) {
     this.canvas.className = 'screen__frame';
     this.canvas.tabIndex = control ? 0 : -1;
     Object.assign(this.canvas.style, { width: '100%', height: '100%', display: 'block', outline: 'none', cursor: control ? 'default' : 'inherit' });
     el.appendChild(this.canvas);
-    this.ws = new WebSocket(url);
+    const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const mode = control ? 'control' : 'watch';
+    const url = `${protocol}//${location.host}/api/bots/${encodeURIComponent(botId)}/screen?mode=${mode}`;
+    this.ws = new WebSocket(url, ['hq-screen', `hq-session.${token}`]);
     this.ws.binaryType = 'blob';
     this.ws.onmessage = (m) => void this.receive(m.data);
     this.ws.onclose = (e) => { if (!this.closed) this.onDisconnect.forEach((f) => f(e.code === 1000)); };

@@ -5,11 +5,12 @@ import { db, now } from './db.js';
 import { env } from './env.js';
 import { newId } from './lib/ids.js';
 import { hub } from './lib/hub.js';
-import { createSession, destroySession, isOwnerKey, requireUser, userFromCookieHeader, type AuthVars } from './lib/auth.js';
+import { deletingBots } from './lib/procs.js';
+import { createSession, destroySession, ownerProof, requireUser, userFromAuthorization, type AuthVars } from './lib/auth.js';
 import { allLive, appendRow, clearConversation, emitBot, getBot, getBotRow, getRow, listBots, listRoutines, listRows, listTasks, toRoutine, updateRow } from './store.js';
 import { enqueue, interrupt, isDecision, resolveApproval } from './agent/loop.js';
 import { computerState, forgetBotFiles, readyScreen, releaseScreen, screenshot } from './computer.js';
-import { assignEngine, provisionEngine, removeEngine, syncPersona } from './engine.js';
+import { assignEngine, forgetEngineFiles, provisionEngine, stopEngine, syncPersona } from './engine.js';
 import { deleteMemory, listMemories, memoryBot } from './engine-memory.js';
 import { catalog, connectedToolkits, disconnect, startConnect, toolkitInfo } from './composio.js';
 import { runRoutine, scheduleRoutine, unscheduleRoutine } from './routines.js';
@@ -70,16 +71,37 @@ function ownerId(): string {
 
 // ---------- auth ----------
 
-api.get('/auth/me', (c) => c.json({ user: userFromCookieHeader(c.req.header('cookie')) }));
+api.get('/auth/me', (c) => c.json({ user: userFromAuthorization(c.req.header('authorization')) }));
 
 /** One-time sign-in links made by the owner endpoint. Kept in memory: a restart drops them. */
 const signInLinks = new Map<string, { token: string; expires: number }>();
 
-// Sign-in for whoever runs the server. The key is derived from the session secret, which only
-// someone who can read the data folder has (see isOwnerKey); `npm run open` uses it. It answers
-// with a link that signs one browser in, once.
-api.post('/auth/owner', (c) => {
-  if (!isOwnerKey((c.req.header('authorization') ?? '').replace(/^Bearer\s+/i, ''))) return c.json({ error: 'forbidden' }, 403);
+// The launcher verifies a fresh server proof before returning a separate, single-use client proof.
+const ownerChallenges = new Map<string, { client: string; expires: number }>();
+const nonce = /^[0-9a-f]{64}$/;
+api.get('/auth/owner', (c) => {
+  const client = c.req.query('client') ?? '';
+  if (!nonce.test(client)) return c.json({ error: 'invalid challenge' }, 400);
+  if (ownerChallenges.size >= 32) ownerChallenges.delete(ownerChallenges.keys().next().value!);
+  const server = crypto.randomBytes(32).toString('hex');
+  ownerChallenges.set(server, { client, expires: now() + 10_000 });
+  c.header('Cache-Control', 'no-store');
+  return c.json({ server, proof: ownerProof('server', client, server) });
+});
+
+api.post('/auth/owner', async (c) => {
+  const body = await c.req.json().catch(() => null);
+  const { server, proof } = body ?? {};
+  if (typeof server !== 'string' || !nonce.test(server) || typeof proof !== 'string' || !nonce.test(proof)) {
+    return c.json({ error: 'forbidden' }, 403);
+  }
+  const challenge = ownerChallenges.get(server);
+  if (!challenge || challenge.expires <= now() ||
+      !crypto.timingSafeEqual(Buffer.from(proof, 'hex'), Buffer.from(ownerProof('client', challenge.client, server), 'hex'))) {
+    return c.json({ error: 'forbidden' }, 403);
+  }
+  ownerChallenges.delete(server);
+  c.header('Cache-Control', 'no-store');
   const token = crypto.randomBytes(24).toString('base64url');
   // A few may be open at once (two browsers); the oldest goes first.
   if (signInLinks.size >= 4) signInLinks.delete(signInLinks.keys().next().value!);
@@ -91,11 +113,17 @@ api.get('/auth/link/:token', (c) => {
   const l = signInLinks.get(c.req.param('token'));
   signInLinks.delete(c.req.param('token'));
   if (!l || l.expires < Date.now()) return c.text('This sign-in link was already used or has expired. Run `npm run open` again.', 410);
-  createSession(c, ownerId());
-  return c.redirect('/');
+  const session = createSession(ownerId());
+  c.header('Cache-Control', 'no-store');
+  c.header('Referrer-Policy', 'no-referrer');
+  if (c.req.header('accept') === 'application/json') return c.json({ token: session });
+  // Only the HQ origin receives the session. HTTP cookies would be visible to other loopback ports.
+  const scriptNonce = crypto.randomBytes(24).toString('base64url');
+  c.header('Content-Security-Policy', `default-src 'none'; script-src 'nonce-${scriptNonce}'; frame-ancestors 'none'; base-uri 'none'`);
+  return c.html(`<!doctype html><meta charset="utf-8"><title>Signing in to Jarvis HQ</title><script nonce="${scriptNonce}">sessionStorage.setItem('hq_session',${JSON.stringify(session)});location.replace('/');</script><noscript>Enable JavaScript to sign in to Jarvis HQ.</noscript>`);
 });
 
-api.post('/auth/logout', (c) => { destroySession(c); return c.json({ ok: true }); });
+api.post('/auth/logout', (c) => { destroySession(c.req.header('authorization')); return c.json({ ok: true }); });
 
 // everything below requires a session
 api.use('/*', async (c, next) => {
@@ -129,7 +157,7 @@ api.get('/events', (c) => {
 
 const ownBot = (userId: string, id: string) => {
   const b = getBotRow(id);
-  return b && b.user_id === userId ? b : null;
+  return b && b.user_id === userId && !deletingBots.has(id) ? b : null;
 };
 
 api.get('/bots', (c) => c.json({ bots: listBots(c.get('user').id), live: allLive(c.get('user').id) }));
@@ -160,22 +188,35 @@ api.patch('/bots/:id', async (c) => {
 });
 
 api.delete('/bots/:id', async (c) => {
-  const b = ownBot(c.get('user').id, c.req.param('id'));
-  if (!b) return c.json({ error: 'not found' }, 404);
-  interrupt(b.id);
-  for (const r of listRoutines(b.id)) {
-    unscheduleRoutine(r.id);
-    await deleteEventTrigger(r.id).catch(() => {});
+  const user = c.get('user');
+  const b = getBotRow(c.req.param('id'));
+  if (!b || b.user_id !== user.id) return c.json({ error: 'not found' }, 404);
+  if (deletingBots.has(b.id)) return c.json({ error: 'bot deletion already in progress' }, 409);
+
+  deletingBots.add(b.id);
+  try {
+    interrupt(b.id);
+    if (b.kind !== 'room') {
+      const stops = await Promise.allSettled([stopEngine(b.id), releaseScreen(b.id)]);
+      if (stops.some((r) => r.status === 'rejected')) {
+        return c.json({ error: 'Could not stop the bot safely. Try deleting it again.' }, 503);
+      }
+    }
+    for (const r of listRoutines(b.id)) {
+      unscheduleRoutine(r.id);
+      await deleteEventTrigger(r.id).catch(() => {});
+    }
+    if (b.kind !== 'room') {
+      await forgetEngineFiles(b.id).catch((e) => console.warn('[engine] cleanup failed', e?.code ?? 'unknown'));
+      await forgetBotFiles(b.id).catch((e) => console.warn('[computer] cleanup failed', e?.code ?? 'unknown'));
+    }
+    db.prepare('DELETE FROM screens WHERE bot_id=?').run(b.id);
+    db.prepare('DELETE FROM bots WHERE id=?').run(b.id);
+    hub.emit(user.id, { type: 'roster' });
+    return c.json({ ok: true });
+  } finally {
+    deletingBots.delete(b.id);
   }
-  if (b.kind !== 'room') {
-    await removeEngine(b.id).catch((e) => console.warn('[engine] remove failed', e?.message ?? e));
-    await releaseScreen(b.id).catch((e) => console.warn('[computer] release failed', e?.message ?? e));
-    await forgetBotFiles(b.id).catch((e) => console.warn('[computer] cleanup failed', e?.message ?? e));
-  }
-  db.prepare('DELETE FROM screens WHERE bot_id=?').run(b.id);
-  db.prepare('DELETE FROM bots WHERE id=?').run(b.id);
-  hub.emit(c.get('user').id, { type: 'roster' });
-  return c.json({ ok: true });
 });
 
 api.post('/bots/:id/primary', (c) => {
@@ -362,7 +403,7 @@ api.post('/apps/:slug/connect', async (c) => {
 });
 
 api.get('/apps/callback', async (c) => {
-  const userId = userFromCookieHeader(c.req.header('cookie'))?.id ?? '';
+  const userId = userFromAuthorization(c.req.header('authorization'))?.id ?? '';
   // This page needs no session and its query string comes from outside: only a plain slug gets through.
   const slug = /^[a-z0-9_-]{1,64}$/.test(c.req.query('slug') ?? '') ? c.req.query('slug')! : '';
   const botId = c.req.query('bot');

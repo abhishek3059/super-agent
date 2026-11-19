@@ -1,4 +1,5 @@
 import type { VoiceOption } from '@shared/types';
+import { hqFetch } from '../lib/auth';
 
 export interface VoiceSession {
   callId: string;
@@ -18,7 +19,7 @@ export interface VoiceSession {
 export interface VoiceOptions { voices: VoiceOption[]; languages: { code: string; name: string }[]; speeds: number[] }
 
 async function post<T>(path: string, body: unknown): Promise<T> {
-  const res = await fetch(`/api/voice${path}`, { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  const res = await hqFetch(`/api/voice${path}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
   if (!res.ok) {
     let msg = res.statusText;
     try { msg = ((await res.json()) as { error?: string }).error ?? msg; } catch { /* not json */ }
@@ -30,7 +31,7 @@ async function post<T>(path: string, body: unknown): Promise<T> {
 let optionsPromise: Promise<VoiceOptions> | null = null;
 
 export const voiceApi = {
-  options: () => (optionsPromise ??= fetch('/api/voice/options', { credentials: 'include' }).then((r) => {
+  options: () => (optionsPromise ??= hqFetch('/api/voice/options').then((r) => {
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
     return r.json() as Promise<VoiceOptions>;
   }).catch((e) => { optionsPromise = null; throw e; })),
@@ -38,11 +39,16 @@ export const voiceApi = {
   tool: (botId: string, callId: string, name: string, args: unknown) => post<{ output: string; taskSeq?: number }>('/tool', { botId, callId, name, args }),
   end: (botId: string, callId: string, transcript: { role: 'user' | 'assistant'; text: string }[], error?: string) => post<{ ok: true }>('/end', { botId, callId, transcript, error }),
   /** Best-effort end on tab close. */
-  endBeacon: (botId: string, callId: string, transcript: { role: 'user' | 'assistant'; text: string }[]) => {
-    try { navigator.sendBeacon('/api/voice/end', new Blob([JSON.stringify({ botId, callId, transcript })], { type: 'application/json' })); } catch { /* ignore */ }
+  endOnPageHide: (botId: string, callId: string, transcript: { role: 'user' | 'assistant'; text: string }[]) => {
+    const body = JSON.stringify({ botId, callId, transcript });
+    // An oversized keepalive body is rejected by the browser, so still close the call in that case.
+    void hqFetch('/api/voice/end', {
+      method: 'POST', keepalive: true, headers: { 'Content-Type': 'application/json' },
+      body: new Blob([body]).size <= 60_000 ? body : JSON.stringify({ botId, callId }),
+    }).catch(() => {});
   },
   async preview(p: { botId: string; voice?: string; speed?: number; language?: string; text?: string }): Promise<Int16Array> {
-    const res = await fetch('/api/voice/preview', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...p, codec: 'pcm' }) });
+    const res = await hqFetch('/api/voice/preview', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...p, codec: 'pcm' }) });
     if (!res.ok) throw new Error('Preview unavailable');
     const buf = await res.arrayBuffer();
     return new Int16Array(buf, 0, buf.byteLength >> 1);
@@ -52,7 +58,7 @@ export const voiceApi = {
     if (language) fd.append('language', language);
     const ext = blob.type.includes('ogg') ? 'ogg' : blob.type.includes('mp4') ? 'm4a' : 'webm';
     fd.append('file', blob, `dictation.${ext}`);
-    const res = await fetch('/api/voice/stt', { method: 'POST', credentials: 'include', body: fd });
+    const res = await hqFetch('/api/voice/stt', { method: 'POST', body: fd });
     if (!res.ok) {
       let msg = 'Transcription failed';
       try { msg = ((await res.json()) as { error?: string }).error ?? msg; } catch { /* not json */ }

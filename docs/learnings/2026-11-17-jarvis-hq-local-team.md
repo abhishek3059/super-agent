@@ -76,3 +76,11 @@ screen relay in place of VNC, OpenAI Realtime in place of xAI voice.
 Record approval for the local exception and the US$5 monthly OpenAI cap
 in the [R-H.1 record](../approvals/jarvis-hq-dec-23-approval.md). Keep live
 voice evidence separate from approval.
+
+## Checking voice and startup
+
+A synthetic audio clip still needs a fresh HQ instance. The live session
+prompt can carry the owner identity, chat and memory from an existing
+workspace. The [voice probe](../implementation/jarvis-hq-voice-check.md)
+checks both boundaries. Verify stale process cleanup before binding the
+server and keep PID records if identity checks fail.

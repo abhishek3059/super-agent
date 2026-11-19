@@ -205,6 +205,7 @@ ${recent || '(no messages yet)'}`;
 
 interface ActiveCall { id: string; botId: string; userId: string; startedAt: number; startSeq: number; tasks: string[] }
 const calls = new Map<string, ActiveCall>();
+const MAX_CALL_MS = 2 * 3600_000;
 
 function callEvent(text: string, call: VoiceCallRecord): EventBody {
   return { type: 'event', event: 'voice-call', text, ref: call.id, call };
@@ -248,7 +249,8 @@ voiceApi.post('/session', async (c) => {
     audio: {
       input: {
         format: { type: 'audio/pcm', rate: SAMPLE_RATE },
-        turn_detection: { type: 'server_vad' },
+        // The WebSocket client cancels the response it is playing on speech_started.
+        turn_detection: { type: 'server_vad', interrupt_response: false },
         transcription: { model: STT_MODEL },
       },
       output: { format: { type: 'audio/pcm', rate: SAMPLE_RATE }, voice: s.voice, speed: s.speed },
@@ -278,23 +280,30 @@ voiceApi.post('/session', async (c) => {
 
 voiceApi.post('/tool', async (c) => {
   const user = c.get('user');
-  const { botId, callId, name, args } = await c.req.json<{ botId: string; callId?: string; name: string; args?: any }>();
+  const payload = await c.req.json<{ botId: string; callId?: string; name: string; args?: any }>().catch(() => null);
+  if (!payload || typeof payload.botId !== 'string' || typeof payload.callId !== 'string' || typeof payload.name !== 'string') {
+    return c.json({ error: 'invalid voice tool request' }, 400);
+  }
+  const { botId, callId, name, args } = payload;
   const bot = ownBot(user.id, botId);
   if (!bot) return c.json({ error: 'not found' }, 404);
+  const call = calls.get(callId);
+  if (!call || call.userId !== user.id || call.botId !== botId || now() - call.startedAt >= MAX_CALL_MS) {
+    return c.json({ error: 'active voice call required' }, 409);
+  }
   const a = args && typeof args === 'object' ? args : {};
-  const call = callId ? calls.get(callId) : undefined;
 
   switch (name) {
     case 'send_task': {
       const request = String(a.request ?? '').trim();
       if (!request) return c.json({ output: 'Error: request is empty. Ask the user what they want done.' });
-      const from: MessageBody['from'] = { kind: 'voice', id: callId ?? 'call', name: 'Voice call' };
+      const from: MessageBody['from'] = { kind: 'voice', id: callId, name: 'Voice call' };
       const row = appendRow(bot.id, 'message', { type: 'message', role: 'user', text: request, from });
       enqueue(bot.id, {
         type: 'user',
         text: `[Voice call: ${String((db.prepare('SELECT name FROM users WHERE id=?').get(user.id) as any)?.name ?? 'the user').split(/\s+/)[0]} asked for this on a live voice call with you. Do the work, then reply in plain, short text with the outcome. Your reply is read aloud on the call, so lead with the answer and skip markdown, links and IDs unless asked.]\n${request}`,
       });
-      call?.tasks.push(clip(request, 200));
+      call.tasks.push(clip(request, 200));
       return c.json({ output: 'Handed off. You are working on it now; the result will arrive as a [work_landed] note. Tell the user briefly that you are on it (unless you already did), then wait.', taskSeq: row.seq });
     }
     case 'recall_text_messages': {
@@ -346,7 +355,7 @@ voiceApi.post('/end', async (c) => {
   const bot = ownBot(user.id, botId);
   if (!bot) return c.json({ error: 'not found' }, 404);
   const call = calls.get(callId);
-  if (!call || call.botId !== bot.id) return c.json({ ok: true, duplicate: true });
+  if (!call || call.userId !== user.id || call.botId !== bot.id) return c.json({ ok: true, duplicate: true });
   calls.delete(callId);
 
   const durationMs = now() - call.startedAt;
@@ -365,7 +374,7 @@ voiceApi.post('/end', async (c) => {
 // Calls whose tab vanished without /end: close them after 2h so the map can't grow forever.
 setInterval(() => {
   for (const call of calls.values()) {
-    if (now() - call.startedAt < 2 * 3600_000) continue;
+    if (now() - call.startedAt < MAX_CALL_MS) continue;
     calls.delete(call.id);
     appendRow(call.botId, 'event', callEvent('Voice call ended', { id: call.id, phase: 'ended', tasks: call.tasks }));
   }

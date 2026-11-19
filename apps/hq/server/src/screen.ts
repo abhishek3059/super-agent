@@ -3,7 +3,7 @@ import { WebSocket, WebSocketServer } from 'ws';
 import { db } from './db.js';
 import { env } from './env.js';
 import { allowedHost } from './lib/guard.js';
-import { userFromCookieHeader } from './lib/auth.js';
+import { userFromToken } from './lib/auth.js';
 import { activePage, readyScreen, SCREEN } from './computer.js';
 
 /**
@@ -42,7 +42,7 @@ export function inputCommand(m: any): { method: string; params: object } | null 
   return null;
 }
 
-/** Only this app's own page may open the socket (a cookie alone would let any site the user visits do it). */
+/** Only this app's own page may open the socket (the browser checks here supplement the explicit session token). */
 export function sameOrigin(req: IncomingMessage): boolean {
   const origin = req.headers.origin;
   if (!origin) return false;
@@ -53,25 +53,34 @@ export function sameOrigin(req: IncomingMessage): boolean {
 }
 
 export function attachScreenRelay(server: Server) {
-  const wss = new WebSocketServer({ noServer: true, maxPayload: 4096 });
+  const protocol = 'hq-screen';
+  const wss = new WebSocketServer({ noServer: true, maxPayload: 4096,
+    handleProtocols: (offered) => offered.has(protocol) ? protocol : false });
   server.on('upgrade', (req: IncomingMessage, socket, head) => {
-    const url = new URL(req.url ?? '/', 'http://x');
+    let url: URL;
+    try { url = new URL(req.url ?? '/', 'http://x'); } catch { socket.destroy(); return; }
     const m = url.pathname.match(/^\/api\/bots\/([^/]+)\/screen$/);
     // Nothing else on this server upgrades: an unanswered socket would stay open.
     if (!m) { socket.destroy(); return; }
-    const user = allowedHost(req.headers.host) && sameOrigin(req) ? userFromCookieHeader(req.headers.cookie) : null;
+    const offered = (req.headers['sec-websocket-protocol'] ?? '').split(',').map((p) => p.trim());
+    const session = offered.length === 2 && offered[0] === protocol && offered[1].startsWith('hq-session.')
+      ? offered[1].slice('hq-session.'.length) : undefined;
+    const user = allowedHost(req.headers.host) && sameOrigin(req) ? userFromToken(session) : null;
     const bot = user ? (db.prepare('SELECT id FROM bots WHERE id=? AND user_id=?').get(m[1], user.id) as any) : null;
-    if (!user || !bot) {
+    if (!session || !user || !bot) {
       socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
       socket.destroy();
       return;
     }
     const mode = url.searchParams.get('mode') === 'control' ? 'control' : 'watch';
-    wss.handleUpgrade(req, socket, head, (client) => void relay(client, user.id, bot.id, mode));
+    wss.handleUpgrade(req, socket, head, (client) => {
+      client.on('error', () => client.terminate());
+      void relay(client, user.id, bot.id, mode, session);
+    });
   });
 }
 
-async function relay(client: WebSocket, userId: string, botId: string, mode: 'watch' | 'control') {
+async function relay(client: WebSocket, userId: string, botId: string, mode: 'watch' | 'control', session: string) {
   let upstream: WebSocket | null = null;
   let targetId = '';
   let seq = 0;
@@ -126,7 +135,10 @@ async function relay(client: WebSocket, userId: string, botId: string, mode: 'wa
     client.send(JSON.stringify({ t: 'size', ...SCREEN }));
     await attach();
     // Follow the bot to a new tab, only once its own browser is known to be up.
-    timer = setInterval(() => void attach(), 1500);
+    timer = setInterval(() => {
+      if (userFromToken(session)?.id !== userId) { client.close(1008, 'session ended'); return; }
+      void attach().catch(() => client.close(1011, 'screen unavailable'));
+    }, 1500);
   } catch (e: any) {
     client.close(1011, String(e?.message ?? e).slice(0, 120));
   }

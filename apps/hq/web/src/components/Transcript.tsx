@@ -1,6 +1,7 @@
-import { Fragment, memo, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { Bot, LiveState, MessageBody, Row, ToolCallBody } from '@shared/types';
 import { BotAvatar, BotAvatarFor } from '../avatar/BotAvatar';
+import { hqFetch } from '../lib/auth';
 import { isWaitingForYou } from '../lib/phrases';
 import { clock, dividerLabel, duration } from '../lib/time';
 import { useStore } from '../store';
@@ -112,6 +113,31 @@ const STEP_NOTE: Partial<Record<ToolCallBody['status'], string>> = {
   error: 'Failed', denied: 'Not allowed', 'awaiting-approval': 'Waiting for your OK',
 };
 
+function StepScreenshot({ src }: { src: string }) {
+  const [objectUrl, setObjectUrl] = useState<string | null>(null);
+  const target = URL.canParse(src, location.href) ? new URL(src, location.href) : null;
+  const protectedUrl = target?.origin === location.origin && target.pathname.startsWith('/api/')
+    ? target.href : null;
+
+  useEffect(() => {
+    if (!protectedUrl) return;
+    const request = new AbortController();
+    let url: string | null = null;
+    void hqFetch(protectedUrl, { signal: request.signal })
+      .then((res) => res.ok ? res.blob() : null)
+      .then((blob) => {
+        if (!blob || request.signal.aborted) return;
+        url = URL.createObjectURL(blob);
+        setObjectUrl(url);
+      })
+      .catch(() => {});
+    return () => { request.abort(); if (url) URL.revokeObjectURL(url); };
+  }, [protectedUrl]);
+
+  const image = protectedUrl ? objectUrl : src;
+  return image ? <img className="step__shot" src={image} alt="" /> : null;
+}
+
 function StepRow({ call }: { call: ToolCallBody }) {
   const [open, setOpen] = useState(false);
   const args = argsText(call.args);
@@ -130,7 +156,7 @@ function StepRow({ call }: { call: ToolCallBody }) {
         <button type="button" className="step__row is-clickable" onClick={() => setOpen(!open)} aria-expanded={open} title={open ? 'Hide details' : 'Show details'}>{body}</button>
       ) : <div className="step__row">{body}</div>}
       {open && args && <pre className="step__args">{args}</pre>}
-      {call.screenshot && <img className="step__shot" src={call.screenshot} alt="" />}
+      {call.screenshot && <StepScreenshot key={call.screenshot} src={call.screenshot} />}
     </li>
   );
 }

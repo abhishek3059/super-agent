@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { Bot } from '@shared/types';
+import { req } from '../lib/api';
 import { useStore } from '../store';
 import { voiceApi, type VoiceOptions } from '../voice/api';
 import { endCall, isCallActive, previewVoice, startCall, useVoice } from '../voice/call';
@@ -49,8 +50,7 @@ export function VoiceSettings({ bot }: { bot: Bot }) {
     useStore.setState((s) => ({ bots: s.bots.map((b) => (b.id === bot.id ? { ...b, ...patch } : b)) }));
     setError(null);
     try {
-      const res = await fetch(`/api/bots/${bot.id}`, { method: 'PATCH', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(patch) });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      await req('PATCH', `/bots/${bot.id}`, patch);
     } catch {
       if (prev) useStore.setState((s) => ({ bots: s.bots.map((b) => (b.id === bot.id ? { ...b, voice: prev.voice, voiceSpeed: prev.voiceSpeed, voiceLanguage: prev.voiceLanguage } : b)) }));
       setError('Couldn’t save that setting.');

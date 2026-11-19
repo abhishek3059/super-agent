@@ -3,6 +3,7 @@ import { ScreenStream } from '../lib/screenStream';
 import type { Bot } from '@shared/types';
 import { BotAvatarFor } from '../avatar/BotAvatar';
 import { api } from '../lib/api';
+import { sessionToken } from '../lib/auth';
 import { botVars } from '../lib/colors';
 import { computerStatusText, screenSize, screensFull } from '../lib/computer';
 import { configApi } from '../lib/configApi';
@@ -90,10 +91,11 @@ export function ComputerScreen({ bot, variant, initialMode = 'watch', hint, paus
 
   useEffect(() => {
     if (!wantLive || !canvasRef.current) { setConn('idle'); return; }
+    const token = sessionToken();
+    if (!token) { setConn('error'); return; }
     let disposed = false;
     setConn('connecting');
-    const proto = location.protocol === 'https:' ? 'wss' : 'ws';
-    const rfb = new ScreenStream(canvasRef.current, `${proto}://${location.host}/api/bots/${bot.id}/screen?mode=${mode}`, mode === 'control');
+    const rfb = new ScreenStream(canvasRef.current, bot.id, mode === 'control', token);
     rfb.on('connect', () => { if (!disposed) { hadFrame.current = true; setConn('connected'); if (mode === 'control') rfb.focus(); } });
     rfb.on('disconnect', (clean) => { if (!disposed) setConn(clean ? 'disconnected' : 'error'); });
     rfbRef.current = rfb;

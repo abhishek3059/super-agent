@@ -1,20 +1,6 @@
 import type { Bot, ComputerState, EngineInfo, LibraryFile, Memory, Routine, Skill, Task, Toolkit } from '@shared/types';
-import { ApiError } from './api';
-
-async function req<T>(method: string, path: string, body?: unknown): Promise<T> {
-  const res = await fetch(`/api${path}`, {
-    method,
-    credentials: 'include',
-    headers: body !== undefined ? { 'Content-Type': 'application/json' } : undefined,
-    body: body !== undefined ? JSON.stringify(body) : undefined,
-  });
-  if (!res.ok) {
-    let msg = res.statusText;
-    try { msg = ((await res.json()) as { error?: string }).error ?? msg; } catch { /* not json */ }
-    throw new ApiError(res.status, msg);
-  }
-  return res.json() as Promise<T>;
-}
+import { api, ApiError, req } from './api';
+import { hqFetch } from './auth';
 
 export interface BotSettingsBundle {
   memories: Memory[];
@@ -54,7 +40,11 @@ export const configApi = {
   botTasks: (botId: string) => req<{ tasks: Task[] }>('GET', `/bots/${botId}/tasks`),
 
   files: (botId: string, path = '', wake = false) => req<LibraryListing>('GET', `/bots/${botId}/files?path=${encodeURIComponent(path)}${wake ? '&wake=1' : ''}`),
-  downloadFile: (botId: string, path: string) => req<{ url: string }>('POST', `/bots/${botId}/files/download`, { path }),
+  async downloadFile(botId: string, path: string): Promise<Blob> {
+    const res = await hqFetch(`/api/bots/${encodeURIComponent(botId)}/files/raw?path=${encodeURIComponent(path)}`);
+    if (!res.ok) throw new ApiError(res.status, res.status === 404 ? 'File not found' : 'Download failed');
+    return res.blob();
+  },
 
   computerDetails: () => req<ComputerDetails>('GET', '/computer/details'),
   resetScreen: (botId: string) => req<{ ok: true }>('POST', `/bots/${botId}/screen/reset`),
@@ -69,5 +59,5 @@ export const configApi = {
   deletePolicy: (tool: string) => req<{ ok: true }>('DELETE', `/policies/${encodeURIComponent(tool)}`),
 
   connectedApps: () => req<{ connectedApps?: Toolkit[]; connected: string[] }>('GET', '/apps?limit=1'),
-  logout: () => req<{ ok: true }>('POST', '/auth/logout'),
+  logout: api.logout,
 };

@@ -17,7 +17,7 @@ import { roomsApi } from './routes-rooms.js';
 import { enqueue, expireStaleApprovals } from './agent/loop.js';
 import { configApi } from './routes-config.js';
 import { mcpApi } from './mcp.js';
-import { initEngines } from './engine.js';
+import { initEngines, stopAllGateways } from './engine.js';
 import { stopAllBrowsers } from './computer.js';
 import { allowedHost, allowedOrigin } from './lib/guard.js';
 
@@ -50,13 +50,14 @@ if (fs.existsSync(webDist)) {
   app.get('*', (c) => c.html(fs.readFileSync(path.join(webDist, 'index.html'), 'utf8')));
 }
 
+await Promise.all([stopAllBrowsers(), stopAllGateways()]);
+
 const server = serve({ fetch: app.fetch, port: env.port, hostname: env.host }, (info) => console.log(`[hq] Jarvis HQ on http://127.0.0.1:${info.port} (run \`npm run open\` to sign in)`));
 attachScreenRelay(server as unknown as Server);
 // HQ_NO_SCHEDULER=1 for extra dev/test servers sharing a database copy, so routines and triggers don't fire twice.
 if (process.env.HQ_NO_SCHEDULER !== '1') {
   initRoutines(enqueue);
   void initTriggers(enqueue);
-initProactive(enqueue);
+  initProactive(enqueue);
 } else console.log('[hq] scheduler disabled (HQ_NO_SCHEDULER=1)');
-await stopAllBrowsers();
-await initEngines();
+initEngines();
