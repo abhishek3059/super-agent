@@ -72,7 +72,10 @@ loopback boundary finding remain outside the evidence.
    maintainer decision pending.** The
    [boundary review](../reviews/r01-10-boundary-review.md) of `d52d894`
    raises F5 to MEDIUM and recommends a fix or a testing-only acceptance;
-   the decision on F5 and the F2 condition is still open.
+   the decision on F5 and the F2 condition is still open. A fix for B1 (F5)
+   is on branch `fix/r01-f9-handshake-proof` as roadmap item R-01.F9, **not
+   merged**; see the [R-01.F9 record](r01-f9-handshake-proof.md). B2 (F2)
+   stays accepted for single-user loopback development.
 4. **Records.** After 2 and 3, update the RT-002 and RT-003 records and tick
    R-01.10 with links to the saved output and review.
 

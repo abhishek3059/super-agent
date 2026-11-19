@@ -103,7 +103,8 @@ microphone errors, disabled audio tracks while muted, and removal of unused
   not implemented.
 - Local development uses `ws://` on loopback. Remote deployment and TLS are out
   of scope.
-- Authentication is a first `session.auth` control message and audio uses
+- Authentication is a `session.hello` then `session.auth` mutual-proof exchange
+  (R-01.F9), and audio uses
   bounded binary frames preceded by epoch metadata. This differs in naming
   from the conceptual design but retains the same security and lifecycle intent.
 - Mute sets every microphone track `enabled=false` and drops processor frames.

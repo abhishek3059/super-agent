@@ -236,7 +236,8 @@ Client events:
 
 | Event | Payload | Rule |
 | --- | --- | --- |
-| `session.auth` | `{ "type": "session.auth", "token": "..." }` | First message. Required before any audio. |
+| `session.hello` | `{ "type": "session.hello", "nonce": "<32 hex>" }` | First message. Starts the mutual proof (section 5.1). Carries no token. |
+| `session.auth` | `{ "type": "session.auth", "proof": "<64 hex>" }` | Second message, only after the server proof verified. Required before any audio. |
 | `capture.mute` | `{ "type": "capture.mute" }` | Stops browser capture and ends the provider audio stream. |
 | `capture.unmute` | `{ "type": "capture.unmute" }` | Starts a new provider audio stream. |
 | `playback.interrupt` | `{ "type": "playback.interrupt" }` | Local barge-in. Stops playback and bumps the epoch. |
@@ -271,14 +272,25 @@ Binary rules:
 Startup sequence:
 
 1. Browser connects to `/ws/voice` with the allowed Host and Origin.
-2. Browser sends `session.auth`.
-3. Backend validates the token, acquires the one-session gate, creates the
+2. Browser and backend run the mutual proof below. The raw token never
+   crosses the wire.
+3. Backend verifies the browser proof, acquires the one-session gate, creates the
    adapter, and calls `adapter.start()`.
 4. On provider failure, backend sends `session.error` and closes. No
    microphone capture starts.
 5. On success, backend sends `session.ready` with `outputRateHz`.
 6. Browser requests microphone permission and starts capture.
 7. Audio flows in both directions until stop, timeout, provider end, or error.
+
+Mutual proof (R-01.F9, [record](../implementation/r01-f9-handshake-proof.md)):
+`session.hello` carries a random 128-bit client nonce. The backend answers
+`session.challenge` with its own nonce and
+`HMAC-SHA256(token, "server-proof|" + client_nonce + "|" + server_nonce)`.
+The browser verifies it with WebCrypto and, on mismatch, closes and sends
+nothing more. It then sends `session.auth` with
+`HMAC-SHA256(token, "client-proof|" + server_nonce + "|" + client_nonce)`,
+which the backend compares with `hmac.compare_digest`. A wrong, missing, or
+replayed browser proof counts as a failed attempt for the throttle.
 
 Shutdown sequence:
 
@@ -488,8 +500,8 @@ Failed-auth throttling (CR-01):
 Browser flow, minimal (development only):
 
 - The user pastes the token into a password field. The page keeps it only until
-  the first `session.auth` message is sent, then zeroes it in the service and
-  the field. It is never written to `localStorage` or `sessionStorage`.
+  the handshake proof is sent, then zeroes it in the field. It is used only
+  as an HMAC key and is never sent (R-01.F9). It is never written to `localStorage` or `sessionStorage`.
 - A strict Content-Security-Policy is required: no inline scripts, no
   third-party scripts.
 - A bad token closes the socket with code 1008.

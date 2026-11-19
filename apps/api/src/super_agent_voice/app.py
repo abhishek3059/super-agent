@@ -1,11 +1,14 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import hmac
 import json
 import logging
 import math
 import os
+import re
+import secrets
 import threading
 import time
 from collections import deque
@@ -445,33 +448,69 @@ async def _run_wire_ops(record: _SessionTeardown) -> None:
 _AUTH_FAILED = "auth-failed"
 
 
+_NONCE = re.compile(r"[0-9a-f]{32}")
+
+
+def _proof(token: str, label: str, first: str, second: str) -> str:
+    return hmac.new(
+        token.encode("utf-8"), f"{label}|{first}|{second}".encode(), hashlib.sha256
+    ).hexdigest()
+
+
 async def _authenticate(
     websocket: WebSocket, settings: VoiceConfig, auth: _AuthControl, deadline: float
 ) -> None:
+    """Mutual proof of the session token; the raw token never crosses the wire.
+
+    hello(client nonce) -> challenge(server nonce, server proof) -> auth(client proof).
+    """
     loop = asyncio.get_running_loop()
-    # CT-04: authentication has its own explicit deadline and is still
-    # bounded by whatever remains of the total session budget, so the
-    # total budget is never dropped during auth.
-    effective = min(deadline, loop.time() + settings.auth_timeout_seconds)
-    try:
-        incoming = await asyncio.wait_for(
-            websocket.receive(), timeout=effective - loop.time()
-        )
-    except TimeoutError:
-        # The category records which actual deadline expired.
-        raise _SessionFailure(
-            "max-duration" if loop.time() >= deadline else "session-timeout"
-        ) from None
-    if incoming["type"] == "websocket.disconnect":
-        raise WebSocketDisconnect(incoming.get("code", 1000))
-    message = _control(incoming.get("text"), settings)
-    supplied = message.get("token")
-    # CR-08: compare UTF-8 bytes; surrogatepass keeps a lone surrogate in the
-    # JSON from raising, so it is only a failed attempt.
-    token_ok = isinstance(supplied, str) and hmac.compare_digest(
-        supplied.encode("utf-8", "surrogatepass"), settings.local_token.encode("utf-8")
+
+    # CT-04: every step has its own explicit deadline and is still bounded by
+    # whatever remains of the total session budget, so that budget is never
+    # dropped during auth.
+    async def step(operation):
+        effective = min(deadline, loop.time() + settings.auth_timeout_seconds)
+        try:
+            return await asyncio.wait_for(operation, timeout=effective - loop.time())
+        except TimeoutError:
+            # The category records which actual deadline expired.
+            raise _SessionFailure(
+                "max-duration" if loop.time() >= deadline else "session-timeout"
+            ) from None
+
+    async def receive() -> dict[str, object]:
+        incoming = await step(websocket.receive())
+        if incoming["type"] == "websocket.disconnect":
+            raise WebSocketDisconnect(incoming.get("code", 1000))
+        return _control(incoming.get("text"), settings)
+
+    hello = await receive()
+    client_nonce = hello.get("nonce")
+    if (
+        hello.get("type") != "session.hello"
+        or not isinstance(client_nonce, str)
+        or not _NONCE.fullmatch(client_nonce)
+    ):
+        raise _SessionFailure("invalid-control")
+    server_nonce = secrets.token_hex(16)
+    if server_nonce == client_nonce:  # reflection guard; cannot happen by chance
+        raise _SessionFailure(_AUTH_FAILED, close_code=1008)
+    token = settings.local_token
+    await step(websocket.send_json({
+        "type": "session.challenge",
+        "nonce": server_nonce,
+        "proof": _proof(token, "server-proof", client_nonce, server_nonce),
+    }))
+    message = await receive()
+    supplied = message.get("proof")
+    expected = _proof(token, "client-proof", server_nonce, client_nonce)
+    # CR-08: compare bytes; surrogatepass keeps a lone surrogate in the JSON
+    # from raising, so it is only a failed attempt.
+    proof_ok = isinstance(supplied, str) and hmac.compare_digest(
+        supplied.encode("utf-8", "surrogatepass"), expected.encode()
     )
-    if message.get("type") != "session.auth" or not token_ok or auth.expired():
+    if message.get("type") != "session.auth" or not proof_ok or auth.expired():
         raise _SessionFailure(_AUTH_FAILED, close_code=1008)
 
 

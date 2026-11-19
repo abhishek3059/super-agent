@@ -83,6 +83,7 @@ Maps to [RT-002](tasks/002-local-scaffold-and-boundary.md), [RT-003](tasks/003-n
 - [x] R-01.F6 Require a clean SDK exit before reporting an established Gemini session closed. Evidence: [PH-01 acceptance record](docs/implementation/r01-10-acceptance.md#offline-fixes)
 - [x] R-01.F7 Refuse an unexpected or missing provider before the local echo console requests microphone capture. Evidence: [browser verification](docs/implementation/r01-10-acceptance.md#browser-verification)
 - [x] R-01.F8 Keep the synthetic Live adapter on the approved Gemini Developer API destination. Evidence: [provider destination check](docs/implementation/r01-10-acceptance.md#provider-destination)
+- [ ] R-01.F9 Make the server prove it holds the session token before the console sends any credential, so a process squatting the port cannot capture it (review finding B1, old F5). Evidence: none yet
 - [ ] R-01.10 RT-002 and RT-003 records complete and RT-G01 evidenced. Evidence: none yet
 
 ## PH-02: ledger, policy, and two fixed workers
