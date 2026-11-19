@@ -5,8 +5,10 @@
 | Date | 2026-11-20 |
 | Branch | `feat/ph02-ledger-evidence` (PR 64) |
 | Host | Windows 11 Home, Python 3.14, SQLite ledger |
-| Scope | Evidence for R-02.1 to R-02.5 and fixes R-02.F1, R-02.F5, R-02.F6. Nothing here ticks a roadmap item. |
+| Scope | Evidence for R-02.1 to R-02.4, R-02.F1, R-02.F5 and R-02.F6. R-02.5 has no evidence yet (real run pending). Nothing here ticks a roadmap item. |
 | Suite result | 1092 passed, 110 skipped (develop at 664fd2a was 1071 passed, 110 skipped) |
+
+The acceptance criteria AC1.1 to AC5.4 are this record's own breakdown of the RT-004 and RT-005 acceptance text and the PH-02 exit gate in phases.md.
 
 All paths are under `apps/api/`. Code cites are in `src/super_agent_voice/`, tests in `tests/`.
 Test names are exact. All runs used synthetic data and no network (the `no_network` fixture
@@ -33,7 +35,7 @@ in `test_delegation.py` fails any non-loopback connection).
 | AC4.4 Bounded inputs and outputs, structured receipt checked by the verifier | `policy.py` `check_step_output`, `graph.py` `_fits`, `_verified` | `test_graph.py::test_tool_output_over_the_size_limit_fails_the_step`, `test_finish_whose_receipt_cannot_fit_fails_the_step_not_the_ledger_write`, `test_verifier_accepts_good_records` | Met |
 | AC5.1 Job work on the runner pool, not the event loop | `runner.py` (`ThreadPoolExecutor`, `submit`) | `test_runner.py::test_event_loop_answers_while_a_job_runs`, `test_submit_returns_before_the_work_finishes` | Met |
 | AC5.2 delegate returns in under 200 ms | `delegation.py:89` (`delegate`) | `test_delegation.py::test_delegate_returns_under_200ms_while_job_is_gated` | Met: 11.3 ms measured (second run 15.4 ms, first 11.6 ms). The job was held open by a gate. |
-| AC5.3 Second voice turn completes, loop lag under 100 ms | same | `test_delegation.py::test_voice_turn_completes_while_job_running`, `test_event_loop_lag_under_100ms_during_job` | Met: max loop gap 32.2 ms over 14 ticks (earlier runs 31.9, 34.3 ms) against a 10 ms ticker. The job is gated about 0.3 s and uses a fake planner, so this is not a measurement against a real model. |
+| AC5.3 Second voice turn completes, loop lag under 100 ms | same | `test_delegation.py::test_voice_turn_completes_while_job_running`, `test_event_loop_lag_under_100ms_during_job` | Met: max loop gap 32.2 ms over 12 to 14 ticks (earlier runs 31.9, 34.3 ms) against a 10 ms ticker. The job is gated about 0.3 s and uses a fake planner, so this is not a measurement against a real model. |
 | AC5.4 Failing or hung job does not stall the session, closing keeps the record consistent | `graph.py:55` (`_call`), `runner.py:150` | `test_delegation.py::test_hung_tool_fails_the_step_and_frees_the_job`, `test_close_mid_job_then_recover_marks_unknown`, `test_abandoned_tool_threads_are_capped` | Met for hung tools. A hung planner model call is not covered (Known limits). A late finish can move an `unknown` job to a terminal state (ledger allows it), and the test checks the record stays consistent. |
 | R-02.F1 claim_and_run goes through admission | `policy.py:231` (`admit_claimed`), `runner.py:95` (`claim_and_run`), `runner.py:31` (workers) | `test_runner.py::test_claim_and_run_goes_through_admit`, `test_claim_and_run_executes_claimed_job`, `test_hermes_worker_definitions` | Met. A job that fails the checks is failed with `{"executed": false}`. The fake `memory_recall` and `memory_save` names are gone. |
 | R-02.F5 Stale-session rejection | see AC2.3 | see AC2.3 | Met |
@@ -46,7 +48,9 @@ Measured 2026-11-20 on Windows 11 with the scripted fake planner and a gate, usi
 | Measure | Result |
 | --- | --- |
 | `delegate` return time while the job is gated | 11.3 ms (runs: 11.6, 15.4, 11.3) |
-| Max event-loop gap during a running job, 10 ms ticker | 32.2 ms over 14 ticks (runs: 31.9, 34.3, 32.2) |
+| Max event-loop gap during a running job, 10 ms ticker | 32.2 ms over 12 to 14 ticks (runs: 31.9, 34.3, 32.2) |
+
+Shared reviewer rerun, 2026-11-20: delegate 10.9 ms; max loop gap 31.5 to 34.5 ms.
 
 ## Budget (AC3.3)
 
@@ -69,6 +73,7 @@ Pending: runs after PR #65 (local planner) merges.
 - HQ jobs from PR 56 will share the global queue cap. This is for R-02.F2.
 - When PR 56 merges, `_spec` at `policy.py:129` must become `validate_spec`.
 - The thread timeout abandons a stuck thread, it does not kill it. Upgrade to a subprocess worker if the cap is ever hit in practice.
+- The cap now prunes finished threads before each check (commit d23cf2e).
 
 ## Not met or open
 

@@ -31,11 +31,12 @@ The results are in the [evidence record](ph02-ledger-evidence.md). No roadmap it
 | 51a040f | docs(roadmap): add R-02.F5 and R-02.F6 |
 | 72b76a4 | fix(api): close session and cap races from review |
 | c571507 | fix(api): count only abandoned tool threads |
+| d23cf2e | fix(api): prune finished threads before the cap check |
 
 ## Review rounds
 
 1. Shared reviewer on 51a040f: REVISE, 7.6.
-   - Opus security review: 0 critical or high findings, M1, M2, L1 to L4.
+   - [Opus security review](../reviews/ph02-ledger-review.md): 0 critical or high findings, M1, M2, L1 to L4.
    - Both reviews found that the session check failed open after a close.
 2. Fixes in 72b76a4:
    - Once a session has been opened, a caller must name the live one. None is refused.
@@ -44,7 +45,7 @@ The results are in the [evidence record](ph02-ledger-evidence.md). No roadmap it
    - The tool-thread cap check and registration became one step under a lock.
    - The concurrent-admit test was made deterministic with 20 threads behind a barrier.
    - The subprocess audit found nothing to change. The R-02.F6 roadmap line was reworded to match.
-3. Shared reviewer on 72b76a4: PASS, 9.0. The security re-check found two issues in the cap fix:
+3. Shared reviewer on 72b76a4: [PASS, 9.0](../reviews/ph02-ledger-review.md). The security re-check found two issues in the cap fix:
    - Counting every in-flight thread would fail healthy plans with five or more parallel reads.
    - `Service.cancel` reported a missing job as a stale session.
 4. Fixes in c571507:
@@ -56,8 +57,14 @@ The results are in the [evidence record](ph02-ledger-evidence.md). No roadmap it
 
 1092 passed, 110 skipped on Windows 11. `npm run check` passes. Measured: delegate 11.3 ms, max loop gap 32.2 ms.
 
+## Commit d23cf2e and ticks (2026-11-20)
+
+- Commit d23cf2e prunes finished tool threads under the lock before each cap check, and drops the separate re-check after registration. Test added: `test_a_dead_thread_left_in_the_set_is_pruned`. The API suite exited 0.
+- Shared-reviewer and security review record: [ph02-ledger-review.md](../reviews/ph02-ledger-review.md).
+- Ticked on the roadmap with the evidence record as evidence: R-02.1, R-02.2, R-02.3, R-02.4, R-02.F1, R-02.F5, R-02.F6. R-02.5, R-02.7, R-02.F2, R-02.F3, R-02.F4 and R-02.6 are not ticked. PH-02 status moved to `in progress`.
+
 ## Next
 
 - Merge PR #65 (local planner), then do the real run for R-02.5 and record it in the evidence record.
 - Close R-02.F3 (five Hermes definitions against the two-worker criterion) and R-02.F2 (PR 56 job submission).
-- Then tick R-02.1 to R-02.5, R-02.F1, R-02.F5, and R-02.F6 with this record as evidence, after the shared reviewer opens it.
+- R-02.5 is ticked only after the real run. The other ticks are listed in the entry above.
