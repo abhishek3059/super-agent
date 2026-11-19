@@ -99,7 +99,10 @@ class FakeWebSocket {
     await this.waitForText('session.auth');
   }
   async waitForText(type) {
-    for (let tick = 0; tick < 200; tick += 1) {
+    // WebCrypto HMAC runs off the event loop, so a slow CI host can need many
+    // turns: bound the wait by wall time (hrtime, which no test fakes), not ticks.
+    const deadline = process.hrtime.bigint() + 5_000_000_000n;
+    while (process.hrtime.bigint() < deadline) {
       const frame = this.sent.find((item) => typeof item === 'string' && JSON.parse(item).type === type);
       if (frame) return JSON.parse(frame);
       await new Promise((done) => setImmediate(done));
