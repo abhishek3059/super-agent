@@ -20,6 +20,7 @@ import tempfile
 import threading
 import urllib.error
 import urllib.request
+import uuid
 import wave
 from collections.abc import AsyncIterator, Awaitable, Callable
 from pathlib import Path
@@ -67,6 +68,18 @@ _NO_ACTIONS_WITH_MEMORY = (
     "browse the web, and you must never say you did. If asked to, say what you can do instead."
 )
 REMINDER_CHECK_SECONDS = 10.0
+
+
+MAX_SAID = 40
+
+
+def _learn(said: list[str], epoch: str) -> None:
+    """Runs the distiller after a session. Never raises: close() must not fail because learning did."""
+    try:
+        from . import distill
+        distill.distill(said, session_epoch=epoch)
+    except Exception:
+        pass  # distill returns its own fixed error codes; this is only the last guard
 
 
 def memory_enabled() -> bool:
@@ -133,6 +146,8 @@ _ASKED = {
 DELEGATE_AFTER_READ = ("error: no task can be started in a turn that read files, notes, mail or calendar. "
                        "Tell the user to ask again in a new sentence.")
 NOT_ASKED = "error: the user did not ask for that, so nothing was changed. Do not say it was."
+# The session's own list, set per turn by the adapter; a successful forget appends to it.
+_FORGOT: contextvars.ContextVar[list | None] = contextvars.ContextVar("forgot", default=None)
 # Set by a tier 1 read inside a turn. Each turn is its own task, so this starts False every turn.
 _READ_UNTRUSTED: contextvars.ContextVar[bool] = contextvars.ContextVar("read_untrusted", default=False)
 
@@ -157,7 +172,10 @@ async def call_tool(name: object, arguments: object) -> str:
         heard = _HEARD.get()
         if heard is not None and name in _ASKED and not _ASKED[name].search(heard.casefold()):
             return NOT_ASKED
-        return await asyncio.to_thread(memory.run, name, arguments)
+        result = await asyncio.to_thread(memory.run, name, arguments)
+        if name == "forget" and result.startswith("Forgot") and (box := _FORGOT.get()) is not None:
+            box.append(True)  # this session is not distilled: a reworded copy could come back
+        return result
     return run_tool(name, arguments)
 
 
@@ -225,6 +243,10 @@ class LocalVoiceAdapter:
         self._speech_seconds = 0.0
         self._silence_seconds = 0.0
         self._history: list[dict[str, str]] = []
+        self._said: list[str] = []  # the user's own words this session, for the distiller; RAM only
+        self._epoch = uuid.uuid4().hex
+        self._forgot: list[bool] = []
+        self.learner: threading.Thread | None = None
         self._turns: dict[asyncio.Task[None], int] = {}  # task -> utterance number
         self._replying: set[asyncio.Task[None]] = set()
         self._utterances = 0
@@ -307,7 +329,12 @@ class LocalVoiceAdapter:
             if task:
                 task.cancel()
         await self._cancel_turn()
+        said, self._said = self._said, []
         self._history.clear()
+        if said and not self._forgot and memory.learning() and memory.enabled():
+            # A thread, not a task: the model call is slow and close() must not wait for it.
+            self.learner = threading.Thread(target=_learn, args=(said, self._epoch), daemon=True)
+            self.learner.start()
         self._reset_utterance()
         self._events.put_nowait(None)
 
@@ -355,6 +382,8 @@ class LocalVoiceAdapter:
                 self._events.put_nowait(Interrupted())
             self._replying.add(asyncio.current_task())
             _HEARD.set(text)
+            _FORGOT.set(self._forgot)
+            self._said = [*self._said, text][-MAX_SAID:]
             await self._events.put(Thinking())
             await self._events.put(Transcript("user", text))
             # The model asked for the time would call a tool and then invent the
@@ -530,7 +559,8 @@ def _refuse_remote_model(name: str) -> None:
         raise AdapterError("provider-unsupported")
 
 
-def _chat_request(messages: list[dict], *, tools: bool, stream: bool = True) -> urllib.request.Request:
+def _chat_request(messages: list[dict], *, tools: bool, stream: bool = True,
+                  json_reply: bool = False) -> urllib.request.Request:
     body = {
         "model": local_model(),
         "messages": messages, "stream": stream, "think": False, "keep_alive": "30m",
@@ -539,6 +569,9 @@ def _chat_request(messages: list[dict], *, tools: bool, stream: bool = True) -> 
     }
     if tools:
         body["tools"] = available_tools()
+    if json_reply:  # the memory distiller: structured output, longer than a spoken reply
+        body["format"] = "json"
+        body["options"]["num_predict"] = 800
     return urllib.request.Request(OLLAMA_CHAT_URL, json.dumps(body).encode(),
                                   {"Content-Type": "application/json"})
 

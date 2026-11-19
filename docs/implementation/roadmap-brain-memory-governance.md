@@ -35,7 +35,7 @@ PR before it starts. [PR 59](https://github.com/abhishek3059/super-agent/pull/59
 - Auth, JWT, Postgres accounts, and the friends-testing milestone (deferred by the owner on 2026-11-15).
 - LangGraph as its own items: it is covered by the agent backend exception and R-02.x, R-04.x.
 - Local speech-to-speech and Ollama text-mode testing as named tasks (R-07.x covers the optional part).
-- The distiller exception record `docs/approvals/memory-distiller-exception.md` lives on `feat/memory-distiller`; R-M.12 names it and must not start until it is merged.
+- The distiller exception record `docs/approvals/memory-distiller-exception.md` is added by the `feat/memory-distiller` PR; R-M.12 carries it as its exception tag and stays unticked.
 - R-03.F5 (`/health` adapter name): the boundary review B8 says no change is needed for development.
 - R-M.18 (persona): a duplicate of R-M.1, which already records OD-11. The number is not reused.
 - Backend items R-02.7 and R-02.F1 to F3 carry no exception tags. If a maintainer judges R-02.7 outside PH-02, the tag is added in review.

@@ -26,6 +26,8 @@ told explicitly, and an interrupted task is lost after 24 hours.
 
 ## Still to do
 
+A first slice of the distiller was built on 2026-11-18 ([record](../implementation/memory-distiller.md), [exception](memory-distiller-exception.md)). Items 1 to 3 below are still open.
+
 1. A DEC entry in [descisions.md](../../descisions.md) records the change to
    memory principles 2 and 3 (a new `session_end` origin for the distiller).
 2. An amendment to the PH-00 retention record for OD-18.

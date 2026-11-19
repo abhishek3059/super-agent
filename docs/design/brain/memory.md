@@ -367,11 +367,12 @@ machine under the recommended OD-1.
 
 ## 9. Proposed revision (2026-11-13): learning from conversation
 
-**Proposal only. Nothing in this section is built or approved.** It changes
-principles 2 and 3 above and the "no `inferred` level" rule in section 3. It
-needs a DEC approved by a maintainer ([DEC-21](../../../descisions.md#dec-21)), recorded through OD-15 to OD-17 in
-the [overview](overview.md#10-open-maintainer-decisions). Until then,
-sections 1 to 8 stand as written.
+**Approved as design on 2026-11-13 (OD-15 to OD-18). A first slice is built and runs ahead of the DEC entry, which is still to do:** see the [implementation record](../../implementation/memory-distiller.md). The screen, embeddings, and the episode and decision stores are not built. This section changes
+principles 2 and 3 above and the "no `inferred` level" rule in section 3. The DEC
+([DEC-21](../../../descisions.md#dec-21) needs one maintainer's approval) is to
+be recorded through OD-15 to OD-18 in the
+[overview](overview.md#10-open-maintainer-decisions). Until it exists,
+sections 1 to 8 are the written rules, and the built slice is off by default.
 
 ### 9.1 Motive
 
