@@ -410,3 +410,9 @@ def test_a_user_prefixed_rewording_reinforces():
     run(reply=reply_with(("decision", "decided to use SQLite for the ledger")))
     receipt = run(reply=two_step([("decision", "User decided to use SQLite for the ledger.")], "{}"), epoch="e2")
     assert (receipt["added"], receipt["reinforced"]) == (0, 1)
+
+
+def test_close_does_not_start_the_distiller_for_a_cloud_model(monkeypatch):
+    monkeypatch.setenv("SUPER_AGENT_LOCAL_MODEL", "gpt-oss:20b-cloud")
+    adapter, calls = session(monkeypatch, learn="on", mem="on")
+    assert calls == [] and adapter.learner is None

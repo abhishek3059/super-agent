@@ -428,8 +428,11 @@ def test_bad_data_class_is_reported_as_data_class_invalid(data):
 
 # --- decide: the turn-level gate ---------------------------------------------
 
-def _turn(heard="please remember my cat", read=False):
-    return policy.Turn(heard, read)
+ON = frozenset({"delegate_task", "calculate", "current_time", "list_memory", *policy.MEMORY_WRITES, *policy.ASKED})
+
+
+def _turn(heard="please remember my cat", read=False, on=ON):
+    return policy.Turn(heard, read, on)
 
 
 @pytest.mark.parametrize("tool, turn, verdict, why", [
@@ -447,8 +450,13 @@ def _turn(heard="please remember my cat", read=False):
     ("complete_reminder", _turn("hello"), "allow", None),  # a write with no asked pattern, as today
     ("complete_reminder", _turn(read=True), "deny", "untrusted_read_in_turn"),
     ("list_memory", _turn("hello", read=True), "allow", None),  # reads are not writes
-    ("calculate", _turn("hello", read=True), "allow", None),  # ungoverned names pass
-    ("anything_else", _turn(), "allow", None),
+    ("calculate", _turn("hello", read=True), "allow", None),  # an enabled read passes
+    ("anything_else", _turn(), "deny", "tool_disabled"),  # slice 2: unknown names deny
+    ("delegate_task", _turn(on=ON - {"delegate_task"}), "deny", "tool_disabled"),
+    ("remember_fact", _turn(on=frozenset()), "deny", "tool_disabled"),
+    ("list_memory", _turn(on=frozenset({"calculate"})), "deny", "tool_disabled"),
+    # a switched-off tool is "no such tool" even in a turn that read untrusted text
+    ("delegate_task", _turn(read=True, on=frozenset()), "deny", "tool_disabled"),
 ])
 def test_decide_table(tool, turn, verdict, why):
     assert policy.decide(tool, turn) == policy.Decision(verdict, why)
@@ -457,9 +465,13 @@ def test_decide_table(tool, turn, verdict, why):
 @pytest.mark.parametrize("tool, turn", [
     (None, _turn()), (3, _turn()), (b"forget", _turn()), (["forget"], _turn()),
     ("forget", None), ("forget", "turn"), ("forget", {"heard": "x"}),
-    ("forget", policy.Turn(5, False)),
-    ("forget", policy.Turn("forget", 1)),
-    ("forget", policy.Turn("forget", None)),
+    ("forget", policy.Turn(5, False, ON)),
+    ("forget", policy.Turn("forget", 1, ON)),
+    ("forget", policy.Turn("forget", None, ON)),
+    ("forget", policy.Turn("forget", False, None)),
+    ("forget", policy.Turn("forget", False, {"forget"})),  # a mutable set is not a trusted fact
+    ("forget", policy.Turn("forget", False, frozenset({1}))),
+    ("forget", policy.Turn("forget", False, "forget")),
 ])
 def test_decide_bad_input_fails_closed(tool, turn):
     assert policy.decide(tool, turn) == policy.Decision("deny", "input_invalid")
@@ -468,6 +480,57 @@ def test_decide_bad_input_fails_closed(tool, turn):
 def test_decide_never_returns_confirm_and_its_codes_are_known():
     names = ["delegate_task", "calculate", *policy.MEMORY_WRITES, *policy.ASKED, None, 1]
     for name, heard, read in itertools.product(names, ["", "remember it", "hello", None], [False, True]):
-        d = policy.decide(name, policy.Turn(heard, read))
+        d = policy.decide(name, policy.Turn(heard, read, ON))
         assert d.verdict in ("allow", "deny")
         assert (d.code is None) == (d.verdict == "allow") and d.code in REASONS | {None}
+
+
+# --- slice 3: job-side checks as pure gate functions --------------------------
+
+@pytest.mark.parametrize("granted_local, model_local, ok", [
+    (False, False, True), (False, True, True), (True, True, True),
+    (True, False, False), (True, None, False), (True, 1, False), (True, "yes", False),
+    (1, False, False), (None, False, False),  # a grant flag that is not exactly False needs a local model
+])
+def test_check_planner_locality(granted_local, model_local, ok):
+    if ok:
+        assert policy.check_planner_locality(granted_local, model_local) is True
+    else:
+        with pytest.raises(PolicyError, match="planner_locality_invalid"):
+            policy.check_planner_locality(granted_local, model_local)
+
+
+def test_offered_tools_narrows_the_grant_by_the_live_switches():
+    granted = frozenset({"calculate", "read_file", "recent_notes", "list_memory"})
+    assert policy.offered_tools(granted, frozenset({"read_file"}), True) == {"calculate", "read_file", "list_memory"}
+    assert policy.offered_tools(granted, frozenset(), False) == {"calculate"}
+    assert policy.offered_tools(granted, frozenset({"read_file", "recent_notes"}), False) == granted - {"list_memory"}
+
+
+@pytest.mark.parametrize("admitted, t1, mem", [
+    ({"calculate"}, frozenset(), True), (frozenset({"calculate"}), {"read_file"}, True),
+    (frozenset({"calculate"}), frozenset(), 1), (None, frozenset(), True), (frozenset({1}), frozenset(), True),
+])
+def test_offered_tools_bad_input_offers_nothing(admitted, t1, mem):
+    assert policy.offered_tools(admitted, t1, mem) == frozenset()
+
+
+def test_the_gate_knows_every_tier1_name():
+    from super_agent_voice import tier1
+    assert policy.TIER1_NAMES == tier1.T1_NAMES
+
+
+# --- slice 4: the distiller asks the gate -------------------------------------
+
+@pytest.mark.parametrize("learn, mem, local, user, verdict, why", [
+    (True, True, True, True, "allow", None),
+    (False, True, True, True, "deny", "tool_disabled"),
+    (True, False, True, True, "deny", "tool_disabled"),
+    (True, True, False, True, "deny", "planner_locality_invalid"),
+    (True, True, True, False, "deny", "input_invalid"),  # only the user's own words are learned from
+    (1, True, True, True, "deny", "input_invalid"),
+    (True, None, True, True, "deny", "input_invalid"),
+    (True, True, "yes", True, "deny", "input_invalid"),
+])
+def test_may_distill(learn, mem, local, user, verdict, why):
+    assert policy.may_distill(learn, mem, local, user) == policy.Decision(verdict, why)

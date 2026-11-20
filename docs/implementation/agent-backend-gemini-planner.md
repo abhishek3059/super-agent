@@ -55,7 +55,7 @@ cause and no provider text, and the graph and planner turn it into `model_error`
 - Model name from `SUPER_AGENT_PLANNER_MODEL`, else `DEFAULT_MODEL` in `planner_check.py`. This is a separate variable
   from `SUPER_AGENT_GEMINI_MODEL`, which names the voice (Live) model.
 - It refuses with `postgres_configured` when the ledger is configured for PostgreSQL.
-  Clear `SUPER_AGENT_DATABASE_URL` and `DATABASE_URL` for this command to use temporary SQLite.
+  Clear `SUPER_AGENT_DATABASE_URL` for this command to use temporary SQLite. The generic `DATABASE_URL` is not read (R-02.F3).
 - It points `ledger.DB_PATH` at a temporary folder before the service starts, so the real
   `~/.super-agent/ledger.db` is not opened by the command. The real path is restored, and the folder deleted, only
   after the worker thread has exited. `Runner.close` does not wait for workers, so the command joins the runner's

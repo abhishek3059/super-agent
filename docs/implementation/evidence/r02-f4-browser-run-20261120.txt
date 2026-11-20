@@ -1,0 +1,28 @@
+R-02.F4 real browser run, 2026-11-20, macOS, branch feat/ph02-ledger-policy at a789e9c code.
+Backend: uvicorn super_agent_voice.app:create_app --factory on 127.0.0.1:8000, SUPER_AGENT_ADAPTER=fake,
+synthetic token generated for this run (0600 file, deleted after). Console: ng serve on 127.0.0.1:4200,
+opened in the Claude desktop app's built-in Chromium browser pane.
+
+1. Page JavaScript opened sockets without the console code:
+   no subprotocol            -> onopen never fired, close 1006
+   ['super-agent.v1'] only   -> onopen never fired, close 1006
+   forged sa-auth proof      -> onopen never fired, close 1006
+   Server log:
+   INFO:     127.0.0.1:63516 - "WebSocket /ws/voice" 403
+   INFO:     connection rejected (403 Forbidden)
+   INFO:     127.0.0.1:63517 - "WebSocket /ws/voice" 403
+   INFO:     connection rejected (403 Forbidden)
+   INFO:     127.0.0.1:63518 - "WebSocket /ws/voice" 403
+   INFO:     connection rejected (403 Forbidden)
+
+2. Console: token pasted in settings, "Connect locally":
+   INFO:     127.0.0.1:63536 - "WebSocket /ws/voice" [accepted]
+   INFO:     connection open
+   INFO:     voice: adapter=fake connected in 0 ms
+   INFO:     voice: session closed adapter=fake
+   The console then requested the microphone, which it does only after session.ready, so the upgrade
+   proof and the R-01.F9 mutual proof both passed. The browser pane blocks microphone access, so the
+   console showed "Microphone access was not granted. Local capture stays off." and the session closed.
+   Microphone capture was not tested in this run.
+
+The token does not appear in this output or the server log.

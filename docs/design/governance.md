@@ -104,6 +104,7 @@ class Turn:
     """Facts set by trusted code for one conversation turn. Never model claims."""
     heard: str | None      # the user's own transcript this turn, None outside a voice turn
     read_untrusted: bool   # a tier 1 read already ran this turn
+    enabled: frozenset     # tool names switched on this turn (slice 2)
 
 @dataclass(frozen=True)
 class Decision:
@@ -118,9 +119,12 @@ Rules for `decide`:
 1. It is pure: no model, no I/O, no clock. It never raises. Any bad input
    (unknown tool type, a non-bool fact, a non-`Turn`) is
    `Decision("deny", "input_invalid")`.
-2. Tool names it does not govern return allow. Their own handlers and the
-   checks in section 2.4 still run. This keeps slice 1 small; a default-deny
-   list of known names is slice 2.
+2. Since slice 2 a name is allowed only if it is in `Turn.enabled`, the set
+   of tool names trusted code has switched on for this turn. Anything else,
+   switched off or unknown, is `deny` with `tool_disabled`, which callers
+   show as "no such tool". Tier 1 names keep their own enabled-name check and
+   audit in `tier1.py` (section 2.4), so the adapter does not pass them to
+   the gate.
 3. `"confirm"` exists in the type because a later tier needs it (T3,
    on-device approval). Until a reviewed confirmation path exists, every
    caller treats `"confirm"` as deny. No rule returns it in slices 1 to 3.
@@ -204,7 +208,10 @@ existing tests pass unchanged; new tests are added only for `decide`.
 **Slice 2: switches and default deny.** Move the "no such tool" switch checks
 into `decide` with `tool_disabled`, and make unknown tool names deny. Tests:
 `test_memory_is_off_by_default_and_offered_only_when_on` and the delegation
-switch tests, unchanged.
+switch tests, unchanged. **Built** on branch `feat/ph02-ledger-policy`.
+One difference, fail closed: a bad `SUPER_AGENT_DELEGATE` value that appears
+mid-session now switches off only delegation instead of raising from the
+tool call. `start()` still refuses a bad value.
 
 **Slice 2b (behaviour change): GR-1.** Add the delegation request pattern.
 Needs its own tests and a note in the [brain overview](brain/overview.md)
@@ -213,11 +220,18 @@ butler table. Pairs with R-A.3.
 **Slice 3: job-side moves.** Move the planner locality check
 (`planner.py` 150-161) and `Runner._tools` (`runner.py` 176-185) into pure
 `policy.py` functions that the planner and runner call. Tests:
-`test_planner.py`, `test_runner.py`, `test_delegation.py`, unchanged.
+`test_planner.py`, `test_runner.py`, `test_delegation.py`, unchanged. **Built** on branch `feat/ph02-ledger-policy` as
+`policy.check_planner_locality` and `policy.offered_tools`. The planner and
+runner still collect the facts (`model.is_local`, the tier 1 and memory
+switches); a fact that cannot be read counts as not local or off.
 
 **Slice 4: bound the distiller.** After `feat/memory-distiller` merges, the
 distill job asks the gate before its ledger write: memory on, model local,
-user turns only. Its content filters stay in `distill.py`.
+user turns only. Its content filters stay in `distill.py`. **Built** on branch `feat/ph02-ledger-policy` as
+`policy.may_distill`, asked in `LocalVoiceAdapter.close()` before the
+distiller thread starts. One fail-closed difference: a cloud model name now
+stops the distiller before it starts, instead of a ledger job that fails
+with `model_refused`.
 
 ## 6. Conflicts and open decisions
 

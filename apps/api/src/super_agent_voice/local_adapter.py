@@ -73,6 +73,16 @@ REMINDER_CHECK_SECONDS = 10.0
 MAX_SAID = 40
 
 
+def _may_learn() -> bool:
+    """Governance slice 4: the gate decides whether this session's words may be distilled."""
+    try:
+        model_local = bool(local_model())  # a cloud model name raises: not local
+    except Exception:
+        model_local = False
+    # self._said holds only the user's own transcripts, so from_user is a fact of the caller
+    return policy.may_distill(memory.learning(), memory.enabled(), model_local, True).verdict == "allow"
+
+
 def _learn(said: list[str], epoch: str) -> None:
     """Runs the distiller after a session. Never raises: close() must not fail because learning did."""
     try:
@@ -122,15 +132,18 @@ def available_tools() -> list[dict]:
             + ([delegation.TOOL] if delegate_enabled() else []))
 
 
+def _service() -> delegation.Service:
+    global _SERVICE
+    with _SERVICE_LOCK:
+        if _SERVICE is None:
+            _SERVICE = delegation.Service()  # no planner model exists yet, so every call is refused
+        return _SERVICE
+
+
 def _delegate(arguments: object) -> str:
     """Synchronous (ledger and SQLite), so call_tool runs it off the event loop."""
-    global _SERVICE
     try:
-        with _SERVICE_LOCK:
-            if _SERVICE is None:
-                _SERVICE = delegation.Service()  # no planner model exists yet, so every call is refused
-            service = _SERVICE
-        return service.handle(arguments)
+        return _service().handle(arguments, _SESSION.get())
     except Exception:
         return "error: not delegated (delegation_unavailable)."
 
@@ -138,6 +151,7 @@ def _delegate(arguments: object) -> str:
 # What the user said this turn. A small model sometimes saves things nobody asked it to,
 # so a memory write runs only when the user's own words asked for that kind of change.
 _HEARD: contextvars.ContextVar[str | None] = contextvars.ContextVar("heard", default=None)
+_SESSION: contextvars.ContextVar[str | None] = contextvars.ContextVar("session", default=None)  # set per turn
 DELEGATE_AFTER_READ = ("error: no task can be started in a turn that read files, notes, mail or calendar. "
                        "Tell the user to ask again in a new sentence.")
 NOT_ASKED = "error: the user did not ask for that, so nothing was changed. Do not say it was."
@@ -148,31 +162,43 @@ DENIED = "error: that is not allowed right now, so nothing was done. Do not say 
 _READ_UNTRUSTED: contextvars.ContextVar[bool] = contextvars.ContextVar("read_untrusted", default=False)
 
 
-def _decide(name: str) -> str | None:
-    d = policy.decide(name, policy.Turn(_HEARD.get(), _READ_UNTRUSTED.get()))
+NO_TOOL = "error: no such tool."
+BASE_NAMES = frozenset({"calculate", "current_time"})  # what run_tool serves; always on
+
+
+def _enabled() -> frozenset:
+    """Names switched on now. Each switch is read on its own, so a bad setting turns off only its tools."""
+    on = set(BASE_NAMES)
+    if memory.enabled():  # a bad SUPER_AGENT_MEMORY counts as off here, so it cannot break other tools
+        on |= memory.NAMES
+    try:
+        if delegate_enabled():
+            on.add("delegate_task")
+    except RuntimeError:
+        pass  # start() refuses a bad SUPER_AGENT_DELEGATE; mid-session it only switches delegation off
+    return frozenset(on)
+
+
+def _decide(name: object) -> str | None:
+    d = policy.decide(name, policy.Turn(_HEARD.get(), _READ_UNTRUSTED.get(), _enabled()))
     # OD-G2: "confirm" is a refusal in voice until T3, so only "allow" runs the tool.
     return None if d.verdict == "allow" else d.code or d.verdict
 
 
 async def call_tool(name: object, arguments: object) -> str:
-    if name in tier1.T1_NAMES:
+    if name in tier1.T1_NAMES:  # tier 1 keeps its own enabled-name check and audit (governance 2.4)
         _READ_UNTRUSTED.set(True)
         return await tier1.run_t1(name, arguments)
+    code = _decide(name)
+    if code == "tool_disabled":
+        return NO_TOOL
     if name == "delegate_task":
-        on = delegate_enabled()  # read only here: a bad SUPER_AGENT_DELEGATE must not break other tools
-        if not on:
-            return "error: no such tool."
-        code = _decide(name)
         if code == "untrusted_read_in_turn":
             return DELEGATE_AFTER_READ
         if code:  # any other deny, including input_invalid, fails closed
             return DENIED
         return await asyncio.to_thread(_delegate, arguments)
     if name in memory.NAMES:
-        on = memory_enabled()
-        if not on:
-            return "error: no such tool."
-        code = _decide(name)
         # Text from a file or email could ask for a reminder that later speaks a phishing
         # line in the assistant's voice, so a turn that read any of it cannot write memory.
         if code == "untrusted_read_in_turn":
@@ -185,7 +211,7 @@ async def call_tool(name: object, arguments: object) -> str:
         if name == "forget" and result.startswith("Forgot") and (box := _FORGOT.get()) is not None:
             box.append(True)  # this session is not distilled: a reworded copy could come back
         return result
-    return run_tool(name, arguments)
+    return NO_TOOL if code else run_tool(name, arguments)
 
 
 MAX_TOOL_ROUNDS = 3  # search, then read, then answer
@@ -254,6 +280,7 @@ class LocalVoiceAdapter:
         self._history: list[dict[str, str]] = []
         self._said: list[str] = []  # the user's own words this session, for the distiller; RAM only
         self._epoch = uuid.uuid4().hex
+        self._session = uuid.uuid4().hex  # the id jobs are recorded under
         self._forgot: list[bool] = []
         self.learner: threading.Thread | None = None
         self._turns: dict[asyncio.Task[None], int] = {}  # task -> utterance number
@@ -274,7 +301,8 @@ class LocalVoiceAdapter:
         self._transcribe = self._transcribe or default_transcribe()
         tier1.enabled_tools()  # a mistyped SUPER_AGENT_T1 stops the session here, not mid-turn
         use_memory = memory_enabled()
-        delegate_enabled()  # a mistyped SUPER_AGENT_DELEGATE stops the session here too
+        if delegate_enabled():  # a mistyped SUPER_AGENT_DELEGATE stops the session here too
+            await asyncio.to_thread(lambda: _service().open_session(self._session))
         if self._reply is ollama_reply:
             await asyncio.to_thread(_refuse_remote_model, local_model())
         if {self._transcribe, self._synthesize} & {lfm3_voice.lfm3_transcribe, lfm3_voice.lfm3_synthesize}:
@@ -334,13 +362,15 @@ class LocalVoiceAdapter:
         if self.closed:
             return
         self.closed = True
+        if _SERVICE is not None:
+            _SERVICE.close_session(self._session)
         for task in (self._warm, self._reminders):
             if task:
                 task.cancel()
         await self._cancel_turn()
         said, self._said = self._said, []
         self._history.clear()
-        if said and not self._forgot and memory.learning() and memory.enabled():
+        if said and not self._forgot and _may_learn():
             # A thread, not a task: the model call is slow and close() must not wait for it.
             self.learner = threading.Thread(target=_learn, args=(said, self._epoch), daemon=True)
             self.learner.start()
@@ -391,6 +421,7 @@ class LocalVoiceAdapter:
                 self._events.put_nowait(Interrupted())
             self._replying.add(asyncio.current_task())
             _HEARD.set(text)
+            _SESSION.set(self._session)
             _FORGOT.set(self._forgot)
             self._said = [*self._said, text][-MAX_SAID:]
             await self._events.put(Thinking())

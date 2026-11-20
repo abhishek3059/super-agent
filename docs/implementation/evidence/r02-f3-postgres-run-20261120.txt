@@ -1,0 +1,9 @@
+R-02.F3 real PostgreSQL run, 2026-11-20, macOS. Server: PostgreSQL 17.9 (Homebrew), throwaway cluster listening on 127.0.0.1:55432 only, trust auth, deleted after the run.
+Driver: psycopg2-binary 2.9.13 installed offline from the local uv cache into a scratch venv (not a project dependency).
+Test file as of commit 9d361ed. Commit 1cf9994 later changed only the fixture connect to go through ledger._pg_url(); that line was not re-run on a server.
+Command: SUPER_AGENT_PG_TEST_URL=postgresql://sa@127.0.0.1:55432/postgres python -m pytest -v tests/test_ledger_postgres.py
+
+tests/test_ledger_postgres.py::test_same_states_revisions_and_receipts_as_sqlite PASSED [ 33%]
+tests/test_ledger_postgres.py::test_claim_and_restart_recovery PASSED    [ 66%]
+tests/test_ledger_postgres.py::test_admission_writes_through_the_same_ledger PASSED [100%]
+============================== 3 passed in 0.38s ===============================

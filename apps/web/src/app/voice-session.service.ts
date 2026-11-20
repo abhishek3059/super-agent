@@ -25,9 +25,27 @@ const MIC_PAUSED = 'Microphone paused by the browser or system. Trying to resume
 const NONCE_PATTERN = /^[0-9a-f]{32}$/;
 const PROOF_PATTERN = /^[0-9a-f]{64}$/;
 
+function toHex(buffer: ArrayBuffer): string {
+  return [...new Uint8Array(buffer)].map((byte) => byte.toString(16).padStart(2, '0')).join('');
+}
+
 function randomHex(byteCount: number): string {
-  const bytes = crypto.getRandomValues(new Uint8Array(byteCount));
-  return [...bytes].map((byte) => byte.toString(16).padStart(2, '0')).join('');
+  return toHex(crypto.getRandomValues(new Uint8Array(byteCount)).buffer);
+}
+
+const PROTOCOL = 'super-agent.v1';
+
+/**
+ * R-02.F4: proves the token inside the WebSocket upgrade, so the backend refuses
+ * any socket without it before accept. Only a nonce, a time and an HMAC are sent.
+ */
+async function upgradeProtocols(token: string): Promise<string[]> {
+  const nonce = randomHex(16);
+  const stamp = String(Math.floor(Date.now() / 1000));
+  const text = new TextEncoder();
+  const key = await crypto.subtle.importKey('raw', text.encode(token), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+  const mac = await crypto.subtle.sign('HMAC', key, text.encode(`upgrade|${nonce}|${stamp}`));
+  return [PROTOCOL, `sa-auth.${nonce}.${stamp}.${toHex(mac)}`];
 }
 
 function hexBytes(hex: string): Uint8Array<ArrayBuffer> {
@@ -116,7 +134,16 @@ export class VoiceSessionService {
     this.interruptPending = false;
     this.capturing = false;
     this.captureReady = false;
-    const socket = new WebSocket('ws://127.0.0.1:8000/ws/voice');
+    let protocols: string[];
+    try {
+      protocols = await upgradeProtocols(token);
+    } catch {
+      if (this.generation === generation) this.fail(HANDSHAKE_REFUSED);
+      return;
+    }
+    // A stop or a newer start during the await wins; nothing is opened for this one.
+    if (this.generation !== generation || this.socket || this.status() !== 'connecting') return;
+    const socket = new WebSocket('ws://127.0.0.1:8000/ws/voice', protocols);
     socket.binaryType = 'arraybuffer';
     this.socket = socket;
     // R-01.F9: mutual proof. The raw token never leaves this closure; only
@@ -257,7 +284,7 @@ export class VoiceSessionService {
     clearTimeout(this.handshakeTimer);
     socket.send(JSON.stringify({
       type: 'session.auth',
-      proof: [...new Uint8Array(mac)].map((byte) => byte.toString(16).padStart(2, '0')).join(''),
+      proof: toHex(mac),
     }));
   }
 

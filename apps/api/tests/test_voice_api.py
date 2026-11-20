@@ -20,7 +20,7 @@ from super_agent_voice.adapter import (
     Interrupted,
     TurnComplete,
 )
-from handshake import proof, send_auth
+from handshake import proof, send_auth, upgrade
 from super_agent_voice import config as config_module
 from super_agent_voice import generate_token
 from super_agent_voice.app import create_app
@@ -165,10 +165,11 @@ def make_client(
     return TestClient(app, base_url=ORIGIN)
 
 
-def connect(client: TestClient):
+def connect(client: TestClient, token: str = TOKEN):
     return client.websocket_connect(
         "/ws/voice",
         headers={"host": "127.0.0.1:8000", "origin": ORIGIN},
+        subprotocols=upgrade(token),
     )
 
 
@@ -1462,12 +1463,12 @@ def test_tokens_never_appear_in_logs_output_or_client_messages(caplog, capsys) -
         logger.setLevel(logging.INFO)
     seen: list[str] = []
     with client:
-        with connect(client) as websocket:
+        with connect(client, secret) as websocket:
             wrong_auth(websocket, attempted)
             with pytest.raises(WebSocketDisconnect) as closed:
                 websocket.receive_json()
             seen += [str(closed.value), repr(closed.value.reason), str(closed.value.code)]
-        with connect(client) as websocket:
+        with connect(client, secret) as websocket:
             seen.append(repr(send_auth(websocket, secret)))  # the challenge is server output too
             seen.append(repr(websocket.receive_json()))
             websocket.send_json({"type": "session.stop"})

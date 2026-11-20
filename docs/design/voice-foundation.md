@@ -272,7 +272,10 @@ Binary rules:
 
 Startup sequence:
 
-1. Browser connects to `/ws/voice` with the allowed Host and Origin.
+1. Browser connects to `/ws/voice` with the allowed Host and Origin, and
+   proves the token in the upgrade request (R-02.F4, below). Without a valid
+   upgrade proof the backend refuses before accept (HTTP 403), so the socket
+   never exists and holds no pre-auth place.
 2. Browser and backend run the mutual proof below. The raw token never
    crosses the wire.
 3. Backend verifies the browser proof, acquires the one-session gate, creates the
@@ -292,6 +295,18 @@ nothing more. It then sends `session.auth` with
 `HMAC-SHA256(token, "client-proof|" + server_nonce + "|" + client_nonce)`,
 which the backend compares with `hmac.compare_digest`. A wrong, missing, or
 replayed browser proof counts as a failed attempt for the throttle.
+
+Upgrade proof (R-02.F4, [record](../implementation/r02-f4-handshake-auth.md)):
+the browser offers two subprotocols, `super-agent.v1` and
+`sa-auth.<nonce>.<unix seconds>.<HMAC-SHA256(token, "upgrade|" + nonce + "|" + seconds)>`
+with a fresh 128-bit nonce. Before accept, the backend requires both, a time
+within 30 seconds of its own clock (same machine), a matching HMAC, and a
+nonce it has not seen. It selects only `super-agent.v1`, so the proof is never
+echoed. A refused upgrade is not a failed login: it holds no socket, so the
+throttle does not count it and a process without the token cannot use it to
+delay the user. This closes F2. The raw token still never crosses the wire,
+so R-01.F9 holds: a process squatting the port gets one single-use proof that
+the mutual proof step still refuses.
 
 Shutdown sequence:
 

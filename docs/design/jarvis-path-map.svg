@@ -163,11 +163,11 @@
       <text x="16" y="48" fill="#ffffff" font-size="15" font-weight="600">PostgreSQL Seam &amp; Hermes Swarm</text>
       
       <rect x="16" y="60" width="253" height="46" rx="6" fill="#13233c"/>
-      <text x="24" y="78" fill="#38bdf8" font-size="10" font-weight="700">POSTGRESQL SEAM (DATABASE_URL)</text>
-      <text x="24" y="94" fill="#94a3b8" font-size="10">FOR UPDATE SKIP LOCKED atomic job claiming</text>
+      <text x="24" y="78" fill="#38bdf8" font-size="10" font-weight="700">POSTGRESQL SEAM (SUPER_AGENT_DATABASE_URL)</text>
+      <text x="24" y="94" fill="#94a3b8" font-size="10">Loopback only (R-02.F3); SKIP LOCKED claims</text>
 
       <rect x="16" y="114" width="253" height="46" rx="6" fill="#13233c"/>
-      <text x="24" y="132" fill="#38bdf8" font-size="10" font-weight="700">SQLITE TRANSPARENT FALLBACK</text>
+      <text x="24" y="132" fill="#38bdf8" font-size="10" font-weight="700">SQLITE DEFAULT, THE OWNER TRUTH</text>
       <text x="24" y="148" fill="#94a3b8" font-size="10">Defaults to local file if no database URL</text>
 
       <rect x="16" y="168" width="253" height="46" rx="6" fill="#13233c"/>
@@ -195,8 +195,8 @@
       <rect width="285" height="95" rx="10" fill="#0f172a" stroke="#10b981" stroke-width="1.5"/>
       <rect x="0" y="0" width="285" height="4" rx="2" fill="url(#greenGrad)"/>
       <text x="16" y="24" fill="#10b981" font-size="11" font-weight="700">POSTGRESQL $0 OPTIONS</text>
-      <text x="16" y="42" fill="#ffffff" font-size="13" font-weight="600">Neon / Supabase / Local Docker</text>
-      <text x="16" y="62" fill="#cbd5e1" font-size="11">• Neon: 0.5 GB free serverless + pgvector</text>
+      <text x="16" y="42" fill="#ffffff" font-size="13" font-weight="600">Local Docker or local install only</text>
+      <text x="16" y="62" fill="#cbd5e1" font-size="11">• Hosted (Neon, Supabase): refused, R-02.F3</text>
       <text x="16" y="78" fill="#cbd5e1" font-size="11">• Docker: 100% private, 0ms local latency</text>
       <rect x="215" y="16" width="56" height="18" rx="4" fill="#064e3b"/>
       <text x="243" y="28" fill="#34d399" font-size="9" font-weight="700" text-anchor="middle">READY</text>

@@ -437,3 +437,55 @@ def test_postgres_seam_query_formatting(monkeypatch):
     # Ensure parameter placeholder ? was replaced with %s and SKIP LOCKED was used
     assert any("FOR UPDATE SKIP LOCKED" in sql and "%s" in sql for sql, _ in executed)
 
+
+
+# --- R-02.F3: the PostgreSQL seam stays on this machine ------------------------
+
+@pytest.mark.parametrize("url", [
+    "postgresql://u:p@db.example.com:5432/x",          # a remote host would take job specs off the machine
+    "postgresql://u:p@10.0.0.5/x",
+    "postgresql://u:p@localhost,db.example.com/x",       # libpq multi-host
+    "postgresql://u:p@localhost/x?host=db.example.com",  # libpq host override in the query
+    "postgresql://u:p@localhost/x?hostaddr=10.0.0.5",
+    "postgresql:///x",                                   # no host: libpq picks one from the environment
+    "mysql://u:p@localhost/x",
+    "sqlite:///tmp/x.db",
+    "not a url",
+])
+def test_a_ledger_database_off_this_machine_fails_closed(monkeypatch, url):
+    calls = []
+    monkeypatch.setattr(ledger, "DATABASE_URL", url)
+    monkeypatch.setattr(ledger, "psycopg2", type("D", (), {"connect": lambda u: calls.append(u)}))
+    with pytest.raises(LedgerError) as caught:
+        ledger.create_job({"task_type": "answer"}, "k1")
+    assert calls == [] and "p@" not in str(caught.value)  # never connects, never echoes the URL
+    assert not ledger.DB_PATH.exists()  # and does not fall back to a second, SQLite truth
+
+
+@pytest.mark.parametrize("url", [
+    "postgresql://u:p@127.0.0.1:5432/x", "postgres://u:p@localhost/x", "postgresql://u:p@[::1]:5432/x",
+])
+def test_a_loopback_ledger_database_is_used(monkeypatch, url):
+    calls = []
+
+    class Stop(Exception):
+        pass
+
+    def connect(u):
+        calls.append(u)
+        raise Stop
+
+    monkeypatch.setattr(ledger, "DATABASE_URL", url)
+    monkeypatch.setattr(ledger, "psycopg2", type("D", (), {"connect": staticmethod(connect)}))
+    with pytest.raises(LedgerError):
+        ledger.create_job({"task_type": "answer"}, "k1")
+    assert calls == [url]
+
+
+def test_the_generic_database_url_does_not_select_the_ledger(tmp_path):
+    import subprocess
+    env = {**os.environ, "DATABASE_URL": "postgresql://u:p@db.example.com/x", "PYTHONPATH": os.pathsep.join(sys.path)}
+    env.pop("SUPER_AGENT_DATABASE_URL", None)
+    out = subprocess.run([sys.executable, "-c", "from super_agent_voice import ledger; print(ledger.DATABASE_URL)"],
+                         env=env, capture_output=True, text=True, timeout=60, cwd=tmp_path)
+    assert out.stdout.strip() == "None", out.stderr

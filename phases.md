@@ -68,7 +68,7 @@ Ledger/policy and two deterministic trusted synthetic workers.
 
 - **Entry prerequisites:** [RT-G01](prd.md#rt-g01) evidenced — an approved local scaffold/boundary and the measured manually activated native connection exist.
 - **Exit/acceptance gates:** [RT-004](tasks/004-task-ledger-and-policy.md) and [RT-005](tasks/005-fixed-sample-workers.md) complete, and [RT-G02](prd.md#rt-g02) evidenced: two trusted read-only synthetic workers with bounded inputs, receipts, off-loop execution, authoritative ledger states, externally enforced resource limits, and continued native conversation during overlap; no arbitrary-code/host-shell/plugin/external-action exposure.
-- **Status:** `not started`.
+- **Status:** `in progress`.
 
 Task links: [RT-004](tasks/004-task-ledger-and-policy.md), [RT-005](tasks/005-fixed-sample-workers.md).
 

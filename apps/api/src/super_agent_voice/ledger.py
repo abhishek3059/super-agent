@@ -19,9 +19,12 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from urllib.parse import parse_qsl, urlsplit
 
 DB_PATH = Path.home() / ".super-agent" / "ledger.db"
-DATABASE_URL: str | None = os.environ.get("SUPER_AGENT_DATABASE_URL") or os.environ.get("DATABASE_URL")
+# Only our own variable: a generic DATABASE_URL belongs to some other app and must not move the owner ledger.
+DATABASE_URL: str | None = os.environ.get("SUPER_AGENT_DATABASE_URL") or None
+_LOOPBACK = frozenset({"127.0.0.1", "localhost", "::1"})
 
 try:
     import psycopg2
@@ -133,7 +136,21 @@ _pg_initialized = False
 
 
 def _is_postgres() -> bool:
-    return bool(DATABASE_URL and DATABASE_URL.startswith(("postgres://", "postgresql://")))
+    return bool(DATABASE_URL)  # any value selects the database path, which then fails closed if it is not loopback
+
+
+def _pg_url() -> str:
+    """The owner ledger stays on this machine: PostgreSQL on loopback only. The error never echoes the URL."""
+    try:
+        parts = urlsplit(DATABASE_URL)
+        query = {key.lower() for key, _ in parse_qsl(parts.query)}
+        ok = (parts.scheme in ("postgres", "postgresql") and parts.hostname in _LOOPBACK
+              and "," not in parts.netloc and not query & {"host", "hostaddr", "service"})
+    except (TypeError, ValueError):
+        ok = False
+    if not ok:
+        raise LedgerError("ledger database must be PostgreSQL on 127.0.0.1")
+    return DATABASE_URL
 
 
 class _PgConn:
@@ -168,9 +185,10 @@ def _db() -> Iterator[sqlite3.Connection | _PgConn]:
     if _is_postgres():
         if psycopg2 is None:
             raise LedgerError("PostgreSQL driver (psycopg2) not installed")
+        url = _pg_url()  # before any connection attempt
         con = None
         try:
-            raw = psycopg2.connect(DATABASE_URL)
+            raw = psycopg2.connect(url)
             con = _PgConn(raw)
             with _lock:
                 if not _pg_initialized:

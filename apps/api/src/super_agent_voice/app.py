@@ -77,6 +77,35 @@ class _AuthControl:
         # Memory bound only: the delay reaches its cap long before 32 doublings.
         self._failures: deque[float] = deque(maxlen=settings.auth_failure_threshold + 32)
         self._started = time.monotonic()
+        self._upgrades: dict[str, float] = {}  # upgrade nonce -> wall time it was used
+
+    def upgrade_ok(self, offered: object) -> bool:
+        """R-02.F4: the token is proven in the upgrade request, before accept and before any slot is taken.
+
+        The console offers PROTOCOL and one sa-auth.<nonce>.<unix seconds>.<HMAC> entry. A proof is valid for
+        UPGRADE_WINDOW_SECONDS either side of now and only once. A refusal is not a failed login: it holds no
+        socket, so it is not counted by the throttle, and a process without the token cannot lock the user out.
+        """
+        try:
+            proofs = [o for o in offered if isinstance(o, str) and o.startswith("sa-auth.")]
+            if PROTOCOL not in offered or len(proofs) != 1 or not (match := _UPGRADE.fullmatch(proofs[0])):
+                return False
+            nonce, stamp, supplied = match.groups()
+            now = time.time()
+            if abs(now - int(stamp)) > UPGRADE_WINDOW_SECONDS:
+                return False
+            expected = _proof(self.settings.local_token, "upgrade", nonce, stamp)
+            if not hmac.compare_digest(supplied.encode(), expected.encode()):
+                return False
+            for seen, at in list(self._upgrades.items()):  # only valid proofs get here, so this stays small
+                if now - at > 2 * UPGRADE_WINDOW_SECONDS:
+                    del self._upgrades[seen]
+            if nonce in self._upgrades:
+                return False
+            self._upgrades[nonce] = now
+            return True
+        except Exception:
+            return False
 
     def expired(self) -> bool:
         return time.monotonic() - self._started >= self.settings.token_max_age_seconds
@@ -449,6 +478,9 @@ _AUTH_FAILED = "auth-failed"
 
 
 _NONCE = re.compile(r"[0-9a-f]{32}")
+PROTOCOL = "super-agent.v1"
+_UPGRADE = re.compile(r"sa-auth\.([0-9a-f]{32})\.([0-9]{1,12})\.([0-9a-f]{64})")
+UPGRADE_WINDOW_SECONDS = 30  # browser and server share this machine's clock
 
 
 def _proof(token: str, label: str, first: str, second: str) -> str:
@@ -570,6 +602,9 @@ async def _voice_socket(
     if _frame_logging_enabled():
         await websocket.close(code=1011)
         return
+    if not auth.upgrade_ok(websocket.scope.get("subprotocols") or []):
+        await websocket.close(code=1008)  # before accept: the client gets HTTP 403 and holds nothing
+        return
     loop = asyncio.get_running_loop()
     deadline = loop.time() + settings.max_session_seconds
     # CR-06: authentication happens before the single-session slot is taken, so
@@ -577,12 +612,12 @@ async def _voice_socket(
     # have their own cap instead, taken before accept so a client that sees the
     # accept is already counted.
     if not auth.connections.acquire():
-        await websocket.accept()
+        await websocket.accept(subprotocol=PROTOCOL)
         await websocket.close(code=1013)
         return
     failure: _SessionFailure | None = None
     try:
-        await websocket.accept()
+        await websocket.accept(subprotocol=PROTOCOL)
         await _authenticate(websocket, settings, auth, deadline)
     except WebSocketDisconnect:
         return

@@ -152,13 +152,11 @@ def request_plan(model: PlannerModel, prompt: str, admission: Admission, limits:
     if type(prompt) is not str:
         raise PolicyError("input_invalid")
     # An admission granted to a local planner carries real personal-data tools; a cloud model must not use it.
-    if admission.planner_is_local:
-        try:
-            local = model.is_local is True
-        except Exception:  # a broken flag is not local
-            local = False
-        if not local:
-            raise PolicyError("planner_locality_invalid")
+    try:
+        local = model.is_local is True
+    except Exception:  # a broken flag is not local
+        local = False
+    policy.check_planner_locality(admission.planner_is_local, local)
     policy.check_model_call(calls_used, len(prompt), limits)
     try:
         reply = model.complete(prompt)

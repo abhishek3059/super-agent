@@ -65,8 +65,9 @@ class FakeWebSocket {
   static OPEN = 1;
   static CLOSING = 2;
   static CLOSED = 3;
-  constructor(url) {
+  constructor(url, protocols) {
     this.url = url;
+    this.protocols = protocols;
     this.binaryType = 'blob';
     this.readyState = FakeWebSocket.CONNECTING;
     this.sent = [];
@@ -336,6 +337,15 @@ async function startLive(service) {
   assert.ok(env.getUserMedia, 'startLive requires micResolved() or a custom stub');
   await service.start(TOKEN);
   const socket = lastSocket();
+  // R-02.F4: the token is proven in the upgrade request, never sent.
+  assert.equal(socket.protocols.length, 2);
+  assert.equal(socket.protocols[0], 'super-agent.v1');
+  const [tag, upNonce, stamp, upProof] = socket.protocols[1].split('.');
+  assert.equal(tag, 'sa-auth');
+  assert.match(upNonce, /^[0-9a-f]{32}$/);
+  assert.ok(Math.abs(Date.now() / 1000 - Number(stamp)) < 5);
+  assert.equal(upProof, mac(TOKEN, 'upgrade', upNonce, stamp));
+  assert.ok(!socket.protocols.join('').includes(TOKEN));
   await flushed();
   await socket.openAuthed();
   await flushed();
@@ -398,6 +408,18 @@ await (async function connectingBeforeReady() {
   assert.equal(service.status(), 'error');
   assert.equal(service.error(), 'Cannot connect to the local voice backend. Open http://127.0.0.1:4200 and confirm port 8000 is running.');
   assert.equal(env.micCalls, 0);
+})();
+
+await (async function stopDuringUpgradeProofOpensNothing() {
+  beginTest('a stop while the upgrade proof is computed opens no socket');
+  const service = new VoiceSessionService();
+  const before = current.sockets.length;
+  const starting = service.start(TOKEN);
+  service.stop();
+  await starting;
+  await flushed();
+  assert.equal(current.sockets.length, before);
+  assert.notEqual(service.status(), 'connecting');
 })();
 
 await (async function nonLocalReadyDoesNotCapture() {
