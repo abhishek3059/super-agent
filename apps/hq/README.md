@@ -94,6 +94,9 @@ All optional, read from the environment or from `~/.super-agent/hq/.env`.
 | `HERMES_BIN` | `hermes` | The Hermes command |
 | `CHROME_BIN` | auto | Browser for the bots: Chrome, Chromium, Brave or Ego Browser, first found |
 | `MAX_BOTS` | `8` | Team size limit |
+| `HERMES_HOME_PRIMARY` | `~/.hermes` | The Hermes seed. Set it to a folder only HQ uses to turn on account sign-in in HQ |
+| `HQ_READ_DIRS` | none | Folders bots may read, never change, separated by `:` (for example `~/dev:~/Documents`) |
+| `HQ_SKILL_DIRS` | `~/.claude/skills:~/.hermes/skills` | Skill folders every bot loads, read-only |
 
 ## Where things live
 
@@ -171,10 +174,19 @@ Each bot's Hermes gateway and its browser run inside the macOS sandbox
   folders themselves. Nothing else on the disk is
   writable, so it cannot replace a program you run later (Homebrew,
   `/usr/local`, `/Applications`);
-- can read the Hermes program and system files, and nothing in your home
-  folder, the app's data folder (session secret, database, other bots'
-  folders), the shared temporary folders, other users' folders or other
-  disks;
+- can read the Hermes program and system files, the folders in
+  `HQ_READ_DIRS` and your skill folders (`HQ_SKILL_DIRS`, plus where linked
+  skills really live), and nothing else in your home folder, the app's data
+  folder (session secret, database, other bots' folders), the shared
+  temporary folders, other users' folders or other disks. HQ drops any
+  listed folder that is, holds or sits inside your home folder itself,
+  `~/.ssh`, `~/.gnupg`, `~/.aws`, `~/.config`, `~/Library`, `~/.hermes`
+  (except `~/.hermes/skills`), `~/.super-agent` or the Hermes seed. A bot
+  that reads a folder can also send what it read to the internet, so list
+  only folders you would share;
+- can read and write one shared skills folder, `shared-skills` in the data
+  folder, which every bot loads. One bot's skill can steer another bot, so
+  read shared skills before you rely on them;
 - has no direct network access. It reaches its own browser, the app's tool
   endpoint and an internet proxy, each on a loopback port of its own; it
   never reaches the app's own API. The proxy resolves each name itself and
@@ -186,6 +198,11 @@ Each bot's Hermes gateway and its browser run inside the macOS sandbox
 - cannot open apps, send Apple events, start launchd jobs, change your
   default apps, read or write your preferences, read the Keychain or the
   clipboard, or see or signal other processes.
+
+Facts about the Mac come from the `system_info` tool, which the server runs
+outside the sandbox. It takes only a topic (overview, disk, battery,
+processes, apps), each a fixed command list. Process lists show names only,
+never arguments or environment.
 
 The server itself is not sandboxed, so it does not trust anything a bot can
 write:

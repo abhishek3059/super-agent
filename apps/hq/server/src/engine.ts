@@ -129,7 +129,7 @@ function defaultWorkerModel(primary: any): { provider: string; default: string }
 function access(): string {
   const dirs = readDirs();
   return [
-    `\nYou can read (never change) these folders on the operator's Mac: ${dirs.length ? dirs.join(', ') : 'none'}. Your own working folder is the only place you write files.`,
+    `\nYou can read (never change) these folders on the operator's Mac: ${dirs.length ? dirs.join(', ') : 'none'}. Your own working folder is the only place you write files. Anything else is refused with "Operation not permitted" by HQ's sandbox on purpose: say so plainly, and never suggest Full Disk Access or other macOS permission changes to get around it.`,
     `For facts about the Mac (system, disk, battery, running apps, installed apps) call the hq system_info tool.`,
     `Your skills include the operator's own. To share a skill you made with the other bots, save it as ${sharedSkillsDir()}/<skill-name>/SKILL.md.`,
   ].join('\n');
