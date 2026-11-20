@@ -11,6 +11,7 @@ import { setCheckins } from '../proactive.js';
 import { createRoom, postToRoom } from './rooms.js';
 import type { ActivityKind } from '../types.js';
 import { Cron } from 'croner';
+import { systemInfo, SYSTEM_TOPICS } from '../sysinfo.js';
 
 export interface ToolCtx {
   userId: string;
@@ -301,6 +302,14 @@ const ALL_TOOLS: ToolDef[] = [
       const out = postToRoom(ctx.botId, String(a.group_name), String(a.text));
       return { output: out, summary: `Posted to ${a.group_name}`, endTurn: out === 'Posted to the group.' };
     },
+  },
+  {
+    name: 'system_info',
+    description: "Facts about the operator's Mac, read-only: 'overview' (macOS, chip, memory, uptime), 'disk', 'battery', 'processes' (top by CPU, names only) or 'apps' (installed in /Applications).",
+    parameters: obj({ topic: { type: 'string', enum: [...SYSTEM_TOPICS] } }, ['topic']),
+    activity: 'working',
+    label: 'Checking the Mac',
+    impl: async (a) => ({ output: await systemInfo(String(a.topic)), summary: `Checked ${a.topic}` }),
   },
   {
     name: 'ask_user',

@@ -21,8 +21,12 @@ exception, [DEC-23](../../descisions.md#dec-23). The maintainer's direction is
 - **Handoffs that always come back.** A bot hands work to another with
   `send_to_bot`. The app returns the result or the failure to the bot that
   asked. It does not depend on the model remembering to reply.
-- **A browser per bot.** Each bot drives its own headless Chrome with its own
-  profile. You can watch it live and take over the mouse and keyboard.
+- **A computer per bot.** Each bot drives its own headless Chrome with its own
+  profile. It opens on a desktop page with a clock, a search box and app
+  tiles, including a Files tile for the bot's working folder. The large view
+  adds a browser bar: tabs, back, forward, reload, home and an address bar.
+  Typed text that is not an `http` or `https` address becomes a Google
+  search. You can watch it live and take over the mouse and keyboard.
 - **Memory, tasks, routines and a Library** per bot, from Hermes and the app.
 - **Group chats** between you and several bots.
 - **Live voice** with OpenAI Realtime, when you supply a key. The voice agent
@@ -101,23 +105,45 @@ Library) and `server.log`.
 The gateway seed is `~/.hermes` or the folder in `HERMES_HOME_PRIMARY`.
 Its default must name a supported hosted provider. HQ supports NVIDIA NIM,
 OpenAI Codex and Anthropic API. Anthropic API worker use is capped at
-US$5 per month under [DEC-23](../../descisions.md#dec-23) rule 5. It copies credentials for those
-providers only when the seed names them in its model or provider settings.
+US$5 per month under [DEC-23](../../descisions.md#dec-23) rule 5. It copies
+credentials for those providers when the seed names them in its model or
+provider settings, and, for a dedicated seed only, when the seed holds a
+sign-in or key for them.
 HQ uses the provider's built-in endpoint and omits automatic worker fallbacks.
 If the seed's previous default relied on a fallback, update it to a current
 chat model or choose an available model in Engine settings. The November 20
 local test used Hermes v0.22.2 for gateway compatibility.
 
-Connect accounts in the owner’s designated Hermes profile. Then use **Restart
-agent** in HQ to refresh its inventory. Engine settings disable unconnected
+Connect accounts in the Hermes seed, or from Engine settings when the seed
+is one only HQ uses (`HERMES_HOME_PRIMARY` is set). HQ never offers this for
+the operator's own `~/.hermes`, and it never copies a credential from that
+profile unless the profile's settings name its provider. **Sign in with
+ChatGPT** runs `hermes auth add openai-codex --type oauth` against the
+dedicated seed. Hermes runs as the operator, outside the bot sandbox, as it
+would in a terminal. HQ opens OpenAI's sign-in page in your browser. The
+tokens stay in the seed's `auth.json` and never reach the web page. For
+Claude, paste an Anthropic API key. HQ adds it to the seed's `.env` with
+mode 0600, keeps every other line, and refuses to touch a `.env` it cannot
+read as a plain file. In a dedicated seed, any supported provider with a
+sign-in or key there reaches every bot. Anthropic and OpenAI API keys are
+billed per use. HQ does not offer Claude Pro or Max sign-in. Anthropic says it
+"does not permit third-party developers to offer Claude.ai login into their
+own applications" and directs developers to API keys
+([Claude Code legal and compliance](https://code.claude.com/docs/en/legal-and-compliance),
+read 2026-11-20). OpenAI documents Sign in with ChatGPT for Codex and for
+registered third-party clients, but recommends API keys for automation and
+does not state that a personal plan may power another app
+([Codex sign-in](https://learn.chatgpt.com/docs/auth), read 2026-11-20).
+Treat the ChatGPT route as personal use on your own machine. After a change,
+HQ restarts the bot. Use **Restart agent** for other bots to refresh their inventory. Engine settings disable unconnected
 routes and validate saved model IDs against the worker's catalog. Choosing a
 different provider or model starts another Hermes conversation. The HQ
 transcript stays visible.
 
 The server-side OpenAI voice key lives in the HQ data directory. Worker keys
 come from the Hermes seed and the voice key is never copied into it. Use
-dedicated, revocable, spend-capped worker keys. The owner's Hermes files are
-never changed. Browser-based account sign-in inside HQ is unavailable.
+dedicated, revocable, spend-capped worker keys. HQ changes Hermes files only
+in a dedicated seed, and only through the sign-in and key controls above.
 A provider that rotates copied sign-in tokens may sign out the owner profile.
 
 ## Security boundary

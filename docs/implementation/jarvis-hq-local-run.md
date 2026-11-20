@@ -348,3 +348,27 @@ enabled. The separate voice connection and operator report are in the
 
 HQ typecheck, build, 33 self-checks and repository checks passed. OpenAI
 Codex and Anthropic worker inference and account sign-in in HQ: not run.
+
+## Desktop, browser bar and sign-in controls, 2026-11-20
+
+Run on the operator's Mac with the provider-test workspace and a dedicated
+Hermes seed (`HERMES_HOME_PRIMARY`). Two browser passes in Playwright
+Chromium, run by an agent session, not by a person.
+
+- Jarvis and Scout opened on the new desktop: clock, date, owner greeting,
+  bot name and label, search box and eight app tiles. The Files tile showed
+  the bot's working folder as a `file://` listing.
+- The browser bar navigated to an address, turned plain text into a Google
+  search, and opened, switched and closed tabs. Back, forward, reload and
+  home worked. Tab titles showed `&` and not `&amp;`. Google answered the
+  search with its "unusual traffic" page, which is outside HQ.
+- In one pass the tab strip reordered once and could not be reproduced. The
+  likely cause was an empty poll result resetting the order. The strip now
+  ignores empty results. Not re-tested after that change.
+- Engine settings listed connected and unconnected providers. A malformed
+  Claude key was refused with a format message and the field was cleared.
+- "Sign in with ChatGPT" opened OpenAI's sign-in page and Cancel restored the
+  button. A completed ChatGPT sign-in, a saved real Anthropic key, and worker
+  inference through either: not run.
+
+HQ typecheck, build and 40 self-checks passed.

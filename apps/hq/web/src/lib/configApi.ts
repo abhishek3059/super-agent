@@ -17,6 +17,10 @@ export interface ComputerDetails {
   screens: { botId: string; screenId: string; lastUsedAt: number }[];
 }
 
+export interface ScreenTab { id: string; title: string; url: string }
+export type TabCommand = { action: 'new' | 'back' | 'forward' | 'reload' | 'home' } | { action: 'activate' | 'close'; id: string } | { action: 'navigate'; url: string };
+export interface SignIn { status: 'idle' | 'pending' | 'done' | 'error'; url: string | null; code: string | null; error: string | null }
+
 export type BotPatch = Partial<Pick<Bot, 'name' | 'label' | 'description' | 'instructions' | 'avatarShape' | 'avatarColor' | 'effort' | 'mode'>>;
 
 export const configApi = {
@@ -50,6 +54,14 @@ export const configApi = {
   resetScreen: (botId: string) => req<{ ok: true }>('POST', `/bots/${botId}/screen/reset`),
   /** Tells the bot the person has stopped driving its screen. */
   handback: (botId: string) => req<{ ok: true }>('POST', `/bots/${botId}/handback`),
+
+  tabs: (botId: string) => req<{ tabs: ScreenTab[] }>('GET', `/bots/${botId}/screen/tabs`),
+  tab: (botId: string, c: TabCommand) => req<{ tabs: ScreenTab[] }>('POST', `/bots/${botId}/screen/tabs`, c),
+
+  signIn: () => req<{ signin: SignIn; available: boolean; accounts: { chatgpt: boolean; claude: boolean } | null }>('GET', '/engine/signin'),
+  startCodexSignIn: () => req<{ signin: SignIn }>('POST', '/engine/signin/openai-codex'),
+  cancelSignIn: () => req<{ signin: SignIn }>('DELETE', '/engine/signin'),
+  saveAnthropicKey: (key: string) => req<{ ok: true }>('POST', '/engine/keys/anthropic', { key }),
 
   engine: (botId: string) => req<{ engine: EngineInfo }>('GET', `/bots/${botId}/engine`),
   setEngine: (botId: string, p: { provider: string | null; model: string | null }) => req<{ engine: EngineInfo }>('PATCH', `/bots/${botId}/engine`, p),

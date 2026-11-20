@@ -3,6 +3,7 @@ import type { Bot, EngineInfo, EngineProvider } from '@shared/types';
 import { configApi } from '../lib/configApi';
 import { useStore } from '../store';
 import { Icon } from './Icon';
+import { ProviderSignIn } from './ProviderSignIn';
 
 const KIND: Record<EngineProvider['kind'], string> = { subscription: 'Subscription', api_key: 'API key' };
 const STATUS: Record<EngineInfo['status'], string> = { ready: 'ready', starting: 'starting', stopped: 'stopped', error: 'error' };
@@ -132,8 +133,9 @@ export function EngineSettings({ bot }: { bot: Bot }) {
         <button type="button" className="btn btn--sm btn--bot" onClick={save} disabled={!changed || !canSave || !!busy}>{busy === 'save' ? 'Saving…' : 'Save'}</button>
         {changed && <button type="button" className="link-btn link-btn--small" onClick={() => { dirty.current = false; setNote(null); setProvider(engine.provider ?? ''); setModel(engine.model ?? ''); }}>Undo</button>}
       </div>
+      <ProviderSignIn onConnected={restart} />
       <div className="engine__notice">
-        Connect an account in the HQ Hermes profile, then restart the agent to refresh its models. Voice uses the separate OpenAI Realtime configuration.
+        Accounts are shared by every bot. Voice uses the separate OpenAI Realtime configuration.
       </div>
       {note && <div className="voice-error" role="alert">{note}</div>}
       <div className="engine__meta">
