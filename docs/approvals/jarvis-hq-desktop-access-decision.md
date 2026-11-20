@@ -26,9 +26,15 @@ Recorded effects on the reviewed boundary:
   in code. Read access plus internet egress means a bot can send what it
   reads outward.
 - The shared skills folder lets one bot's skill steer another bot.
-- Anthropic API worker use is billed per use. No spend cap was stated in
-  chat. Before a real key is saved, the maintainer must record a cap or
-  approve the spend in the PR.
+- Anthropic API worker use is billed per use. Later the same day the
+  maintainer set its cap at **US$5 per month**, to be set in the Anthropic
+  Console, since HQ does not meter spend.
+
+After the shared reviewer pointed out that this read access sends real
+operator data to hosted models, which DEC-23 rule 2 forbade, the maintainer
+chose to amend DEC-23 (not to decide R-A.2, and not to stay synthetic-only).
+The amendment makes the access an operator opt-in, off by default, and
+leaves R-A.2 open for voice and other personal data.
 
 Not yet done: an independent security review of the sign-in route, the key
 endpoint, the read access and the shared skills folder. R-H.6 stays
