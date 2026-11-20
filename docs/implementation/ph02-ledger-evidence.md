@@ -49,8 +49,11 @@ Measured 2026-11-20 on Windows 11 with the scripted fake planner and a gate, usi
 | --- | --- |
 | `delegate` return time while the job is gated | 11.3 ms (runs: 11.6, 15.4, 11.3) |
 | Max event-loop gap during a running job, 10 ms ticker | 32.2 ms over 12 to 14 ticks (runs: 31.9, 34.3, 32.2) |
+| Same, after the 2026-11-21 test fix (separate ticker task, ledger polled off the loop) | 16.3 to 25.1 ms over 24 to 27 ticks (10 runs, Windows 11) |
 
 Shared reviewer rerun, 2026-11-20: delegate 10.9 ms; max loop gap 31.5 to 34.5 ms.
+
+Windows CI failure, 2026-11-21: after the develop merge (`df09a89`), run 44796410597 measured 116.1 ms and failed the 100 ms bound with the job succeeded. Cause: the test itself called `ledger.get_job()` on the event loop every tick. `ledger._db()` serialises every call under one process-wide lock, so that read waited for the job thread's writes. Locally each such read took 10.7 to 14.1 ms (5 runs), and the old 32 ms baseline included it. Production never reads the ledger on the loop (`_delegate` and `open_session` run through `asyncio.to_thread`). The test now polls through `asyncio.to_thread` and measures with a ticker task that only sleeps. The 100 ms bound is unchanged. Locally the earlier version did not reproduce the failure in 20 runs (31.3 to 39.6 ms).
 
 ## Budget (AC3.3)
 

@@ -720,12 +720,23 @@ def test_event_loop_lag_under_100ms_during_job(services):
     async def scenario():
         job_id = await asyncio.to_thread(lambda: service.delegate("answer", "hello", "k1")["job_id"])
         asyncio.get_running_loop().call_later(0.3, model.gate.set)
-        last = time.perf_counter()
-        while ledger.get_job(job_id).state not in ledger.TERMINAL:
+        done = asyncio.Event()
+
+        async def ticker():  # only sleeps, so each gap is time the loop was held by something else
+            last = time.perf_counter()
+            while not done.is_set():
+                await asyncio.sleep(0.01)
+                now = time.perf_counter()
+                gaps.append(now - last)
+                last = now
+
+        tick = asyncio.create_task(ticker())
+        # Poll off the loop, as production does: ledger._db() holds a process-wide lock, so a read on
+        # the loop waits for the job thread's writes and the test measured its own stall (116 ms on CI).
+        while (await asyncio.to_thread(ledger.get_job, job_id)).state not in ledger.TERMINAL:
             await asyncio.sleep(0.01)
-            now = time.perf_counter()
-            gaps.append(now - last)
-            last = now
+        done.set()
+        await tick
         return job_id
 
     job_id = run(scenario())
