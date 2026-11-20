@@ -221,17 +221,21 @@ user turns only. Its content filters stay in `distill.py`.
 
 ## 6. Conflicts and open decisions
 
-### 6.1 Overlap with open PR #56 (`feat/jarvis-hq`)
+### 6.1 Overlap with PR #56 (`feat/jarvis-hq`)
 
-PR #56 renames `policy._spec` to `policy.validate_spec`, excludes `hq_role`
-jobs from the `admit` queue count, adds a `pending_limit` to
-`ledger.create_job`, skips HQ jobs in `Runner.recover`, and adds `hq_jobs.py`.
-`hq_jobs._operate` calls `validate_spec` and `ledger.create_job` directly, so
-HQ jobs are admitted outside `admit`, with their own cap of 7 and a fixed
-`synthetic` data class. That is a second admission path. Slice 1 does not
-touch any of these lines, so it can land before or after PR #56. Slices 3
-and 4 should wait for it. Whether HQ submission should call `admit` is
-OD-G4.
+An earlier version of PR #56 renamed `policy._spec` to `policy.validate_spec`,
+excluded `hq_role` jobs from the `admit` queue count, added a `pending_limit`
+to `ledger.create_job`, skipped HQ jobs in `Runner.recover`, and added
+`hq_jobs.py`. `hq_jobs._operate` called `validate_spec` and `ledger.create_job`
+directly, which would have been a second admission path, with its own cap of 7
+and a fixed `synthetic` data class.
+
+None of that landed. PR #56 merged on 2026-11-19 (`c662a12`) as the
+self-contained `apps/hq` app and changed nothing in `apps/api`
+(`git diff c662a12^1 c662a12 -- apps/api` is empty). HQ keeps its own jobs
+in its own database and does not use the ledger or `admit`. Slices 3 and 4
+no longer need to wait. OD-G4 (whether HQ submission should call `admit`)
+applies only if HQ is later connected to the ledger.
 
 ### 6.2 Roadmap position
 
