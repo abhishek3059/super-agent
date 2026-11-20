@@ -47,7 +47,7 @@ Per attempt 20 s, at most 2 retries (timeout, 429, 5xx only), fixed backoff 1 s 
 ## Known limits
 
 - Unverified, not checked against a primary source: that `integrate.api.nvidia.com/v1` accepts the OpenAI chat-completions shape and `response_format: json_object`, and which models on either provider honour `response_format`. The first live run answers this.
-- Unverified: current OpenAI and NVIDIA terms, retention and free-tier training rules for the planner prompts. The two hosts are approved in DEC-24 (PR #72, not yet merged; this PR should merge after #72). The provider record must exist before any real run.
+- Unverified: current OpenAI and NVIDIA terms, retention and free-tier training rules for the planner prompts. The two hosts are approved in [DEC-24](../../descisions.md#dec-24) ([R-A.2 record](../approvals/r-a2-cloud-personal-data.md)), merged in PR #72 on 2026-11-21.
 - The response read is capped at about 4 bytes per allowed character; a larger body is cut and then fails as `malformed`.
 - Retry covers 429 and 5xx. The `Retry-After` header is ignored.
 - Wiring: the local route is retired by maintainer direction, but `local_adapter._service()` still builds `Service(OllamaPlanner())` as the only wired delegate path. `HostedPlanner` is used only by `planner_check --hosted` until a cloud orchestrator exists (R-M.20, PR #72). The documented local failure modes (the `response.close()` loop block and the shared-Ollama timeout) remain in that code.

@@ -15,7 +15,7 @@ import urllib.request
 
 from .planner import MAX_REPLY_CHARS, ModelError
 
-# Approved recipients only: recipients approved in DEC-24 (PR #72, not yet merged; this PR should merge after #72).
+# Approved recipients only: recipients approved in DEC-24 (docs/approvals/r-a2-cloud-personal-data.md).
 # A new host needs a maintainer decision and a code change.
 ALLOWED_HOSTS = ("api.openai.com", "integrate.api.nvidia.com")
 ATTEMPT_TIMEOUT_S = 20  # per attempt
