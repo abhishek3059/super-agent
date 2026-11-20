@@ -71,6 +71,7 @@ test('without a dedicated seed, HQ neither signs in nor saves keys', () => {
 test("the operator's own ~/.hermes is never a dedicated seed, however it is spelled", async () => {
   const { isDedicatedSeed } = await import('../src/env.js');
   const own = path.join(os.homedir(), '.hermes');
-  for (const p of [undefined, '', own, own + '/', path.join(os.homedir(), 'x', '..', '.hermes')]) assert.equal(isDedicatedSeed(p), false, String(p));
+  const cased = fs.existsSync(own) && fs.existsSync(path.join(os.homedir(), '.HERMES')) ? [path.join(os.homedir(), '.HERMES')] : [];
+  for (const p of [undefined, '', own, own + '/', path.join(os.homedir(), 'x', '..', '.hermes'), ...cased]) assert.equal(isDedicatedSeed(p), false, String(p));
   assert.equal(isDedicatedSeed(seed), true);
 });

@@ -119,7 +119,8 @@ chat model or choose an available model in Engine settings. The November 20
 local test used Hermes v0.22.2 for gateway compatibility.
 
 Connect accounts in the Hermes seed, or from Engine settings when the seed
-is one only HQ uses (`HERMES_HOME_PRIMARY` is set). HQ never offers this for
+is one only HQ uses (`HERMES_HOME_PRIMARY` set to a folder other than
+`~/.hermes`). HQ never offers this for
 the operator's own `~/.hermes`, and it never copies a credential from that
 profile unless the profile's settings name its provider. **Sign in with
 ChatGPT** runs `hermes auth add openai-codex --type oauth` against the

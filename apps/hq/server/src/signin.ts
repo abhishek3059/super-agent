@@ -13,7 +13,7 @@ import { readOwn, writeOwn } from './lib/own.js';
  * for a seed HQ alone uses (HERMES_HOME_PRIMARY), never the operator's own ~/.hermes.
  */
 
-const NEEDS_SEED = 'Sign-in from HQ needs a Hermes seed only HQ uses. Set HERMES_HOME_PRIMARY and restart HQ.';
+const NEEDS_SEED = 'Sign-in from HQ needs a Hermes seed only HQ uses. Set HERMES_HOME_PRIMARY to a folder other than ~/.hermes and restart HQ.';
 export const signInAvailable = () => env.dedicatedSeed;
 
 export interface SignIn { status: 'idle' | 'pending' | 'done' | 'error'; url: string | null; code: string | null; error: string | null }

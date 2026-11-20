@@ -30,7 +30,8 @@ const hermesHome = process.env.HERMES_HOME_PRIMARY ?? path.join(os.homedir(), '.
 /** A seed HQ alone uses: set, and not the operator's own ~/.hermes under another spelling. */
 export function isDedicatedSeed(seed: string | undefined): boolean {
   if (!seed) return false;
-  const real = (p: string) => { try { return fs.realpathSync(p); } catch { return path.resolve(p); } };
+  // .native folds case the way the disk does: ~/.HERMES is ~/.hermes on a default macOS volume.
+  const real = (p: string) => { try { return fs.realpathSync.native(p); } catch { return path.resolve(p); } };
   return real(seed) !== real(path.join(os.homedir(), '.hermes'));
 }
 
