@@ -17,6 +17,7 @@ from datetime import datetime, timedelta
 from typing import Literal
 
 from .ledger import MAX_SPEC_BYTES, TERMINAL, Job, LedgerError
+from .memory import NAMES as MEMORY_NAMES
 from .memory import WRITES as MEMORY_WRITES
 
 REASONS = frozenset({
@@ -99,6 +100,7 @@ TIER1_APP_TOOLS = {
     "summarize": frozenset({"recent_notes", "search_notes"}),
 }
 MEMORY_TOOLS = {"answer": frozenset({"list_memory", "list_reminders"}), "summarize": frozenset()}
+TIER1_NAMES = frozenset().union(*TIER1_FILE_TOOLS.values(), *TIER1_APP_TOOLS.values())
 
 
 @dataclass(frozen=True)
@@ -337,3 +339,25 @@ def decide(tool: object, turn: object) -> Decision:
         return Decision("allow", None)
     except Exception:
         return Decision("deny", "input_invalid")
+
+
+# --- job-side gate (governance slice 3) ---------------------------------------
+
+def check_planner_locality(granted_local: object, model_local: object) -> bool:
+    """A grant made for a local planner is never used by a cloud model. Only exactly False skips the check."""
+    if granted_local is not False and model_local is not True:
+        raise PolicyError("planner_locality_invalid")
+    return True
+
+
+def offered_tools(admitted: object, t1_enabled: object, memory_on: object) -> frozenset:
+    """Live switches narrow a job's grant: tier 1 only while its group is on, memory only while memory is on.
+    Pure and total: bad input offers nothing."""
+    try:
+        if (type(admitted) is not frozenset or type(t1_enabled) is not frozenset or type(memory_on) is not bool
+                or not all(isinstance(t, str) for t in admitted)):
+            return frozenset()
+        return frozenset(t for t in admitted if (t not in TIER1_NAMES or t in t1_enabled)
+                         and (memory_on or t not in MEMORY_NAMES))
+    except Exception:
+        return frozenset()

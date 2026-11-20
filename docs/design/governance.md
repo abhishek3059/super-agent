@@ -220,7 +220,10 @@ butler table. Pairs with R-A.3.
 **Slice 3: job-side moves.** Move the planner locality check
 (`planner.py` 150-161) and `Runner._tools` (`runner.py` 176-185) into pure
 `policy.py` functions that the planner and runner call. Tests:
-`test_planner.py`, `test_runner.py`, `test_delegation.py`, unchanged.
+`test_planner.py`, `test_runner.py`, `test_delegation.py`, unchanged. **Built** on branch `feat/ph02-ledger-policy` as
+`policy.check_planner_locality` and `policy.offered_tools`. The planner and
+runner still collect the facts (`model.is_local`, the tier 1 and memory
+switches); a fact that cannot be read counts as not local or off.
 
 **Slice 4: bound the distiller.** After `feat/memory-distiller` merges, the
 distill job asks the gate before its ledger write: memory on, model local,

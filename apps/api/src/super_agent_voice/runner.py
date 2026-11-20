@@ -140,12 +140,14 @@ class Runner:
         """Tier 1 tools are offered only while their group is enabled, memory tools only while memory is on;
         a bad config offers none."""
         try:
-            enabled = {schema["function"]["name"] for schema in tier1.enabled_tools()}
+            enabled = frozenset(schema["function"]["name"] for schema in tier1.enabled_tools())
         except Exception:
-            enabled = set()
-        remembering = memory.enabled()
-        return frozenset(t for t in admitted if (t not in tier1.T1_NAMES or t in enabled)
-                         and (remembering or t not in memory.NAMES))
+            enabled = frozenset()
+        try:
+            remembering = memory.enabled() is True
+        except Exception:
+            remembering = False
+        return policy.offered_tools(admitted, enabled, remembering)
 
     def _run(self, adm: policy.Admission, claimed: Job | None = None, worker_id: str | None = None) -> None:
         job = claimed

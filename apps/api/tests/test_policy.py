@@ -483,3 +483,38 @@ def test_decide_never_returns_confirm_and_its_codes_are_known():
         d = policy.decide(name, policy.Turn(heard, read, ON))
         assert d.verdict in ("allow", "deny")
         assert (d.code is None) == (d.verdict == "allow") and d.code in REASONS | {None}
+
+
+# --- slice 3: job-side checks as pure gate functions --------------------------
+
+@pytest.mark.parametrize("granted_local, model_local, ok", [
+    (False, False, True), (False, True, True), (True, True, True),
+    (True, False, False), (True, None, False), (True, 1, False), (True, "yes", False),
+    (1, False, False), (None, False, False),  # a grant flag that is not exactly False needs a local model
+])
+def test_check_planner_locality(granted_local, model_local, ok):
+    if ok:
+        assert policy.check_planner_locality(granted_local, model_local) is True
+    else:
+        with pytest.raises(PolicyError, match="planner_locality_invalid"):
+            policy.check_planner_locality(granted_local, model_local)
+
+
+def test_offered_tools_narrows_the_grant_by_the_live_switches():
+    granted = frozenset({"calculate", "read_file", "recent_notes", "list_memory"})
+    assert policy.offered_tools(granted, frozenset({"read_file"}), True) == {"calculate", "read_file", "list_memory"}
+    assert policy.offered_tools(granted, frozenset(), False) == {"calculate"}
+    assert policy.offered_tools(granted, frozenset({"read_file", "recent_notes"}), False) == granted - {"list_memory"}
+
+
+@pytest.mark.parametrize("admitted, t1, mem", [
+    ({"calculate"}, frozenset(), True), (frozenset({"calculate"}), {"read_file"}, True),
+    (frozenset({"calculate"}), frozenset(), 1), (None, frozenset(), True), (frozenset({1}), frozenset(), True),
+])
+def test_offered_tools_bad_input_offers_nothing(admitted, t1, mem):
+    assert policy.offered_tools(admitted, t1, mem) == frozenset()
+
+
+def test_the_gate_knows_every_tier1_name():
+    from super_agent_voice import tier1
+    assert policy.TIER1_NAMES == tier1.T1_NAMES
