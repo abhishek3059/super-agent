@@ -99,7 +99,6 @@ const HOSTED_PROVIDERS = new Map([
   ['openai-codex', { name: 'OpenAI Codex', key: null }],
   ['nvidia', { name: 'NVIDIA NIM', key: 'NVIDIA_API_KEY' }],
   ['anthropic', { name: 'Anthropic', key: 'ANTHROPIC_API_KEY' }],
-  ['openai-api', { name: 'OpenAI API', key: 'OPENAI_API_KEY' }],
 ]);
 
 function configuredProviders(cfg: any): Set<string> {
@@ -465,6 +464,7 @@ function isChatModel(provider: string, model: unknown): model is string {
   if (provider !== 'nvidia') return true;
   // NVIDIA lists embeddings and classifiers alongside chat models.
   return !/(?:embed|nemoguard|safety-guard|content-safety|gliner2-pii|\/nvclip$|\/riva-translate|\/ising-calibration)/i.test(model)
+    // A retired seed default that no longer answers chat requests on this route.
     && model !== 'nvidia/nemotron-3-super-120b-a12b';
 }
 

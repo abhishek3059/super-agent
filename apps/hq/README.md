@@ -100,7 +100,8 @@ Library) and `server.log`.
 
 The gateway seed is `~/.hermes` or the folder in `HERMES_HOME_PRIMARY`.
 Its default must name a supported hosted provider. HQ supports NVIDIA NIM,
-OpenAI Codex, OpenAI API and Anthropic API. It copies credentials for those
+OpenAI Codex and Anthropic API. Anthropic API worker use is capped at
+US$5 per month under [DEC-23](../../descisions.md#dec-23) rule 5. It copies credentials for those
 providers only when the seed names them in its model or provider settings.
 HQ uses the provider's built-in endpoint and omits automatic worker fallbacks.
 If the seed's previous default relied on a fallback, update it to a current

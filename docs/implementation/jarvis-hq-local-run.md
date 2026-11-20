@@ -323,7 +323,8 @@ and restarting Jarvis, the HQ tool recorded a Jarvis-to-Scout handoff. Scout
 returned `TEAM_READY`, and Jarvis received and reported the result. Atlas and
 Quill also completed synthetic replies. Forge's first attempt hit a Python
 import lock while starting the OpenAI SDK used by the NVIDIA transport. The
-local launcher now imports those SDK types before starting the gateway. After
+local launcher in the operator's Hermes workspace (outside this repository)
+now imports those SDK types before starting the gateway. After
 restarting Forge, its synthetic reply matched too. All five workers returned
 the expected text. HQ build passed and all 30 HQ tests passed. OpenAI subscription voice and Claude Pro
 through HQ: not run.
