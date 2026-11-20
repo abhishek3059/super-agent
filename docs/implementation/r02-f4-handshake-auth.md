@@ -57,7 +57,7 @@ await opens nothing.
 | The console offers the two protocols with a correct proof and never the token | `apps/web/scripts/selftest-voice-session.mjs` (`startLive`) |
 | A stop while the proof is computed opens no socket | `selftest-voice-session.mjs`, case "a stop while the upgrade proof is computed opens no socket" |
 
-Results on this branch are in the PR body.
+Results: `apps/api`: 1387 passed, 2 skipped (macOS, Python 3.12, commit `a789e9c`). `npm run check`: 0 errors. Web console: voice-session self-test 73 cases, ui 48, epoch 8, all PASS; `npm run build` passes.
 
 ## Limits
 

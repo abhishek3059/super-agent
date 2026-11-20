@@ -5,7 +5,7 @@
 | Date | 2026-11-20 |
 | Branch | `feat/ph02-ledger-policy`, stacked on PR 64 |
 | Host | macOS, Python 3.12, SQLite ledger, synthetic data, no network |
-| Suite result | `apps/api`: see the PR body for the run on this branch |
+| Suite result | `apps/api`: 1387 passed, 2 skipped (macOS, Python 3.12, commit `a789e9c`). `npm run check`: 0 errors. |
 
 R-02.F3 asks that the SQLite owner ledger be the one application-owned
 truth, and that the PostgreSQL seam and the Hermes worker definitions from

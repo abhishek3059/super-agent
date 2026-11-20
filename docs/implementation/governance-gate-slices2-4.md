@@ -29,7 +29,19 @@ unchanged. The `decide` table tests in `tests/test_policy.py` pass the new
 | 3 | `test_policy.py::test_check_planner_locality`, `test_offered_tools_narrows_the_grant_by_the_live_switches`, `test_offered_tools_bad_input_offers_nothing`, `test_the_gate_knows_every_tier1_name` |
 | 4 | `test_policy.py::test_may_distill`; `test_distill.py::test_close_does_not_start_the_distiller_for_a_cloud_model` |
 
-Results on this branch are in the PR body.
+Results: `apps/api`: 1387 passed, 2 skipped (macOS, Python 3.12, commit `a789e9c`). `npm run check`: 0 errors.
+
+## Against "no behaviour change"
+
+R-02.7 says the slices change no behaviour except GR-1. Two narrow cases now
+end differently, and both only refuse more, never allow more. This follows
+slice 1, which recorded its fail-closed hardening the same way:
+
+- slice 2: a bad `SUPER_AGENT_DELEGATE` or `SUPER_AGENT_MEMORY` value that
+  appears mid-session switches off only that tool group instead of raising;
+- slice 4: a cloud model name stops the distiller before it starts.
+
+No allow verdict changed, and no message the user hears changed.
 
 ## Not built
 
