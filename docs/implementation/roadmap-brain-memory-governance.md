@@ -29,6 +29,10 @@ PR before it starts. [PR 59](https://github.com/abhishek3059/super-agent/pull/59
 | R-M.16 decay and forget | memory design section 9; BR-8 |
 | R-M.17 result handler | owner direction of 2026-11-16, given in chat; it has no repo record |
 | R-M.19 etiquette | overview section 2 (BR-1 to BR-8); persona choice (OD-11) stays in R-M.1 |
+| R-M.2 reword (2026-11-21) | now a hosted model spike for the approved cloud providers, per [DEC-24](../../descisions.md#dec-24) |
+| R-M.20 L1 and distiller trigger to the cloud orchestrator | [planner phase proposal](../design/brain/planner-phase.md) section 6 gap 1; needs R-A.2 and an approved cloud voice route |
+| R-M.21 episodes and decisions stores, hybrid retrieval | planner phase proposal section 4; gap 3 |
+| R-M.22 planner phase | planner phase proposal sections 3 and 6; gap 5 |
 
 ## Left out on purpose
 

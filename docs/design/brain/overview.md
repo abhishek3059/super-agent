@@ -94,6 +94,12 @@ needs real thought becomes a job for the staff.
 
 ## 4. Model routing at $0
 
+> **Note, 2026-11-21.** [DEC-24](../../../descisions.md#dec-24) supersedes this
+> section in part: personal data may go to the approved cloud providers
+> (OpenAI and NVIDIA NIM) for the maintainers' own testing. The routing table
+> below still describes the code until the work in
+> [planner phase](planner-phase.md) is built.
+
 ### 4.1 Data class decides the route
 
 Every model call has a **data class**, set by code when the context is
