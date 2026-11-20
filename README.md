@@ -72,11 +72,11 @@ background task delegation.
   STT → text-chat → TTS pipeline.
 - Voice is not identity. High-risk actions remain disabled without stronger
   out-of-band or device authentication.
-- Cloud models are authorized for synthetic-only development. Personal
-  microphone and context egress remain unapproved. Provider access, budgets,
+- Cloud models are authorized for synthetic data. Personal data may go to
+  OpenAI and NVIDIA NIM for the maintainers' own testing only
+  ([DEC-24](descisions.md#dec-24)); public use stays unapproved. Provider access, budgets,
   retention, and the first task pair are recorded. RT-G00 is resolved for the
-  bounded PH-01 scope. Personal microphone and context egress remain
-  unapproved.
+  bounded PH-01 scope.
 - Raw audio and persistent transcripts are off by default.
 - The observed 8 GB RAM / 4 GB VRAM laptop has no verified native-local or
   always-on/locked-screen capability.

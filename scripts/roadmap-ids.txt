@@ -101,6 +101,9 @@ R-M.15
 R-M.16
 R-M.17
 R-M.19
+R-M.20
+R-M.21
+R-M.22
 R-A.1 human
 R-A.2 human
 R-A.3

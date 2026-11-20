@@ -181,7 +181,7 @@ These do not gate any phase, but they are on the path and must be ticked.
 Design input: [brain overview](docs/design/brain/overview.md) and [memory design](docs/design/brain/memory.md). This track gates no phase and moves no gate. R-M.1 can happen any time. No item is built before the items it needs are ticked. The clarifying-question build stays in R-04.2 and the T0 persona in R-A.3. Work record: [roadmap record](docs/implementation/roadmap-brain-memory-governance.md).
 
 - [ ] R-M.1 [human] A maintainer approves the brain and memory design and records every open decision in [brain overview](docs/design/brain/overview.md) section 10, including the persistent-memory approval under RT-G05. Evidence: none yet
-- [ ] R-M.2 Local model measurement spike on the tool and step schemas; model and licence recorded (needs R-M.1). Evidence: none yet
+- [ ] R-M.2 Hosted model measurement spike on the tool and step schemas for the approved cloud providers; provider, model, terms and licence recorded (needs R-M.1). Evidence: none yet
 - [ ] R-M.3 Context assembler and model router with data-class enforcement and session memory only, with tests (needs R-02.3, R-M.2, R-A.2, R-02.F4). Evidence: none yet
 - [ ] R-M.4 System 1 tools `delegate_task`, `query_ledger`, and `cancel_task` wired to the ledger, tested with a scripted model (needs R-02.1, R-02.2, R-M.3, R-02.F4). Evidence: none yet
 - [ ] R-M.5 `steer_task` wired to revisions (needs R-03.1, R-M.4). Evidence: none yet
@@ -198,13 +198,16 @@ Design input: [brain overview](docs/design/brain/overview.md) and [memory design
 - [ ] R-M.16 Decay of unreinforced `inferred` records and forget with a receipt, including skipping distillation of any session that contains a forget request, tested (needs R-M.12). Evidence: none yet
 - [ ] R-M.17 Result handler subagent: job results reach the conversation model only through a handler that returns a brief at the turn boundary, never raw worker output, with tests (needs R-02.5, R-M.4). Evidence: none yet
 - [ ] R-M.19 Butler and etiquette rules BR-1 to BR-8 applied: short replies, ask once, discretion, good timing, not reciting stored facts, report only ledger truth, with tests; persona per OD-11 (needs R-M.1, R-M.4, R-A.3; persona name and tone come from the OD-11 record in R-M.1). Evidence: none yet
+- [ ] R-M.20 Move L1 session memory and the distiller trigger out of the local adapter into the cloud voice orchestrator, with tests (needs R-A.2 and an approved cloud voice route, see [PR #71](https://github.com/abhishek3059/super-agent/pull/71)). Evidence: none yet
+- [ ] R-M.21 Episodes and decisions stores with hybrid retrieval: FTS5 keyword search plus embeddings from an approved cloud provider in memory.db, each embedding deleted with its source row and counted by forget, with tests (needs R-A.2, R-M.7, R-M.12). Evidence: none yet
+- [ ] R-M.22 Planner phase per the [planner-phase proposal](docs/design/brain/planner-phase.md): intent gate that fails closed, a personalized brief from L1 to L3 through the context assembler, missing information handed to the R-04.2 clarifying flow, and the brief admitted by policy.admit with no new authority, with tests (needs R-M.3, R-M.21, R-02.7 slice 2b). Evidence: none yet
 
 ## Parallel track A: capability ladder (DEC-18)
 
 Tiers are defined in [DEC-18](descisions.md#dec-18). R-A.1 and R-A.2 can happen any time. R-A.3 starts after PH-01 is done and R-A.1 and R-A.2 are ticked. R-A.4 and R-A.5 start after RT-G02 (PH-02 exit). R-A.6 to R-A.9 start after RT-G03 (PH-03 exit). Each tier is built only after its design item is ticked. This track gates no phase and moves no gate.
 
 - [x] R-A.1 [human] Both maintainers approve DEC-18 and the matching REQ-08 and AGENTS.md section 5 edits. Evidence: [approval record](docs/approvals/capability-ladder-decision.md), [PR 35](https://github.com/abhishek3059/super-agent/pull/35)
-- [ ] R-A.2 [human] Data-boundary and cost decision for real voice and personal data sent to a cloud provider (REQ-13, free-tier training, the $0 cap). Evidence: none yet
+- [x] R-A.2 [human] Data-boundary and cost decision for real voice and personal data sent to a cloud provider (REQ-13, free-tier training, the $0 cap). Evidence: [R-A.2 decision record](docs/approvals/r-a2-cloud-personal-data.md)
 - [ ] R-A.3 T0 advice-only conversation persona shipped with tests; no tools, no personal data access, no new authority. Evidence: none yet
 - [ ] R-A.4 [human] T1 read-only connector design (scopes, allowlists, injection handling) approved after independent security review. Evidence: none yet
 - [ ] R-A.5 T1 read-only connectors built behind the policy layer, with negative tests. Evidence: none yet

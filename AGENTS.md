@@ -97,8 +97,10 @@ npm run check
   "no decision" or "deny", never "allow".
 - **Limits live outside the model** ([REQ-10](prd.md#req-10)): schemas, sizes,
   timeouts, budgets, and tool scopes are enforced in code.
-- **No real personal data in cloud calls during development.** Synthetic data
-  only; free tiers may use inputs for training ([REQ-13](prd.md#req-13)).
+- **No real personal data in cloud calls during development**, except the
+  maintainers' own testing on the providers approved in
+  [DEC-24](descisions.md#dec-24). Otherwise synthetic data only; free tiers
+  may use inputs for training ([REQ-13](prd.md#req-13)).
 - **Never commit** audio recordings, transcripts, model weights, `.env` files,
   or personal data ([REQ-14](prd.md#req-14)).
 - **No arbitrary shell, plugins, purchases, messages, or file deletion** as
