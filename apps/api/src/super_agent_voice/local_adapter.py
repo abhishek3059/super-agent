@@ -29,6 +29,7 @@ from . import delegation, lfm3_voice, memory, policy, tier1
 from .adapter import (
     AdapterError, AdapterEvent, AudioChunk, Interrupted, Thinking, Transcript, TurnComplete,
 )
+from .ollama_planner import OllamaPlanner
 from .tools import TOOLS, calculate, run_tool  # noqa: F401  (calculate re-exported for tests)
 
 # Loopback only (REQ-11). Not configurable, so no setting can point it at a remote host.
@@ -126,7 +127,7 @@ def _service() -> delegation.Service:
     global _SERVICE
     with _SERVICE_LOCK:
         if _SERVICE is None:
-            _SERVICE = delegation.Service()  # no planner model exists yet, so every call is refused
+            _SERVICE = delegation.Service(OllamaPlanner())  # the local model plans; personal data is refused if it is not local
         return _SERVICE
 
 

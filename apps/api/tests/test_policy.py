@@ -41,7 +41,7 @@ def test_default_limits_match_the_design_table():
     d = Limits()
     assert (d.steps_per_job, d.step_deadline_s, d.job_deadline_s, d.retries_per_step, d.model_calls_per_job,
             d.model_input_chars, d.step_output_chars, d.concurrent_jobs, d.queued_jobs, d.instruction_chars) == (
-        8, 30, 300, 1, 12, 8000, 4000, 2, 5, 1000)
+        8, 75, 300, 1, 12, 8000, 4000, 2, 5, 1000)
 
 
 def test_limits_are_immutable():
@@ -357,8 +357,8 @@ def test_key_that_does_not_encode_is_refused_before_the_ledger(key):
 
 def test_step_deadline():
     lim = Limits()
-    assert policy.check_step_deadline(NOW, NOW + timedelta(seconds=30), lim) is True
-    assert code(policy.check_step_deadline, NOW, NOW + timedelta(seconds=31), lim) == "step_deadline"
+    assert policy.check_step_deadline(NOW, NOW + timedelta(seconds=75), lim) is True
+    assert code(policy.check_step_deadline, NOW, NOW + timedelta(seconds=76), lim) == "step_deadline"
 
 
 def test_job_deadline():

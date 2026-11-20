@@ -88,9 +88,21 @@ keep one PR per phase.
 | [#34](https://github.com/abhishek3059/super-agent/pull/34) | `PH-01: rebuild live voice console and Windows launcher` | merged | Merged as `3025155`. R-01.F2, R-01.F3, and R-01.F4 are ticked. |
 | [#36](https://github.com/abhishek3059/super-agent/pull/36) | `feat(voice): add an opt-in fully local voice adapter and spike A4` | merged | Merged as `0a9f1b4` on 2026-11-14. Base of #43 and #45. |
 | [#42](https://github.com/abhishek3059/super-agent/pull/42) | `fix(ph-01): recover R-01.4 evidence and close playback, close, capture and provider-destination defects (F5-F8)` | merged | Merged on 2026-11-14. Recovers the R-01.4 record and the F5 to F8 fixes. |
-| [#43](https://github.com/abhishek3059/super-agent/pull/43) | `feat(voice): tier 1 read-only tools and LFM3-Audio ears and mouth with a 4B brain` | open | Targets `develop`; needs review. Out-of-order T1 work under an [exception record](../approvals/tier1-local-exception.md) awaiting a maintainer review (DEC-21). |
+| [#43](https://github.com/abhishek3059/super-agent/pull/43) | `feat(voice): tier 1 read-only tools and LFM3-Audio ears and mouth with a 4B brain` | merged | Merged into `develop` as `e9c56c0` on 2026-11-14. |
 | [#44](https://github.com/abhishek3059/super-agent/pull/44) | `docs(design): add the Roamies design reference (ideas only, no code)` | merged | Merged on 2026-11-14. Design reference for PH-02, PH-05, and PH-06. Nothing built. |
-| [#45](https://github.com/abhishek3059/super-agent/pull/45) | `feat(voice): local memory and reminders (T2) with forget and undo` | open | Stacked on #43. Out-of-order T2 work under an [exception record](../approvals/local-memory-exception.md) awaiting a maintainer review (DEC-21). |
+| [#45](https://github.com/abhishek3059/super-agent/pull/45) | `feat(voice): local memory and reminders (T2) with forget and undo` | merged | Merged into `develop` as `8313146` on 2026-11-14. |
+| [#50](https://github.com/abhishek3059/super-agent/pull/50) | `feat(api): agent backend slices 1-5 (ledger, admission, runner, plan graph)` | merged | Merged into `develop` as `677224d` on 2026-11-16. |
+| [#54](https://github.com/abhishek3059/super-agent/pull/54) | `feat(api): agent backend slices 6-7 (delegation wiring and Gemini planner seam)` | merged | Merged into `develop` as `d52d894` on 2026-11-17. |
+| [#55](https://github.com/abhishek3059/super-agent/pull/55) | `feat(ledger): add PostgreSQL adapter seam and wire 5 Hermes worker bot definitions` | merged | Merged into `develop` as `f719099` on 2026-11-17. |
+| [#56](https://github.com/abhishek3059/super-agent/pull/56) | `feat(hq): add Jarvis HQ, a local multi-bot workspace on Hermes` | merged | Merged into `develop` as `c662a12` on 2026-11-19. |
+| [#58](https://github.com/abhishek3059/super-agent/pull/58) | `fix(voice): PH-01 bundle: R-01.F9, R-01.F10, review, acceptance` | merged | Merged into `develop` as `1e23730` on 2026-11-19. Phase 1 closed. |
+| [#61](https://github.com/abhishek3059/super-agent/pull/61) | `feat(api): local memory distiller for background extraction` | merged | Merged into `develop` as `6c813be` on 2026-11-19. |
+| [#62](https://github.com/abhishek3059/super-agent/pull/62) | `feat(api): policy.decide single gate (slice 1)` | merged | Merged into `develop` as `99d9be8` on 2026-11-19. |
+| [#63](https://github.com/abhishek3059/super-agent/pull/63) | `docs: app status snapshot and ask-resume flow` | merged | Merged into `develop` as `664fd2a` on 2026-11-20. |
+| [#65](https://github.com/abhishek3059/super-agent/pull/65) | `feat(api): local Ollama planner for background jobs` | merged | Merged into `develop` as `d816d71` on 2026-11-20. |
+| [#66](https://github.com/abhishek3059/super-agent/pull/66) | `docs(roadmap): tick R-H.2 after PR 56 merged with green CI` | merged | Merged into `develop` as `171e567` on 2026-11-20. |
+| [#67](https://github.com/abhishek3059/super-agent/pull/67) | `docs(roadmap): remove R-02.F2, HQ has no ledger admission path` | merged | Merged into `develop` as `f360e28` on 2026-11-20. |
+| [#69](https://github.com/abhishek3059/super-agent/pull/69) | `chore(tooling): expand gitignore for secrets, caches, and build artifacts` | merged | Merged into `develop` as `68a6514` on 2026-11-20. |
 
 ## Next PH-01 work
 

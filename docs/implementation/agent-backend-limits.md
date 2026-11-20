@@ -28,7 +28,7 @@ This is code only. It is not wired into `app.py`, and no roadmap item is ticked.
 | Field | Default | Hard ceiling |
 | --- | --- | --- |
 | `steps_per_job` | 8 | 32 |
-| `step_deadline_s` | 30 | 600 |
+| `step_deadline_s` | 75 | 600 |
 | `job_deadline_s` | 300 | 3600 |
 | `retries_per_step` | 1 | 2 |
 | `model_calls_per_job` | 12 | 100 |

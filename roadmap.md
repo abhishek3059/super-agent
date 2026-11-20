@@ -100,7 +100,6 @@ Maps to [RT-004](tasks/004-task-ledger-and-policy.md), [RT-005](tasks/005-fixed-
 - [ ] R-02.5 [exception: [agent backend exception](docs/approvals/agent-backend-exception.md)] Worker execution off the voice event loop; conversation continues during overlap (RT-A02, RT-A03). Evidence: none yet
 - [ ] R-02.7 Governance gate per [governance design](docs/design/governance.md): `policy.decide` is the single allow, deny, or confirm decision for turn-level checks, fail closed, moved in slices 1 to 4 with no behaviour change except GR-1 (emotional or social turns never start a task). OD-G1 (`policy.py` is the gate) is approved in the [decisions record](docs/approvals/governance-decisions.md); OD-G2 to OD-G4 are decided in the same record; OD-G5 (how intent and emotional meaning are understood) is a precondition of slice 2b only; OD-G6 is answered in the [decisions record](docs/approvals/governance-decisions.md) (PH-02, no exception). Evidence: none yet
 - [x] R-02.F1 Fix the admission bypass in `Runner.claim_and_run`: it must call `policy.admit`, use the job's own admitted tools, and stop offering `memory_recall` and `memory_save`, which do not exist, or the method is removed (review finding B4). Evidence: [PH-02 evidence record](docs/implementation/ph02-ledger-evidence.md), [review record](docs/reviews/ph02-ledger-review.md)
-- [ ] R-02.F2 If PR #56 merges, HQ job submission must go through the ledger and the policy gate, not call `validate_spec` and `ledger.create_job` directly. Evidence: none yet
 - [ ] R-02.F3 Reconcile the two ledger paths: the SQLite owner ledger is the one application-owned truth, and the PostgreSQL seam and the Hermes worker definitions from PR #55 either sit behind it with the same states, idempotency, and policy admission, or are removed. Evidence: none yet
 - [ ] R-02.F4 Close F2 (accept-before-auth denial of service) by handshake-time authentication before any of: R-A.2 allows real voice to a cloud provider beyond maintainer testing; a multi-user, shared, always-on, or remote host; job control reachable from a voice session ([decisions](docs/approvals/r01-10-decisions.md), [risk acceptance](docs/approvals/r01-6-f2-risk-acceptance.md)). Evidence: none yet
 - [x] R-02.F5 Stale-session rejection: each job records its voice session, and delegate or cancel from a closed or replaced session is refused (`session_stale`). Evidence: [PH-02 evidence record](docs/implementation/ph02-ledger-evidence.md), [review record](docs/reviews/ph02-ledger-review.md)
@@ -212,6 +211,16 @@ Tiers are defined in [DEC-18](descisions.md#dec-18). R-A.1 and R-A.2 can happen 
 - [ ] R-A.7 T2 reversible writes built behind the policy layer, with negative tests. Evidence: none yet
 - [ ] R-A.8 [human] T3 consequential-action design (on-device approval, shell and recipient allowlists, kill switch) approved after independent security review. Evidence: none yet
 - [ ] R-A.9 T3 consequential actions built behind the policy layer, with negative tests. Evidence: none yet
+
+## Parallel track H: Jarvis HQ local team (DEC-23)
+
+`apps/hq` is an experimental local multi-bot workspace built at a maintainer's direction under [DEC-23](descisions.md#dec-23). Its workers run inside the macOS sandbox, outside the capability ladder, as a [bounded exception approved by a maintainer](docs/approvals/jarvis-hq-dec-23-approval.md). This track gates no phase and moves no gate. Every item must be ticked before any release to `main` users or any public distribution of the app.
+
+- [x] R-H.1 [human] A maintainer approves DEC-23, the AGENTS.md section 5 exception and the OpenAI voice spend. Evidence: [maintainer approval in chat, 2026-11-17](docs/approvals/jarvis-hq-dec-23-approval.md)
+- [x] R-H.2 `apps/hq` merged with its self-checks green in CI. Evidence: [PR 56](https://github.com/abhishek3059/super-agent/pull/56), [Jarvis HQ run on develop](https://github.com/abhishek3059/super-agent/actions/runs/44607953074)
+- [x] R-H.3 Live voice run recorded with synthetic speech: connect, tool call handed to a bot, spoken result, interrupt, end. Evidence: [voice check record](docs/implementation/jarvis-hq-voice-check.md#live-run-2026-11-19), [saved output](docs/implementation/evidence/rh3-voice-check-output-20261119.txt)
+- [x] R-H.4 Independent security review of `apps/hq`: loopback boundary, screen relay, the sandbox profile, credentials copied into bot homes, internet egress. Evidence: [security review and closure](docs/reviews/jarvis-hq-security-review.md)
+- [x] R-H.5 Workers contained so one bot cannot read the operator's files, the session secret or another bot's folder. Evidence: [containment run and attacks through the server](docs/implementation/jarvis-hq-local-run.md#containment), [self-checks](apps/hq/server/test/hq.test.ts)
 
 ## Parallel track C: community and launch
 
