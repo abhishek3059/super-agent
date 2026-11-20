@@ -259,7 +259,9 @@ No `governance-gate-exception.md` record is needed. Slice 1 is built
   delete it, or route it through the gate. Its worker tool names need fixing
   either way.
 - **OD-G4.** Decided 2026-11-19: yes. The question was whether HQ jobs in
-  PR #56 must pass `admit`.
+  PR #56 must pass `admit`. PR #56 merged without an HQ admission path
+  (section 6.1), so the decision applies only if HQ is later connected to
+  the owner ledger. Its roadmap item R-02.F2 was removed for that reason.
 - **OD-G5.** Open, and blocks slice 2b only. The question is the GR-1
   request pattern: a fixed word list misses some real requests (the user must
   rephrase) and is English only. The owner asked for a design that
