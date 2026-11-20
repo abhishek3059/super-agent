@@ -17,7 +17,7 @@ SPEC = {"task_type": "answer", "instruction": "what is 2+2", "data_class": "synt
 def pg(monkeypatch):
     monkeypatch.setattr(ledger, "DATABASE_URL", URL)
     monkeypatch.setattr(ledger, "_pg_initialized", False)
-    raw = ledger.psycopg2.connect(URL)
+    raw = ledger.psycopg2.connect(ledger._pg_url())  # the loopback check runs before the tables are dropped
     raw.cursor().execute("DROP TABLE IF EXISTS events; DROP TABLE IF EXISTS jobs")
     raw.commit()
     raw.close()
