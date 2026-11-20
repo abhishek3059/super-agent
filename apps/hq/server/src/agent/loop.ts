@@ -5,7 +5,7 @@ import { appendRow, emitBot, getBotRow, getLive, getRow, setLive, updateRow } fr
 import type { ActivityKind, MessageBody, ToolCallBody } from '../types.js';
 import { toolkitInfo } from '../composio.js';
 import { screenForWork } from '../computer.js';
-import { engineFor, workerRoute } from '../engine.js';
+import { engineFor, workerConversation, workerRoute } from '../engine.js';
 import { instructionsFor } from './prompt.js';
 import { activityFor, appToolName, humanizeSlug, policyFor } from './tools.js';
 
@@ -380,8 +380,7 @@ async function runTurn(botId: string, trigger: Trigger) {
     const engine = await engineFor(botId);
     const route = await workerRoute(botId, engine, bot.provider, bot.model);
     if (ctrl.signal.aborted) throw new Error('interrupted');
-    // Hermes may pin an existing conversation to its first model.
-    const engineSuffix = bot.engine_revision ? `-e${bot.engine_revision}` : '';
+    const conversation = workerConversation(bot, route);
 
     let input = triggerText(trigger);
     if (bot.handback_at) {
@@ -398,7 +397,7 @@ async function runTurn(botId: string, trigger: Trigger) {
         input,
         instructions: await instructionsFor(userId, botId),
         // One engine-side thread per conversation; "New chat" bumps the generation and starts another.
-        conversation: `hq-${botId}-g${bot.generation}${engineSuffix}`,
+        conversation,
         stream: true,
         store: true,
         model_options: { reasoning_effort: bot.effort ?? 'medium' },

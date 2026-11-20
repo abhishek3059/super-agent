@@ -392,13 +392,20 @@ test('worker routes require a connected supported provider and keep its full mod
   assert.equal(validWorkerRoute(providers, 'gemini', 'gemini-model'), false);
 });
 
-test('engine settings refuse a missing catalog and advance the conversation revision on changed routes', async (t) => {
-  const { engineInfo, forgetEngineOptions } = await import('../src/engine.js');
-  const { configApi } = await import('../src/routes-config.js');
+async function seedEngineBot(id: string) {
   const { db } = await import('../src/db.js');
-  const botId = 'bot_picker_test';
+  db.prepare('INSERT OR IGNORE INTO users(id,email,name,created_at) VALUES (?,?,?,?)')
+    .run('usr_picker', 'picker@localhost', 'Picker Test', Date.now());
   db.prepare('INSERT INTO bots(id,user_id,name,created_at,updated_at,engine,engine_port) VALUES (?,?,?,?,?,?,?)')
-    .run(botId, 'usr_t', 'Picker Test', Date.now(), Date.now(), 'managed', 8560);
+    .run(id, 'usr_picker', 'Picker Test', Date.now(), Date.now(), 'managed', 8560);
+  return db;
+}
+
+test('engine settings refuse a missing catalog and advance the conversation revision on changed routes', async (t) => {
+  const { engineInfo, forgetEngineOptions, workerConversation } = await import('../src/engine.js');
+  const { configApi } = await import('../src/routes-config.js');
+  const botId = 'bot_picker_test';
+  const db = await seedEngineBot(botId);
   let catalog = false;
   t.mock.method(globalThis, 'fetch', async (url: string) => {
     if (url.endsWith('/health')) return Response.json({ status: 'ok' });
@@ -407,7 +414,7 @@ test('engine settings refuse a missing catalog and advance the conversation revi
       providers: [{ slug: 'nvidia', authenticated: true, models: ['chat-a','chat-b'] }] });
   });
   const save = (model: string) => configApi.request(`/bots/${botId}/engine`, {
-    method: 'PATCH', headers: { authorization: `Bearer ${createSession('usr_t')}`, 'content-type': 'application/json' },
+    method: 'PATCH', headers: { authorization: `Bearer ${createSession('usr_picker')}`, 'content-type': 'application/json' },
     body: JSON.stringify({ provider: 'nvidia', model }),
   });
   assert.match((await engineInfo(botId)).error ?? '', /catalog is unavailable/);
@@ -415,8 +422,37 @@ test('engine settings refuse a missing catalog and advance the conversation revi
   catalog = true;
   forgetEngineOptions(botId);
   assert.equal((await engineInfo(botId)).status, 'error', 'retired seed default cannot start a turn');
-  for (const [model, revision] of [['chat-a',1], ['chat-a',1], ['chat-b',2], ['chat-a',3]] as const) {
+  const bot = { id: botId, generation: 1, engine_revision: 0 };
+  assert.equal(workerConversation(bot, { provider: 'nvidia', model: 'chat-a' }), `hq-${botId}-g1`);
+  assert.equal(workerConversation(bot, { provider: 'nvidia', model: 'chat-b' }), `hq-${botId}-g1-e1`);
+  assert.throws(() => workerConversation(bot, { provider: 'nvidia', model: 'chat-a' }), /settings changed/);
+  for (const [model, revision] of [['chat-a', 2], ['chat-a', 2], ['chat-b', 3], ['chat-a', 4]] as const) {
     assert.equal((await save(model)).status, 200);
     assert.equal(db.prepare('SELECT engine_revision FROM bots WHERE id=?').get(botId).engine_revision, revision);
   }
+});
+
+
+test('worker restarts share the turn queue and refuse an already busy bot', async () => {
+  const { isBotBusy, runInBotQueue } = await import('../src/agent/loop.js');
+  const { configApi } = await import('../src/routes-config.js');
+  const botId = 'bot_restart_test';
+  await seedEngineBot(botId);
+  let release!: () => void;
+  const gate = new Promise<void>((resolve) => { release = resolve; });
+  const first = runInBotQueue(botId, () => gate);
+  let laterRan = false;
+  const later = runInBotQueue(botId, async () => { laterRan = true; });
+  try {
+    assert.equal(isBotBusy(botId), true);
+    const result = await configApi.request(`/bots/${botId}/engine/restart`, {
+      method: 'POST', headers: { authorization: `Bearer ${createSession('usr_picker')}` },
+    });
+    assert.equal(result.status, 409);
+    assert.equal(laterRan, false);
+  } finally {
+    release();
+    await Promise.all([first, later]);
+  }
+  assert.equal(laterRan, true);
 });

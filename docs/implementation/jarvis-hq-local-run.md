@@ -345,5 +345,5 @@ Nemotron Ultra selection was restored. The preview reported OpenAI voice
 enabled. The separate voice connection and operator report are in the
 [voice record](jarvis-hq-voice-check.md#preview-openai-connection-2026-11-20).
 
-HQ typecheck, build, 32 self-checks and repository checks passed. OpenAI
+HQ typecheck, build, 33 self-checks and repository checks passed. OpenAI
 Codex and Anthropic worker inference and account sign-in in HQ: not run.

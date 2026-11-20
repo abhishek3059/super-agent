@@ -407,6 +407,9 @@ export async function restartEngine(botId: string): Promise<void> {
   await starting.get(botId)?.catch(() => {});
   if (deletingBots.has(botId) || !botRow(botId)) return;
   await stopGateway(botId);
+  // The first explicit refresh can change an inherited model before we have seen its old route.
+  db.prepare(`UPDATE bots SET engine_revision=1 WHERE id=? AND engine_revision=0
+    AND engine_active_route IS NULL AND provider IS NULL AND model IS NULL`).run(botId);
   optionsCache.delete(botId);
   provisionEngine(botId);
 }
@@ -500,6 +503,17 @@ export async function workerRoute(botId: string, e: Engine, provider: string | n
     throw new Error('This bot’s model is unavailable. Choose a connected provider and model in Engine settings.');
   }
   return { provider: selectedProvider, model: selectedModel };
+}
+
+export function workerConversation(bot: { id: string; generation: number; engine_revision: number }, route: { provider: string; model: string }): string {
+  // Remember the actual route so changing the seed default also releases a pinned Hermes thread.
+  const active = JSON.stringify(route);
+  const row = db.prepare(`UPDATE bots SET engine_active_route=?,
+      engine_revision=engine_revision+CASE WHEN engine_active_route IS NOT NULL AND engine_active_route IS NOT ? THEN 1 ELSE 0 END
+    WHERE id=? AND generation=? AND engine_revision=? RETURNING engine_revision`)
+    .get(active, active, bot.id, bot.generation, bot.engine_revision) as { engine_revision: number } | undefined;
+  if (!row) throw new Error('The bot settings changed before this turn started. Send the request again.');
+  return `hq-${bot.id}-g${bot.generation}${row.engine_revision ? `-e${row.engine_revision}` : ''}`;
 }
 
 export async function engineInfo(botId: string): Promise<EngineInfo> {
