@@ -152,31 +152,43 @@ DENIED = "error: that is not allowed right now, so nothing was done. Do not say 
 _READ_UNTRUSTED: contextvars.ContextVar[bool] = contextvars.ContextVar("read_untrusted", default=False)
 
 
-def _decide(name: str) -> str | None:
-    d = policy.decide(name, policy.Turn(_HEARD.get(), _READ_UNTRUSTED.get()))
+NO_TOOL = "error: no such tool."
+BASE_NAMES = frozenset({"calculate", "current_time"})  # what run_tool serves; always on
+
+
+def _enabled() -> frozenset:
+    """Names switched on now. Each switch is read on its own, so a bad setting turns off only its tools."""
+    on = set(BASE_NAMES)
+    if memory_enabled():
+        on |= memory.NAMES
+    try:
+        if delegate_enabled():
+            on.add("delegate_task")
+    except RuntimeError:
+        pass  # start() refuses a bad SUPER_AGENT_DELEGATE; mid-session it only switches delegation off
+    return frozenset(on)
+
+
+def _decide(name: object) -> str | None:
+    d = policy.decide(name, policy.Turn(_HEARD.get(), _READ_UNTRUSTED.get(), _enabled()))
     # OD-G2: "confirm" is a refusal in voice until T3, so only "allow" runs the tool.
     return None if d.verdict == "allow" else d.code or d.verdict
 
 
 async def call_tool(name: object, arguments: object) -> str:
-    if name in tier1.T1_NAMES:
+    if name in tier1.T1_NAMES:  # tier 1 keeps its own enabled-name check and audit (governance 2.4)
         _READ_UNTRUSTED.set(True)
         return await tier1.run_t1(name, arguments)
+    code = _decide(name)
+    if code == "tool_disabled":
+        return NO_TOOL
     if name == "delegate_task":
-        on = delegate_enabled()  # read only here: a bad SUPER_AGENT_DELEGATE must not break other tools
-        if not on:
-            return "error: no such tool."
-        code = _decide(name)
         if code == "untrusted_read_in_turn":
             return DELEGATE_AFTER_READ
         if code:  # any other deny, including input_invalid, fails closed
             return DENIED
         return await asyncio.to_thread(_delegate, arguments)
     if name in memory.NAMES:
-        on = memory_enabled()
-        if not on:
-            return "error: no such tool."
-        code = _decide(name)
         # Text from a file or email could ask for a reminder that later speaks a phishing
         # line in the assistant's voice, so a turn that read any of it cannot write memory.
         if code == "untrusted_read_in_turn":
@@ -189,7 +201,7 @@ async def call_tool(name: object, arguments: object) -> str:
         if name == "forget" and result.startswith("Forgot") and (box := _FORGOT.get()) is not None:
             box.append(True)  # this session is not distilled: a reworded copy could come back
         return result
-    return run_tool(name, arguments)
+    return NO_TOOL if code else run_tool(name, arguments)
 
 
 MAX_TOOL_ROUNDS = 3  # search, then read, then answer

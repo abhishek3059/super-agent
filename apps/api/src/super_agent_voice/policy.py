@@ -29,7 +29,7 @@ REASONS = frozenset({
     "plan_invalid", "tool_out_of_scope", "model_error",
     "tool_args_invalid", "clarify_unsupported", "tracing_enabled", "model_reply_invalid", "step_failed",
     "verify_failed", "delegation_unavailable", "untrusted_read_in_turn", "not_asked",
-    "session_stale", "tool_threads_stuck", "unknown_job",
+    "session_stale", "tool_threads_stuck", "unknown_job", "tool_disabled",
 })
 
 
@@ -310,6 +310,7 @@ class Turn:
     """Facts set by trusted code for one conversation turn. Never model claims."""
     heard: str | None      # the user's own transcript this turn, None outside a voice turn
     read_untrusted: bool   # a tier 1 read already ran this turn
+    enabled: frozenset     # tool names switched on this turn; anything else is "no such tool"
 
 
 @dataclass(frozen=True)
@@ -323,8 +324,12 @@ def decide(tool: object, turn: object) -> Decision:
     try:
         if (not isinstance(tool, str) or not isinstance(turn, Turn)
                 or type(turn.read_untrusted) is not bool
-                or not (turn.heard is None or isinstance(turn.heard, str))):
+                or not (turn.heard is None or isinstance(turn.heard, str))
+                or type(turn.enabled) is not frozenset
+                or not all(isinstance(n, str) for n in turn.enabled)):
             return Decision("deny", "input_invalid")
+        if tool not in turn.enabled:
+            return Decision("deny", "tool_disabled")  # default deny: switched off or unknown
         if (tool == "delegate_task" or tool in MEMORY_WRITES) and turn.read_untrusted:
             return Decision("deny", "untrusted_read_in_turn")  # file, note or mail text must not act over the user's data
         if tool in ASKED and turn.heard is not None and not ASKED[tool].search(turn.heard.casefold()):

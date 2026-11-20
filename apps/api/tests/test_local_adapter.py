@@ -894,3 +894,25 @@ def test_an_unexpected_gate_deny_fails_closed(monkeypatch, tmp_path, verdict, co
                run(call("delegate_task", {"task_type": "answer", "instruction": "x"}))]
     assert results == [local_adapter.DENIED] * 3
     assert ran == []
+
+
+def test_every_tool_call_passes_the_gate_and_unknown_names_do_nothing(monkeypatch):
+    """Governance slice 2: switches and default deny live in policy.decide."""
+    seen = []
+    real = local_adapter.policy.decide
+    monkeypatch.setattr(local_adapter.policy, "decide", lambda tool, turn: seen.append(tool) or real(tool, turn))
+    monkeypatch.setenv("SUPER_AGENT_DELEGATE", "off")
+    monkeypatch.setenv("SUPER_AGENT_MEMORY", "off")
+    call = local_adapter.call_tool
+    assert run(call("calculate", {"expression": "2+2"})) == "4"
+    assert run(call("no_such", {})) == "error: no such tool."
+    assert run(call("delegate_task", {})) == "error: no such tool."
+    assert run(call("remember_fact", {"text": "x"})) == "error: no such tool."
+    assert seen == ["calculate", "no_such", "delegate_task", "remember_fact"]
+
+
+def test_a_bad_delegate_flag_mid_session_turns_off_only_delegation(monkeypatch):
+    monkeypatch.setenv("SUPER_AGENT_DELEGATE", "maybe")
+    monkeypatch.setattr(local_adapter, "_delegate", lambda *a: pytest.fail("delegated"))
+    assert run(local_adapter.call_tool("delegate_task", {})) == "error: no such tool."
+    assert run(local_adapter.call_tool("calculate", {"expression": "1+1"})) == "2"
