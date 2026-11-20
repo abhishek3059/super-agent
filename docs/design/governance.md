@@ -278,3 +278,32 @@ No `governance-gate-exception.md` record is needed. Slice 1 is built
 - **OD-G6.** The roadmap item, its phase, and whether an exception is needed.
   Answered as a proposal by the roadmap PR: R-02.7 in PH-02, no exception.
   It takes effect when a maintainer approves or merges that PR.
+
+
+## 7. Proposal for OD-G5: put delegation behind an explicit user action
+
+The conversation can respond to ambiguity with empathy, an answer, or one short
+clarifying question. It cannot turn an interpretation of the user's intent or
+tone into permission to create a job. The policy gate makes no claim about
+emotion. This design uses no local model and sends no new data to a provider.
+
+1. **Explicit task draft and local confirmation (recommended).** The assistant
+   can offer a bounded task draft. The user reviews its action and scope and
+   submits it in the local console. The policy gate accepts only a fresh,
+   single-use confirmation tied to the current session and that exact draft.
+   A missing, stale, or altered confirmation denies delegation. A model signal
+   may only tighten the gate. This handles paraphrases and multiple languages,
+   but adds a click to a voice request.
+2. **Separate task input in the local console.** The user enters the task
+   directly in a dedicated field. Submitting it expresses intent and starts the
+   same policy checks. This is straightforward to enforce, but the user has to
+   repeat or type a request made in conversation.
+3. **Ask once with no delegation when no local action is available.** The
+   assistant can ask whether the user wants help, then explain how to submit
+   the task. The voice reply alone grants no permission. This preserves advice
+   in a voice-only session at the cost of a separate step to start any task.
+
+Before implementing slice 2b, record whether the explicit local task control
+is acceptable for voice-originated work. The acceptance cases are venting with
+no job created, an explicit request with a matching user submission, and a
+model-only claim that is denied.

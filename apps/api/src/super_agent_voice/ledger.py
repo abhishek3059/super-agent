@@ -139,18 +139,20 @@ def _is_postgres() -> bool:
     return bool(DATABASE_URL)  # any value selects the database path, which then fails closed if it is not loopback
 
 
-def _pg_url() -> str:
+def _connect_postgres():
     """The owner ledger stays on this machine: PostgreSQL on loopback only. The error never echoes the URL."""
     try:
         parts = urlsplit(DATABASE_URL)
-        query = {key.lower() for key, _ in parse_qsl(parts.query)}
-        ok = (parts.scheme in ("postgres", "postgresql") and parts.hostname in _LOOPBACK
+        host = parts.hostname
+        query = {key.lower() for key, _ in parse_qsl(parts.query, keep_blank_values=True)}
+        ok = (parts.scheme in ("postgres", "postgresql") and host in _LOOPBACK
               and "," not in parts.netloc and not query & {"host", "hostaddr", "service"})
     except (TypeError, ValueError):
         ok = False
     if not ok:
         raise LedgerError("ledger database must be PostgreSQL on 127.0.0.1")
-    return DATABASE_URL
+    # An inherited libpq address must never override the validated hostname.
+    return psycopg2.connect(DATABASE_URL, hostaddr="::1" if host == "::1" else "127.0.0.1")
 
 
 class _PgConn:
@@ -185,10 +187,9 @@ def _db() -> Iterator[sqlite3.Connection | _PgConn]:
     if _is_postgres():
         if psycopg2 is None:
             raise LedgerError("PostgreSQL driver (psycopg2) not installed")
-        url = _pg_url()  # before any connection attempt
         con = None
         try:
-            raw = psycopg2.connect(url)
+            raw = _connect_postgres()
             con = _PgConn(raw)
             with _lock:
                 if not _pg_initialized:

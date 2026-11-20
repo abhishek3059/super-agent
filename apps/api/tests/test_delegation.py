@@ -499,6 +499,27 @@ def test_cancel_from_a_stale_session_is_refused(services):
     assert service.cancel(job_id, "old")["state"] in ("cancelled", "cancel_requested")
 
 
+def test_session_is_kept_live_until_admission_and_cancel_complete(services, monkeypatch):
+    model = Gate([PLAN])
+    service = services(model)
+    service.open_session("s1")
+
+    def check_lock(original):
+        def guarded(*args, **kwargs):
+            if service._session_lock.acquire(blocking=False):
+                service._session_lock.release()
+                pytest.fail("session can be retired during a ledger mutation")
+            return original(*args, **kwargs)
+        return guarded
+
+    monkeypatch.setattr(policy, "admit", check_lock(policy.admit))
+    monkeypatch.setattr(service._runner, "cancel", check_lock(service._runner.cancel))
+    job_id = service.delegate("answer", "hello", "k1", "s1")["job_id"]
+    assert "job_id" in service.cancel(job_id, "s1")
+    service.close_session("s1")
+    assert service.cancel(job_id, "s1") == {"refused": "session_stale"}
+
+
 def test_the_adapter_opens_and_closes_its_session(monkeypatch, services):
     from test_local_adapter import make
     monkeypatch.setenv("SUPER_AGENT_DELEGATE", "on")
@@ -711,26 +732,41 @@ def test_voice_turn_completes_while_job_running(services):
     assert wait_terminal(job_id).state == "succeeded"
 
 
-def test_event_loop_lag_under_100ms_during_job(services):
+def test_event_loop_lag_under_100ms_during_job(services, monkeypatch):
     model = Gate([PLAN])
     service = services(model)
     gaps = []
+    event_loop_thread = threading.get_ident()
+    get_job = ledger.get_job
 
-    async def scenario():
-        job_id = await asyncio.to_thread(lambda: service.delegate("answer", "hello", "k1")["job_id"])
-        asyncio.get_running_loop().call_later(0.3, model.gate.set)
+    def get_job_off_loop(job_id):
+        assert threading.get_ident() != event_loop_thread
+        return get_job(job_id)
+
+    async def tick():
         last = time.perf_counter()
-        while ledger.get_job(job_id).state not in ledger.TERMINAL:
+        while True:
             await asyncio.sleep(0.01)
             now = time.perf_counter()
             gaps.append(now - last)
             last = now
-        return job_id
 
-    job_id = run(scenario())
+    async def scenario():
+        job_id = await asyncio.to_thread(lambda: service.delegate("answer", "hello", "k1")["job_id"])
+        release = asyncio.get_running_loop().call_later(0.3, model.gate.set)
+        ticker = asyncio.create_task(tick())
+        try:
+            return await asyncio.to_thread(wait_terminal, job_id)
+        finally:
+            release.cancel()
+            ticker.cancel()
+            await asyncio.gather(ticker, return_exceptions=True)
+
+    monkeypatch.setattr(ledger, "get_job", get_job_off_loop)
+    job = run(scenario())
     worst = max(gaps) * 1000
     print(f"\nmax_loop_gap_ms={worst:.1f} ticks={len(gaps)}")
-    assert ledger.get_job(job_id).state == "succeeded" and worst < 100
+    assert job.state == "succeeded" and worst < 100
 
 
 def test_no_admitted_tool_can_write_or_reach_network():

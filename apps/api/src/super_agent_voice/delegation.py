@@ -78,24 +78,24 @@ class Service:
                 self._session = None
 
     def _check_session(self, session_id: object) -> None:
-        # Once any session has been opened, a caller must name the live one. Before that, only "no session".
-        with self._session_lock:
-            if self._gated:  # a live session must be named: None never matches, even after a close
-                if session_id is None or session_id != self._session:
-                    raise PolicyError("session_stale")
-            elif session_id is not None:
+        # Call under _session_lock through the ledger mutation.
+        if self._gated:
+            if session_id is None or session_id != self._session:
                 raise PolicyError("session_stale")
+        elif session_id is not None:
+            raise PolicyError("session_stale")
 
     def delegate(self, task_type: object, instruction: object, call_key: object, session_id: object = None) -> dict:
         """A receipt {job_id, state, revision}, or {"refused": <PolicyError code>}."""
         try:
-            if self._closed or self._model is None:
-                raise PolicyError("delegation_unavailable")
-            self._check_session(session_id)
-            spec = {"task_type": task_type, "instruction": instruction, "data_class": self._data_class}
-            adm = policy.admit(spec, call_key, self._is_local(), self._limits, ledger, self._clock(),
-                               session=session_id)
-            self._runner.submit(adm)
+            with self._session_lock:
+                if self._closed or self._model is None:
+                    raise PolicyError("delegation_unavailable")
+                self._check_session(session_id)
+                spec = {"task_type": task_type, "instruction": instruction, "data_class": self._data_class}
+                adm = policy.admit(spec, call_key, self._is_local(), self._limits, ledger, self._clock(),
+                                   session=session_id)
+                self._runner.submit(adm)
         except PolicyError as err:
             return {"refused": err.code}
         except Exception:
@@ -105,13 +105,14 @@ class Service:
     def cancel(self, job_id: object, session_id: object = None) -> dict:
         """The job's receipt {job_id, state, revision}, or {"refused": <code>}. Only the live session that started the job may cancel it."""
         try:
-            self._check_session(session_id)
-            found = ledger.get_job(job_id)
-            if found is None:
-                raise PolicyError("unknown_job")
-            if session_id is None or found.spec.get("session") != session_id:
-                raise PolicyError("session_stale")  # only the job's own session may cancel it
-            job = self._runner.cancel(job_id)
+            with self._session_lock:
+                self._check_session(session_id)
+                found = ledger.get_job(job_id)
+                if found is None:
+                    raise PolicyError("unknown_job")
+                if session_id is None or found.spec.get("session") != session_id:
+                    raise PolicyError("session_stale")  # only the job's own session may cancel it
+                job = self._runner.cancel(job_id)
         except PolicyError as err:
             return {"refused": err.code}
         except Exception:

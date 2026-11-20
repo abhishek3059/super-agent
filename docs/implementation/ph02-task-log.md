@@ -65,8 +65,8 @@ The results are in the [evidence record](ph02-ledger-evidence.md). No roadmap it
 
 ## Next
 
-- Merge PR #65 (local planner), then do the real run for R-02.5 and record it in the evidence record.
-- R-02.F3 is closed on `feat/ph02-ledger-policy` (entry below). PR 67 proposes removing R-02.F2; it is still on the roadmap until that merges.
+- PR #65 merged. The maintainer subsequently ruled out local models. R-02.5 still needs an approved synthetic run through the ledger with the replacement provider.
+- R-02.F3 is closed on `feat/ph02-ledger-policy` (entry below). PR 67 merged and removed R-02.F2 from the integration roadmap.
 - R-02.5 is ticked only after the real run. The other ticks are listed in the entry above.
 
 ## `feat/ph02-ledger-policy` bundle (2026-11-20)
@@ -79,3 +79,26 @@ Run on macOS with Python 3.12 and Node 22.
 - R-02.F4 ticked: [record](r02-f4-handshake-auth.md). The token is proven in the WebSocket upgrade, before accept. A real Chromium run of the handshake passed ([saved output](evidence/r02-f4-browser-run-20261120.txt)); microphone capture was not part of it.
 - Local test runs set `HOME` to an empty folder. The per-test guard in `tests/conftest.py` walks the real `~/.super-agent`, and a large Jarvis HQ data folder there makes each test slow. CI is not affected.
 - Results: `apps/api`: 1387 passed, 5 skipped (macOS, Python 3.12; the 3 opt-in PostgreSQL tests skip without a database). `npm run check`: 0 errors. Web console: voice-session self-test 73 cases, ui 48, epoch 8, all PASS; `npm run build` passes; `npm audit` finds 0 vulnerabilities.
+
+## Timing test correction (2026-11-20)
+
+The AC5.3 ticker no longer polls SQLite on the event loop. The targeted tests
+passed with an 11.1 ms maximum loop gap over 28 ticks. The full macOS API suite
+had 1387 passed and 5 skipped. Windows and the real-provider run: not run.
+See the [timing correction](ph02-ledger-evidence.md#ac53-timing-correction-2026-11-20)
+and the [OD-G5 proposal](../design/governance.md#7-proposal-for-od-g5-put-delegation-behind-an-explicit-user-action).
+
+### Independent review follow-up
+
+The reviewer found two runtime issues in the stacked branch. The PostgreSQL
+connector now supplies a numeric loopback address to the driver so inherited
+libpq settings cannot redirect it. The three integration cases passed against
+a throwaway PostgreSQL 17 listener with a non-loopback address in the test
+process environment. Session replacement and closure now serialize with
+delegation admission and cancellation. The focused regression tests passed, and the latest full macOS API suite
+reported 1388 passed and 5 skipped. The voice adapter closes its session off
+the event loop.
+
+PR 68 remains stacked on open PR 64 and currently conflicts with `develop`.
+GitHub reports no checks for the published PR 68 head. The revised code and
+tests are local.

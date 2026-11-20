@@ -426,7 +426,7 @@ def test_postgres_seam_query_formatting(monkeypatch):
         def close(self):
             pass
 
-    dummy_driver = type("DummyDriver", (), {"connect": lambda url: DummyConn()})
+    dummy_driver = type("DummyDriver", (), {"connect": lambda url, **kwargs: DummyConn()})
     monkeypatch.setattr(ledger, "DATABASE_URL", "postgresql://user:pass@localhost:5432/test")
     monkeypatch.setattr(ledger, "psycopg2", dummy_driver)
     monkeypatch.setattr(ledger, "_pg_initialized", True)
@@ -471,15 +471,16 @@ def test_a_loopback_ledger_database_is_used(monkeypatch, url):
     class Stop(Exception):
         pass
 
-    def connect(u):
-        calls.append(u)
+    def connect(u, *, hostaddr):
+        calls.append((u, hostaddr))
         raise Stop
 
     monkeypatch.setattr(ledger, "DATABASE_URL", url)
+    monkeypatch.setenv("PGHOSTADDR", "192.0.2.1")
     monkeypatch.setattr(ledger, "psycopg2", type("D", (), {"connect": staticmethod(connect)}))
     with pytest.raises(LedgerError):
         ledger.create_job({"task_type": "answer"}, "k1")
-    assert calls == [url]
+    assert calls == [(url, "::1" if "[::1]" in url else "127.0.0.1")]
 
 
 def test_the_generic_database_url_does_not_select_the_ledger(tmp_path):

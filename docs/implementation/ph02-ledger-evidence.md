@@ -56,11 +56,11 @@ Shared reviewer rerun, 2026-11-20: delegate 10.9 ms; max loop gap 31.5 to 34.5 m
 
 - The model-call count per job is capped at 12 by default (ceiling 100). The plan call counts as one.
 - Each model call is limited in input size (8000 characters by default), and each step output in size (4000 characters by default).
-- No paid call is reachable through the planner choices that exist today: a scripted fake and the Gemini planner (`gemini_planner.py`), which is cloud and read-only, so admission refuses personal data for it. The local planner is PR #65 and is not merged. The $0 cap is a project decision, not something this code enforces by price.
+- No paid call is reachable through the planner choices that exist today: a scripted fake and the Gemini planner (`gemini_planner.py`), which is cloud and read-only, so admission refuses personal data for it. The local planner was subsequently merged in PR #65. The $0 cap is a project decision, not something this code enforces by price.
 
 ## R-02.5 real run
 
-Pending: runs after PR #65 (local planner) merges.
+Not run. The maintainer ruled out the local planner after PR #65 merged. A replacement provider and its synthetic data boundary need a recorded decision.
 
 ## Known limits
 
@@ -70,8 +70,7 @@ Pending: runs after PR #65 (local planner) merges.
 - A planner model call has only the model's own timeout. The thread timeout covers tool calls only.
 - `Runner.claim_and_run` and `Runner.recover` act on any queued job, including jobs queued by other workers.
 - `Service(model=None)` does not run recovery. Two existing tests require this, and recovery there could fail other workers' jobs.
-- HQ jobs from PR 56 will share the global queue cap. This is for R-02.F2.
-- When PR 56 merges, `_spec` at `policy.py:129` must become `validate_spec`.
+- HQ has a separate runtime and ledger. [PR 67](https://github.com/abhishek3059/super-agent/pull/67) removed R-02.F2.
 - The thread timeout abandons a stuck thread, it does not kill it. Upgrade to a subprocess worker if the cap is ever hit in practice.
 - The cap now prunes finished threads before each check (commit d23cf2e).
 
@@ -79,4 +78,15 @@ Pending: runs after PR #65 (local planner) merges.
 
 - AC4.1 exactly two workers: closed by R-02.F3. The five Hermes definitions are tool profiles behind admission ([R-02.F3 record](r02-f3-ledger-paths.md)).
 - AC1.4 across a real process restart: tested in process only.
-- The real-model run for R-02.5: pending.
+- The real-model run for R-02.5 awaits an approved replacement provider. The maintainer ruled out local models after PR 65 merged.
+
+### AC5.3 timing correction (2026-11-20)
+
+The earlier measurement included synchronous SQLite polling between ticks.
+The updated test keeps the ticker independent and waits for terminal state on
+a worker thread. An assertion fails if the polling function runs on the event
+loop thread again. The 100 ms limit is unchanged.
+
+macOS, Python 3.12.13: maximum loop gap 11.1 ms over 28 ticks at a 10 ms
+interval. Delegation returned in 1.1 ms and the separate fake voice overlap
+test passed. Windows rerun and real-provider gate: not run.

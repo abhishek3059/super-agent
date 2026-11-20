@@ -363,7 +363,7 @@ class LocalVoiceAdapter:
             return
         self.closed = True
         if _SERVICE is not None:
-            _SERVICE.close_session(self._session)
+            await asyncio.to_thread(_SERVICE.close_session, self._session)
         for task in (self._warm, self._reminders):
             if task:
                 task.cancel()
