@@ -123,15 +123,18 @@ def available_tools() -> list[dict]:
             + ([delegation.TOOL] if delegate_enabled() else []))
 
 
+def _service() -> delegation.Service:
+    global _SERVICE
+    with _SERVICE_LOCK:
+        if _SERVICE is None:
+            _SERVICE = delegation.Service(OllamaPlanner())  # the local model plans; personal data is refused if it is not local
+        return _SERVICE
+
+
 def _delegate(arguments: object) -> str:
     """Synchronous (ledger and SQLite), so call_tool runs it off the event loop."""
-    global _SERVICE
     try:
-        with _SERVICE_LOCK:
-            if _SERVICE is None:
-                _SERVICE = delegation.Service(OllamaPlanner())  # the local model plans; personal data is refused if it is not local
-            service = _SERVICE
-        return service.handle(arguments)
+        return _service().handle(arguments, _SESSION.get())
     except Exception:
         return "error: not delegated (delegation_unavailable)."
 
@@ -139,6 +142,7 @@ def _delegate(arguments: object) -> str:
 # What the user said this turn. A small model sometimes saves things nobody asked it to,
 # so a memory write runs only when the user's own words asked for that kind of change.
 _HEARD: contextvars.ContextVar[str | None] = contextvars.ContextVar("heard", default=None)
+_SESSION: contextvars.ContextVar[str | None] = contextvars.ContextVar("session", default=None)  # set per turn
 DELEGATE_AFTER_READ = ("error: no task can be started in a turn that read files, notes, mail or calendar. "
                        "Tell the user to ask again in a new sentence.")
 NOT_ASKED = "error: the user did not ask for that, so nothing was changed. Do not say it was."
@@ -255,6 +259,7 @@ class LocalVoiceAdapter:
         self._history: list[dict[str, str]] = []
         self._said: list[str] = []  # the user's own words this session, for the distiller; RAM only
         self._epoch = uuid.uuid4().hex
+        self._session = uuid.uuid4().hex  # the id jobs are recorded under
         self._forgot: list[bool] = []
         self.learner: threading.Thread | None = None
         self._turns: dict[asyncio.Task[None], int] = {}  # task -> utterance number
@@ -275,7 +280,8 @@ class LocalVoiceAdapter:
         self._transcribe = self._transcribe or default_transcribe()
         tier1.enabled_tools()  # a mistyped SUPER_AGENT_T1 stops the session here, not mid-turn
         use_memory = memory_enabled()
-        delegate_enabled()  # a mistyped SUPER_AGENT_DELEGATE stops the session here too
+        if delegate_enabled():  # a mistyped SUPER_AGENT_DELEGATE stops the session here too
+            await asyncio.to_thread(lambda: _service().open_session(self._session))
         if self._reply is ollama_reply:
             await asyncio.to_thread(_refuse_remote_model, local_model())
         if {self._transcribe, self._synthesize} & {lfm3_voice.lfm3_transcribe, lfm3_voice.lfm3_synthesize}:
@@ -335,6 +341,8 @@ class LocalVoiceAdapter:
         if self.closed:
             return
         self.closed = True
+        if _SERVICE is not None:
+            _SERVICE.close_session(self._session)
         for task in (self._warm, self._reminders):
             if task:
                 task.cancel()
@@ -392,6 +400,7 @@ class LocalVoiceAdapter:
                 self._events.put_nowait(Interrupted())
             self._replying.add(asyncio.current_task())
             _HEARD.set(text)
+            _SESSION.set(self._session)
             _FORGOT.set(self._forgot)
             self._said = [*self._said, text][-MAX_SAID:]
             await self._events.put(Thinking())

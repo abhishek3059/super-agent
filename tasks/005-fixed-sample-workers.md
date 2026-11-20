@@ -3,8 +3,8 @@
 | Field | Value |
 | --- | --- |
 | Task ID | RT-005 |
-| Status | not started |
-| Execution evidence | none |
+| Status | in progress |
+| Execution evidence | [PH-02 evidence record](../docs/implementation/ph02-ledger-evidence.md) |
 
 ## Scope
 
@@ -40,7 +40,7 @@ Trusted fixed function is not an arbitrary-code sandbox; compute isolation is no
 
 ## Evidence
 
-None. Future task status is `not started`; no execution evidence exists.
+In progress. Evidence so far is in the [PH-02 evidence record](../docs/implementation/ph02-ledger-evidence.md). It is not complete: the real-model run for R-02.5 is pending and R-02.F3 is open.
 
 ## Navigation
 

@@ -462,3 +462,338 @@ def test_a_turn_with_no_untrusted_read_can_delegate_and_the_guard_resets_each_tu
     refused, later = run(scenario())
     assert refused == local_adapter.DELEGATE_AFTER_READ and "job_id" in json.loads(later)
     assert len(ledger.list_jobs()) == 1
+
+
+# --- R-02.F5: stale sessions ---
+
+def test_delegate_needs_the_live_session_and_the_job_records_it(services):
+    service = services(Gate([PLAN]))
+    service.open_session("s1")
+    receipt = service.delegate("answer", "hello", "k1", "s1")
+    assert "job_id" in receipt and ledger.get_job(receipt["job_id"]).spec["session"] == "s1"
+    assert service.delegate("answer", "hello", "k2") == {"refused": "session_stale"}  # must name the session
+    service.close_session("s1")
+    assert service.delegate("answer", "hello", "k3", "s1") == {"refused": "session_stale"}
+
+
+def test_a_replaced_session_is_refused_and_its_running_job_keeps_running(services):
+    model = Gate([PLAN])
+    service = services(model)
+    service.open_session("old")
+    job_id = service.delegate("answer", "hello", "k1", "old")["job_id"]
+    service.open_session("new")
+    assert service.delegate("answer", "hello", "k2", "old") == {"refused": "session_stale"}
+    assert "job_id" in service.delegate("answer", "hello", "k3", "new")
+    model.gate.set()
+    assert wait_terminal(job_id).state == "succeeded"
+
+
+def test_cancel_from_a_stale_session_is_refused(services):
+    service = services(Gate([PLAN]))
+    service.open_session("old")
+    job_id = service.delegate("answer", "hello", "k1", "old")["job_id"]
+    service.open_session("new")
+    assert service.cancel(job_id, "old") == {"refused": "session_stale"}
+    assert ledger.get_job(job_id).state in ("queued", "running")
+    assert service.cancel(job_id, "new") == {"refused": "session_stale"}  # not that session's job
+    service.open_session("old")
+    assert service.cancel(job_id, "old")["state"] in ("cancelled", "cancel_requested")
+
+
+def test_the_adapter_opens_and_closes_its_session(monkeypatch, services):
+    from test_local_adapter import make
+    monkeypatch.setenv("SUPER_AGENT_DELEGATE", "on")
+    service = services(Gate([PLAN]))
+    monkeypatch.setattr(local_adapter, "_SERVICE", service)
+
+    async def scenario():
+        adapter, _ = make()
+        await adapter.start()
+        sid = adapter._session
+        assert service._session == sid
+        await adapter.close()
+        return sid
+
+    sid = run(scenario())
+    assert service._session is None and service.delegate("answer", "x", "k", sid) == {"refused": "session_stale"}
+
+
+# --- R-02.F6: hung tools, races, recovery ---
+
+def test_hung_tool_fails_the_step_and_frees_the_job(monkeypatch, services):
+    from super_agent_voice import graph
+    never = threading.Event()
+    calls = []
+
+    def run_tool(name, args):
+        calls.append(1)
+        if len(calls) == 1:
+            never.wait(30)
+        return "4"
+
+    monkeypatch.setattr(graph, "_stuck", set())
+    monkeypatch.setattr(delegation, "run_read_tool", run_tool)
+    service = services(ScriptedModel([PLAN, PLAN]), limits=Limits(step_deadline_s=1, concurrent_jobs=1))
+    first = service.delegate("answer", "one", "k1")["job_id"]
+    second = service.delegate("answer", "two", "k2")["job_id"]
+    started = time.monotonic()
+    job = wait_terminal(first)
+    assert job.state == "failed" and time.monotonic() - started < 3
+    assert ledger.list_events(first)[-1].receipt["code"] == "step_deadline"
+    assert wait_terminal(second).state == "succeeded"  # the single pool thread was freed
+    never.set()
+
+
+def test_abandoned_tool_threads_are_capped(monkeypatch):
+    from super_agent_voice import graph
+    from super_agent_voice.policy import PolicyError
+    release = threading.Event()
+    monkeypatch.setattr(graph, "_stuck", set())
+    monkeypatch.setattr(graph, "_ABANDONED_CAP", 2)
+    for _ in range(2):
+        with pytest.raises(PolicyError) as err:
+            graph._call(release.wait, 0.05, 30)
+        assert err.value.code == "step_deadline"
+    with pytest.raises(PolicyError) as err:  # the cap counts threads in flight
+        graph._call(lambda: "x", 1)
+    assert err.value.code == "tool_threads_stuck"
+    release.set()
+    deadline = time.monotonic() + WAIT
+    while time.monotonic() < deadline and graph._stuck:
+        time.sleep(0.01)
+    assert graph._call(lambda: "x", 1) == "x"  # a finished thread freed its slot
+
+
+def test_a_dead_thread_left_in_the_set_is_pruned(monkeypatch):
+    from super_agent_voice import graph
+    monkeypatch.setattr(graph, "_stuck", set())
+    monkeypatch.setattr(graph, "_ABANDONED_CAP", 2)
+    for _ in range(2):
+        done = threading.Thread(target=lambda: None)
+        done.start()
+        done.join()
+        graph._stuck.add(done)  # finished, but still registered
+    assert graph._call(lambda: "x", 1) == "x"
+    assert not graph._stuck
+
+
+def test_the_cap_counts_abandoned_threads_across_concurrent_calls(monkeypatch):
+    from super_agent_voice import graph
+    from super_agent_voice.policy import PolicyError
+    release = threading.Event()
+    monkeypatch.setattr(graph, "_stuck", set())
+    monkeypatch.setattr(graph, "_ABANDONED_CAP", 3)
+
+    def burst(count, seconds):
+        start, out = threading.Barrier(count), []
+
+        def one():
+            start.wait()
+            try:
+                graph._call(release.wait, seconds, 30)
+            except PolicyError as err:
+                out.append(err.code)
+
+        threads = [threading.Thread(target=one) for _ in range(count)]
+        [t.start() for t in threads]
+        [t.join() for t in threads]
+        return out
+
+    assert burst(3, 0.1) == ["step_deadline"] * 3  # three hung calls are abandoned
+    assert burst(9, 0.1) == ["tool_threads_stuck"] * 9  # the cap is full: every new call refuses
+    release.set()
+
+
+def test_healthy_parallel_reads_are_not_capped(services):
+    steps = [{"type": "read_tool", "tool": "calculate", "args": {"expression": f"{i}+1"}} for i in range(6)]
+    plan = {"steps": [*steps, {"type": "finish", "after": list(range(6))}]}
+    service = services(ScriptedModel([plan]), limits=Limits(steps_per_job=8))
+    job_id = service.delegate("answer", "hello", "k1")["job_id"]
+    assert wait_terminal(job_id).state == "succeeded"
+
+
+def test_cancel_of_an_unknown_job_is_unknown_job(services):
+    service = services(Gate([PLAN]))
+    service.open_session("s1")
+    assert service.cancel("no-such-job", "s1") == {"refused": "unknown_job"}
+    assert service.cancel("no-such-job", "old") == {"refused": "session_stale"}
+
+
+def test_concurrent_admit_respects_queue_cap():
+    limits = Limits(concurrent_jobs=1, queued_jobs=2)
+    spec = {"task_type": "answer", "instruction": "hi", "data_class": "synthetic"}
+    start, results = threading.Barrier(20), []
+
+    def one(i):
+        start.wait()
+        try:
+            policy.admit(spec, f"key-{i}", True, limits, ledger, datetime.now(UTC))
+            results.append("ok")
+        except policy.PolicyError as err:
+            results.append(err.code)
+
+    with ThreadPoolExecutor(20) as pool:  # 20 workers all waiting at the barrier: fails without _ADMIT_LOCK
+        list(pool.map(one, range(20)))
+    assert results.count("ok") == 3 and results.count("queue_full") == 17
+    assert len(ledger.list_jobs()) == 3
+
+
+def test_two_threads_update_same_job_one_wins():
+    spec = {"task_type": "answer", "instruction": "hi", "data_class": "synthetic"}
+    for i in range(10):
+        job = ledger.create_job(spec, f"race-{i}")
+        start, out = threading.Barrier(2), []
+
+        def move(to):
+            start.wait()
+            try:
+                out.append(ledger.transition(job.id, to, job.revision, "race", {"executed": False}).state)
+            except ledger.LedgerError:
+                out.append("refused")
+
+        threads = [threading.Thread(target=move, args=(to,)) for to in ("running", "cancelled")]
+        [t.start() for t in threads]
+        [t.join() for t in threads]
+        assert out.count("refused") == 1 and ledger.get_job(job.id).revision == 2
+
+
+def test_close_mid_job_then_recover_marks_unknown(services):
+    model = Gate([PLAN])
+    first = services(model)
+    job_id = first.delegate("answer", "hello", "k1")["job_id"]
+    end = time.monotonic() + WAIT
+    while ledger.get_job(job_id).state != "running" and time.monotonic() < end:
+        time.sleep(0.005)
+    first.close()
+    services(ScriptedModel([]))  # a restart: recovery runs
+    assert ledger.get_job(job_id).state == "unknown"
+    model.gate.set()
+    first._runner._pool.shutdown(wait=True)
+    # the ledger lets a late, honest finish resolve an unknown job; the record must stay consistent
+    assert ledger.get_job(job_id).state in ("unknown", "succeeded", "failed")
+    revisions = [e.revision for e in ledger.list_events(job_id) if e.from_state != e.to_state]
+    assert revisions == sorted(set(revisions))
+
+
+# --- R-02.5: off the voice loop ---
+
+def test_delegate_returns_under_200ms_while_job_is_gated(services):
+    model = Gate([PLAN])
+    service = services(model)
+    started = time.perf_counter()
+    receipt = service.delegate("answer", "hello", "k1")
+    took_ms = (time.perf_counter() - started) * 1000
+    print(f"\ndelegate_ms={took_ms:.1f}")
+    assert "job_id" in receipt and took_ms < 200
+    assert ledger.get_job(receipt["job_id"]).state in ("queued", "running")
+    model.gate.set()
+    assert wait_terminal(receipt["job_id"]).state == "succeeded"
+
+
+def test_voice_turn_completes_while_job_running(services):
+    from super_agent_voice.adapter import TurnComplete
+    from test_local_adapter import collect, make, speak
+    model = Gate([PLAN])
+    service = services(model)
+    job_id = service.delegate("answer", "hello", "k1")["job_id"]
+
+    async def scenario():
+        adapter, _ = make()
+        await adapter.start()
+        await speak(adapter)
+        events = await collect(adapter)
+        await adapter.close()
+        return events
+
+    events = run(scenario())
+    assert isinstance(events[-1], TurnComplete)
+    assert ledger.get_job(job_id).state in ("queued", "running") and not model.gate.is_set()
+    model.gate.set()
+    assert wait_terminal(job_id).state == "succeeded"
+
+
+def test_event_loop_lag_under_100ms_during_job(services):
+    model = Gate([PLAN])
+    service = services(model)
+    gaps = []
+
+    async def scenario():
+        job_id = await asyncio.to_thread(lambda: service.delegate("answer", "hello", "k1")["job_id"])
+        asyncio.get_running_loop().call_later(0.3, model.gate.set)
+        done = asyncio.Event()
+
+        async def ticker():  # only sleeps, so each gap is time the loop was held by something else
+            last = time.perf_counter()
+            while not done.is_set():
+                await asyncio.sleep(0.01)
+                now = time.perf_counter()
+                gaps.append(now - last)
+                last = now
+
+        tick = asyncio.create_task(ticker())
+        # Poll off the loop, as production does: ledger._db() holds a process-wide lock, so a read on
+        # the loop waits for the job thread's writes and the test measured its own stall (116 ms on CI).
+        while (await asyncio.to_thread(ledger.get_job, job_id)).state not in ledger.TERMINAL:
+            await asyncio.sleep(0.01)
+        done.set()
+        await tick
+        return job_id
+
+    job_id = run(scenario())
+    worst = max(gaps) * 1000
+    print(f"\nmax_loop_gap_ms={worst:.1f} ticks={len(gaps)}")
+    assert ledger.get_job(job_id).state == "succeeded" and worst < 100
+
+
+def test_no_admitted_tool_can_write_or_reach_network():
+    read_only = {"calculate", "current_time", "list_files", "read_file", "search_files", "calendar_events",
+                 "recent_notes", "search_notes", "recent_emails", "list_memory", "list_reminders"}
+    seen, n = set(), 0
+    for task in policy.TASK_TYPES:
+        for local in (True, False):
+            for mem in (True, False):
+                for t1 in (True, False):
+                    n += 1
+                    spec = {"task_type": task, "instruction": "hi", "data_class": "synthetic"}
+                    seen |= policy.admit(spec, f"k{n}", local, Limits(queued_jobs=50), ledger, datetime.now(UTC),
+                                         memory_is_synthetic=mem, tier1_is_synthetic=t1).tools
+    from super_agent_voice.runner import HERMES_WORKERS
+    for worker in HERMES_WORKERS.values():
+        seen |= set(worker.allowed_tools)
+    assert seen and seen <= read_only
+
+
+def test_limits_ignore_environment(monkeypatch):
+    before = Limits()
+    for key in ("STEP_DEADLINE", "STEP_DEADLINE_S", "JOB_DEADLINE", "STEPS_PER_JOB", "QUEUED_JOBS", "CONCURRENT_JOBS"):
+        monkeypatch.setenv(f"SUPER_AGENT_{key}", "1")
+    assert Limits() == before
+
+
+def test_a_closed_session_does_not_accept_no_session(services):
+    service = services(Gate([PLAN]))
+    service.open_session("s1")
+    service.close_session("s1")
+    assert service.delegate("answer", "hello", "k1", None) == {"refused": "session_stale"}
+    assert service.cancel("x", None) == {"refused": "session_stale"}
+
+
+def test_closing_a_stale_session_leaves_the_live_one_working(services):
+    service = services(Gate([PLAN]))
+    service.open_session("A")
+    service.open_session("B")
+    service.close_session("A")
+    assert "job_id" in service.delegate("answer", "hello", "k1", "B")
+
+
+def test_only_the_jobs_own_session_can_cancel_it(services):
+    service = services(Gate([PLAN]))
+    service.open_session("A")
+    mine = service.delegate("answer", "hello", "k1", "A")["job_id"]
+    service.open_session("B")
+    assert service.cancel(mine, "B") == {"refused": "session_stale"}  # another session's job
+    legacy = ledger.create_job({"task_type": "answer", "instruction": "x", "data_class": "synthetic"}, "nosession")
+    assert service.cancel(legacy.id, "B") == {"refused": "session_stale"}  # a job with no session
+    assert ledger.get_job(legacy.id).state == "queued"
+    service.open_session("A")
+    assert service.cancel(mine, "A")["state"] in ("cancelled", "cancel_requested")

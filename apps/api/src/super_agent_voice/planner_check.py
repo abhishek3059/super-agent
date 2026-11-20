@@ -19,13 +19,17 @@ import sys
 import tempfile
 import threading
 import time
+import urllib.parse
+from datetime import UTC, datetime
 from pathlib import Path
 
 from . import delegation, ledger
 from .gemini_planner import GeminiPlanner
+from .hosted_planner import HostedPlanner
 
 INSTRUCTION = "What is 17 times 23? Use the calculator, then state the answer."
 DEFAULT_MODEL = "gemini-2.5-flash"  # unverified for this key and the free tier; see the implementation record
+HOSTED_INSTRUCTION = "What is 17 times 23, and what time is it?"
 WAIT_S = 60
 GRACE_S = 35  # a blocked model call ends at its own 20 s timeout, so the worker is gone by then
 
@@ -39,7 +43,7 @@ def _drained(service) -> bool:
     return not joiner.is_alive()
 
 
-def run_check(model, model_name: str) -> dict:
+def run_check(model, model_name: str, instruction: str = INSTRUCTION) -> dict:
     """One job on a temporary ledger. Returns the printable summary; the exit code is the caller's.
 
     The real ledger path is restored only after the worker has exited, because a live worker's next ledger
@@ -54,7 +58,7 @@ def run_check(model, model_name: str) -> dict:
     service, summary = None, {"model": model_name, "state": "refused", "reason": ""}
     try:
         service = delegation.Service(model, data_class="synthetic")
-        receipt = service.delegate("answer", INSTRUCTION, "planner-check")
+        receipt = service.delegate("answer", instruction, "planner-check")
         summary.update(state=receipt.get("state", "refused"), reason=receipt.get("refused", ""))
         if "job_id" in receipt:
             job = ledger.get_job(receipt["job_id"])
@@ -69,7 +73,7 @@ def run_check(model, model_name: str) -> dict:
             steps = [e.receipt for e in events if e.reason == "step"]
             summary.update(state="timed_out" if waited_out else job.state,
                            reason="wait_timeout" if waited_out else "" if job.state == "succeeded" else events[-1].reason,
-                           step_count=len(steps), step_types=[s["type"] for s in steps])
+                           transitions=[f"{e.from_state}>{e.to_state}" for e in events], step_count=len(steps), step_types=[s["type"] for s in steps])
     finally:
         if service is None or _drained(service):
             ledger.DB_PATH = real_path
@@ -80,11 +84,26 @@ def run_check(model, model_name: str) -> dict:
     return summary
 
 
+def _hosted_main() -> None:
+    """Prints time, host, model, state, seconds, ledger transitions and the failure code. Never the key, prompt or text."""
+    host = urllib.parse.urlsplit(os.environ.get("SUPER_AGENT_PLANNER_BASE_URL", "")).hostname or ""
+    name = os.environ.get("SUPER_AGENT_PLANNER_MODEL", "")
+    summary = run_check(HostedPlanner(), name, HOSTED_INSTRUCTION)
+    print(json.dumps({"utc": datetime.now(UTC).isoformat(timespec="seconds"), "host": host, "model": name,
+                      "state": summary["state"], "total_s": round(summary["total_ms"] / 1000, 1),
+                      "transitions": summary.get("transitions", []), "code": summary.get("reason", "")}), flush=True)
+    sys.exit(0 if summary["state"] == "succeeded" else 1)
+
+
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description="Synthetic-task check of the Gemini planner.")
     parser.add_argument("--send-synthetic-task", action="store_true", required=True,
                         help="confirm that the task is synthetic and may be sent to Google")
-    parser.parse_args(argv)
+    parser.add_argument("--hosted", action="store_true",
+                        help="use the hosted OpenAI-compatible planner (SUPER_AGENT_PLANNER_* environment) instead of Gemini")
+    args = parser.parse_args(argv)
+    if args.hosted:
+        _hosted_main()
     api_key = os.environ.get("GEMINI_API_KEY") or getpass.getpass("Gemini API key: ")
     if not api_key:
         sys.exit("GEMINI_API_KEY is not set")

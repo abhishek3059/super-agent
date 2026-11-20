@@ -89,19 +89,22 @@ Maps to [RT-002](tasks/002-local-scaffold-and-boundary.md), [RT-003](tasks/003-n
 
 ## PH-02: ledger, policy, and two fixed workers
 
-**Status:** not started
+**Status:** in progress
 
 Maps to [RT-004](tasks/004-task-ledger-and-policy.md), [RT-005](tasks/005-fixed-sample-workers.md), and RT-G02.
 
-- [ ] R-02.1 [exception: [agent backend exception](docs/approvals/agent-backend-exception.md)] Job ledger with the eight canonical states, receipts, and application-owned truth. Evidence: none yet
-- [ ] R-02.2 [exception: [agent backend exception](docs/approvals/agent-backend-exception.md)] Idempotency keys, task revisions, and stale-session rejection. Evidence: none yet
-- [ ] R-02.3 [exception: [agent backend exception](docs/approvals/agent-backend-exception.md)] Policy limits enforced outside the model (schemas, sizes, deadlines, steps, retries, budget). Evidence: none yet
-- [ ] R-02.4 [exception: [agent backend exception](docs/approvals/agent-backend-exception.md)] Two trusted read-only workers over synthetic data, with no arbitrary-code, host-shell, plugin, or external-action exposure. Evidence: none yet
+- [x] R-02.1 [exception: [agent backend exception](docs/approvals/agent-backend-exception.md)] Job ledger with the eight canonical states, receipts, and application-owned truth. Evidence: [PH-02 evidence record (restart tested by reopening the on-disk ledger in process)](docs/implementation/ph02-ledger-evidence.md)
+- [x] R-02.2 [exception: [agent backend exception](docs/approvals/agent-backend-exception.md)] Idempotency keys, task revisions, and stale-session rejection. Evidence: [PH-02 evidence record](docs/implementation/ph02-ledger-evidence.md)
+- [x] R-02.3 [exception: [agent backend exception](docs/approvals/agent-backend-exception.md)] Policy limits enforced outside the model (schemas, sizes, deadlines, steps, retries, budget). Evidence: [PH-02 evidence record](docs/implementation/ph02-ledger-evidence.md)
+- [x] R-02.4 [exception: [agent backend exception](docs/approvals/agent-backend-exception.md)] Two trusted read-only workers over synthetic data, with no arbitrary-code, host-shell, plugin, or external-action exposure. Evidence: [PH-02 evidence record (the two workers are the task types answer and summarize; five legacy HERMES_WORKERS labels run through them read-only, cleanup tracked in R-02.F3)](docs/implementation/ph02-ledger-evidence.md)
 - [ ] R-02.5 [exception: [agent backend exception](docs/approvals/agent-backend-exception.md)] Worker execution off the voice event loop; conversation continues during overlap (RT-A02, RT-A03). Evidence: none yet
 - [ ] R-02.7 Governance gate per [governance design](docs/design/governance.md): `policy.decide` is the single allow, deny, or confirm decision for turn-level checks, fail closed, moved in slices 1 to 4 with no behaviour change except GR-1 (emotional or social turns never start a task). OD-G1 (`policy.py` is the gate) is approved in the [decisions record](docs/approvals/governance-decisions.md); OD-G2 to OD-G4 are decided in the same record; OD-G5 (how intent and emotional meaning are understood) is a precondition of slice 2b only; OD-G6 is answered in the [decisions record](docs/approvals/governance-decisions.md) (PH-02, no exception). Evidence: none yet
-- [ ] R-02.F1 Fix the admission bypass in `Runner.claim_and_run`: it must call `policy.admit`, use the job's own admitted tools, and stop offering `memory_recall` and `memory_save`, which do not exist, or the method is removed (review finding B4). Evidence: none yet
+- [x] R-02.F1 Fix the admission bypass in `Runner.claim_and_run`: it must call `policy.admit`, use the job's own admitted tools, and stop offering `memory_recall` and `memory_save`, which do not exist, or the method is removed (review finding B4). Evidence: [PH-02 evidence record](docs/implementation/ph02-ledger-evidence.md), [review record](docs/reviews/ph02-ledger-review.md)
 - [ ] R-02.F3 Reconcile the two ledger paths: the SQLite owner ledger is the one application-owned truth, and the PostgreSQL seam and the Hermes worker definitions from PR #55 either sit behind it with the same states, idempotency, and policy admission, or are removed. Evidence: none yet
 - [ ] R-02.F4 Close F2 (accept-before-auth denial of service) by handshake-time authentication before any of: R-A.2 allows real voice to a cloud provider beyond maintainer testing; a multi-user, shared, always-on, or remote host; job control reachable from a voice session ([decisions](docs/approvals/r01-10-decisions.md), [risk acceptance](docs/approvals/r01-6-f2-risk-acceptance.md)). Evidence: none yet
+- [x] R-02.F5 Stale-session rejection: each job records its voice session, and delegate or cancel from a closed or replaced session is refused (`session_stale`). Evidence: [PH-02 evidence record](docs/implementation/ph02-ledger-evidence.md), [review record](docs/reviews/ph02-ledger-review.md)
+- [x] R-02.F6 Hung tools cannot stall jobs: each tool call has a hard timeout inside the step deadline, abandoned threads are capped, app-read subprocesses keep a hard timeout and are killed, and this holds on Windows. Evidence: [PH-02 evidence record](docs/implementation/ph02-ledger-evidence.md), [review record](docs/reviews/ph02-ledger-review.md)
+- [x] R-02.F7 Provider-neutral hosted planner: one OpenAI-compatible client behind the planner seam, approved hosts only, key from the environment, bounded timeout and retry, with offline tests and an opt-in live check; the hosted run itself belongs to R-02.5. Evidence: [R-02.F7 record](docs/implementation/r02-f7-hosted-planner.md)
 - [ ] R-02.6 RT-004 and RT-005 records complete and RT-G02 evidenced. Evidence: none yet
 
 ## PH-03: steering, stops, recovery, and validation
