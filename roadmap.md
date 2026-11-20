@@ -97,8 +97,8 @@ Maps to [RT-004](tasks/004-task-ledger-and-policy.md), [RT-005](tasks/005-fixed-
 - [ ] R-02.2 [exception: [agent backend exception](docs/approvals/agent-backend-exception.md)] Idempotency keys, task revisions, and stale-session rejection. Evidence: none yet
 - [ ] R-02.3 [exception: [agent backend exception](docs/approvals/agent-backend-exception.md)] Policy limits enforced outside the model (schemas, sizes, deadlines, steps, retries, budget). Evidence: none yet
 - [ ] R-02.4 [exception: [agent backend exception](docs/approvals/agent-backend-exception.md)] Two trusted read-only workers over synthetic data, with no arbitrary-code, host-shell, plugin, or external-action exposure. Evidence: none yet
-- [ ] R-02.5 [exception: [agent backend exception](docs/approvals/agent-backend-exception.md)] Worker execution off the voice event loop; conversation continues during overlap (RT-A02, RT-A03). Evidence: none yet
-- [ ] R-02.7 Governance gate per [governance design](docs/design/governance.md): `policy.decide` is the single allow, deny, or confirm decision for turn-level checks, fail closed, moved in slices 1 to 4 with no behaviour change except GR-1 (emotional or social turns never start a task). OD-G1 (`policy.py` is the gate) is approved in the [decisions record](docs/approvals/governance-decisions.md); OD-G2 to OD-G4 are decided in the same record; OD-G5 (how intent and emotional meaning are understood) is a precondition of slice 2b only; OD-G6 is answered in the [decisions record](docs/approvals/governance-decisions.md) (PH-02, no exception). Evidence: none yet
+- [ ] R-02.5 [exception: [agent backend exception](docs/approvals/agent-backend-exception.md)] Worker execution off the voice event loop; native conversation continues while two bounded trusted workers process synthetic tasks through the application ledger. Record approval of the provider, recipients and cost before any hosted test. Save overlap evidence (RT-A02, RT-A03), including timeout and bounded retry results for a hosted run. Evidence: none yet
+- [ ] R-02.7 Governance gate per [governance design](docs/design/governance.md): `policy.decide` is the single allow, deny, or confirm decision for turn-level checks, fail closed, moved in slices 1 to 4 with fail-closed hardening and an explicit behaviour change for GR-1 (emotional or social turns never start a task). OD-G1 (`policy.py` is the gate) is approved in the [decisions record](docs/approvals/governance-decisions.md); OD-G2 to OD-G4 are decided in the same record; OD-G5 (how intent and emotional meaning are understood) is a precondition of slice 2b only; OD-G6 is answered in the [decisions record](docs/approvals/governance-decisions.md) (PH-02, no exception). Evidence: none yet
 - [ ] R-02.F1 Fix the admission bypass in `Runner.claim_and_run`: it must call `policy.admit`, use the job's own admitted tools, and stop offering `memory_recall` and `memory_save`, which do not exist, or the method is removed (review finding B4). Evidence: none yet
 - [ ] R-02.F3 Reconcile the two ledger paths: the SQLite owner ledger is the one application-owned truth, and the PostgreSQL seam and the Hermes worker definitions from PR #55 either sit behind it with the same states, idempotency, and policy admission, or are removed. Evidence: none yet
 - [ ] R-02.F4 Close F2 (accept-before-auth denial of service) by handshake-time authentication before any of: R-A.2 allows real voice to a cloud provider beyond maintainer testing; a multi-user, shared, always-on, or remote host; job control reachable from a voice session ([decisions](docs/approvals/r01-10-decisions.md), [risk acceptance](docs/approvals/r01-6-f2-risk-acceptance.md)). Evidence: none yet
@@ -114,10 +114,10 @@ Maps to [RT-006](tasks/006-steering-and-stop-controls.md), [RT-007](tasks/007-re
 - [ ] R-03.2 Duplicate, stale, and lost-event handling; cancellation races and unknown outcomes; native replacement sessions; restart without blind replay; sleep and off limits disclosed (RT-A04). Evidence: none yet
 - [ ] R-03.3 Retention and deletion policy implemented and tested (RT-A06). Evidence: none yet
 - [ ] R-03.4 Negative security tests for the local boundary pass (RT-A05). Evidence: none yet
-- [ ] R-03.F1 Fail closed when the local adapter's remote-model check cannot run (Ollama unreachable): refuse the session or re-check before the first chat request (review finding B3). Evidence: none yet
+- [ ] R-03.F1 Retire the Ollama and local-model paths from the active product and prove retired settings fail closed without starting a session (review finding B3). Evidence: none yet
 - [ ] R-03.F2 Owner-only protection on Windows for the token, memory, and ledger files (ACL or documented equivalent), and make the failing `test_memory.py` file-mode test pass or skip correctly on Windows (review finding B5). Evidence: none yet
 - [ ] R-03.F3 Enforce the 127.0.0.1 bind in code, not only in the launch commands (review finding B6). Evidence: none yet
-- [ ] R-03.F4 Bound the Gemini adapter queues in code and make the tool-call cap apply per user reply, not per provider turn (review finding B7). Evidence: none yet
+- [ ] R-03.F4 Review and approve the replacement native voice route before retiring Gemini from the active product. Retired settings fail closed. Bound the replacement adapter queues, apply its tool-call cap per user reply and keep the PH-03 validation requirements (review finding B7). Evidence: none yet
 - [ ] R-03.5 Measured latency and barge-in results reported against targets (RT-A02). Evidence: none yet
 - [ ] R-03.6 Independent implementation review and security assessment of the actual revision. Evidence: none yet
 - [ ] R-03.7 RT-006, RT-007, RT-008 records complete; RT-G03 and RT-G04 evidenced. Evidence: none yet
@@ -220,11 +220,23 @@ Tiers are defined in [DEC-18](descisions.md#dec-18). R-A.1 and R-A.2 can happen 
 - [x] R-H.4 Independent security review of `apps/hq`: loopback boundary, screen relay, the sandbox profile, credentials copied into bot homes, internet egress. Evidence: [security review and closure](docs/reviews/jarvis-hq-security-review.md)
 - [x] R-H.5 Workers contained so one bot cannot read the operator's files, the session secret or another bot's folder. Evidence: [containment run and attacks through the server](docs/implementation/jarvis-hq-local-run.md#containment), [self-checks](apps/hq/server/test/hq.test.ts)
 
+### Proposed HQ follow-on
+
+- Verify OpenAI subscription voice with the native sign-in on a synthetic call.
+- Verify the Hermes worker routes for OpenAI subscription, Claude Pro via its
+  native CLI, and hosted NVIDIA NIM. Record a synthetic bot handoff.
+- Design a contained compute workspace for each agent beyond its current
+  browser and work folder. Cover credentials, egress, message delivery and
+  stopping a worker before implementation.
+
+These proposals add no release prerequisites. Review the listener and
+credential boundaries before adding implementation items to this track.
+
 ## Parallel track C: community and launch
 
 Starts after the PH-03 exit, except R-C.1 and R-C.2, which can happen any time.
 
 - [ ] R-C.1 [human] Talk to 15 to 20 people who run coding agents; record results in `docs/learnings/`. Evidence: none yet
-- [ ] R-C.2 [human] Legal read of the Gemini terms (consumer-use and EEA, Swiss, UK clauses) before any public distribution. Evidence: none yet
+- [ ] R-C.2 [human] Legal review of consumer-use terms and applicable regional clauses for each provider used in the release before public distribution. Evidence: none yet
 - [ ] R-C.3 [human] Free versus paid tiers decided. Evidence: none yet
 - [ ] R-C.4 First tagged release `v0.1.0` after the PH-03 exit. Evidence: none yet
