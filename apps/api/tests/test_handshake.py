@@ -126,3 +126,75 @@ def test_one_deadline_covers_the_whole_handshake() -> None:
             assert slow.receive_json() == {"type": "session.error", "category": "session-timeout"}
         assert time.monotonic() - started < 1.4  # per-step deadlines would take about 1.6 s
     assert created == []
+
+
+# --- R-02.F4: the token is proven before accept, so no unauthenticated socket is held -------------
+
+from handshake import PROTOCOL, send_auth, upgrade  # noqa: E402
+from test_voice_api import ORIGIN  # noqa: E402
+
+HEADERS = {"host": "127.0.0.1:8000", "origin": ORIGIN}
+
+
+def refused(client, protocols) -> int:
+    with pytest.raises(WebSocketDisconnect) as denied, client.websocket_connect(
+        "/ws/voice", headers=dict(HEADERS), subprotocols=protocols
+    ):
+        pass
+    return denied.value.code
+
+
+def tampered(protocols: list[str], index: int, value: str) -> list[str]:
+    parts = protocols[1].split(".")
+    parts[index] = value
+    return [protocols[0], ".".join(parts)]
+
+
+def test_a_socket_without_the_upgrade_proof_is_refused_before_accept() -> None:
+    created, factory = counting_factory()
+    good = upgrade(TOKEN)
+    now = time.time()
+    with make_client(factory=factory) as client:
+        for protocols in [
+            None, [], [PROTOCOL], good[1:],                         # nothing, or the proof without the protocol
+            upgrade("x" * 32),                                      # wrong token
+            tampered(good, 1, "f" * 32),                            # nonce swapped under a valid mac
+            tampered(good, 2, str(int(now) + 1)),                   # time swapped under a valid mac
+            tampered(good, 3, "0" * 64),
+            upgrade(TOKEN, at=now - 31), upgrade(TOKEN, at=now + 31),  # outside the 30 s window
+            [PROTOCOL, good[1], upgrade(TOKEN)[1]],                 # two proofs
+            [PROTOCOL, good[1].upper()], [PROTOCOL, good[1] + "0"], [PROTOCOL, "sa-auth." + TOKEN],
+        ]:
+            assert refused(client, protocols) == 1008, protocols
+    assert created == []
+
+
+def test_an_upgrade_proof_works_once_and_selects_only_the_protocol() -> None:
+    protocols = upgrade(TOKEN, at=time.time() - 25)  # whole seconds: keep clear of the 30 s edge
+    with make_client() as client:
+        with client.websocket_connect("/ws/voice", headers=dict(HEADERS), subprotocols=protocols) as websocket:
+            assert websocket.accepted_subprotocol == PROTOCOL  # the proof is never echoed
+            send_auth(websocket, TOKEN)
+            assert websocket.receive_json()["type"] == "session.ready"
+        assert refused(client, protocols) == 1008  # replay of a recorded upgrade
+
+
+def test_refused_upgrades_hold_no_slot_and_do_not_throttle_the_user() -> None:
+    """The F2 attack: a local process without the token reopens sockets to fill the pre-auth cap."""
+    settings = throttled(
+        max_pre_auth_connections=1, auth_failure_threshold=1,
+        auth_delay_base_seconds=2.0, auth_delay_cap_seconds=2.0,
+    )
+    with make_client(config=settings) as client:
+        for _ in range(20):
+            assert refused(client, upgrade("x" * 32)) == 1008
+        with connect(client) as websocket:  # the cap of 1 is still free
+            send_auth(websocket, TOKEN)
+            assert websocket.receive_json()["type"] == "session.ready"
+        started = time.monotonic()
+        with connect(client) as websocket:  # the first real failure is not delayed: the 20 were not counted
+            websocket.send_json({"type": "session.hello", "nonce": "a" * 32})
+            websocket.receive_json()
+            websocket.send_json({"type": "session.auth", "proof": "0" * 64})
+            expect_close(websocket, 1008)
+        assert time.monotonic() - started < 1.5

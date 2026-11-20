@@ -26,6 +26,8 @@ unauthenticated socket is ever accepted.
 
 > **2026-11-19:** the [R-01.10 decisions record](r01-10-decisions.md) confirms this acceptance for maintainer-only Gemini testing and restates the condition. F5 is fixed in R-01.F9.
 
+> **2026-11-20:** F2 is fixed by R-02.F4 ([record](../implementation/r02-f4-handshake-auth.md)): the token is proven in the WebSocket upgrade and checked before accept, so no unauthenticated socket is accepted. This acceptance is no longer needed once that change merges.
+
 ## Not accepted by this record
 
 This record accepts F2 only. It does not accept, and the review lists as still

@@ -12,7 +12,7 @@ import time
 from pathlib import Path
 
 import pytest
-from handshake import proof
+from handshake import proof, upgrade
 
 SRC = Path(__file__).resolve().parents[1] / "src"
 # The documented launch flags: small frame and queue limits before authentication.
@@ -48,13 +48,14 @@ def wait_for_port(process: subprocess.Popen, port: int) -> None:
             time.sleep(0.1)
 
 
-def handshake(port: int) -> socket.socket:
+def handshake(port: int, token: str) -> socket.socket:
     connection = socket.create_connection(("127.0.0.1", port), 5)
     key = base64.b64encode(os.urandom(16)).decode()
     # The server checks Host and Origin against its configured values, not the port.
     connection.sendall(
         ("GET /ws/voice HTTP/1.1\r\nHost: 127.0.0.1:8000\r\nOrigin: http://127.0.0.1:4200\r\n"
          f"Upgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Key: {key}\r\n"
+         f"Sec-WebSocket-Protocol: {', '.join(upgrade(token))}\r\n"
          "Sec-WebSocket-Version: 13\r\n\r\n").encode()
     )
     assert connection.recv(4096).startswith(b"HTTP/1.1 101")
@@ -88,7 +89,7 @@ def test_token_is_not_logged_by_a_real_server_and_debug_refuses_to_start(tmp_pat
     process, port = start(token, "info", info_log)
     try:
         wait_for_port(process, port)
-        connection = handshake(port)
+        connection = handshake(port, token)
         client_nonce = secrets.token_hex(16)
         hello = '{"type":"session.hello","nonce":"%s"}' % client_nonce
         connection.sendall(text_frame(hello.encode()))
@@ -119,7 +120,7 @@ def test_oversized_frame_before_auth_is_closed_without_buffering_it(tmp_path) ->
     process, port = start(token, "info", tmp_path / "server.log")
     try:
         wait_for_port(process, port)
-        connection = handshake(port)
+        connection = handshake(port, token)
         try:
             connection.sendall(text_frame(b"x" * 70_000))
             reply = connection.recv(4096)

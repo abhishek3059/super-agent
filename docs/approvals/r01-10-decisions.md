@@ -45,6 +45,8 @@ before any of these:
 - a multi-user machine, or an always-on or remote host;
 - job control reachable from a voice session.
 
+> **2026-11-20:** fixed by R-02.F4 ([record](../implementation/r02-f4-handshake-auth.md)), handshake-time authentication before accept.
+
 ## 4. Evidence accepted for RT-G01 (2026-11-19)
 
 **Decision:** `abhishek3059` decided in chat on 2026-11-19, after being told

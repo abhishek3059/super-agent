@@ -4,7 +4,7 @@ from __future__ import annotations
 import asyncio
 import logging
 
-from handshake import send_auth
+from handshake import send_auth, upgrade
 from super_agent_voice.adapter import AudioChunk, Interrupted, Transcript, TurnComplete
 from super_agent_voice.app import _forward_events, _OutboundQueue, _SessionFailure, _SessionState
 from super_agent_voice.config import VoiceConfig
@@ -59,7 +59,8 @@ def test_session_lines_for_start_failure_and_close(caplog) -> None:
     for factory in (FakeVoiceAdapter, Refusing):
         with TestClient(create_app(VoiceConfig(local_token=token), factory), base_url=origin) as client:
             with client.websocket_connect(
-                "/ws/voice", headers={"host": "127.0.0.1:8000", "origin": origin}
+                "/ws/voice", headers={"host": "127.0.0.1:8000", "origin": origin},
+                subprotocols=upgrade(token),
             ) as websocket:
                 send_auth(websocket, token)
                 websocket.receive_json()
