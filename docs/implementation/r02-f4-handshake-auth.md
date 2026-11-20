@@ -63,7 +63,7 @@ refused with HTTP 403 and never opened. The console with the synthetic token
 was accepted, passed the mutual proof, and reached `session.ready` with the
 fake adapter.
 
-Results: `apps/api`: 1387 passed, 2 skipped (macOS, Python 3.12, commit `a789e9c`). `npm run check`: 0 errors. Web console: voice-session self-test 73 cases, ui 48, epoch 8, all PASS; `npm run build` passes.
+Results: `apps/api`: 1387 passed, 5 skipped (macOS, Python 3.12; the 3 opt-in PostgreSQL tests skip without a database). `npm run check`: 0 errors. Web console: voice-session self-test 73 cases, ui 48, epoch 8, all PASS; `npm run build` passes.
 
 ## Limits
 

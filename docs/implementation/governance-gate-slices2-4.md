@@ -29,7 +29,7 @@ unchanged. The `decide` table tests in `tests/test_policy.py` pass the new
 | 3 | `test_policy.py::test_check_planner_locality`, `test_offered_tools_narrows_the_grant_by_the_live_switches`, `test_offered_tools_bad_input_offers_nothing`, `test_the_gate_knows_every_tier1_name` |
 | 4 | `test_policy.py::test_may_distill`; `test_distill.py::test_close_does_not_start_the_distiller_for_a_cloud_model` |
 
-Results: `apps/api`: 1387 passed, 2 skipped (macOS, Python 3.12, commit `a789e9c`). `npm run check`: 0 errors.
+Results: `apps/api`: 1387 passed, 5 skipped (macOS, Python 3.12; the 3 opt-in PostgreSQL tests skip without a database). `npm run check`: 0 errors.
 
 ## Against "no behaviour change"
 

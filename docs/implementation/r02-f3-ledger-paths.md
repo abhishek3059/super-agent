@@ -5,7 +5,7 @@
 | Date | 2026-11-20 |
 | Branch | `feat/ph02-ledger-policy`, stacked on PR 64 |
 | Host | macOS, Python 3.12, SQLite ledger, synthetic data, no network |
-| Suite result | `apps/api`: 1387 passed, 2 skipped (macOS, Python 3.12, commit `a789e9c`). `npm run check`: 0 errors. |
+| Suite result | `apps/api`: 1387 passed, 5 skipped (macOS, Python 3.12; the 3 opt-in PostgreSQL tests skip without a database). `npm run check`: 0 errors. |
 
 R-02.F3 asks that the SQLite owner ledger be the one application-owned
 truth, and that the PostgreSQL seam and the Hermes worker definitions from
@@ -30,10 +30,14 @@ A hosted database (Neon, Supabase) is therefore refused. It would send job
 instructions, which can hold personal data, to a cloud service (REQ-13). The
 [path map](../design/jarvis-path-map.svg) now says so.
 
-Not covered: no test runs a real PostgreSQL server. The seam's SQL is
-covered by the existing `test_postgres_seam_query_formatting` with a fake
-driver. A Unix-socket PostgreSQL URL is refused (no hostname); allowing one
-needs its own check.
+Real server run on 2026-11-20 ([saved output](evidence/r02-f3-postgres-run-20261120.txt)):
+`tests/test_ledger_postgres.py` ran against PostgreSQL 17.9 on 127.0.0.1 and
+passed 3 of 3. It checks idempotent create, a refused key reuse, revisions and
+stale-revision refusal, the `NEXT` table, receipts for terminal states, the
+event trail, `claim_next_job`, restart recovery, and `policy.admit` writing
+through the same ledger. The test is opt-in (`SUPER_AGENT_PG_TEST_URL`) and
+skipped in CI, which has no PostgreSQL. A Unix-socket PostgreSQL URL is
+refused (no hostname); allowing one needs its own check.
 
 ## Hermes worker definitions
 
