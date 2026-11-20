@@ -372,3 +372,27 @@ Chromium, run by an agent session, not by a person.
   inference through either: not run.
 
 HQ typecheck, build and 40 self-checks passed.
+
+## Read access, skills and accounts, 2026-11-20
+
+Same workspace, with `HQ_READ_DIRS` set to `~/dev` and `~/Documents`. An
+agent session chatted with Jarvis (NVIDIA Nemotron Ultra) in Playwright
+Chromium and checked each answer from a shell.
+
+- `system_info` reported macOS 27.2, Apple M5, 16 GB and the top processes,
+  matching `sw_vers` and `sysctl`.
+- Jarvis listed the 17 top-level folders in `~/dev`, matching `ls`.
+- A write to `~/Documents` failed with "Operation not permitted" and no file
+  was created. Listing `~/.ssh` failed the same way. Jarvis blamed macOS
+  privacy settings and suggested Full Disk Access. The persona now says the
+  refusal is HQ's sandbox and forbids that advice. Not re-tested after that
+  change.
+- Jarvis named five real skills. One came from `~/.hermes/skills`, not from
+  `~/.claude/skills` as asked.
+- Jarvis made a `qa-hello` skill and saved it to `shared-skills`. Scout then
+  found it there. The test skill was removed afterwards.
+- After the maintainer's real ChatGPT sign-in, the Accounts section showed
+  ChatGPT as connected and the Provider list showed OpenAI Codex as
+  connected. Worker inference through OpenAI Codex: not run.
+
+HQ typecheck, build and 44 self-checks passed.
