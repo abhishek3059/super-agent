@@ -67,3 +67,10 @@ test('without a dedicated seed, HQ neither signs in nor saves keys', () => {
   try { assert.throws(() => saveAnthropicKey('sk-ant-new-bbbbbbbbbbbbbbbbbbbbbbbb'), /HERMES_HOME_PRIMARY/); }
   finally { env.dedicatedSeed = true; }
 });
+
+test("the operator's own ~/.hermes is never a dedicated seed, however it is spelled", async () => {
+  const { isDedicatedSeed } = await import('../src/env.js');
+  const own = path.join(os.homedir(), '.hermes');
+  for (const p of [undefined, '', own, own + '/', path.join(os.homedir(), 'x', '..', '.hermes')]) assert.equal(isDedicatedSeed(p), false, String(p));
+  assert.equal(isDedicatedSeed(seed), true);
+});

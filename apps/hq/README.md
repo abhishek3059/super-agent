@@ -94,7 +94,7 @@ All optional, read from the environment or from `~/.super-agent/hq/.env`.
 | `HERMES_BIN` | `hermes` | The Hermes command |
 | `CHROME_BIN` | auto | Browser for the bots: Chrome, Chromium, Brave or Ego Browser, first found |
 | `MAX_BOTS` | `8` | Team size limit |
-| `HERMES_HOME_PRIMARY` | `~/.hermes` | The Hermes seed. Set it to a folder only HQ uses to turn on account sign-in in HQ |
+| `HERMES_HOME_PRIMARY` | `~/.hermes` | The Hermes seed. Set it to a folder only HQ uses, other than `~/.hermes`, to turn on account sign-in in HQ |
 | `HQ_READ_DIRS` | none | Folders bots may read, never change, separated by `:` (for example `~/dev:~/Documents`) |
 | `HQ_SKILL_DIRS` | none | Skill folders every bot loads, read-only (for example `~/.claude/skills:~/.hermes/skills`) |
 | `HQ_SYSTEM_INFO` | off | `1` turns on the read-only `system_info` tool |

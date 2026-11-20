@@ -27,6 +27,13 @@ function sessionSecret(): string {
 
 const hermesHome = process.env.HERMES_HOME_PRIMARY ?? path.join(os.homedir(), '.hermes');
 
+/** A seed HQ alone uses: set, and not the operator's own ~/.hermes under another spelling. */
+export function isDedicatedSeed(seed: string | undefined): boolean {
+  if (!seed) return false;
+  const real = (p: string) => { try { return fs.realpathSync(p); } catch { return path.resolve(p); } };
+  return real(seed) !== real(path.join(os.homedir(), '.hermes'));
+}
+
 export const env = {
   port,
   mcpPort,
@@ -57,7 +64,7 @@ export const env = {
   /** The operator's own Hermes home: bots start from its model settings and sign-ins. Never written to. */
   hermesHome,
   /** Sign-in and key saving from HQ, and copying any credential the seed holds, need a seed only HQ uses. */
-  dedicatedSeed: !!process.env.HERMES_HOME_PRIMARY,
+  dedicatedSeed: isDedicatedSeed(process.env.HERMES_HOME_PRIMARY),
   /** Where each bot's own Hermes home lives. Outside ~/.hermes so it is a separate tenant. */
   enginesDir: process.env.ENGINES_DIR ?? path.join(dataDir, 'engines'),
   enginePortBase: Number(process.env.ENGINE_PORT_BASE ?? 8650),
