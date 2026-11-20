@@ -218,7 +218,8 @@ Tiers are defined in [DEC-18](descisions.md#dec-18). R-A.1 and R-A.2 can happen 
 - [x] R-H.2 `apps/hq` merged with its self-checks green in CI. Evidence: [PR 56](https://github.com/abhishek3059/super-agent/pull/56), [Jarvis HQ run on develop](https://github.com/abhishek3059/super-agent/actions/runs/44607953074)
 - [x] R-H.3 Live voice run recorded with synthetic speech: connect, tool call handed to a bot, spoken result, interrupt, end. Evidence: [voice check record](docs/implementation/jarvis-hq-voice-check.md#live-run-2026-11-19), [saved output](docs/implementation/evidence/rh3-voice-check-output-20261119.txt)
 - [x] R-H.4 Independent security review of `apps/hq`: loopback boundary, screen relay, the sandbox profile, credentials copied into bot homes, internet egress. Evidence: [security review and closure](docs/reviews/jarvis-hq-security-review.md)
-- [x] R-H.5 Workers contained so one bot cannot read the operator's files, the session secret or another bot's folder. Evidence: [containment run and attacks through the server](docs/implementation/jarvis-hq-local-run.md#containment), [self-checks](apps/hq/server/test/hq.test.ts)
+- [x] R-H.5 Workers contained so one bot cannot read the operator's files (beyond folders the operator opts in to under DEC-23 rule 2, R-H.6), the session secret or another bot's folder. Evidence: [containment run and attacks through the server](docs/implementation/jarvis-hq-local-run.md#containment), [self-checks](apps/hq/server/test/hq.test.ts)
+- [ ] R-H.6 Desktop page and browser bar for each bot's computer, ChatGPT sign-in through OpenAI's page and an Anthropic API key field for a dedicated Hermes seed, read-only access to operator-listed folders and skill folders, a shared skills folder and a fixed `system_info` tool, all in `apps/hq` under DEC-23, with an independent security review of the new access. Evidence: none yet
 
 ## Parallel track C: community and launch
 
