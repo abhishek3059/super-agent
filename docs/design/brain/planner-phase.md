@@ -18,10 +18,13 @@ Evidence that raw words make weak plans:
 
 - [Local planner record](../../implementation/local-planner.md): a 4B model
   invented tool arguments, omitted `finish`, and timed out in 1 run of 3.
-- The 2026-11-20 local R-02.5 attempts: in 1 run of 4 the conversation model
-  answered directly instead of delegating, and the planner and the
-  conversation starved each other on one local Ollama. These attempts are
-  recorded in [PR #64](https://github.com/abhishek3059/super-agent/pull/64).
+- Observed in the 2026-11-20 local R-02.5 attempts, not yet verifiable in a
+  merged record: in 1 run of 4 the conversation model answered directly
+  instead of delegating, and the planner and the conversation starved each
+  other on one local Ollama. The record is being added to
+  `docs/implementation/ph02-ledger-evidence.md` in
+  [PR #64](https://github.com/abhishek3059/super-agent/pull/64), which is not
+  merged yet.
 
 ## 2. The flow
 
@@ -101,7 +104,7 @@ revisited for cloud models (open decision PP-3).
 The planner must work with any LLM provider. The proposal is one
 OpenAI-compatible chat-completions client, configured by base URL, model, and
 the name of the environment variable that holds the key, with an allowlist of
-approved hosts. It is being built as R-02.F7 in
+approved hosts. It is planned as R-02.F7 in
 [PR #64](https://github.com/abhishek3059/super-agent/pull/64).
 
 ## 6. Gaps in the code today

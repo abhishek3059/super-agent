@@ -90,6 +90,7 @@ Diagnose locally without reading credentials; native tests require RT-G00. A suc
 - Provider eligibility, consent, task pair, hosts, budgets, and retention are
   resolved for the bounded synthetic-only PH-01 scope. Personal microphone and
   context cloud egress remain unapproved beyond the maintainer-only Gemini
-  testing exception; RT-G01 was evidenced on 2026-11-19
+  testing exception and, since 2026-11-21, the maintainers' own testing on
+  OpenAI and NVIDIA NIM ([DEC-24](descisions.md#dec-24)); RT-G01 was evidenced on 2026-11-19
   ([R-01.10 record](docs/implementation/r01-10-acceptance.md)).
 - No secrets, credentials, or personal data are stored in this documentation pack.
