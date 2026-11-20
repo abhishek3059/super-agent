@@ -90,7 +90,7 @@ Long-lived provider/tool credentials stay in a backend OS vault or externally su
 
 ### REQ-13
 
-Named runtime microphone/context recipients, eligibility/account/region/quota/cost/data terms, first real task pair, host, and budget require explicit setup approval. Development permission is not that approval.
+Named runtime microphone/context recipients, eligibility/account/region/quota/cost/data terms, first real task pair, host, and budget require explicit setup approval. Development permission is not that approval. Real personal data may go to the providers approved in [DEC-24](descisions.md#dec-24) for the maintainers' own testing only; otherwise development uses synthetic data.
 
 ### REQ-14
 
@@ -132,7 +132,7 @@ Canonical mapping from the signed design's requirements table (`docs/design/supe
 | [REQ-10](#req-10) | [Brief](docs/delivery/super-agent-brief.md):71-74; [Council](docs/delivery/council.md):199-205 | [DEC-07](descisions.md#dec-07), [DEC-11](descisions.md#dec-11), [DEC-12](descisions.md#dec-12) | [RT-A05](#rt-a05), [RT-A06](#rt-a06) |
 | [REQ-11](#req-11) | [Council](docs/delivery/council.md):200 | [DEC-11](descisions.md#dec-11) | [RT-A05](#rt-a05) |
 | [REQ-12](#req-12) | [Council](docs/delivery/council.md):69-72; [Brief](docs/delivery/super-agent-brief.md):49-50 | [DEC-11](descisions.md#dec-11) | [RT-A05](#rt-a05), [RT-A06](#rt-a06) |
-| [REQ-13](#req-13) | [Brief](docs/delivery/super-agent-brief.md):18-35; [Council](docs/delivery/council.md):184-185, :215-216 | [DEC-06](descisions.md#dec-06), [DEC-10](descisions.md#dec-10) | [RT-G00](#rt-g00) |
+| [REQ-13](#req-13) | [Brief](docs/delivery/super-agent-brief.md):18-35; [Council](docs/delivery/council.md):184-185, :215-216 | [DEC-06](descisions.md#dec-06), [DEC-10](descisions.md#dec-10), [DEC-24](descisions.md#dec-24) | [RT-G00](#rt-g00) |
 | [REQ-14](#req-14) | [Brief](docs/delivery/super-agent-brief.md):79-81; [Council](docs/delivery/council.md):190-191 | [DEC-10](descisions.md#dec-10) | [RT-A06](#rt-a06) |
 | [REQ-15](#req-15) | [Brief](docs/delivery/super-agent-brief.md):85-87; [Council](docs/delivery/council.md):182-183 | [DEC-03](descisions.md#dec-03), [DEC-10](descisions.md#dec-10), [DEC-14](descisions.md#dec-14) | [RT-A01](#rt-a01); later [RT-012](tasks/012-private-native-audio-feasibility.md) |
 | [REQ-16](#req-16) | [Brief](docs/delivery/super-agent-brief.md):8-10, :29; [Council](docs/delivery/council.md):162-165, :215-220 | [DEC-13](descisions.md#dec-13) | later [RT-009](tasks/009-bounded-real-task-planner.md) |
