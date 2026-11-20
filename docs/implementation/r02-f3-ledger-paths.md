@@ -36,7 +36,7 @@ passed 3 of 3. It checks idempotent create, a refused key reuse, revisions and
 stale-revision refusal, the `NEXT` table, receipts for terminal states, the
 event trail, `claim_next_job`, restart recovery, and `policy.admit` writing
 through the same ledger. The test is opt-in (`SUPER_AGENT_PG_TEST_URL`) and
-skipped in CI, which has no PostgreSQL. A Unix-socket PostgreSQL URL is
+skipped in CI, which has no PostgreSQL. The saved run is of the test at `9d361ed`; `1cf9994` later routed the fixture connect through `_pg_url()` and was not re-run on a server. A Unix-socket PostgreSQL URL is
 refused (no hostname); allowing one needs its own check.
 
 ## Hermes worker definitions
