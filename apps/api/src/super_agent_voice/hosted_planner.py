@@ -15,14 +15,20 @@ import urllib.request
 
 from .planner import MAX_REPLY_CHARS, ModelError
 
-# Approved recipients only (DEC-24 in the docs PR). A new host needs a maintainer decision and a code change.
+# Approved recipients only: recipients approved in DEC-24 (PR #72, not yet merged; this PR should merge after #72).
+# A new host needs a maintainer decision and a code change.
 ALLOWED_HOSTS = ("api.openai.com", "integrate.api.nvidia.com")
 ATTEMPT_TIMEOUT_S = 20  # per attempt
 MAX_RETRIES = 2  # timeout, 429 and 5xx only
 BACKOFF_S = (1, 2)  # fixed and short
 # Worst case 3 * 20 + 1 + 2 = 63 s, inside the 75 s step deadline in policy.Limits with 12 s of margin.
 # A proxy would see the key and the prompt, so the request never uses one.
-_DIRECT = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+class _NoRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, *args, **kwargs):
+        return None  # a followed redirect would resend the key to a host outside the allowlist; the 3xx becomes an HTTPError
+
+
+_DIRECT = urllib.request.build_opener(urllib.request.ProxyHandler({}), _NoRedirect)
 
 
 def _config() -> tuple[str, str, str]:
@@ -33,7 +39,7 @@ def _config() -> tuple[str, str, str]:
     key = os.environ.get(key_env, "") if key_env else ""
     try:
         parts = urllib.parse.urlsplit(base)
-        ok = (parts.scheme == "https" and parts.hostname in ALLOWED_HOSTS and parts.username is None
+        ok = (parts.scheme == "https" and parts.hostname in ALLOWED_HOSTS and parts.port in (None, 443) and parts.username is None
               and parts.password is None and not parts.query and not parts.fragment)
     except ValueError:
         ok = False

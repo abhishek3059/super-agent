@@ -75,7 +75,7 @@ Runs at about 18:02Z to 18:20Z on Windows 11. Model `qwen3.5:4b` on loopback Oll
 
 Cause of the loop gap, found with a stack watchdog: `local_adapter._chat_stream` calls `response.close()` on the event loop after a tool call cuts the stream, and the close waits for the reader thread's next token. A fix was written and its test went red then green, but it was not kept because the maintainer retired the local route on 2026-11-20.
 
-Result: R-02.5 is not met on the local route. The loop gap was over 100 ms, and the conversation and the planner contend for one local model. Next: a hosted run with `HostedPlanner` ([R-02.F7 record](r02-f7-hosted-planner.md)) once a provider key and the provider record exist (DEC-24 in a separate docs PR; PR #71 rewords R-02.5). The roadmap item stays unticked.
+Result: R-02.5 is not met on the local route. The loop gap was over 100 ms, and the conversation and the planner contend for one local model. Next: a hosted run with `HostedPlanner` ([R-02.F7 record](r02-f7-hosted-planner.md)) once a provider key and the provider record exist (DEC-24 is in PR #72, not yet merged). The local route is retired by maintainer direction, but `local_adapter._service()` still builds `Service(OllamaPlanner())` as the only wired delegate path, so the failure modes above remain in that code. `HostedPlanner` is used only by `planner_check --hosted` until a cloud orchestrator exists (R-M.20, PR #72). The roadmap item stays unticked.
 
 ## Known limits
 

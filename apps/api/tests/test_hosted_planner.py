@@ -1,9 +1,12 @@
 """Offline tests for the hosted planner and its opt-in check. A fake opener stands in for the network."""
+import email
 import io
 import json
 import socket
 import time
 import urllib.error
+import urllib.request
+import urllib.response
 from types import SimpleNamespace
 
 import pytest
@@ -102,6 +105,7 @@ def test_complete_text_has_no_response_format(monkeypatch):
 
 @pytest.mark.parametrize("base", [
     "http://api.openai.com/v1", "https://evil.example/v1", "https://u:p@api.openai.com/v1",
+    "https://api.openai.com:8443/v1", "https://api.openai.com:99999/v1", "https://api.openai.com:abc/v1",
     "https://api.openai.com/v1?x=1", "https://api.openai.com/v1#f", "https://api.openai.com.evil.example/v1", ""])
 def test_refused_base_urls_make_no_request(monkeypatch, base):
     monkeypatch.setenv("SUPER_AGENT_PLANNER_BASE_URL", base)
@@ -109,6 +113,30 @@ def test_refused_base_urls_make_no_request(monkeypatch, base):
     with pytest.raises(ModelError) as caught:
         HostedPlanner().complete("p")
     assert caught.value.code == "unavailable" and opener.requests == []
+
+
+def test_a_redirect_is_not_followed_and_leaks_nothing(monkeypatch):
+    seen = []
+
+    class FakeNet(urllib.request.BaseHandler):
+        handler_order = 100  # ahead of the real HTTPSHandler
+        def https_open(self, request):
+            seen.append(request.full_url)
+            if len(seen) == 1:
+                response = urllib.response.addinfourl(io.BytesIO(b""), email.message_from_string(
+                    "Location: https://evil.example/x"), request.full_url, 302)
+                response.msg = "Found"
+                return response
+            return Reply("leak")
+
+        http_open = https_open
+
+    monkeypatch.setattr(hosted_planner, "_DIRECT", urllib.request.build_opener(
+        urllib.request.ProxyHandler({}), hosted_planner._NoRedirect, FakeNet))
+    with pytest.raises(ModelError) as caught:
+        HostedPlanner().complete_text("p")
+    assert caught.value.code == "unavailable" and seen == [URL + "/chat/completions"]
+    assert KEY not in repr(caught.value)
 
 
 def test_nvidia_host_is_allowed(monkeypatch):
