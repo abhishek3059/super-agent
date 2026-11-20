@@ -13,7 +13,7 @@ const home = os.homedir();
 
 test('secret and HQ folders are never readable, even when listed', () => {
   const tmp = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'hq-read-')));
-  const got = safeDirs([tmp, '~', '/', '/Users', '~/.ssh', '~/Library', '~/.hermes', env.dataDir, 'relative/path', '/no/such/dir']);
+  const got = safeDirs([tmp, '~', '/', '/Users', '~/.ssh', '~/Library', '~/.hermes', '~/.claude', '~/.claude/projects', env.dataDir, 'relative/path', '/no/such/dir']);
   assert.deepEqual(got, [tmp]);
 });
 
@@ -27,9 +27,12 @@ test('linked skills are readable where they really live, secrets still are not',
   const real = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'hq-skill-real-')));
   fs.symlinkSync(real, path.join(skills, 'linked'));
   fs.symlinkSync(path.join(home, '.ssh'), path.join(skills, 'sneaky'));
+  fs.symlinkSync(path.join(home, '.claude'), path.join(skills, 'transcripts'));
+  fs.mkdirSync(path.join(skills, 'locked'), { mode: 0o000 });
   const got = skillReadDirs([skills]);
   assert.ok(got.includes(skills) && got.includes(real));
-  assert.ok(!got.some((d) => d.startsWith(path.join(home, '.ssh'))));
+  assert.ok(!got.some((d) => d.startsWith(path.join(home, '.ssh')) || d === path.join(home, '.claude')));
+  fs.chmodSync(path.join(skills, 'locked'), 0o700);
 });
 
 test('system_info answers only its fixed topics', async () => {

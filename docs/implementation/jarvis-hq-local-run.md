@@ -396,3 +396,9 @@ Chromium and checked each answer from a shell.
   connected. Worker inference through OpenAI Codex: not run.
 
 HQ typecheck, build and 44 self-checks passed.
+
+This run sent real operator data (the `~/dev` folder names, `system_info`
+output and skill names) to hosted NVIDIA Nemotron. DEC-23 allows synthetic
+data only until R-A.2 is decided. The shared reviewer flagged it. The read
+folders, skill folders and `system_info` are now off by default, and
+`HQ_READ_DIRS` was removed from the test workspace the same day.

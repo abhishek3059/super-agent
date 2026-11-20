@@ -96,7 +96,8 @@ All optional, read from the environment or from `~/.super-agent/hq/.env`.
 | `MAX_BOTS` | `8` | Team size limit |
 | `HERMES_HOME_PRIMARY` | `~/.hermes` | The Hermes seed. Set it to a folder only HQ uses to turn on account sign-in in HQ |
 | `HQ_READ_DIRS` | none | Folders bots may read, never change, separated by `:` (for example `~/dev:~/Documents`) |
-| `HQ_SKILL_DIRS` | `~/.claude/skills:~/.hermes/skills` | Skill folders every bot loads, read-only |
+| `HQ_SKILL_DIRS` | none | Skill folders every bot loads, read-only (for example `~/.claude/skills:~/.hermes/skills`) |
+| `HQ_SYSTEM_INFO` | off | `1` turns on the read-only `system_info` tool |
 
 ## Where things live
 
@@ -180,8 +181,8 @@ Each bot's Hermes gateway and its browser run inside the macOS sandbox
   folder (session secret, database, other bots' folders), the shared
   temporary folders, other users' folders or other disks. HQ drops any
   listed folder that is, holds or sits inside your home folder itself,
-  `~/.ssh`, `~/.gnupg`, `~/.aws`, `~/.config`, `~/Library`, `~/.hermes`
-  (except `~/.hermes/skills`), `~/.super-agent` or the Hermes seed. A bot
+  `~/.ssh`, `~/.gnupg`, `~/.aws`, `~/.config`, `~/Library`, `~/.hermes` and
+  `~/.claude` (except their `skills` folders), `~/.super-agent` or the Hermes seed. A bot
   that reads a folder can also send what it read to the internet, so list
   only folders you would share;
 - can read and write one shared skills folder, `shared-skills` in the data
@@ -198,6 +199,12 @@ Each bot's Hermes gateway and its browser run inside the macOS sandbox
 - cannot open apps, send Apple events, start launchd jobs, change your
   default apps, read or write your preferences, read the Keychain or the
   clipboard, or see or signal other processes.
+
+The read folders, skill folders and `system_info` are off by default. They
+expose the operator's real data to the bot's hosted model, and
+[DEC-23](../../descisions.md#dec-23) allows synthetic data only until
+R-A.2 is decided. Turn them on only with folders that hold synthetic data,
+or after a maintainer amends DEC-23.
 
 Facts about the Mac come from the `system_info` tool, which the server runs
 outside the sandbox. It takes only a topic (overview, disk, battery,

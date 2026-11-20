@@ -9,7 +9,7 @@ import { removeOwn, writeOwn } from './lib/own.js';
 import { deletingBots, livePid, recordPid, stopPid } from './lib/procs.js';
 import { db } from './db.js';
 import { env } from './env.js';
-import { readDirs, sharedSkillsDir, skillDirs, skillReadDirs } from './access.js';
+import { readDirs, sharedSkillsDir, skillDirs, skillReadDirs, systemInfoOn } from './access.js';
 import type { EngineInfo, EngineProvider } from './types.js';
 
 /**
@@ -130,9 +130,9 @@ function access(): string {
   const dirs = readDirs();
   return [
     `\nYou can read (never change) these folders on the operator's Mac: ${dirs.length ? dirs.join(', ') : 'none'}. Your own working folder is the only place you write files. Anything else is refused with "Operation not permitted" by HQ's sandbox on purpose: say so plainly, and never suggest Full Disk Access or other macOS permission changes to get around it.`,
-    `For facts about the Mac (system, disk, battery, running apps, installed apps) call the hq system_info tool.`,
-    `Your skills include the operator's own. To share a skill you made with the other bots, save it as ${sharedSkillsDir()}/<skill-name>/SKILL.md.`,
-  ].join('\n');
+    systemInfoOn() ? `For facts about the Mac (system, disk, battery, running apps, installed apps) call the hq system_info tool.` : '',
+    `${skillDirs().length ? "Your skills include the operator's own. " : ''}To share a skill you made with the other bots, save it as ${sharedSkillsDir()}/<skill-name>/SKILL.md.`,
+  ].filter(Boolean).join('\n');
 }
 
 function soul(b: any): string {

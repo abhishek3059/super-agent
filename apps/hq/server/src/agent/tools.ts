@@ -12,6 +12,7 @@ import { createRoom, postToRoom } from './rooms.js';
 import type { ActivityKind } from '../types.js';
 import { Cron } from 'croner';
 import { systemInfo, SYSTEM_TOPICS } from '../sysinfo.js';
+import { systemInfoOn } from '../access.js';
 
 export interface ToolCtx {
   userId: string;
@@ -337,7 +338,7 @@ const ALL_TOOLS: ToolDef[] = [
   },
 ];
 /** Tools that need a service the operator has not set up are not offered. */
-const NEEDS: Record<string, string> = { x_search: env.xaiKey, list_event_triggers: env.composioKey, create_event_routine: env.composioKey, request_app_connection: env.composioKey };
+const NEEDS: Record<string, string | boolean> = { system_info: systemInfoOn(), x_search: env.xaiKey, list_event_triggers: env.composioKey, create_event_routine: env.composioKey, request_app_connection: env.composioKey };
 export const TOOLS = ALL_TOOLS.filter((t) => !(t.name in NEEDS) || NEEDS[t.name]);
 
 export const toolMap = new Map(TOOLS.map((t) => [t.name, t]));
