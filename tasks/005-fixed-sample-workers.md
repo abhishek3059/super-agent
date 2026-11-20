@@ -40,7 +40,7 @@ Trusted fixed function is not an arbitrary-code sandbox; compute isolation is no
 
 ## Evidence
 
-In progress. Evidence so far is in the [PH-02 evidence record](../docs/implementation/ph02-ledger-evidence.md). It is not complete: the real-model run for R-02.5 is pending and R-02.F3 is open.
+In progress. Evidence so far is in the [PH-02 evidence record](../docs/implementation/ph02-ledger-evidence.md). It is not complete: the real-model run for R-02.5 is pending. R-02.F3 is closed in its [record](../docs/implementation/r02-f3-ledger-paths.md).
 
 ## Navigation
 

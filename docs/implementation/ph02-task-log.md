@@ -66,5 +66,5 @@ The results are in the [evidence record](ph02-ledger-evidence.md). No roadmap it
 ## Next
 
 - Merge PR #65 (local planner), then do the real run for R-02.5 and record it in the evidence record.
-- Close R-02.F3 (five Hermes definitions against the two-worker criterion) and R-02.F2 (PR 56 job submission).
+- R-02.F3 is closed on `feat/ph02-ledger-policy` (entry below). R-02.F2 is removed by PR 67.
 - R-02.5 is ticked only after the real run. The other ticks are listed in the entry above.

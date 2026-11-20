@@ -438,3 +438,14 @@ def test_claim_and_run_goes_through_admit(made):
     wait_state(mine, "succeeded")
     assert ran[-1] == frozenset({"list_memory", "list_reminders"}) - (memory.NAMES if not memory.enabled() else set())
     local.close()
+
+
+def test_a_hermes_worker_can_only_narrow_the_task_scope():
+    """R-02.F3: the five Hermes definitions sit behind admission. A worker never adds a tool."""
+    for n, (task_type, local) in enumerate([(t, l) for t in policy.TASK_TYPES for l in (False, True)]):
+        job = ledger.create_job({"task_type": task_type, "instruction": "x", "data_class": "synthetic"}, f"k-{n}")
+        scope = policy.admit_claimed(job, frozenset({"calculate", "current_time", *tier1.T1_NAMES, *memory.NAMES}),
+                                     local, policy.Limits()).tools
+        for worker in HERMES_WORKERS.values():
+            assert policy.admit_claimed(job, frozenset(worker.allowed_tools), local, policy.Limits()).tools <= scope
+            assert not set(worker.allowed_tools) & memory.WRITES
