@@ -41,7 +41,7 @@ Ledger must not become a general scheduler; budgets must not be reset by revisio
 
 ## Evidence
 
-In progress. Evidence so far is in the [PH-02 evidence record](../docs/implementation/ph02-ledger-evidence.md). It is not complete: the real-model run for R-02.5 is pending and R-02.F3 is open.
+In progress. Evidence so far is in the [PH-02 evidence record](../docs/implementation/ph02-ledger-evidence.md). It is not complete: the real-model run for R-02.5 is pending. R-02.F3 and R-02.F4 are closed on `feat/ph02-ledger-policy` ([F3 record](../docs/implementation/r02-f3-ledger-paths.md), [F4 record](../docs/implementation/r02-f4-handshake-auth.md)). R-02.7 waits for slice 2b.
 
 ## Navigation
 

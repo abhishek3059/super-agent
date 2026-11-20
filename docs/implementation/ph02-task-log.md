@@ -68,3 +68,13 @@ The results are in the [evidence record](ph02-ledger-evidence.md). No roadmap it
 - Merge PR #65 (local planner), then do the real run for R-02.5 and record it in the evidence record.
 - R-02.F3 is closed on `feat/ph02-ledger-policy` (entry below). R-02.F2 is removed by PR 67.
 - R-02.5 is ticked only after the real run. The other ticks are listed in the entry above.
+
+## `feat/ph02-ledger-policy` bundle (2026-11-20)
+
+Stacked on PR 64 at the owner's choice, so R-02.1 to R-02.F1 are not redone.
+Run on macOS with Python 3.12 and Node 22.
+
+- R-02.7 slices 2, 3 and 4 built: [slices record](governance-gate-slices2-4.md). Slice 2b waits for OD-G5, so R-02.7 is not ticked.
+- R-02.F3 ticked: [record](r02-f3-ledger-paths.md). The PostgreSQL seam is loopback only and reads only `SUPER_AGENT_DATABASE_URL`; the five Hermes definitions are tool profiles behind admission.
+- R-02.F4 ticked: [record](r02-f4-handshake-auth.md). The token is proven in the WebSocket upgrade, before accept. A real browser run is not done.
+- Local test runs set `HOME` to an empty folder, because the per-test guard in `tests/conftest.py` walks the real `~/.super-agent`, which holds about 281,000 Jarvis HQ files on this machine and made each test take seconds. CI is not affected.
