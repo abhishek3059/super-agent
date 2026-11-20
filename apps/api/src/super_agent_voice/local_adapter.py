@@ -169,7 +169,7 @@ BASE_NAMES = frozenset({"calculate", "current_time"})  # what run_tool serves; a
 def _enabled() -> frozenset:
     """Names switched on now. Each switch is read on its own, so a bad setting turns off only its tools."""
     on = set(BASE_NAMES)
-    if memory_enabled():
+    if memory.enabled():  # a bad SUPER_AGENT_MEMORY counts as off here, so it cannot break other tools
         on |= memory.NAMES
     try:
         if delegate_enabled():

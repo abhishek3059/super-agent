@@ -916,3 +916,9 @@ def test_a_bad_delegate_flag_mid_session_turns_off_only_delegation(monkeypatch):
     monkeypatch.setattr(local_adapter, "_delegate", lambda *a: pytest.fail("delegated"))
     assert run(local_adapter.call_tool("delegate_task", {})) == "error: no such tool."
     assert run(local_adapter.call_tool("calculate", {"expression": "1+1"})) == "2"
+
+
+def test_a_bad_memory_flag_mid_session_turns_off_only_memory(monkeypatch):
+    monkeypatch.setenv("SUPER_AGENT_MEMORY", "maybe")
+    assert run(local_adapter.call_tool("remember_fact", {"text": "x"})) == "error: no such tool."
+    assert run(local_adapter.call_tool("calculate", {"expression": "1+1"})) == "2"

@@ -25,13 +25,12 @@ const MIC_PAUSED = 'Microphone paused by the browser or system. Trying to resume
 const NONCE_PATTERN = /^[0-9a-f]{32}$/;
 const PROOF_PATTERN = /^[0-9a-f]{64}$/;
 
-function randomHex(byteCount: number): string {
-  const bytes = crypto.getRandomValues(new Uint8Array(byteCount));
-  return [...bytes].map((byte) => byte.toString(16).padStart(2, '0')).join('');
-}
-
 function toHex(buffer: ArrayBuffer): string {
   return [...new Uint8Array(buffer)].map((byte) => byte.toString(16).padStart(2, '0')).join('');
+}
+
+function randomHex(byteCount: number): string {
+  return toHex(crypto.getRandomValues(new Uint8Array(byteCount)).buffer);
 }
 
 const PROTOCOL = 'super-agent.v1';
@@ -135,7 +134,13 @@ export class VoiceSessionService {
     this.interruptPending = false;
     this.capturing = false;
     this.captureReady = false;
-    const protocols = await upgradeProtocols(token);
+    let protocols: string[];
+    try {
+      protocols = await upgradeProtocols(token);
+    } catch {
+      if (this.generation === generation) this.fail(HANDSHAKE_REFUSED);
+      return;
+    }
     // A stop or a newer start during the await wins; nothing is opened for this one.
     if (this.generation !== generation || this.socket || this.status() !== 'connecting') return;
     const socket = new WebSocket('ws://127.0.0.1:8000/ws/voice', protocols);
