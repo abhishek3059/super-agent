@@ -525,16 +525,42 @@ testing (`SUPER_AGENT_ADAPTER=gemini`) under the testing exception, with
 calculator and clock tools, live streaming transcripts, honest cloud labels,
 and turn continuation across tool calls.
 
-## PH-01 close-out audit (2026-11-15)
+## PH-01 close-out audit and completion (2026-11-19)
 
-The [R-01.10 record](docs/implementation/r01-10-acceptance.md#criteria-and-evidence)
-now maps each RT-002 and RT-003 acceptance criterion and each RT-G01 condition
-to its evidence. The offline suites were re-run at `0638660`: 492 backend tests
-passed and 2 skipped, 112 frontend self-test cases passed, the build passed, and
-`npm audit` found nothing ([saved output](docs/implementation/evidence/r01-10-offline-suites-20261115.txt)).
-The revised synthetic live run was recorded later on 2026-11-15
-([saved output](docs/implementation/evidence/r01-10-live-check-output-20261115T172901Z.txt)).
-R-01.10 is not ticked and PH-01 stays in progress. Missing: a recorded native run through the console, and an
-independent review of the code merged after the R-01.6 review, including
-Gemini mode and finding F5. These need a person, a key, and a maintainer
-decision. No runtime gate moves.
+PR [#58](https://github.com/abhishek3059/super-agent/pull/58) merged into
+`develop` as `1e23730`. It officially closed Phase 1 (PH-01) and evidenced
+runtime gate RT-G01, resolving R-01.F9 (mutual handshake proof), R-01.F10
+(muted keep-alive), and the independent boundary review.
+
+## Agent backend slices and PostgreSQL seam (2026-11-16 to 2026-11-17)
+
+PR [#50](https://github.com/abhishek3059/super-agent/pull/50) merged into
+`develop` as `677224d`, establishing the SQLite Job Ledger, Ring-0/1/2 admission
+policy, background runner daemon, and DAG plan graph. PR [#54](https://github.com/abhishek3059/super-agent/pull/54)
+merged as `d52d894`, adding `delegate_task` conversation wiring and the Gemini planner seam.
+PR [#55](https://github.com/abhishek3059/super-agent/pull/55) merged as `f719099`,
+adding a pluggable PostgreSQL database seam supporting `DATABASE_URL` with atomic
+`FOR UPDATE SKIP LOCKED` task claiming and the 5 Hermes worker bot definitions.
+
+## Jarvis HQ local multi-bot workspace (2026-11-19)
+
+PR [#56](https://github.com/abhishek3059/super-agent/pull/56) merged into
+`develop` as `c662a12` under the approved [DEC-23](descisions.md#dec-23) exception.
+It established `apps/hq/`, a local multi-bot workspace with Jarvis and four Hermes
+specialist workers running sandboxed headless Chrome instances and DevTools screencasting.
+
+## Policy gate slice 1 and local memory distiller (2026-11-19)
+
+PR [#61](https://github.com/abhishek3059/super-agent/pull/61) merged as `6c813be`,
+providing the background local memory distiller. PR [#62](https://github.com/abhishek3059/super-agent/pull/62)
+merged as `99d9be8`, moving turn-level checks to a single `policy.decide` entry point.
+
+## Local Ollama planner, maintainer autonomy, and tooling hygiene (2026-11-20)
+
+PR [#65](https://github.com/abhishek3059/super-agent/pull/65) merged as `d816d71`,
+providing an in-process Ollama planner (`ollama_planner.py`) for private background jobs.
+PR [#66](https://github.com/abhishek3059/super-agent/pull/66) merged as `171e567`, ticking
+R-H.2 after the live voice run. PR [#67](https://github.com/abhishek3059/super-agent/pull/67)
+merged as `f360e28`, removing R-02.F2. PR [#69](https://github.com/abhishek3059/super-agent/pull/69)
+merged as `68a6514`, expanding `.gitignore` to comprehensively block secret files,
+caches, and build artifacts.

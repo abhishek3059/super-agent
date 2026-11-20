@@ -182,6 +182,7 @@ def test_no_model_configured_is_refused_and_nothing_is_written(services):
 def test_conversation_without_a_planner_does_not_recover_queued_jobs(monkeypatch):
     monkeypatch.setenv("SUPER_AGENT_DELEGATE", "on")
     monkeypatch.setattr(local_adapter, "_SERVICE", None)
+    monkeypatch.setattr(local_adapter, "OllamaPlanner", lambda: None)  # a service with no model stays disabled
     spec = {"task_type": "answer", "instruction": "What is 2 plus 2?", "data_class": "synthetic"}
     job = policy.admit(spec, "other-worker", True, policy.Limits(), ledger, datetime.now(UTC)).job
 

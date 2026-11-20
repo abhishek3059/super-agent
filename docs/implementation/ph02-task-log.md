@@ -99,6 +99,15 @@ delegation admission and cancellation. The focused regression tests passed, and 
 reported 1388 passed and 5 skipped. The voice adapter closes its session off
 the event loop.
 
-PR 68 remains stacked on open PR 64 and currently conflicts with `develop`.
-GitHub reports no checks for the published PR 68 head. The revised code and
-tests are local.
+At review time PR 68 was stacked on open PR 64, conflicted with `develop`,
+and had no checks on the published head. See the reconciliation below.
+
+### Reconcile with develop (2026-11-20)
+
+The sync keeps the upstream removal of R-02.F2 and the existing PH-02 evidence
+on this branch. The legacy local adapter keeps the planner constructor from
+develop and passes the voice session through the revised delegation service.
+The hosted-provider roadmap proposal tracks the replacement.
+
+macOS Python 3.12 API suite after the sync: 1398 passed, 5 skipped.
+The hosted overlap run remains open.

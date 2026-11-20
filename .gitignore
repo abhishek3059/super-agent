@@ -1,13 +1,55 @@
 node_modules/
 .husky/_/
 *.log
-.env
-.env.*
 .DS_Store
 Thumbs.db
-.venv/
-__pycache__/
-.pytest_cache/
-*.pyc
 dist/
+build/
 .angular/
+
+# Python environments, build metadata, and caches
+.venv/
+env/
+venv/
+__pycache__/
+*.pyc
+*.egg-info/
+*.so
+.pytest_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# Databases and runtime data
+*.db
+*.sqlite
+*.sqlite3
+
+# Secrets, private keys, and credential files (REQ-12)
+.env
+.env.*
+*.pem
+*.key
+*.p12
+*.pfx
+*.cert
+*.crt
+id_rsa*
+id_ed25519*
+auth.json
+token.json
+credentials*.json
+service-account*.json
+
+# Tooling, MCP caches, and scratch files
+.playwright-mcp/
+.trail/cache/
+.trail/statusline.cjs
+.gstack/
+
+# Editor and OS swap files
+.idea/
+.vscode/
+*.swp
+*~
+*.bak

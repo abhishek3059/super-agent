@@ -59,7 +59,7 @@ CEILING = {
 class Limits:
     """Defaults are the provisional table in docs/design/agent-backend.md section 5."""
     steps_per_job: int = 8
-    step_deadline_s: int = 30
+    step_deadline_s: int = 75
     job_deadline_s: int = 300
     retries_per_step: int = 1
     model_calls_per_job: int = 12

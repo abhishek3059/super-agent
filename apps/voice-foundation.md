@@ -43,9 +43,9 @@ between turns while a session is open.
 `SUPER_AGENT_DELEGATE=on` (off by default; any value but `on` or `off` refuses the
 session) offers the brain one more tool, `delegate_task`, for the background job backend
 ([design](../docs/design/agent-backend.md),
-[record](../docs/implementation/agent-backend-delegation.md)). No planner model is wired in
-(a Gemini one exists only for the opt-in [planner check](../docs/implementation/agent-backend-gemini-planner.md)),
-so with it on every delegation is answered "not available".
+[record](../docs/implementation/agent-backend-delegation.md)). The planner is the local Ollama model
+([record](../docs/implementation/local-planner.md)); a Gemini one exists only for the opt-in
+[planner check](../docs/implementation/agent-backend-gemini-planner.md).
 
 ### Start it on a Mac
 
