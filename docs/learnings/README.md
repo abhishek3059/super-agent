@@ -27,6 +27,7 @@ goes in [descisions.md](../../descisions.md).
 | 2026-11-15 | [Call controls across voice providers](2026-11-15-openai-call-controls.md) | Scripted call controls, response identity and playback evidence |
 | 2026-11-17 | [Jarvis HQ: adapting Bot HQ to run locally](2026-11-17-jarvis-hq-local-team.md) | Handoffs that always return, headless tab visibility, artwork licensing |
 | 2026-11-19 | [Closing PH-01](2026-11-19-ph-01-close.md) | Accepting native-media evidence from a synthetic-speech harness, and what stayed unrecorded |
+| 2026-11-20 | [CODEOWNERS self-approval bypass and local Ollama planner](2026-11-20-codeowners-autonomy-and-local-planner.md) | Admin bypass under DEC-22, in-process Ollama planner, and secret file hygiene |
 
 ## How to add a note
 
