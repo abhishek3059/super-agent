@@ -32,8 +32,9 @@ exception, [DEC-23](../../descisions.md#dec-23). The maintainer's direction is
 ## Run it
 
 You need macOS, Node.js 22 or newer, Google Chrome (or Chromium, Brave or
-Ego Browser), and a working `hermes` command with at least one model
-provider set up in `~/.hermes`.
+Ego Browser), and a compatible Hermes gateway. The local run used Hermes
+v0.22.2. Configure a supported hosted default model in `~/.hermes` or in
+the HQ seed specified by `HERMES_HOME_PRIMARY`.
 A new bot installs its own copy of the Hermes dependencies on first start.
 That takes about 50 seconds and 1 GB of disk per bot.
 
@@ -97,16 +98,26 @@ Nothing is written into the repository. Under `~/.super-agent/hq` (mode 0700):
 `profiles/<bot>` (its Chrome profile), `files/<bot>` (its working folder and
 Library) and `server.log`.
 
-A new bot's Hermes home starts from your own `~/.hermes`: the model settings,
-and the sign-ins (`auth.json`) and keys (`.env`, names such as `NVIDIA_API_KEY`
-or `CLOUDFLARE_ACCOUNT_ID`) of the providers that settings name as default,
-fallback or custom. Keys for other providers, and messaging tokens, are not
-copied. For real use, give bots dedicated, revocable, spend-capped keys. The voice key in the data
-folder is not handed to bots. Your own Hermes gateway and its files are
-never changed. To add a sign-in, run `hermes auth add <provider>` in your own
-terminal and restart the bot; the in-app sign-in button is off because it
-would run outside the bot's sandbox. Unverified risk: a provider that rotates sign-in tokens may
-sign out your own Hermes when a copy refreshes.
+The gateway seed is `~/.hermes` or the folder in `HERMES_HOME_PRIMARY`.
+Its default must name a supported hosted provider. HQ supports NVIDIA NIM,
+OpenAI Codex, OpenAI API and Anthropic API. It copies credentials for those
+providers only when the seed names them in its model or provider settings.
+HQ uses the provider's built-in endpoint and omits automatic worker fallbacks.
+If the seed's previous default relied on a fallback, update it to a current
+chat model or choose an available model in Engine settings. The November 20
+local test used Hermes v0.22.2 for gateway compatibility.
+
+Connect accounts in the owner’s designated Hermes profile. Then use **Restart
+agent** in HQ to refresh its inventory. Engine settings disable unconnected
+routes and validate saved model IDs against the worker's catalog. Choosing a
+different provider or model starts another Hermes conversation. The HQ
+transcript stays visible.
+
+The server-side OpenAI voice key lives in the HQ data directory. Worker keys
+come from the Hermes seed and the voice key is never copied into it. Use
+dedicated, revocable, spend-capped worker keys. The owner's Hermes files are
+never changed. Browser-based account sign-in inside HQ is unavailable.
+A provider that rotates copied sign-in tokens may sign out the owner profile.
 
 ## Security boundary
 

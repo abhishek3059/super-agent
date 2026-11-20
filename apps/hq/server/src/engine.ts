@@ -94,24 +94,28 @@ export function assignEngine(botId: string): EngineKind {
 
 // ---------- a managed bot's Hermes home ----------
 
-/**
- * The model providers the operator's Hermes is set up to use: its default, its fallbacks and any
- * custom ones. A bot gets credentials for these only, not every key the operator has.
- */
+// HQ voice has its own OpenAI key. These are the supported Hermes worker routes.
+const HOSTED_PROVIDERS = new Map([
+  ['openai-codex', { name: 'OpenAI Codex', key: null }],
+  ['nvidia', { name: 'NVIDIA NIM', key: 'NVIDIA_API_KEY' }],
+  ['anthropic', { name: 'Anthropic', key: 'ANTHROPIC_API_KEY' }],
+  ['openai-api', { name: 'OpenAI API', key: 'OPENAI_API_KEY' }],
+]);
+
 function configuredProviders(cfg: any): Set<string> {
   const names = [cfg?.model?.provider, ...(Array.isArray(cfg?.fallback_providers) ? cfg.fallback_providers.map((f: any) => f?.provider) : []),
-    ...Object.keys(cfg?.providers ?? {}), ...Object.keys(cfg?.custom_providers ?? {})];
-  return new Set(names.filter((n): n is string => typeof n === 'string' && /^[a-z0-9][a-z0-9._-]{0,60}$/i.test(n)));
+    ...Object.keys(cfg?.providers ?? {})];
+  return new Set(names.filter((name) => HOSTED_PROVIDERS.has(name)));
 }
 
-/** NVIDIA_API_KEY for "nvidia", CLOUDFLARE_ACCOUNT_ID for "cloudflare-workers-ai": the provider's own variables only. */
-function providerVariable(name: string, providers: Set<string>): boolean {
-  if (!/_(API_KEY|BASE_URL|ACCOUNT_ID)$/.test(name)) return false;
-  return [...providers].some((p) => name.startsWith(`${p.split(/[-_.]/)[0].toUpperCase()}_`));
+function defaultWorkerModel(primary: any): { provider: string; default: string } {
+  const { provider, default: model } = primary?.model ?? {};
+  if (!HOSTED_PROVIDERS.has(provider) || typeof model !== 'string' || !model.trim()) {
+    throw new Error('Set a supported hosted default model in the HQ Hermes profile and restart the agent.');
+  }
+  // Use Hermes' official provider endpoint. Arbitrary URLs and automatic fallbacks are omitted.
+  return { provider, default: model };
 }
-
-/** Parts of the operator's Hermes config a bot's agent starts from, so it reaches the same models. */
-const SHARED_CONFIG = ['model', 'providers', 'custom_providers', 'auxiliary', 'fallback_model', 'fallback_providers'];
 
 function soul(b: any): string {
   const owner = (db.prepare('SELECT name FROM users WHERE id=?').get(b.user_id) as any)?.name ?? 'the user';
@@ -159,7 +163,7 @@ function writeHome(botId: string): string {
 
   const primary = readYaml(path.join(env.hermesHome, 'config.yaml'));
   const cfg: Record<string, unknown> = { agent: { reasoning_effort: 'medium' } };
-  for (const k of SHARED_CONFIG) if (primary[k] !== undefined) cfg[k] = primary[k];
+  cfg.model = defaultWorkerModel(primary);
   // No computer_use: on this machine it would drive the operator's own desktop.
   cfg.platform_toolsets = { api_server: ['hermes-api-server'] };
   cfg.terminal = { cwd };
@@ -175,15 +179,19 @@ function writeHome(botId: string): string {
   // only, copied fresh on each start. This server's own keys (the voice key) never reach a bot.
   const providers = configuredProviders(primary);
   const auth = readJson(path.join(env.hermesHome, 'auth.json'));
-  if (auth) {
-    const only = (o: any) => Object.fromEntries(Object.entries(o ?? {}).filter(([k]) => providers.has(k)));
-    // Only the known parts: anything else in the operator's file stays with the operator.
-    writeOwn(home, 'auth.json', JSON.stringify({ version: auth.version, providers: only(auth.providers), credential_pool: only(auth.credential_pool),
-      active_provider: providers.has(auth.active_provider) ? auth.active_provider : null }));
-  }
+  const codex = providers.has('openai-codex');
+  writeOwn(home, 'auth.json', JSON.stringify({
+    version: auth?.version ?? 1,
+    providers: codex && auth?.providers?.['openai-codex'] ? { 'openai-codex': auth.providers['openai-codex'] } : {},
+    credential_pool: codex && auth?.credential_pool?.['openai-codex'] ? { 'openai-codex': auth.credential_pool['openai-codex'] } : {},
+    active_provider: codex && auth?.active_provider === 'openai-codex' ? 'openai-codex' : null,
+  }));
   const primaryEnv = readDotenv(path.join(env.hermesHome, '.env'));
   const vars: Record<string, string> = {};
-  for (const [k, v] of Object.entries(primaryEnv)) if (v && providerVariable(k, providers)) vars[k] = v;
+  for (const provider of providers) {
+    const key = HOSTED_PROVIDERS.get(provider)?.key;
+    if (key && primaryEnv[key]) vars[key] = primaryEnv[key];
+  }
   Object.assign(vars, { API_SERVER_ENABLED: 'true', API_SERVER_KEY: managedKey(botId), API_SERVER_PORT: String(b.engine_port), API_SERVER_HOST: '127.0.0.1', BROWSER_CDP_URL: cdp });
   writeOwn(home, '.env', Object.entries(vars).map(([k, v]) => `${k}=${v}`).join('\n') + '\n');
   return home;
@@ -435,9 +443,6 @@ export function initEngines() {
 
 // ---------- what the settings panel shows ----------
 
-/** Providers worth showing even when not signed in. */
-const WELL_KNOWN = ['anthropic', 'openai-codex', 'xai-oauth', 'xai', 'openrouter', 'nous', 'gemini', 'openai-api'];
-
 const optionsCache = new Map<string, { at: number; data: any }>();
 
 async function modelOptions(botId: string, e: { url: string; key: string }): Promise<any | null> {
@@ -452,23 +457,49 @@ async function modelOptions(botId: string, e: { url: string; key: string }): Pro
   } catch { return null; }
 }
 
-function toProviders(data: any): EngineProvider[] {
+function isChatModel(provider: string, model: unknown): model is string {
+  if (typeof model !== 'string' || !model || model.length > 160) return false;
+  if (provider !== 'nvidia') return true;
+  // NVIDIA lists embeddings and classifiers alongside chat models.
+  return !/(?:embed|nemoguard|safety-guard|content-safety|gliner2-pii|\/nvclip$|\/riva-translate|\/ising-calibration)/i.test(model)
+    && model !== 'nvidia/nemotron-3-super-120b-a12b';
+}
+
+export function toProviders(data: any): EngineProvider[] {
   const list: any[] = Array.isArray(data?.providers) ? data.providers : [];
-  const out = list
-    .filter((p) => p?.slug && (p.authenticated || WELL_KNOWN.includes(p.slug)))
-    .map((p): EngineProvider => {
-      const featured = Array.isArray(p.featured_models) && p.featured_models.length ? p.featured_models : Array.isArray(p.models) ? p.models : [];
-      return {
-        id: String(p.slug),
-        name: p.slug === 'anthropic' ? 'Claude (Anthropic)' : String(p.name ?? p.slug),
-        // Hermes lists Anthropic as an API-key provider, yet it can also sign in to a Claude subscription. Offer that until a key is in place.
-        kind: String(p.auth_type ?? '').includes('oauth') || (p.slug === 'anthropic' && !p.authenticated) ? 'subscription' : 'api_key',
-        connected: !!p.authenticated,
-        models: featured.filter((m: unknown) => typeof m === 'string').slice(0, 12),
-      };
-    });
-  const rank = (p: EngineProvider) => (p.connected ? 0 : 1) * 100 + (WELL_KNOWN.indexOf(p.id) < 0 ? 50 : WELL_KNOWN.indexOf(p.id));
-  return out.sort((a, b) => rank(a) - rank(b));
+  return list.flatMap((p): EngineProvider[] => {
+    const supported = HOSTED_PROVIDERS.get(p?.slug);
+    if (!supported) return [];
+    const models: unknown[] = [...(Array.isArray(p.featured_models) ? p.featured_models : []),
+      ...(Array.isArray(p.models) ? p.models : [])];
+    const chatModels = models.filter((m): m is string => isChatModel(p.slug, m));
+    return [{
+      id: p.slug,
+      name: supported.name,
+      kind: supported.key ? 'api_key' : 'subscription',
+      connected: p.authenticated === true,
+      models: [...new Set(chatModels)],
+    }];
+  });
+}
+
+export function validWorkerRoute(providers: EngineProvider[], provider: string, model: string): boolean {
+  return providers.some((candidate) => candidate.id === provider && candidate.connected && candidate.models.includes(model));
+}
+
+export async function workerRoute(botId: string, e: Engine, provider: string | null, model: string | null) {
+  const inventory = await modelOptions(botId, e);
+  const selectedProvider = provider ?? inventory?.provider;
+  const selectedModel = model ?? inventory?.model;
+  const providers = toProviders(inventory);
+  const selected = providers.find((route) => route.id === selectedProvider && route.connected);
+  // A configured default might be omitted by an incomplete remote model listing.
+  const isDefault = !provider && !model;
+  if (!selected || typeof selectedProvider !== 'string' || !isChatModel(selectedProvider, selectedModel) ||
+      (!isDefault && !validWorkerRoute(providers, selectedProvider, selectedModel))) {
+    throw new Error('This bot’s model is unavailable. Choose a connected provider and model in Engine settings.');
+  }
+  return { provider: selectedProvider, model: selectedModel };
 }
 
 export async function engineInfo(botId: string): Promise<EngineInfo> {
@@ -492,13 +523,20 @@ export async function engineInfo(botId: string): Promise<EngineInfo> {
   if (starting.has(botId)) return { ...base, status: 'starting' };
 
   const data = await modelOptions(botId, e);
+  if (!data) return { ...base, status: 'error', error: 'The Hermes model catalog is unavailable. Restart the agent and try again.' };
+  const provider = b.provider ?? data.provider ?? null;
+  const model = b.model ?? data.model ?? null;
+  const providers = toProviders(data);
+  const usable = provider && isChatModel(provider, model)
+    && (b.provider || b.model ? validWorkerRoute(providers, provider, model) : providers.some((p) => p.id === provider && p.connected));
   return {
     ...base,
-    status: 'ready',
+    status: usable ? 'ready' : 'error',
+    error: usable ? null : 'Choose an available model from a connected provider.',
     version: typeof health.version === 'string' && health.version !== 'unknown' ? health.version : null,
-    model: b.model ?? data?.model ?? null,
-    provider: b.provider ?? data?.provider ?? null,
-    providers: toProviders(data),
+    model,
+    provider,
+    providers,
   };
 }
 

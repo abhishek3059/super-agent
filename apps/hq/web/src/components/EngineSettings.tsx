@@ -72,24 +72,20 @@ export function EngineSettings({ bot }: { bot: Bot }) {
   const providers = sortProviders(engine.providers ?? []);
   const selected = providers.find((p) => p.id === provider) ?? null;
   const suggestions = selected?.models ?? [];
-  const wantProvider = provider && provider !== (engine.provider ?? '') ? provider : undefined;
-  const wantModel = model.trim() && model.trim() !== (engine.model ?? '') ? model.trim() : undefined;
-  const changed = !!wantProvider || !!wantModel;
-  const openSubscriptions = providers.filter((p) => p.kind === 'subscription' && !p.connected);
-  const signInTo = selected && selected.kind === 'subscription' && !selected.connected ? selected : null;
+  const changed = provider !== (engine.provider ?? '') || model !== (engine.model ?? '');
+  const canSave = !provider || !!selected?.connected && suggestions.includes(model);
   const listId = `engine-models-${botId}`;
 
   const pickProvider = (id: string) => {
     dirty.current = true; setNote(null); setProvider(id);
     const next = providers.find((p) => p.id === id);
-    // A model from another provider will not work here, so start from this provider's first suggestion.
-    if (next?.models.length && !next.models.includes(model.trim())) setModel(next.models[0]);
+    setModel(next?.models[0] ?? '');
   };
 
   const save = async () => {
-    if (!changed || busy) return;
+    if (!changed || !canSave || busy) return;
     setBusy('save'); setNote(null);
-    try { const r = await configApi.setEngine(botId, { ...(wantProvider ? { provider: wantProvider } : {}), ...(wantModel ? { model: wantModel } : {}) }); dirty.current = false; apply(r.engine); }
+    try { const r = await configApi.setEngine(botId, { provider: provider || null, model: model || null }); apply(r.engine); }
     catch (e) { setNote(`Couldn’t save: ${(e as Error).message || 'the engine did not answer'}`); }
     finally { setBusy(null); }
   };
@@ -110,8 +106,9 @@ export function EngineSettings({ bot }: { bot: Bot }) {
           <span>{selected?.name ?? (provider || 'Default')}</span>
           <Icon name="chev_down" size={10} opacity={0.66} />
           <select aria-label="Provider" value={provider} onChange={(e) => pickProvider(e.target.value)}>
-            {!selected && <option value={provider}>{provider || 'Default'}</option>}
-            {providers.map((p) => <option key={p.id} value={p.id}>{p.name} · {KIND[p.kind]} · {p.connected ? 'Connected' : 'Not connected'}</option>)}
+            <option value="">Hermes default</option>
+            {provider && !selected && <option value={provider} disabled>{provider} · Unavailable</option>}
+            {providers.map((p) => <option key={p.id} value={p.id} disabled={!p.connected || !p.models.length}>{p.name} · {KIND[p.kind]} · {p.connected ? 'Connected' : 'Not connected'}</option>)}
           </select>
         </span>
       </div>
@@ -123,31 +120,29 @@ export function EngineSettings({ bot }: { bot: Bot }) {
       )}
       <div className="panel-row panel-row--setting">
         <label htmlFor={`${listId}-input`}>Model</label>
-        <input
-          id={`${listId}-input`} className="engine__model" list={listId} value={model} spellCheck={false} autoComplete="off"
-          placeholder={suggestions[0] ?? 'Model id'}
+        <select
+          id={`${listId}-input`} className="engine__model" value={model} disabled={!selected?.connected || !suggestions.length}
           onChange={(e) => { dirty.current = true; setNote(null); setModel(e.target.value); }}
-          onKeyDown={(e) => { if (e.key === 'Enter') save(); }}
-        />
-        <datalist id={listId}>{suggestions.map((m) => <option key={m} value={m} />)}</datalist>
+        >
+          {!suggestions.includes(model) && <option value={model} disabled>{model || 'Choose a model'}</option>}
+          {suggestions.map((m) => <option key={m} value={m}>{m}</option>)}
+        </select>
       </div>
       <div className="engine__actions">
-        <button type="button" className="btn btn--sm btn--bot" onClick={save} disabled={!changed || busy === 'save'}>{busy === 'save' ? 'Saving…' : 'Save'}</button>
+        <button type="button" className="btn btn--sm btn--bot" onClick={save} disabled={!changed || !canSave || !!busy}>{busy === 'save' ? 'Saving…' : 'Save'}</button>
         {changed && <button type="button" className="link-btn link-btn--small" onClick={() => { dirty.current = false; setNote(null); setProvider(engine.provider ?? ''); setModel(engine.model ?? ''); }}>Undo</button>}
       </div>
-      {(signInTo || openSubscriptions.length > 0) && (
-        <div className="engine__notice">
-          <span>To use {signInTo ? signInTo.name : 'a subscription'}, sign in with your own Hermes in a terminal (<code>hermes auth add {signInTo?.id ?? '<provider>'}</code>), then restart {bot.name}. Signing in from here would run outside {bot.name}’s sandbox.</span>
-        </div>
-      )}
+      <div className="engine__notice">
+        Connect an account in the HQ Hermes profile, then restart the agent to refresh its models. Voice uses the separate OpenAI Realtime configuration.
+      </div>
       {note && <div className="voice-error" role="alert">{note}</div>}
       <div className="engine__meta">
         <span className={`engine__state is-${engine.status}`} title={engine.version ? `Hermes ${engine.version}` : undefined}>
           <i aria-hidden />
           Hermes · profile {engine.profile} · {STATUS[engine.status] ?? engine.status}
         </span>
-        {(engine.status === 'error' || engine.status === 'stopped') && (
-          <button type="button" className="link-btn link-btn--small" onClick={restart} disabled={busy === 'restart'}>{busy === 'restart' ? 'Restarting…' : 'Restart agent'}</button>
+        {engine.status !== 'starting' && (
+          <button type="button" className="link-btn link-btn--small" onClick={restart} disabled={!!busy}>{busy === 'restart' ? 'Restarting…' : 'Restart agent'}</button>
         )}
       </div>
       {engine.status === 'error' && engine.error && <div className="engine__error">{engine.error}</div>}

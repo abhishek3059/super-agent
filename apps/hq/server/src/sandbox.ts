@@ -92,6 +92,9 @@ export function sandboxProfile(c: Confinement): string {
     // The folders themselves stay put: a bot that could remove or rename one could put a link in its
     // place, and the next profile built for it would open wherever the link points.
     write.length ? `(deny file-write* ${write.map((d) => `(literal ${q(d)})`).join(' ')})` : '',
+    // Hermes checks write access on its own home before opening SQLite. Data access
+    // satisfies the probe while unlink, rename and metadata changes stay denied.
+    write.length ? `(allow file-write-data ${write.map((d) => `(literal ${q(d)})`).join(' ')})` : '',
     // Listening: only on its own port and in its own folders. Otherwise a bot could take another
     // bot's port before that bot starts, and answer in its place.
     '(deny network-bind)',

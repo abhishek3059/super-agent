@@ -52,7 +52,7 @@ export const configApi = {
   handback: (botId: string) => req<{ ok: true }>('POST', `/bots/${botId}/handback`),
 
   engine: (botId: string) => req<{ engine: EngineInfo }>('GET', `/bots/${botId}/engine`),
-  setEngine: (botId: string, p: { provider?: string | null; model?: string | null }) => req<{ engine: EngineInfo }>('PATCH', `/bots/${botId}/engine`, p),
+  setEngine: (botId: string, p: { provider: string | null; model: string | null }) => req<{ engine: EngineInfo }>('PATCH', `/bots/${botId}/engine`, p),
   restartEngine: (botId: string) => req<{ engine: EngineInfo }>('POST', `/bots/${botId}/engine/restart`),
 
   policies: () => req<{ policies: { tool: string; mode: string }[] }>('GET', '/policies'),

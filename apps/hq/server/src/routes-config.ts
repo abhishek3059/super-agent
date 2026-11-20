@@ -9,9 +9,9 @@ import { deletingBots } from './lib/procs.js';
 import fs from 'node:fs';
 import { Readable } from 'node:stream';
 import { env } from './env.js';
-import { emitBot, getBotRow, listRoutines, listTasks } from './store.js';
+import { emitBot, getBotRow, getLive, listRoutines, listTasks } from './store.js';
 import { computerState, resetBotScreen } from './computer.js';
-import { engineInfo, engineKind, forgetEngineOptions, restartEngine } from './engine.js';
+import { engineInfo, engineKind, forgetEngineOptions, restartEngine, validWorkerRoute } from './engine.js';
 import { listMemories } from './engine-memory.js';
 import type { LibraryFile, Skill } from './types.js';
 
@@ -125,10 +125,22 @@ configApi.get('/bots/:id/engine', async (c) => {
 configApi.patch('/bots/:id/engine', async (c) => {
   const b = ownBot(c.get('user').id, c.req.param('id'));
   if (!b) return c.json({ error: 'not found' }, 404);
-  const p = await c.req.json<{ provider?: string | null; model?: string | null }>().catch(() => ({} as { provider?: string | null; model?: string | null }));
-  const clean = (v: unknown) => (typeof v === 'string' && v.trim() ? v.trim().slice(0, 120) : null);
-  if (p.provider !== undefined) db.prepare('UPDATE bots SET provider=?, updated_at=? WHERE id=?').run(clean(p.provider), now(), b.id);
-  if (p.model !== undefined) db.prepare('UPDATE bots SET model=?, updated_at=? WHERE id=?').run(clean(p.model), now(), b.id);
+  const p = await c.req.json().catch(() => null);
+  if (!p || !Object.hasOwn(p, 'provider') || !Object.hasOwn(p, 'model')) {
+    return c.json({ error: 'Select a provider and model together.' }, 400);
+  }
+  const { provider, model } = p;
+  if (provider !== null || model !== null) {
+    if (typeof provider !== 'string' || typeof model !== 'string' || model.length > 160) {
+      return c.json({ error: 'Select a provider and model together.' }, 400);
+    }
+    const { providers } = await engineInfo(b.id);
+    if (!validWorkerRoute(providers, provider, model)) {
+      return c.json({ error: 'Choose an available model from a connected provider.' }, 409);
+    }
+  }
+  db.prepare(`UPDATE bots SET provider=?, model=?, updated_at=?, engine_revision=engine_revision+1
+    WHERE id=? AND (provider IS NOT ? OR model IS NOT ?)`).run(provider, model, now(), b.id, provider, model);
   emitBot(b.id);
   return c.json({ engine: await engineInfo(b.id) });
 });
@@ -137,6 +149,7 @@ configApi.post('/bots/:id/engine/restart', async (c) => {
   const b = ownBot(c.get('user').id, c.req.param('id'));
   if (!b) return c.json({ error: 'not found' }, 404);
   if (engineKind(b.id) !== 'managed') return c.json({ error: `${b.name} has no agent of its own.` }, 409);
+  if (getLive(b.id).isRunning || getLive(b.id).awaiting) return c.json({ error: 'Wait for the current turn to finish before restarting.' }, 409);
   try {
     await restartEngine(b.id);
     forgetEngineOptions(b.id);
