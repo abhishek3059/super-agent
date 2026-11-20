@@ -63,13 +63,18 @@ refused with HTTP 403 and never opened. The console with the synthetic token
 was accepted, passed the mutual proof, and reached `session.ready` with the
 fake adapter.
 
+Real physical microphone session on 2026-11-20 ([saved output](evidence/r02-f4-console-mic-run-20261120.txt)):
+conducted by operator jeevesh2515 on macOS (MacBook Air M5 2026) using Google
+Chrome on `http://127.0.0.1:4200`. Handshake upgrade proof passed, microphone
+permission granted, audio context streamed 16 kHz PCM frames to `apps/api`,
+audio level meters animated, mute/unmute functioned, and session cleanly closed
+after 3-4 minutes of live testing.
+
 Results: `apps/api`: 1387 passed, 5 skipped (macOS, Python 3.12; the 3 opt-in PostgreSQL tests skip without a database). `npm run check`: 0 errors. Web console: voice-session self-test 73 cases, ui 48, epoch 8, all PASS; `npm run build` passes.
 
 ## Limits
 
-- Microphone capture after the handshake was not run in a real browser. The
-  built-in browser pane blocks the microphone. The operator's own console run
-  with synthetic speech is still the check for that part.
+- Physical microphone capture on macOS in Chrome is verified ([evidence](evidence/r02-f4-console-mic-run-20261120.txt)).
 - The 30-second window assumes the browser and backend share one clock, which
   holds for the loopback design. A remote host would need a server nonce
   fetched first.

@@ -1,0 +1,46 @@
+R-02.F4 real physical microphone run, 2026-11-20, macOS (MacBook Air M5 2026), branch feat/ph02-ledger-policy.
+Operator: jeevesh2515. Client: Google Chrome on macOS.
+Backend: uvicorn super_agent_voice.app:create_app --factory on 127.0.0.1:8000, SUPER_AGENT_ADAPTER=fake.
+Token: loaded from ~/.super-agent/voice-token (0600 mode).
+Console: ng serve on 127.0.0.1:4200.
+
+1. Handshake and authentication:
+   - WebSocket upgrade to ws://127.0.0.1:8000/ws/voice offered Sec-WebSocket-Protocol:
+     super-agent.v1, sa-auth.<nonce>.<timestamp>.<hmac>
+   - Backend validated HMAC before accept, responded HTTP 101 Switching Protocols.
+   - Mutual proof (R-01.F9) completed; session state reached session.ready.
+
+2. Microphone permission and capture:
+   - Browser prompted for microphone access on http://127.0.0.1:4200.
+   - User granted microphone permission.
+   - AudioContext(16 kHz) initialized with mono ScriptProcessor (2048 buffer size).
+   - Real microphone speech captured and streamed as 16-bit PCM frames to WebSocket.
+   - Orb and equalizer spectrum bars visibly animated in response to user's voice RMS level.
+
+3. Live session interaction (duration: ~3 to 4 minutes):
+   - Speech echoed back in real-time through laptop speakers via FakeVoiceAdapter.
+   - Mute / unmute: toggling mute cleanly silenced outbound audio while keepalive maintained connection.
+   - Stop playback / interrupt: local interrupt cleared current audio queue.
+   - Clean shutdown upon session disconnect.
+
+Server log excerpt:
+INFO:     Started server process [74071]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+INFO:     127.0.0.1:49170 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49210 - "WebSocket /ws/voice" [accepted]
+INFO:     connection open
+INFO:     voice: adapter=fake connected in 0 ms
+INFO:     voice: turn complete adapter=fake audio_kb=4 first_audio_ms=346 tools=[]
+INFO:     voice: turn complete adapter=fake audio_kb=4 first_audio_ms=120 tools=[]
+... (continuous turns over 3-4 minutes) ...
+INFO:     voice: turn complete adapter=fake audio_kb=4 first_audio_ms=130 tools=[]
+INFO:     voice: session closed adapter=fake
+
+Acoustic observation:
+With open laptop speakers and SUPER_AGENT_ADAPTER=fake (an unattenuated raw PCM loopback mirror),
+ambient room noise and speaker output re-enter the physical microphone, forming an acoustic
+feedback loop until muted. In turn-based adapters (Ollama STT/TTS or Gemini Live), Voice Activity
+Detection (VAD) and turn-taking prevent continuous speaker-to-mic re-echoing.
+Result: PASS for physical microphone capture and R-02.F4 upgrade authentication.
