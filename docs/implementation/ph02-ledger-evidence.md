@@ -5,7 +5,7 @@
 | Date | 2026-11-20 |
 | Branch | `feat/ph02-ledger-evidence` (PR 64) |
 | Host | Windows 11 Home, Python 3.14, SQLite ledger |
-| Scope | Evidence for R-02.1 to R-02.4, R-02.F1, R-02.F5 and R-02.F6. R-02.5 has no evidence yet (real run pending). Nothing here ticks a roadmap item. |
+| Scope | Evidence for R-02.1 to R-02.4, R-02.F1, R-02.F5 and R-02.F6. R-02.5 is not met (the local attempt failed, the hosted run is pending). Nothing here ticks a roadmap item. |
 | Suite result | 1092 passed, 110 skipped (develop at 664fd2a was 1071 passed, 110 skipped) |
 
 The acceptance criteria AC1.1 to AC5.4 are this record's own breakdown of the RT-004 and RT-005 acceptance text and the PH-02 exit gate in phases.md.
@@ -60,7 +60,22 @@ Shared reviewer rerun, 2026-11-20: delegate 10.9 ms; max loop gap 31.5 to 34.5 m
 
 ## R-02.5 real run
 
-Pending: runs after PR #65 (local planner) merges.
+Status: not met. The hosted run is pending.
+
+### Local attempt, 2026-11-20 (route retired)
+
+Runs at about 18:02Z to 18:20Z on Windows 11. Model `qwen3.5:4b` on loopback Ollama (52% CPU, 48% GPU split), a temp ledger, synthetic speech text through a fake speech-to-text and text-to-speech, and real local model calls for both the conversation and the planner.
+
+| Run | Result |
+| --- | --- |
+| A | The conversation model answered with the calculate tool directly and did not call `delegate_task`. No job. |
+| B | Delegated. While the second conversation turn ran (48.2 s) the job failed. Max event-loop gap 500.9 ms. |
+| C | Delegated. The job succeeded in 135.7 s total. Max event-loop gap 565.5 ms. |
+| D | Delegated. The second conversation turn failed with `provider-unavailable` (the 60 s stream timeout) while the planner was busy on the same Ollama. |
+
+Cause of the loop gap, found with a stack watchdog: `local_adapter._chat_stream` calls `response.close()` on the event loop after a tool call cuts the stream, and the close waits for the reader thread's next token. A fix was written and its test went red then green, but it was not kept because the maintainer retired the local route on 2026-11-20.
+
+Result: R-02.5 is not met on the local route. The loop gap was over 100 ms, and the conversation and the planner contend for one local model. Next: a hosted run with `HostedPlanner` ([R-02.F7 record](r02-f7-hosted-planner.md)) once a provider key and the provider record exist (DEC-24 in a separate docs PR; PR #71 rewords R-02.5). The roadmap item stays unticked.
 
 ## Known limits
 
@@ -79,4 +94,4 @@ Pending: runs after PR #65 (local planner) merges.
 
 - AC4.1 exactly two workers: five Hermes definitions remain (R-02.F3).
 - AC1.4 across a real process restart: tested in process only.
-- The real-model run for R-02.5: pending.
+- The real run for R-02.5: the local attempt of 2026-11-20 did not meet it (loop gap over 100 ms, model contention). The hosted run is pending a provider key and the provider record.

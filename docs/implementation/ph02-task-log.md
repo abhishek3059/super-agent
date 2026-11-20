@@ -65,6 +65,6 @@ The results are in the [evidence record](ph02-ledger-evidence.md). No roadmap it
 
 ## Next
 
-- Merge PR #65 (local planner), then do the real run for R-02.5 and record it in the evidence record.
+- Do the hosted real run for R-02.5 with `HostedPlanner` ([R-02.F7](r02-f7-hosted-planner.md)) once a provider key and the provider record exist, and record it in the evidence record. The local route was retired on 2026-11-20.
 - Close R-02.F3 (five Hermes definitions against the two-worker criterion) and R-02.F2 (PR 56 job submission).
 - R-02.5 is ticked only after the real run. The other ticks are listed in the entry above.
