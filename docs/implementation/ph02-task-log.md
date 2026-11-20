@@ -76,6 +76,6 @@ Run on macOS with Python 3.12 and Node 22.
 
 - R-02.7 slices 2, 3 and 4 built: [slices record](governance-gate-slices2-4.md). Slice 2b waits for OD-G5, so R-02.7 is not ticked.
 - R-02.F3 ticked: [record](r02-f3-ledger-paths.md). The PostgreSQL seam is loopback only and reads only `SUPER_AGENT_DATABASE_URL`; the five Hermes definitions are tool profiles behind admission.
-- R-02.F4 ticked: [record](r02-f4-handshake-auth.md). The token is proven in the WebSocket upgrade, before accept. A real browser run is not done.
+- R-02.F4 ticked: [record](r02-f4-handshake-auth.md). The token is proven in the WebSocket upgrade, before accept. A real Chromium run of the handshake passed ([saved output](evidence/r02-f4-browser-run-20261120.txt)); microphone capture was not part of it.
 - Local test runs set `HOME` to an empty folder. The per-test guard in `tests/conftest.py` walks the real `~/.super-agent`, and a large Jarvis HQ data folder there makes each test slow. CI is not affected.
 - Results: `apps/api`: 1387 passed, 2 skipped (macOS, Python 3.12, commit `a789e9c`). `npm run check`: 0 errors. Web console: voice-session self-test 73 cases, ui 48, epoch 8, all PASS; `npm run build` passes; `npm audit` finds 0 vulnerabilities.

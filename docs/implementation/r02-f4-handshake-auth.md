@@ -57,13 +57,19 @@ await opens nothing.
 | The console offers the two protocols with a correct proof and never the token | `apps/web/scripts/selftest-voice-session.mjs` (`startLive`) |
 | A stop while the proof is computed opens no socket | `selftest-voice-session.mjs`, case "a stop while the upgrade proof is computed opens no socket" |
 
+Real browser run on 2026-11-20 ([saved output](evidence/r02-f4-browser-run-20261120.txt)):
+in Chromium, sockets with no proof, the protocol only, or a forged proof were
+refused with HTTP 403 and never opened. The console with the synthetic token
+was accepted, passed the mutual proof, and reached `session.ready` with the
+fake adapter.
+
 Results: `apps/api`: 1387 passed, 2 skipped (macOS, Python 3.12, commit `a789e9c`). `npm run check`: 0 errors. Web console: voice-session self-test 73 cases, ui 48, epoch 8, all PASS; `npm run build` passes.
 
 ## Limits
 
-- Not run: a real browser session against the backend after this change.
-  The console self-test uses a fake WebSocket. A manual console run is the
-  next check, with synthetic speech.
+- Microphone capture after the handshake was not run in a real browser. The
+  built-in browser pane blocks the microphone. The operator's own console run
+  with synthetic speech is still the check for that part.
 - The 30-second window assumes the browser and backend share one clock, which
   holds for the loopback design. A remote host would need a server nonce
   fetched first.
