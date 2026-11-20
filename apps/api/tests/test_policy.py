@@ -518,3 +518,19 @@ def test_offered_tools_bad_input_offers_nothing(admitted, t1, mem):
 def test_the_gate_knows_every_tier1_name():
     from super_agent_voice import tier1
     assert policy.TIER1_NAMES == tier1.T1_NAMES
+
+
+# --- slice 4: the distiller asks the gate -------------------------------------
+
+@pytest.mark.parametrize("learn, mem, local, user, verdict, why", [
+    (True, True, True, True, "allow", None),
+    (False, True, True, True, "deny", "tool_disabled"),
+    (True, False, True, True, "deny", "tool_disabled"),
+    (True, True, False, True, "deny", "planner_locality_invalid"),
+    (True, True, True, False, "deny", "input_invalid"),  # only the user's own words are learned from
+    (1, True, True, True, "deny", "input_invalid"),
+    (True, None, True, True, "deny", "input_invalid"),
+    (True, True, "yes", True, "deny", "input_invalid"),
+])
+def test_may_distill(learn, mem, local, user, verdict, why):
+    assert policy.may_distill(learn, mem, local, user) == policy.Decision(verdict, why)

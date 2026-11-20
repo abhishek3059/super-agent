@@ -361,3 +361,20 @@ def offered_tools(admitted: object, t1_enabled: object, memory_on: object) -> fr
                          and (memory_on or t not in MEMORY_NAMES))
     except Exception:
         return frozenset()
+
+
+# --- distiller gate (governance slice 4) --------------------------------------
+
+def may_distill(learning_on: object, memory_on: object, model_local: object, from_user: object) -> Decision:
+    """The distiller may write a ledger job only with learning and memory on, a local model, and the user's
+    own words as input. Facts come from trusted code. Pure and total: bad input is a deny."""
+    facts = (learning_on, memory_on, model_local, from_user)
+    if not all(type(f) is bool for f in facts):
+        return Decision("deny", "input_invalid")
+    if not (learning_on and memory_on):
+        return Decision("deny", "tool_disabled")
+    if not model_local:
+        return Decision("deny", "planner_locality_invalid")
+    if not from_user:
+        return Decision("deny", "input_invalid")
+    return Decision("allow", None)

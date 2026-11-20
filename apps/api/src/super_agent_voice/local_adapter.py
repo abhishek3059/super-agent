@@ -73,6 +73,16 @@ REMINDER_CHECK_SECONDS = 10.0
 MAX_SAID = 40
 
 
+def _may_learn() -> bool:
+    """Governance slice 4: the gate decides whether this session's words may be distilled."""
+    try:
+        model_local = bool(local_model())  # a cloud model name raises: not local
+    except Exception:
+        model_local = False
+    # self._said holds only the user's own transcripts, so from_user is a fact of the caller
+    return policy.may_distill(memory.learning(), memory.enabled(), model_local, True).verdict == "allow"
+
+
 def _learn(said: list[str], epoch: str) -> None:
     """Runs the distiller after a session. Never raises: close() must not fail because learning did."""
     try:
@@ -360,7 +370,7 @@ class LocalVoiceAdapter:
         await self._cancel_turn()
         said, self._said = self._said, []
         self._history.clear()
-        if said and not self._forgot and memory.learning() and memory.enabled():
+        if said and not self._forgot and _may_learn():
             # A thread, not a task: the model call is slow and close() must not wait for it.
             self.learner = threading.Thread(target=_learn, args=(said, self._epoch), daemon=True)
             self.learner.start()

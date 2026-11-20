@@ -227,7 +227,11 @@ switches); a fact that cannot be read counts as not local or off.
 
 **Slice 4: bound the distiller.** After `feat/memory-distiller` merges, the
 distill job asks the gate before its ledger write: memory on, model local,
-user turns only. Its content filters stay in `distill.py`.
+user turns only. Its content filters stay in `distill.py`. **Built** on branch `feat/ph02-ledger-policy` as
+`policy.may_distill`, asked in `LocalVoiceAdapter.close()` before the
+distiller thread starts. One fail-closed difference: a cloud model name now
+stops the distiller before it starts, instead of a ledger job that fails
+with `model_refused`.
 
 ## 6. Conflicts and open decisions
 
