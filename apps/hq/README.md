@@ -56,6 +56,26 @@ npm run jarvis
 your browser, signed in. `npm run open` opens another signed-in window later.
 A bot's Hermes gateway starts the first time you use that bot.
 
+## Companion
+
+Select **Companion** in a bot's chat header, or open HQ with `/?companion`
+in a signed-in HQ tab. Chat, history and voice controls use the current bot.
+The character reacts to voice and worker activity. **Follow cursor** enables
+a small companion beside your pointer inside the HQ conversation.
+The meter responds to mic input and spoken replies in an active call. HQ
+respects your system’s reduced-motion preference.
+Hover over Arc, Ember, Carbon or Paper to preview it, then select the skin
+to save it. Appearance is shared with App Settings. **Back to chat** returns
+to the regular workspace.
+
+- **Show me how** runs the appearance walkthrough. Each step highlights the
+  control to select, points to it, and waits for your click or keyboard activation.
+- **Explain** keeps the conversation open beside the sketch. Select part of
+  the conversation and choose **Sketch selection**, or paste an excerpt. For
+  a model-generated answer, ask Jarvis in chat, then choose **Sketch latest
+  reply**. The sketch is built in your tab.
+  It makes no new model request and clears when you close the view.
+
 ## Windows (WSL2)
 
 HQ runs on Windows inside WSL2, as a Linux app. Bots are contained with

@@ -10,7 +10,7 @@ import { useDictation } from '../voice/dictation';
 const MAX_H = 200;
 const drafts = new Map<string, string>();
 
-export function Composer({ bot, running }: { bot: Bot; running: boolean }) {
+export function Composer({ bot, running, hidden = false }: { bot: Bot; running: boolean; hidden?: boolean }) {
   const [text, setText] = useState(() => drafts.get(bot.id) ?? '');
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -25,11 +25,11 @@ export function Composer({ bot, running }: { bot: Bot; running: boolean }) {
   // Auto-grow.
   useLayoutEffect(() => {
     const el = ref.current;
-    if (!el) return;
+    if (!el || hidden) return;
     el.style.height = '0px';
     el.style.height = `${Math.min(el.scrollHeight, MAX_H)}px`;
     el.style.overflowY = el.scrollHeight > MAX_H ? 'auto' : 'hidden';
-  }, [text]);
+  }, [text, hidden]);
 
   // ⌘I focuses the prompt.
   useEffect(() => {
@@ -78,7 +78,7 @@ export function Composer({ bot, running }: { bot: Bot; running: boolean }) {
   const multiline = text.includes('\n') || (ref.current?.scrollHeight ?? 0) > 30;
 
   return (
-    <div className="composer-area">
+    <div className="composer-area" hidden={hidden}>
       {error && <div className="composer__error">{error} <button type="button" className="link-btn" onClick={() => setError(null)}>Dismiss</button></div>}
       <div className={`composer${multiline ? ' is-multiline' : ''}`}>
         <div className="composer__left">
