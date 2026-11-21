@@ -276,8 +276,38 @@
   border-color: var(--color-primary);
 }
 
-.sketch { min-width: 0; }
-.sketch h3 { margin: 0 0 12px; color: var(--color-text-primary); font-size: 1rem; }
+.sketch {
+  flex: 1 1 0;
+  min-height: 0;
+  padding: 16px;
+  overflow-y: auto;
+  color: var(--color-text-primary);
+}
+.sketch__header, .sketch__actions { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; align-items: center; }
+.sketch h2 { margin: 0; font-size: 1.25rem; }
+.sketch p { color: var(--color-text-secondary); line-height: 1.5; }
+.sketch form { display: grid; gap: 8px; margin-bottom: 16px; }
+.sketch textarea {
+  display: block;
+  width: 100%;
+  resize: vertical;
+  min-height: 60px;
+  padding: 8px;
+  border: 1px solid var(--color-border-secondary);
+  border-radius: 8px;
+  color: inherit;
+  background: var(--color-bg-pane);
+  font: inherit;
+}
+.sketch button {
+  min-height: 36px;
+  padding: 4px 10px;
+  border: 1px solid var(--color-border-secondary);
+  border-radius: 8px;
+}
+.sketch button:hover { background: var(--color-bg-elevated-hover); }
+.sketch button:disabled { opacity: .55; }
+.sketch button[type='submit'] { color: var(--color-on-primary); background: var(--color-primary); }
 .sketch__steps {
   display: grid;
   gap: 10px;
@@ -293,5 +323,3 @@
   overflow-wrap: anywhere;
 }
 .sketch__steps li::marker { color: var(--color-primary); font-weight: 600; }
-.sketch__steps p { margin: 3px 0 0; color: var(--color-text-secondary); }
-.sketch__heading { margin: 0; font-size: .95rem; font-weight: 600; }

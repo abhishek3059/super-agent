@@ -6,6 +6,7 @@ import { displayName, sortedRows, useSelectedBot, useStore } from '../store';
 import { useConfigUI } from '../configStore';
 import { Companion } from './Companion';
 import { Composer } from './Composer';
+import { ExplainPanel } from './ExplainPanel';
 import { Icon } from './Icon';
 import { Menu } from './Menu';
 import { Transcript } from './Transcript';
@@ -41,6 +42,9 @@ export function ChatView() {
   const canOpenCompanion = bot.kind !== 'room';
   const showCompanion = canOpenCompanion && companionOpen;
   const explaining = showCompanion && explainBotId === bot.id;
+  const latest = explaining ? rows.findLast(({ body }) =>
+    body.type === 'message' && body.role === 'assistant' && !body.streaming && !!body.text.trim()
+  )?.body : undefined;
   const canShowDetails = !showCompanion && !narrow;
   const toggleCompanion = () => {
     const url = new URL(window.location.href);
@@ -59,9 +63,13 @@ export function ChatView() {
           toggleExplain={() => setExplainBotId(explaining ? null : bot.id)} />
       )}
       <div className="chat__conversation">
-        <Transcript bot={bot} rows={rows} live={live} loaded={!!transcript?.loaded} />
+        {explaining ? (
+          <ExplainPanel key={bot.id} reply={latest?.type === 'message' ? latest.text : ''} onClose={() => setExplainBotId(null)} />
+        ) : (
+          <Transcript bot={bot} rows={rows} live={live} loaded={!!transcript?.loaded} />
+        )}
         <VoiceCallBar />
-        <Composer bot={bot} running={!!live?.isRunning} sketch={explaining} />
+        <Composer bot={bot} running={!!live?.isRunning} hidden={explaining} />
       </div>
       <header className="chat__header">
         <span className="chat__pill-anchor">

@@ -67,10 +67,10 @@ to the regular workspace.
 
 - **Show me how** runs the appearance walkthrough. Each step highlights the
   control to select and waits for your click or keyboard activation.
-- **Explain** asks for a visual explanation while the mode is selected.
-  Enter a question or paste an excerpt and send it to your selected Hermes
-  provider as a chat message. Supported replies display as numbered flow
-  cards. The companion works inside HQ and does not read your host screen.
+- **Explain** turns the leading points of a chat reply or pasted excerpt into
+  a numbered sketch. Ask Jarvis in chat first if you want a model-generated
+  answer, then choose **Sketch latest reply**. The sketch is built in your tab.
+  It makes no new model request and clears when you close the view.
 
 ## Windows (WSL2)
 

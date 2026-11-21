@@ -10,7 +10,7 @@ import { useDictation } from '../voice/dictation';
 const MAX_H = 200;
 const drafts = new Map<string, string>();
 
-export function Composer({ bot, running, sketch = false }: { bot: Bot; running: boolean; sketch?: boolean }) {
+export function Composer({ bot, running, hidden = false }: { bot: Bot; running: boolean; hidden?: boolean }) {
   const [text, setText] = useState(() => drafts.get(bot.id) ?? '');
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -21,8 +21,6 @@ export function Composer({ bot, running, sketch = false }: { bot: Bot; running: 
   // Per-bot drafts.
   useEffect(() => { setText(drafts.get(bot.id) ?? ''); setError(null); ref.current?.focus(); }, [bot.id]);
   useEffect(() => { drafts.set(bot.id, text); }, [bot.id, text]);
-
-  useEffect(() => { if (sketch) ref.current?.focus(); }, [sketch]);
 
   // Auto-grow.
   useLayoutEffect(() => {
@@ -45,7 +43,7 @@ export function Composer({ bot, running, sketch = false }: { bot: Bot; running: 
     if (!t || sending) return;
     setSending(true); setError(null);
     try {
-      await api.send(bot.id, sketch ? text : t, sketch ? 'sketch' : undefined);
+      await api.send(bot.id, t);
       setText('');
       drafts.delete(bot.id);
     } catch (e) {
@@ -80,7 +78,7 @@ export function Composer({ bot, running, sketch = false }: { bot: Bot; running: 
   const multiline = text.includes('\n') || (ref.current?.scrollHeight ?? 0) > 30;
 
   return (
-    <div className="composer-area">
+    <div className="composer-area" hidden={hidden}>
       {error && <div className="composer__error">{error} <button type="button" className="link-btn" onClick={() => setError(null)}>Dismiss</button></div>}
       <div className={`composer${multiline ? ' is-multiline' : ''}`}>
         <div className="composer__left">
@@ -104,12 +102,12 @@ export function Composer({ bot, running, sketch = false }: { bot: Bot; running: 
             className="composer__input"
             rows={1}
             value={text}
-            placeholder={sketch ? `Ask ${bot.name} to explain a topic or pasted excerpt` : `Message ${displayName(bot)}`}
+            placeholder={`Message ${displayName(bot)}`}
             onChange={(e) => setText(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); send(); }
             }}
-            aria-label={sketch ? `Ask ${bot.name} for a sketch` : `Message ${bot.name}`}
+            aria-label={`Message ${bot.name}`}
           />
         </div>
         <div className="composer__right">

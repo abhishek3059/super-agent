@@ -10,7 +10,6 @@ import { instructionsFor } from './prompt.js';
 import { env } from '../env.js';
 import { recallFor } from '../memory.js';
 import { listMemories } from '../engine-memory.js';
-import { SKETCH_INSTRUCTIONS } from '../sketch.js';
 import { activityFor, appToolName, humanizeSlug, policyFor } from './tools.js';
 
 /**
@@ -25,7 +24,7 @@ import { activityFor, appToolName, humanizeSlug, policyFor } from './tools.js';
  */
 
 export type Trigger =
-  | { type: 'user'; text: string; format?: 'sketch' }
+  | { type: 'user'; text: string }
   | { type: 'routine'; routineId: string; name: string; prompt: string }
   | { type: 'bot'; fromBotId: string; fromName: string; text: string; depth: number; reply?: boolean }
   | { type: 'system'; text: string };
@@ -328,7 +327,6 @@ const TOOLBOX = new Set(['tool_search', 'tool_describe']);
 async function runTurn(botId: string, trigger: Trigger) {
   const bot = getBotRow(botId);
   if (!bot || bot.kind === 'room') return;
-  const format = trigger.type === 'user' ? trigger.format : undefined;
   const userId: string = bot.user_id;
   const ctrl = new AbortController();
   aborts.set(botId, ctrl);
@@ -341,27 +339,27 @@ async function runTurn(botId: string, trigger: Trigger) {
   let text = '';
   let lastFlush = 0;
   let wroteText = false;
-  const flush = (streaming: boolean, final = false) => {
-    const b: MessageBody = { type: 'message', role: 'assistant', text, streaming, ...(final && format ? { format } : {}) };
+  const flush = (streaming: boolean) => {
+    const b: MessageBody = { type: 'message', role: 'assistant', text, streaming };
     if (msgSeq === null) msgSeq = appendRow(botId, 'message', b).seq;
     else updateRow(botId, msgSeq, b);
     lastFlush = Date.now();
   };
-  const closeMessage = (final = false) => {
+  const closeMessage = () => {
     if (msgSeq === null) return;
     if (text.trim()) {
       turn.lastText = text;
-      flush(false, final);
+      flush(false);
       db.prepare('UPDATE bots SET unread = unread + 1 WHERE id=?').run(botId);
     } else updateRow(botId, msgSeq, { type: 'message', role: 'assistant', text: '', streaming: false });
     msgSeq = null;
     text = '';
   };
-  const say = (t: string, final = false) => {
+  const say = (t: string) => {
     if (turn.silent || !t.trim()) return;
     closeMessage();
     turn.lastText = t;
-    appendRow(botId, 'message', { type: 'message', role: 'assistant', text: t.trim(), streaming: false, ...(final && format ? { format } : {}) });
+    appendRow(botId, 'message', { type: 'message', role: 'assistant', text: t.trim(), streaming: false });
     db.prepare('UPDATE bots SET unread = unread + 1 WHERE id=?').run(botId);
     wroteText = true;
   };
@@ -381,25 +379,24 @@ async function runTurn(botId: string, trigger: Trigger) {
 
   try {
     // The screen first: the engine's browser and computer tools point at it.
-    if (!format) await screenForWork(userId, botId).catch((e) => console.warn(`[computer] screen not ready for ${botId}: ${e?.message ?? e}`));
+    await screenForWork(userId, botId).catch((e) => console.warn(`[computer] screen not ready for ${botId}: ${e?.message ?? e}`));
     const engine = await engineFor(botId);
     const route = await workerRoute(botId, engine, bot.provider, bot.model);
     if (ctrl.signal.aborted) throw new Error('interrupted');
     const conversation = workerConversation(bot, route);
 
     let input = triggerText(trigger);
-    if (bot.handback_at && !format) {
+    if (bot.handback_at) {
       input = `[Note: the user took control of your screen for a while and has just handed it back. Look at the screen before you rely on what was there.]\n\n${input}`;
       db.prepare('UPDATE bots SET handback_at=NULL WHERE id=?').run(botId);
     }
-    if (env.memoryOn && trigger.type === 'user' && !format) {
+    if (env.memoryOn && trigger.type === 'user') {
       // A memory store that is down must not stop the bot answering; it then has its own notes only.
       const recalled = await recallFor(userId, botId, triggerText(trigger), listMemories(botId).map((m) => m.text))
         .catch((e) => { console.warn(`[memory] lookup failed for ${botId}: ${e?.message ?? e}`); return null; });
       if (recalled) input = `${recalled}\n\n${input}`;
     }
 
-    const instructions = await instructionsFor(userId, botId);
     const res = await fetch(`${engine.url}/v1/responses`, {
       method: 'POST',
       signal: ctrl.signal,
@@ -407,7 +404,7 @@ async function runTurn(botId: string, trigger: Trigger) {
       body: JSON.stringify({
         ...route,
         input,
-        instructions: format === 'sketch' ? `${instructions}\n\n${SKETCH_INSTRUCTIONS}` : instructions,
+        instructions: await instructionsFor(userId, botId),
         // One engine-side thread per conversation; "New chat" bumps the generation and starts another.
         conversation,
         stream: true,
@@ -491,24 +488,8 @@ async function runTurn(botId: string, trigger: Trigger) {
           if (item?.type === 'message') {
             const full = (item.content ?? []).map((c: any) => c?.text ?? '').join('');
             if (item.phase === 'commentary') say(full);
-            else if (!format && msgSeq !== null) closeMessage();
-            else if (!format && !wroteText) say(full);
-          }
-          break;
-        }
-
-        case 'response.completed': {
-          if (format && !ctrl.signal.aborted && !turn.silent) {
-            // Hermes can close an output item before reporting an incomplete or failed turn.
-            const output = d.response?.output;
-            const final = Array.isArray(output)
-              ? output.findLast((item) => item?.type === 'message' && item.role === 'assistant' && item.phase !== 'commentary')
-              : undefined;
-            const full = (final?.content ?? []).map((c: any) => c?.text ?? '').join('');
-            if (msgSeq !== null) {
-              if (full) text = full;
-              closeMessage(true);
-            } else if (full) say(full, true);
+            else if (msgSeq !== null) closeMessage();
+            else if (!wroteText) say(full);
           }
           break;
         }
