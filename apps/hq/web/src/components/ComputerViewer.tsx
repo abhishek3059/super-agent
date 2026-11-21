@@ -8,6 +8,7 @@ import { botVars } from '../lib/colors';
 import { computerStatusText, screenSize, screensFull } from '../lib/computer';
 import { configApi } from '../lib/configApi';
 import { useSelectedBot, useStore } from '../store';
+import { BrowserBar } from './BrowserBar';
 import { Icon } from './Icon';
 
 export type ScreenMode = 'watch' | 'control';
@@ -171,10 +172,11 @@ export function ComputerScreen({ bot, variant, initialMode = 'watch', hint, paus
   return (
     <div
       ref={frameRef}
-      className={`screen screen--${variant} is-${phase}${driving ? ' is-driving' : ''}${fullscreen ? ' is-fullscreen' : ''}`}
+      className={`screen screen--${variant}${large && phase === 'live' ? ' has-bar' : ''} is-${phase}${driving ? ' is-driving' : ''}${fullscreen ? ' is-fullscreen' : ''}`}
       style={style}
     >
       <div className="screen__body">
+        {large && phase === 'live' && <BrowserBar botId={bot.id} />}
         <div className="screen__view" style={{ aspectRatio: `${width} / ${height}` }}>
           <div ref={canvasRef} className="screen__canvas" />
           {/* The way into the large view is a button laid over it. */}

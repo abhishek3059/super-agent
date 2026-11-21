@@ -9,6 +9,7 @@ import { removeOwn, writeOwn } from './lib/own.js';
 import { deletingBots, livePid, recordPid, stopPid } from './lib/procs.js';
 import { db } from './db.js';
 import { env } from './env.js';
+import { readDirs, sharedSkillsDir, skillDirs, skillReadDirs, systemInfoOn } from './access.js';
 import type { EngineInfo, EngineProvider } from './types.js';
 
 /**
@@ -107,6 +108,14 @@ function configuredProviders(cfg: any): Set<string> {
   return new Set(names.filter((name) => HOSTED_PROVIDERS.has(name)));
 }
 
+/** In a dedicated seed, a provider signed in to (or with a key saved) from HQ counts as configured. */
+export function withCredentials(configured: Set<string>, auth: any, dotenv: Record<string, string>): Set<string> {
+  const out = new Set(configured);
+  if (auth?.providers?.['openai-codex'] || auth?.credential_pool?.['openai-codex']?.length) out.add('openai-codex');
+  for (const [id, p] of HOSTED_PROVIDERS) if (p.key && dotenv[p.key]) out.add(id);
+  return out;
+}
+
 function defaultWorkerModel(primary: any): { provider: string; default: string } {
   const { provider, default: model } = primary?.model ?? {};
   if (!HOSTED_PROVIDERS.has(provider) || typeof model !== 'string' || !model.trim()) {
@@ -116,12 +125,23 @@ function defaultWorkerModel(primary: any): { provider: string; default: string }
   return { provider, default: model };
 }
 
+/** What the bot can reach on the operator's Mac, so it neither guesses nor promises more. */
+function access(): string {
+  const dirs = readDirs();
+  return [
+    `\nYou can read (never change) these folders on the operator's Mac: ${dirs.length ? dirs.join(', ') : 'none'}. Your own working folder is the only place you write files. Anything else is refused with "Operation not permitted" by HQ's sandbox on purpose: say so plainly, and never suggest Full Disk Access or other macOS permission changes to get around it.`,
+    systemInfoOn() ? `For facts about the Mac (system, disk, battery, running apps, installed apps) call the hq system_info tool.` : '',
+    `${skillDirs().length ? "Your skills include the operator's own. " : ''}To share a skill you made with the other bots, save it as ${sharedSkillsDir()}/<skill-name>/SKILL.md.`,
+  ].filter(Boolean).join('\n');
+}
+
 function soul(b: any): string {
   const owner = (db.prepare('SELECT name FROM users WHERE id=?').get(b.user_id) as any)?.name ?? 'the user';
   const role = b.label ? `, ${b.label}` : '';
   return [
     `You are ${b.name}${role}. You work for ${owner} as one of a small team of AI agents, each with its own browser and workspace.`,
     b.description ? `\n${b.description}` : '',
+    access(),
     '\nYou are direct, warm and brief. You do the work rather than describe it, and you say plainly what you did and what you could not do.',
     '',
   ].join('\n');
@@ -167,6 +187,9 @@ function writeHome(botId: string): string {
   cfg.platform_toolsets = { api_server: ['hermes-api-server'] };
   cfg.terminal = { cwd };
   cfg.browser = { cdp_url: cdp };
+  // The operator's skills, read-only, and the folder bots share the skills they make.
+  fs.mkdirSync(sharedSkillsDir(), { recursive: true, mode: 0o700 });
+  cfg.skills = { external_dirs: [sharedSkillsDir(), ...skillDirs()] };
   cfg.mcp_servers = {
     ...extraMcpServers(),
     hq: { url: `${env.mcpBaseUrl}/mcp/${botId}`, headers: { Authorization: `Bearer ${mcpToken(botId)}` }, timeout: 1800, connect_timeout: 30 },
@@ -176,8 +199,11 @@ function writeHome(botId: string): string {
 
   // Sign-ins (auth.json) and keys (.env) from the operator's Hermes, for the configured providers
   // only, copied fresh on each start. This server's own keys (the voice key) never reach a bot.
-  const providers = configuredProviders(primary);
   const auth = readJson(path.join(env.hermesHome, 'auth.json'));
+  const primaryEnv = readDotenv(path.join(env.hermesHome, '.env'));
+  // Only a dedicated seed may hand over credentials it holds but does not name: the operator's own
+  // ~/.hermes can hold keys meant for other work.
+  const providers = env.dedicatedSeed ? withCredentials(configuredProviders(primary), auth, primaryEnv) : configuredProviders(primary);
   const codex = providers.has('openai-codex');
   writeOwn(home, 'auth.json', JSON.stringify({
     version: auth?.version ?? 1,
@@ -185,7 +211,6 @@ function writeHome(botId: string): string {
     credential_pool: codex && auth?.credential_pool?.['openai-codex'] ? { 'openai-codex': auth.credential_pool['openai-codex'] } : {},
     active_provider: codex && auth?.active_provider === 'openai-codex' ? 'openai-codex' : null,
   }));
-  const primaryEnv = readDotenv(path.join(env.hermesHome, '.env'));
   const vars: Record<string, string> = {};
   for (const provider of providers) {
     const key = HOSTED_PROVIDERS.get(provider)?.key;
@@ -259,8 +284,8 @@ const bhFor = (botId: string) => path.join(env.dataDir, 'bh', crypto.createHash(
 function hermesContained(botId: string, args: string[]) {
   const hermes = which(env.hermesBin);
   return contained(hermes, args, {
-    read: [hermes, path.join(env.hermesHome, 'hermes-agent'), path.join(env.hermesHome, 'tools')],
-    write: [homeFor(botId), path.join(env.filesDir, botId), bhFor(botId)],
+    read: [hermes, path.join(env.hermesHome, 'hermes-agent'), path.join(env.hermesHome, 'tools'), ...readDirs(), ...skillReadDirs(skillDirs())],
+    write: [homeFor(botId), path.join(env.filesDir, botId), bhFor(botId), sharedSkillsDir()],
     localPorts: [env.mcpPort, env.egressPort, botRow(botId).engine_port, cdpPortFor(botId)],
     listen: botRow(botId).engine_port,
   }, `${botId}.g`);

@@ -10,7 +10,8 @@ import fs from 'node:fs';
 import { Readable } from 'node:stream';
 import { env } from './env.js';
 import { emitBot, getBotRow, listRoutines, listTasks } from './store.js';
-import { computerState, resetBotScreen } from './computer.js';
+import { computerState, listTabs, resetBotScreen, tabAction } from './computer.js';
+import { accounts, cancelSignIn, saveAnthropicKey, signInAvailable, signInState, startCodexSignIn } from './signin.js';
 import { engineInfo, engineKind, forgetEngineOptions, restartEngine, validWorkerRoute } from './engine.js';
 import { isBotBusy, runInBotQueue } from './agent/loop.js';
 import { listMemories } from './engine-memory.js';
@@ -22,7 +23,7 @@ import type { LibraryFile, Skill } from './types.js';
  */
 export const configApi = new Hono<AuthVars>();
 
-for (const p of ['/bots/*', '/skills/*', '/computer/*']) configApi.use(p, requireUser);
+for (const p of ['/bots/*', '/skills/*', '/computer/*', '/engine/*']) configApi.use(p, requireUser);
 
 const ownBot = (userId: string, id: string) => {
   const b = getBotRow(id);
@@ -244,4 +245,41 @@ configApi.post('/bots/:id/screen/reset', async (c) => {
   } catch (e: any) {
     return c.json({ error: String(e?.message ?? e).slice(0, 300) }, 502);
   }
+});
+
+// ---------- the viewer's browser bar ----------
+
+configApi.get('/bots/:id/screen/tabs', async (c) => {
+  const b = ownBot(c.get('user').id, c.req.param('id'));
+  if (!b) return c.json({ error: 'not found' }, 404);
+  return c.json({ tabs: await listTabs(b.id) });
+});
+
+const TAB_ACTIONS = new Set(['new', 'activate', 'close', 'navigate', 'back', 'forward', 'reload', 'home']);
+configApi.post('/bots/:id/screen/tabs', async (c) => {
+  const b = ownBot(c.get('user').id, c.req.param('id'));
+  if (!b) return c.json({ error: 'not found' }, 404);
+  const p = await c.req.json().catch(() => null);
+  if (!p || !TAB_ACTIONS.has(p.action) || ((p.action === 'activate' || p.action === 'close') && typeof p.id !== 'string') || (p.action === 'navigate' && typeof p.url !== 'string')) {
+    return c.json({ error: 'bad request' }, 400);
+  }
+  try {
+    await tabAction(b.id, p);
+    return c.json({ tabs: await listTabs(b.id) });
+  } catch (e: any) {
+    return c.json({ error: String(e?.message ?? e).slice(0, 200) }, 502);
+  }
+});
+
+// ---------- provider sign-in for every bot (the HQ Hermes profile) ----------
+
+configApi.get('/engine/signin', (c) => c.json({ signin: signInState(), available: signInAvailable(), accounts: signInAvailable() ? accounts() : null }));
+configApi.post('/engine/signin/openai-codex', (c) => {
+  try { return c.json({ signin: startCodexSignIn() }); } catch (e: any) { return c.json({ error: e.message }, 409); }
+});
+configApi.delete('/engine/signin', (c) => { cancelSignIn(); return c.json({ signin: signInState() }); });
+configApi.post('/engine/keys/anthropic', async (c) => {
+  const p = await c.req.json().catch(() => null);
+  try { saveAnthropicKey(p?.key); } catch (e: any) { return c.json({ error: e.message }, 400); }
+  return c.json({ ok: true });
 });
