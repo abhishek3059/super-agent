@@ -62,7 +62,7 @@ async function signIn() {
   const { token: t } = await res.json();
   if (typeof t !== 'string' || !/^[A-Za-z0-9_-]{43}$/.test(t)) throw new Error('sign-in returned no session');
   // A sign-in that finishes after quit began is ended at once, never kept.
-  if (quitting) { await fetch(`${base}/api/auth/logout`, { method: 'POST', headers: { authorization: `Bearer ${t}` } }).catch(() => {}); return; }
+  if (quitting) { await fetch(`${base}/api/auth/logout`, { method: 'POST', headers: { authorization: `Bearer ${t}` }, signal: AbortSignal.timeout(2000) }).catch(() => {}); return; }
   token = t;
 }
 
