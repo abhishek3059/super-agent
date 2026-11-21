@@ -25,11 +25,11 @@ export function Composer({ bot, running, hidden = false }: { bot: Bot; running: 
   // Auto-grow.
   useLayoutEffect(() => {
     const el = ref.current;
-    if (!el) return;
+    if (!el || hidden) return;
     el.style.height = '0px';
     el.style.height = `${Math.min(el.scrollHeight, MAX_H)}px`;
     el.style.overflowY = el.scrollHeight > MAX_H ? 'auto' : 'hidden';
-  }, [text]);
+  }, [text, hidden]);
 
   // ⌘I focuses the prompt.
   useEffect(() => {
