@@ -293,3 +293,58 @@ inside the bot's sandbox).
 - Nothing further for CI: the Jarvis HQ workflow (typecheck, self-checks,
   build on macOS) runs on every push to PR #56 and passed on `e71f06f` and
   `f96184e`.
+
+## Provider workspace recovery, 2026-11-20
+
+A synthetic HQ workspace used a dedicated Hermes seed with the NVIDIA
+Nemotron Ultra hosted model and an empty fallback list. The seed had no
+Gemini, local model or OpenAI platform route. HQ opened on 127.0.0.1.
+
+The first agent call failed before inference. The isolated seed could not
+read the shell launcher's target, and the default Chrome debugging port was
+already in use. The retry used the real launcher, explicit read-only runtime
+paths and a separate browser port range.
+
+Hermes v0.23.3 still could not start. Its state store checks the home
+directory with `os.access`. The sandbox now allows the operation needed by
+that check. The macOS tests verified that a process still cannot rename or
+remove its root, or read the HQ session secret or another bot's folder.
+The same Hermes release also requires an additional private listener. HQ
+still grants one fixed TCP listener per bot, so that release remained
+incompatible with this setup.
+
+The workspace switched to an isolated copy of the previously tested Hermes
+v0.22.2 source with locked dependencies and a Homebrew Python environment.
+The live check started the loopback Hermes gateway on port 8650. A
+synthetic Jarvis chat returned the expected `READY` through hosted NVIDIA
+Nemotron Ultra. The first handoff had no HQ tools because the runtime lacked
+Hermes' optional MCP dependency. After installing it from the same lockfile
+and restarting Jarvis, the HQ tool recorded a Jarvis-to-Scout handoff. Scout
+returned `TEAM_READY`, and Jarvis received and reported the result. Atlas and
+Quill also completed synthetic replies. Forge's first attempt hit a Python
+import lock while starting the OpenAI SDK used by the NVIDIA transport. The
+local launcher in the operator's Hermes workspace (outside this repository)
+now imports those SDK types before starting the gateway. After
+restarting Forge, its synthetic reply matched too. All five workers returned
+the expected text. HQ build passed and all 30 HQ tests passed. OpenAI subscription voice and Claude Pro
+through HQ: not run.
+
+## Hosted model picker verification, 2026-11-20
+
+The local preview's NVIDIA catalog reported 37 entries, including embedding
+and safety routes, while disconnected provider entries still appeared in the
+old picker. The revised picker kept the connected hosted chat choices and
+disabled unconnected providers. It excluded Gemini and Ollama and rejected
+direct engine-setting requests for Gemini, an embedding model and a
+disconnected OpenAI Codex route with HTTP 409.
+
+In Chrome, the test selected hosted NVIDIA Nemotron 3.5 Lightning from
+the Model dropdown, saved it and reloaded the page. HQ kept the selection.
+Jarvis returned the exact synthetic reply `SWITCH_READY`. The Hermes session
+record named the selected model. The original
+Nemotron Ultra selection was restored. The preview reported OpenAI voice
+enabled. The separate voice connection and operator report are in the
+[voice record](jarvis-hq-voice-check.md#preview-openai-connection-2026-11-20).
+
+HQ typecheck, build, 33 self-checks and repository checks passed. OpenAI
+Codex and Anthropic worker inference and account sign-in in HQ: not run.

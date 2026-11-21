@@ -1,49 +1,13 @@
+import workletUrl from './pcm16-capture.js?url&no-inline';
+
 // Browser audio for voice calls: mic capture → PCM16 @ 24 kHz (AudioWorklet), and a gapless PCM16 player.
 
 export const RATE = 24000;
 
-// The worklet runs at the context's native rate (usually 48 kHz). It box-filters down to 24 kHz,
-// converts to Int16 and posts 40 ms frames plus a level for the UI.
-const WORKLET = `
-class Pcm16Capture extends AudioWorkletProcessor {
-  constructor(options) {
-    super();
-    this.target = (options.processorOptions && options.processorOptions.rate) || 24000;
-    this.ratio = sampleRate / this.target;
-    this.frame = new Int16Array(Math.round(this.target * 0.04));
-    this.n = 0; this.sum = 0; this.cnt = 0; this.t = 0; this.peak = 0;
-  }
-  process(inputs) {
-    const ch = inputs[0] && inputs[0][0];
-    if (!ch) return true;
-    for (let i = 0; i < ch.length; i++) {
-      const s = ch[i];
-      this.sum += s; this.cnt++; this.t += 1;
-      const a = s < 0 ? -s : s; if (a > this.peak) this.peak = a;
-      if (this.t >= this.ratio) {
-        this.t -= this.ratio;
-        let v = this.sum / this.cnt; this.sum = 0; this.cnt = 0;
-        v = v > 1 ? 1 : v < -1 ? -1 : v;
-        this.frame[this.n++] = v < 0 ? v * 0x8000 : v * 0x7fff;
-        if (this.n === this.frame.length) {
-          const out = this.frame.slice(0);
-          this.port.postMessage({ pcm: out.buffer, level: this.peak }, [out.buffer]);
-          this.n = 0; this.peak = 0;
-        }
-      }
-    }
-    return true;
-  }
-}
-registerProcessor('pcm16-capture', Pcm16Capture);
-`;
-
-let workletUrl: string | null = null;
 const loadedContexts = new WeakSet<BaseAudioContext>();
 
 async function ensureWorklet(ctx: AudioContext) {
   if (loadedContexts.has(ctx)) return;
-  workletUrl ??= URL.createObjectURL(new Blob([WORKLET], { type: 'application/javascript' }));
   await ctx.audioWorklet.addModule(workletUrl);
   loadedContexts.add(ctx);
 }
@@ -73,6 +37,7 @@ export async function openMic(): Promise<MediaStream> {
 }
 
 export class MicCapture {
+  private stopped = false;
   private source: MediaStreamAudioSourceNode | null = null;
   private node: AudioWorkletNode | null = null;
   private sink: GainNode | null = null;
@@ -81,7 +46,12 @@ export class MicCapture {
   constructor(private ctx: AudioContext, private stream: MediaStream, private onFrame: (pcm: Int16Array) => void) {}
 
   async start() {
-    await ensureWorklet(this.ctx);
+    try {
+      await ensureWorklet(this.ctx);
+    } catch (cause) {
+      throw new Error('HQ could not load its microphone audio processor. Reload this page and try again.', { cause });
+    }
+    if (this.stopped) return;
     this.source = this.ctx.createMediaStreamSource(this.stream);
     this.node = new AudioWorkletNode(this.ctx, 'pcm16-capture', { processorOptions: { rate: RATE }, numberOfInputs: 1, numberOfOutputs: 1, channelCount: 1, channelCountMode: 'explicit' });
     this.node.port.onmessage = (e: MessageEvent<{ pcm: ArrayBuffer; level: number }>) => {
@@ -100,6 +70,7 @@ export class MicCapture {
   }
 
   stop() {
+    this.stopped = true;
     try { this.source?.disconnect(); this.node?.disconnect(); this.sink?.disconnect(); } catch { /* already gone */ }
     if (this.node) this.node.port.onmessage = null;
     for (const t of this.stream.getTracks()) t.stop();
