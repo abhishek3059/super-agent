@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useSyncExternalStore } from 'react';
 import { BotAvatarFor } from '../avatar/BotAvatar';
 import { api } from '../lib/api';
 import { botVars } from '../lib/colors';
@@ -11,8 +11,15 @@ import { Menu } from './Menu';
 import { Transcript } from './Transcript';
 import { VoiceCallBar } from './VoiceCallBar';
 
+const narrowChat = window.matchMedia('(max-width: 660px)');
+function watchNarrowChat(listener: () => void) {
+  narrowChat.addEventListener('change', listener);
+  return () => narrowChat.removeEventListener('change', listener);
+}
+
 export function ChatView() {
   const bot = useSelectedBot();
+  const narrow = useSyncExternalStore(watchNarrowChat, () => narrowChat.matches);
   const transcript = useStore((s) => (bot ? s.transcripts[bot.id] : undefined));
   const live = useStore((s) => (bot ? s.live[bot.id] : undefined));
   const detailsOpen = useStore((s) => s.detailsOpen);
@@ -32,6 +39,7 @@ export function ChatView() {
 
   const canOpenCompanion = bot.kind !== 'room';
   const showCompanion = canOpenCompanion && companionOpen;
+  const canShowDetails = !showCompanion && !narrow;
   const toggleCompanion = () => {
     const url = new URL(window.location.href);
     if (companionOpen) url.searchParams.delete('companion');
@@ -61,7 +69,7 @@ export function ChatView() {
               align={showCompanion ? 'left' : 'center'}
               onClose={() => setMenu(false)}
               items={[
-                ...(!showCompanion ? [{ label: detailsOpen ? 'Hide details' : 'Show details', hint: '⇧⌘,', onSelect: () => set({ detailsOpen: !detailsOpen }) }] : []),
+                ...(canShowDetails ? [{ label: detailsOpen ? 'Hide details' : 'Show details', hint: '⇧⌘,', onSelect: () => set({ detailsOpen: !detailsOpen }) }] : []),
                 { label: 'Open computer', onSelect: () => set({ viewerOpen: true, viewerMode: 'watch', viewerHint: null }) },
                 { label: 'New conversation', onSelect: () => api.fresh(bot.id).then(() => flash('Started a new conversation')).catch((e) => flash(e.message)) },
                 { label: 'Bot settings', onSelect: () => useConfigUI.getState().openBotSettings(bot.id) },
@@ -71,11 +79,11 @@ export function ChatView() {
         </span>
         <div className="chat__header-right">
           {canOpenCompanion && (
-            <button type="button" className="share-btn" onClick={toggleCompanion}>
+            <button type="button" className="share-btn companion-toggle" onClick={toggleCompanion}>
               {showCompanion ? 'Back to chat' : 'Companion'}
             </button>
           )}
-          {!showCompanion && !detailsOpen && (
+          {canShowDetails && !detailsOpen && (
             <button type="button" className="icon-btn icon-btn--bordered" onClick={() => set({ detailsOpen: true })} aria-label="Show details" title="Show details">
               <Icon name="sidebar" opacity={0.66} style={{ transform: 'scaleX(-1)' }} />
             </button>

@@ -1,23 +1,37 @@
-import { useId } from 'react';
+import { useState, type PointerEvent } from 'react';
 import type { Bot } from '@shared/types';
-import { useConfigUI, type Theme } from '../configStore';
+import { SKINS, useConfigUI, type Theme } from '../configStore';
 import { endCall, isCallActive, startCall, useVoice } from '../voice/call';
 import { Icon } from './Icon';
 
-const appearances: Record<Theme, string> = {
-  arc: 'Arc',
-  ember: 'Ember',
-  carbon: 'Carbon',
-  paper: 'Paper',
-  system: 'System',
-  light: 'Light',
-  dark: 'Dark',
-};
+type Skin = (typeof SKINS)[number];
+
+const skinNames: Record<Skin, string> = { arc: 'Arc', ember: 'Ember', carbon: 'Carbon', paper: 'Paper' };
+
+function CompanionArt({ look }: { look: Theme }) {
+  return (
+    <div className="companion__art" data-look={look} aria-hidden="true">
+      <div className="companion__orbit" />
+      <div className="companion__head">
+        <div className="companion__face"><i /><i /></div>
+      </div>
+      <div className="companion__shadow" />
+    </div>
+  );
+}
+
+function trackPointer(event: PointerEvent<HTMLElement>) {
+  if (event.pointerType === 'touch') return;
+  const { currentTarget, clientX, clientY } = event;
+  const bounds = currentTarget.getBoundingClientRect();
+  currentTarget.style.setProperty('--look-x', `${(clientX - bounds.x - bounds.width / 2) / bounds.width * 24}px`);
+  currentTarget.style.setProperty('--look-y', `${(clientY - bounds.y - bounds.height / 2) / bounds.height * 18}px`);
+}
 
 export function Companion({ bot, running }: { bot: Bot; running: boolean }) {
-  const appearanceId = useId();
   const theme = useConfigUI((s) => s.theme);
   const setTheme = useConfigUI((s) => s.setTheme);
+  const [preview, setPreview] = useState<Skin | null>(null);
   const inCall = useVoice((s) => s.botId === bot.id && isCallActive(s));
   const voiceState = useVoice((s) => {
     if (s.botId !== bot.id) return null;
@@ -31,21 +45,15 @@ export function Companion({ bot, running }: { bot: Bot; running: boolean }) {
   const status = voiceState ?? (running ? 'Working' : 'Standing by');
 
   return (
-    <section className="companion" aria-label={`${bot.name} companion`} data-status={status}>
-      <div className="companion__appearance">
-        <label htmlFor={appearanceId}>Appearance</label>
-        <select id={appearanceId} value={theme} onChange={(e) => setTheme(e.target.value as Theme)}>
-          {Object.entries(appearances).map(([value, name]) => <option key={value} value={value}>{name}</option>)}
-        </select>
-      </div>
-      <div className="companion__art" aria-hidden="true">
-        <div className="companion__orbit" />
-        <div className="companion__head">
-          <div className="companion__face">
-            <i /><i />
-          </div>
-        </div>
-        <div className="companion__shadow" />
+    <section className="companion" aria-label={`${bot.name} companion`} data-status={status}
+      onPointerMove={trackPointer}
+      onPointerLeave={(event) => {
+        event.currentTarget.style.removeProperty('--look-x');
+        event.currentTarget.style.removeProperty('--look-y');
+      }}
+    >
+      <div className="companion__stage">
+        <CompanionArt look={preview ?? theme} />
       </div>
       <div className="companion__controls">
         <h1>{bot.name}</h1>
@@ -54,6 +62,18 @@ export function Companion({ bot, running }: { bot: Bot; running: boolean }) {
           <Icon name={inCall ? 'stop' : 'voice_a'} size={17} />
           {inCall ? 'End voice call' : 'Start voice chat'}
         </button>
+      </div>
+      <div className="companion__skins" role="group" aria-label="Companion appearance">
+        {SKINS.map((skin) => (
+          <button key={skin} type="button" aria-pressed={theme === skin} className="companion__skin"
+            onPointerEnter={(event) => { if (event.pointerType === 'mouse') setPreview(skin); }}
+            onPointerLeave={() => setPreview(null)}
+            onClick={() => { setTheme(skin); setPreview(null); }}
+          >
+            <CompanionArt look={skin} />
+            {skinNames[skin]}
+          </button>
+        ))}
       </div>
     </section>
   );
