@@ -39,7 +39,8 @@ The browser-only alternative (no native work) was also offered and declined.
   `skin`). It carries no text, transcript or pixels.
 - The overlay page has no Node access, cannot send anything to HQ and does
   not see the session token. It denies every web permission.
-- It sets content protection, so screenshots and screen shares leave it out.
+- It sets content protection, so the system leaves it out of screen
+  captures. On macOS this was checked with `screencapture` only.
 - On Windows the overlay runs on the Windows host and HQ stays in WSL2. It
   reads the owner secret from the WSL data folder and connects through WSL2's
   localhost forwarding.

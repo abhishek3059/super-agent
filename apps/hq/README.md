@@ -85,8 +85,9 @@ taskbar. It shows what HQ is doing: idle, listening, thinking or speaking,
 with voice energy during a call. Hovering a skin in HQ's Companion panel
 previews it on the desktop at once. Clicks pass straight through it, and it
 never takes focus. Its tray (menu bar) icon offers **Follow cursor**, **Park in
-corner**, **Hide** and **Quit**. It respects reduced motion, and screenshots
-and screen shares leave it out. It does not capture the screen, watch your
+corner**, **Hide** and **Quit**. It respects reduced motion. It asks the
+system to keep it out of screen captures; on macOS `screencapture` leaves it
+out (screen sharing apps were not tested). It does not capture the screen, watch your
 input or click anything, so it needs no Screen Recording or Accessibility
 permission.
 
@@ -101,8 +102,9 @@ npm start
 `npm ci` downloads the pinned Electron binary through Electron's own install
 script. The overlay signs in as the owner with the same challenge the
 launcher uses, so it needs read access to `session-secret` in the HQ data
-folder. It holds the session in its main process and ends it on quit. If HQ
-is not running it dims and keeps retrying.
+folder. It holds the session in its main process and ends it when it quits,
+including on Ctrl+C. Only one copy runs at a time. If HQ is not running, or
+its event stream goes quiet for 45 seconds, it dims and reconnects.
 
 On Windows, run the overlay on Windows itself (PowerShell, Node 22) while HQ
 runs in WSL2. Point it at the WSL data folder; replace `Ubuntu` and `<you>`
@@ -374,8 +376,9 @@ A provider that rotates copied sign-in tokens may sign out the owner profile.
 - The desktop overlay is a client of the same loopback API. HQ's page posts
   its companion state to `POST /api/companion`. The server accepts exactly
   `status`, `level` (0 to 1) and `skin`, and relays them only to the same
-  owner's event stream. The overlay page runs sandboxed with no Node access
-  and can only receive that state. It never sees the session.
+  owner's event stream. The overlay page runs sandboxed with no Node access.
+  It only receives that state, the cursor position, its mode and the
+  connection state. It never sees the session.
 
 ### Containment
 

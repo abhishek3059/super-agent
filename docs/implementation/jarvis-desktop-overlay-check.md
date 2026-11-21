@@ -25,6 +25,8 @@ What was exercised, and how:
 | Reduced motion | DevTools `prefers-reduced-motion: reduce` | Idle animation `buddy-bob` became `none` and the level stayed 0 |
 | Left out of screen captures | `screencapture -x` cropped at the overlay's position | Nothing drawn where the overlay was |
 | Rendering at 2x | DevTools page capture | Paper skin drawn sharply |
+| Session ends on quit | Rows in `auth_sessions` before launch, while running, after `kill -TERM` | 3, 4, 3 |
+| One copy at a time | Two launches 4 s apart | One main process, one new session |
 
 Self-checks: `npm test` in `apps/hq` gave 54 passed, 0 failed and 16 skipped
 (the skipped suites need Linux bubblewrap or a local pgvector). The new test
@@ -42,6 +44,19 @@ Not checked on this run:
 - A live OpenAI voice call driving the overlay. Voice energy was driven by
   signed-in posts with the same shape the HQ page sends.
 - The tray menu (Follow, Park, Hide, Quit) was not driven by script.
+- Screen sharing apps (ScreenCaptureKit) were not tested. Only
+  `screencapture` was.
+- The 45-second idle reconnect was not forced in this run.
+
+## Dependencies
+
+`npm audit` in `apps/hq/desktop`: 0 vulnerabilities. Electron's install
+script downloads its checksum-verified binary, so `--ignore-scripts` cannot
+be used. Licenses of all 13 installed packages (from `license-checker@25.0.1`):
+MIT for `electron` 45.2.3, `@electron/get`, `@electron-internal/extract-zip`,
+`debug`, `env-paths`, `ms`, `progress`, `undici`, `undici-types` and
+`@types/node`; ISC for `semver`; Apache-2.0 for `sumchecker`; BlueOak-1.0.0
+for `graceful-fs`. None is non-commercial or custom.
 
 ## Windows run
 

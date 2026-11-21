@@ -15,6 +15,7 @@ let win = null;
 let tray = null;
 let mode = 'follow';
 let token = '';
+let quitting = false;
 let area = null;
 
 function send(channel, value) { if (win && !win.isDestroyed()) win.webContents.send(channel, value); }
@@ -59,21 +60,29 @@ async function signIn() {
   if (!res.ok) throw new Error(`sign-in refused (HTTP ${res.status})`);
   const { token: t } = await res.json();
   if (typeof t !== 'string' || !/^[A-Za-z0-9_-]{43}$/.test(t)) throw new Error('sign-in returned no session');
+  // A sign-in that finishes after quit began is ended at once, never kept.
+  if (quitting) { await fetch(`${base}/api/auth/logout`, { method: 'POST', headers: { authorization: `Bearer ${t}` } }).catch(() => {}); return; }
   token = t;
 }
 
 /** Reads HQ's event stream and forwards only companion state; reconnects, and signs in again on 401. */
 async function listen() {
   for (let wait = 1000; ; wait = Math.min(wait * 2, 15_000)) {
+    if (quitting) return;
     try {
       if (!token) await signIn();
-      const res = await fetch(`${base}/api/events`, { headers: { authorization: `Bearer ${token}` }, redirect: 'error' });
+      // HQ pings every 20 s; silence for 45 s means a half-open stream (WSL2 after sleep), so start over.
+      const idle = new AbortController();
+      let timer = setTimeout(() => idle.abort(), 45_000);
+      const res = await fetch(`${base}/api/events`, { headers: { authorization: `Bearer ${token}` }, redirect: 'error', signal: idle.signal });
       if (res.status === 401) { token = ''; throw new Error('session expired'); }
       if (!res.ok || !res.body) throw new Error(`events refused (HTTP ${res.status})`);
       send('connection', 'connected');
       wait = 1000;
       let buffer = '';
       for await (const chunk of res.body.pipeThrough(new TextDecoderStream())) {
+        clearTimeout(timer);
+        timer = setTimeout(() => idle.abort(), 45_000);
         buffer += chunk;
         let end;
         while ((end = buffer.indexOf('\n\n')) >= 0) {
@@ -106,8 +115,8 @@ const trayMenu = () => Menu.buildFromTemplate([
   { label: 'Quit Jarvis overlay', click: () => app.quit() },
 ]);
 
-if (!app.requestSingleInstanceLock()) app.quit();
-app.whenReady().then(() => {
+if (!app.requestSingleInstanceLock()) app.exit(0);
+else app.whenReady().then(() => {
   // The overlay page needs no camera, microphone, screen or notifications.
   session.defaultSession.setPermissionRequestHandler((_wc, _perm, done) => done(false));
   session.defaultSession.setPermissionCheckHandler(() => false);
@@ -119,6 +128,14 @@ app.whenReady().then(() => {
   pumpCursor();
   void listen();
 });
-app.on('before-quit', () => {
-  if (token) void fetch(`${base}/api/auth/logout`, { method: 'POST', headers: { authorization: `Bearer ${token}` } }).catch(() => {});
+// End the owner session before exiting, so a quit never leaves a 30-day session behind.
+app.on('before-quit', (e) => {
+  quitting = true;
+  if (!token) return;
+  e.preventDefault();
+  const t = token;
+  token = '';
+  fetch(`${base}/api/auth/logout`, { method: 'POST', headers: { authorization: `Bearer ${t}` }, signal: AbortSignal.timeout(2000) })
+    .catch(() => {}).finally(() => app.exit(0));
 });
+for (const signal of ['SIGINT', 'SIGTERM']) process.on(signal, () => app.quit());
