@@ -142,6 +142,18 @@ export async function searchMemory(userId: string, botId: string, query: string,
   }
 }
 
+/**
+ * Memory the app looks up itself before a turn, so grounding does not depend on the model choosing
+ * to call memory_search (models often prefer Hermes' own memory tool). Null when nothing matches.
+ */
+export async function recallFor(userId: string, botId: string, message: string, hermesEntries: string[]): Promise<string | null> {
+  const query = message.trim().slice(0, MAX_TEXT);
+  if (!query) return null;
+  const found = await searchMemory(userId, botId, query, 5, hermesEntries);
+  if (found === NO_MATCH) return null;
+  return `[Memory lookup by the app for this message. These entries may or may not be relevant. Use only the ones that answer it, cite them as [mem:id], and if the answer is not here or in your own notes, say it is not in your memory rather than guess.]\n${found}`;
+}
+
 /** A deleted bot leaves no memory rows behind. */
 export async function forgetBotMemory(botId: string): Promise<void> {
   if (!env.memoryOn) return;
