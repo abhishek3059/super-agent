@@ -1,0 +1,19 @@
+# Local PostgreSQL with pgvector for Jarvis HQ semantic memory. Loopback only; the password comes
+# from your shell or an env file, never from this repository:
+#   POSTGRES_PASSWORD=... docker compose -f docker-compose.memory.yml up -d
+services:
+  hq-memory-db:
+    image: pgvector/pgvector:pg17
+    container_name: hq-memory-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: hq
+      POSTGRES_DB: hq_memory
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set it}
+    ports:
+      - "127.0.0.1:5433:5432"
+    volumes:
+      - hq-memory-data:/var/lib/postgresql/data
+
+volumes:
+  hq-memory-data:

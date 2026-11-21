@@ -9,6 +9,7 @@ import { deletingBots } from './lib/procs.js';
 import { createSession, destroySession, ownerProof, requireUser, userFromAuthorization, type AuthVars } from './lib/auth.js';
 import { allLive, appendRow, clearConversation, emitBot, getBot, getBotRow, getRow, listBots, listRoutines, listRows, listTasks, toRoutine, updateRow } from './store.js';
 import { enqueue, interrupt, isDecision, resolveApproval } from './agent/loop.js';
+import { forgetBotMemory } from './memory.js';
 import { computerState, forgetBotFiles, readyScreen, releaseScreen, screenshot } from './computer.js';
 import { assignEngine, forgetEngineFiles, provisionEngine, stopEngine, syncPersona } from './engine.js';
 import { deleteMemory, listMemories, memoryBot } from './engine-memory.js';
@@ -212,6 +213,7 @@ api.delete('/bots/:id', async (c) => {
     if (b.kind !== 'room') {
       await forgetEngineFiles(b.id).catch((e) => console.warn('[engine] cleanup failed', e?.code ?? 'unknown'));
       await forgetBotFiles(b.id).catch((e) => console.warn('[computer] cleanup failed', e?.code ?? 'unknown'));
+      await forgetBotMemory(b.id).catch((e) => console.warn('[memory] cleanup failed', e?.code ?? 'unknown'));
     }
     db.prepare('DELETE FROM screens WHERE bot_id=?').run(b.id);
     db.prepare('DELETE FROM bots WHERE id=?').run(b.id);

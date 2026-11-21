@@ -1,12 +1,13 @@
 import { execFileSync, spawn } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { WebSocket } from 'ws';
 import { db } from './db.js';
 import { env } from './env.js';
 import { confinedEnv, contained, tmpFor } from './sandbox.js';
 import { deletingBots, livePid, recordPid, stopPid } from './lib/procs.js';
-import { removeOwn } from './lib/own.js';
+import { removeOwn, writeOwn } from './lib/own.js';
 import type { ComputerState } from './types.js';
 
 /**
@@ -26,7 +27,7 @@ const CHROMES = [
   '/Applications/Brave Browser.app/Contents/MacOS/Brave Browser',
   '/Applications/ego lite.app/Contents/MacOS/ego lite',
   '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge',
-  '/usr/bin/google-chrome', '/usr/bin/chromium', '/usr/bin/chromium-browser',
+  '/usr/bin/google-chrome', '/usr/bin/google-chrome-stable', '/usr/bin/chromium', '/usr/bin/chromium-browser', '/snap/bin/chromium',
 ];
 const chromeBin = () => env.chromeBin || CHROMES.find((p) => fs.existsSync(p)) || '';
 
@@ -63,6 +64,103 @@ export function computerState(userId: string): ComputerState {
   };
 }
 
+// ---------- the bot's desktop ----------
+
+const esc = (v: unknown) => String(v ?? '').replace(/[<>&"']/g, (c) => `&#${c.charCodeAt(0)};`);
+const HOME_FILE = 'hq-home.html';
+const homeUrl = (botId: string) => pathToFileURL(path.join(profileDir(botId), HOME_FILE)).href;
+
+const APPS: [string, string, string][] = [
+  ['Search', '🔎', 'https://www.google.com/'],
+  ['Gmail', '✉️', 'https://mail.google.com/'],
+  ['YouTube', '▶️', 'https://www.youtube.com/'],
+  ['Maps', '🗺️', 'https://maps.google.com/'],
+  ['GitHub', '🐙', 'https://github.com/'],
+  ['Wikipedia', '📚', 'https://en.wikipedia.org/'],
+  ['Hacker News', '📰', 'https://news.ycombinator.com/'],
+];
+
+/** The page a bot's browser opens on: a desktop with a clock, a search box and app tiles. */
+export function desktopHtml(o: { owner: string; name: string; label: string; filesUrl: string }): string {
+  const tile = (label: string, icon: string, href: string) =>
+    `<a class="app" href="${esc(href)}"><span class="ic">${icon}</span><span>${esc(label)}</span></a>`;
+  return `<!doctype html><meta charset="utf-8"><title>Home</title><style>
+body{margin:0;height:100vh;display:grid;place-items:center;font:15px system-ui;color:#1d2330;
+background:radial-gradient(circle at 20% 10%,#e8f1ff,transparent 50%),radial-gradient(circle at 85% 90%,#f3e9ff,transparent 50%),#f4f6fa}
+main{text-align:center}#t{font-size:96px;font-weight:300;letter-spacing:-2px}#d{opacity:.6;margin-bottom:18px}
+h1{margin:0;font-size:30px}.role{opacity:.6;margin:4px 0 22px}
+form input{width:460px;padding:12px 18px;border-radius:24px;border:1px solid #d5dbe6;font:inherit;outline:none;background:#fff}
+.apps{display:grid;grid-template-columns:repeat(4,96px);gap:18px;justify-content:center;margin-top:30px}
+.app{display:flex;flex-direction:column;align-items:center;gap:8px;color:inherit;text-decoration:none;font-size:13px}
+.ic{width:64px;height:64px;border-radius:18px;background:#fff;display:grid;place-items:center;font-size:30px;box-shadow:0 2px 10px #0001}
+.app:hover .ic{box-shadow:0 4px 16px #0002}</style>
+<main><div id="t"></div><div id="d"></div><h1>Welcome back, ${esc(o.owner)}</h1><div class="role">${esc(o.name)}${o.label ? ` · ${esc(o.label)}` : ''}</div>
+<form action="https://www.google.com/search"><input name="q" placeholder="Search Google or type a URL" autofocus></form>
+<div class="apps">${tile('Files', '📁', o.filesUrl)}${APPS.map((a) => tile(...a)).join('')}</div></main>
+<script>function f(){const n=new Date();t.textContent=n.toLocaleTimeString([], {hour:'numeric',minute:'2-digit'});
+d.textContent=n.toLocaleDateString([], {weekday:'long',month:'long',day:'numeric'})}f();setInterval(f,1000)</script>`;
+}
+
+/** Written fresh on each start, so a rename shows and nothing the browser left there is kept. */
+function writeHome(botId: string) {
+  const b = db.prepare('SELECT b.name, b.label, u.name AS owner FROM bots b JOIN users u ON u.id=b.user_id WHERE b.id=?').get(botId) as any;
+  writeOwn(profileDir(botId), HOME_FILE, desktopHtml({ owner: b?.owner ?? env.ownerName, name: b?.name, label: b?.label, filesUrl: `${pathToFileURL(path.join(env.filesDir, botId)).href}/` }), 0o644);
+}
+
+// ---------- tabs, for the viewer's browser bar ----------
+
+export interface Tab { id: string; title: string; url: string }
+const TAB_ID = /^[A-Za-z0-9_-]{1,64}$/;
+
+/** What the address bar typed means: a web address, or else a search. Only http(s) is ever opened. */
+export function addressToUrl(input: string): string {
+  const s = input.trim().slice(0, 2000);
+  const search = `https://www.google.com/search?q=${encodeURIComponent(s)}`;
+  let u: URL;
+  try { u = new URL(/^[a-z][a-z0-9+.-]*:(?!\d)/i.test(s) ? s : `https://${s}`); } catch { return search; }
+  if (u.protocol !== 'http:' && u.protocol !== 'https:') return search;
+  // A bare word ("weather") is a search; something with a dot or a port is an address.
+  return /^https?:/i.test(s) || (!/\s/.test(s) && (u.hostname.includes('.') || !!u.port)) ? u.href : search;
+}
+
+// Chrome's tab list sends titles HTML-escaped.
+const ENTITY: Record<string, string> = { '&amp;': '&', '&lt;': '<', '&gt;': '>', '&quot;': '"', '&#39;': "'" };
+const unescapeTitle = (t: string) => t.replace(/&(amp|lt|gt|quot|#39);/g, (m) => ENTITY[m]);
+
+/** Open tabs, the one on screen first. */
+export async function listTabs(botId: string): Promise<Tab[]> {
+  if (!chromePid(botId)) return [];
+  try {
+    const list = (await (await fetch(`${cdpUrlFor(botId)}/json/list`, { signal: AbortSignal.timeout(2000) })).json()) as any[];
+    return list.filter((t) => t.type === 'page' && TAB_ID.test(t.id))
+      .map((t) => ({ id: t.id, title: unescapeTitle(String(t.title ?? '')).slice(0, 200), url: String(t.url ?? '').slice(0, 2000) }));
+  } catch { return []; }
+}
+
+export type TabAction = { action: 'new' } | { action: 'activate' | 'close'; id: string } | { action: 'navigate'; url: string }
+  | { action: 'back' | 'forward' | 'reload' | 'home' };
+
+export async function tabAction(botId: string, a: TabAction): Promise<void> {
+  if (!chromePid(botId)) throw new Error('screen not running');
+  const devtools = (p: string, method = 'GET') => fetch(`${cdpUrlFor(botId)}${p}`, { method, signal: AbortSignal.timeout(4000) })
+    .then((r) => { if (!r.ok) throw new Error('the browser refused'); });
+  switch (a.action) {
+    case 'new': return devtools(`/json/new?${encodeURIComponent(homeUrl(botId))}`, 'PUT');
+    case 'activate': case 'close':
+      if (!TAB_ID.test(a.id)) throw new Error('bad tab');
+      return devtools(`/json/${a.action}/${a.id}`);
+    case 'navigate': await cdpOnce(botId, 'Page.navigate', { url: addressToUrl(a.url) }); return;
+    case 'home': await cdpOnce(botId, 'Page.navigate', { url: homeUrl(botId) }); return;
+    case 'reload': await cdpOnce(botId, 'Page.reload'); return;
+    case 'back': case 'forward': {
+      const h = await cdpOnce(botId, 'Page.getNavigationHistory');
+      const entry = h?.entries?.[h.currentIndex + (a.action === 'back' ? -1 : 1)];
+      if (entry) await cdpOnce(botId, 'Page.navigateToHistoryEntry', { entryId: entry.id });
+      return;
+    }
+  }
+}
+
 const starting = new Map<string, Promise<void>>();
 
 /** The browser we started for this bot: its command line names its own debugging port. */
@@ -79,13 +177,9 @@ async function startChrome(botId: string): Promise<void> {
   const bin = chromeBin();
   if (!bin) throw new Error('No Chrome found. Install Google Chrome or set CHROME_BIN.');
   if (!validId(botId)) throw new Error('bad bot id');
-  const bot = db.prepare('SELECT name, label FROM bots WHERE id=?').get(botId) as any;
-  const esc = (s: string) => String(s ?? '').replace(/[<>&"']/g, '');
-  const home = `data:text/html,${encodeURIComponent(
-    `<title>${esc(bot?.name)}</title><body style="margin:0;height:100vh;display:grid;place-items:center;background:#0b0f14;color:#cfe8ff;font:500 28px system-ui"><div style="text-align:center">${esc(bot?.name)}<div style="font-size:14px;opacity:.6;margin-top:8px">${esc(bot?.label)}</div></div>`,
-  )}`;
   fs.mkdirSync(profileDir(botId), { recursive: true, mode: 0o700 });
   fs.mkdirSync(path.join(env.filesDir, botId), { recursive: true });
+  writeHome(botId);
   // Lock links from an earlier run point into the system temp folder; a new start makes its own.
   for (const f of ['SingletonLock', 'SingletonSocket', 'SingletonCookie']) fs.rmSync(path.join(profileDir(botId), f), { force: true });
   // The bot drives this browser freely (file:// pages, uploads, downloads), so the browser itself is
@@ -99,13 +193,14 @@ async function startChrome(botId: string): Promise<void> {
     `--user-data-dir=${profileDir(botId)}`, `--window-size=${SCREEN.width},${SCREEN.height + CHROME_UI}`,
     '--no-first-run', '--no-default-browser-check', '--disable-background-networking', '--hide-scrollbars',
     // The internet only through the proxy, which refuses loopback and private addresses.
-    `--proxy-server=http://127.0.0.1:${env.egressPort}`, '--proxy-bypass-list=<-loopback>', home,
+    `--proxy-server=http://127.0.0.1:${env.egressPort}`, '--proxy-bypass-list=<-loopback>', homeUrl(botId),
   ], { read: [], write: [profileDir(botId), path.join(env.filesDir, botId)], localPorts: [env.egressPort], listen: cdpPortFor(botId), tempPrefix: bundleId(bin) }, `${botId}.c`);
   // Nothing of this server's environment (the voice key lives there) reaches the browser.
   const child = spawn(run.bin, run.args, { detached: true, stdio: 'ignore', env: confinedEnv(`${botId}.c`) });
   let failed = '';
   child.once('error', (e) => { failed = e.message; });
   child.unref();
+  run.attach?.(child);
   recordPid(`${botId}.chrome`, child.pid);
   for (let i = 0; i < 40; i++) {
     await new Promise((r) => setTimeout(r, 250));

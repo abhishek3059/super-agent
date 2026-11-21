@@ -16,3 +16,12 @@ with Codex for [PR #56](https://github.com/abhishek3059/super-agent/pull/56):
 The maintainer authorized the synthetic live voice test. R-A.2 remains open.
 Use synthetic speech and data only. This decision enables no capability tier,
 moves no phase gate, and grants no merge or release approval.
+
+## Anthropic worker cap, 2026-11-20
+
+On 2026-11-20, maintainer `jeevesh2515` approved in chat with Claude Code
+(Opus 5.5) Anthropic API worker use on the operator's key, with a monthly
+spend cap of **US$5**, set in the Anthropic Console. Jarvis HQ does not
+meter it. No other paid worker route is approved: the OpenAI API worker
+route was removed. This is recorded in [DEC-23](../../descisions.md#dec-23)
+rule 5.
