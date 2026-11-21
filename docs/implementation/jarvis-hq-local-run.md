@@ -458,9 +458,22 @@ and init, no Windows interop, no `/mnt/c`):
 Not run: real WSL2 and Ubuntu 24.04 with AppArmor (the user-namespace
 restriction documented in the README is from its documentation, not tested
 here); the launcher's `wslview` and `cmd.exe` paths; a Hermes gateway under
-bubblewrap; a CI job for Linux; an independent review of the Linux backend.
-`DEC-23` and AGENTS.md section 5 still name the macOS sandbox. A maintainer
-decides whether they cover this backend.
+bubblewrap; an independent review of the Linux backend.
+
+Revision after the shared reviewer, the same day:
+- The first Linux CI run failed. The bridge destroyed both sockets as soon as
+  one closed, which dropped the last bytes of a reply. It now lets `pipe` end
+  the other side and tears down only on error. Three later container runs
+  passed.
+- The reverse leg had the server dial a socket in a folder the bot can write.
+  A bot could have swapped it for a link to a host socket. Now the bot's
+  side dials out to a socket the server owns in the read-only `/run/hq`.
+- A seccomp filter now refuses vsock, x32 and foreign ABIs. A container test
+  shows `socket(AF_VSOCK)` failing with EACCES.
+- A Linux CI job runs the self-checks on Ubuntu 24.04. DEC-23 rule 3 and
+  AGENTS.md section 5 now name this backend.
+- Container result after the revision: 52 passed, 0 failed, twice. macOS: 47
+  passed, 0 failed.
 
 Found while testing on Linux, and fixed: the bridge helper started the program
 before its ports were open (a race); the empty root that bubblewrap makes is

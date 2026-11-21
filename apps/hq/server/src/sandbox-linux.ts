@@ -37,19 +37,36 @@ const BRIDGE_DIR = '/run/hq';
 /**
  * Runs inside the namespace as its first process, then starts the real program. For each port it may
  * reach, it listens on that loopback port here and hands each connection to a unix socket the app
- * made; for its own port, it serves a unix socket that the app's listener on the same port hands
- * connections to. It stays until nothing else runs in the namespace: Hermes starts its gateway
+ * made. For its own port it dials out: it holds a control line to the app's socket, and for each
+ * byte the app sends there (one per caller on the app's side of that port) it opens a new line to
+ * the same socket, says 'D', and joins it to the local port. The app never dials anything the bot
+ * can write. It stays until nothing else runs in the namespace: Hermes starts its gateway
  * again from a new session and exits, and the gateway still needs its port.
  */
 const BRIDGE_JS = `
 const net = require('net'), fs = require('fs'), { spawn } = require('child_process');
 const cfg = JSON.parse(process.argv[2]);
-const link = (a, b) => { a.pipe(b); b.pipe(a); for (const s of [a, b]) { s.on('error', () => {}); s.once('close', () => { a.destroy(); b.destroy(); }); } };
+const link = (a, b) => { a.pipe(b); b.pipe(a); for (const s of [a, b]) s.on('error', () => { a.destroy(); b.destroy(); }); };
 const serve = (to, ...on) => new Promise((up) => net.createServer((c) => link(c, to())).listen(...on, up));
 (async () => {
   // Every port is open before the program starts, so its first connection already finds it.
   for (const p of cfg.fwd) await serve(() => net.connect('${BRIDGE_DIR}/f' + p + '.sock'), p, '127.0.0.1');
-  if (cfg.rev) await serve(() => net.connect(cfg.rev, '127.0.0.1'), '${BRIDGE_DIR}/rev/l.sock');
+  if (cfg.rev) await new Promise((up, fail) => {
+    const RV = '${BRIDGE_DIR}/rv.sock';
+    const open = (tries) => {
+      const ctl = net.connect(RV, () => { ctl.write('C'); up(); });
+      ctl.once('error', (e) => { if (tries > 0) setTimeout(() => open(tries - 1), 100); else fail(e); });
+      ctl.on('data', (buf) => {
+        for (let i = 0; i < buf.length; i++) {
+          const d = net.connect(RV, () => { d.write('D'); link(d, net.connect(cfg.rev, '127.0.0.1')); });
+          d.on('error', () => d.destroy());
+        }
+      });
+      // Without the control line nobody can reach its port: stop rather than run half connected.
+      ctl.once('close', () => process.exit(1));
+    };
+    open(50);
+  });
   const kid = spawn(process.argv[3], process.argv.slice(4), { stdio: 'inherit' });
   kid.once('error', (e) => { console.error(e.message); process.exit(127); });
   kid.once('exit', (code) => {
@@ -59,6 +76,53 @@ const serve = (to, ...on) => new Promise((up) => net.createServer((c) => link(c,
   });
 })();
 `;
+
+// ---------- seccomp: no vsock ----------
+// --unshare-net does not cover AF_VSOCK, which WSL2 uses to talk to the Windows host. A classic BPF
+// filter refuses socket(AF_VSOCK, ...) with EACCES (distinct from the kernel's own EAFNOSUPPORT, so a
+// test can tell the filter worked), every syscall of a foreign ABI, and x32 calls on x86_64.
+const ARCH: Record<string, { audit: number; socket: number; x32: boolean }> = {
+  x64: { audit: 0xc000003e, socket: 41, x32: true },
+  arm64: { audit: 0xc00000b7, socket: 198, x32: false },
+};
+const AF_VSOCK = 40;
+const ERRNO = (e: number) => 0x00050000 | e;
+const ALLOW = 0x7fff0000;
+
+/** The filter for this CPU as `struct sock_filter[]`, or null where none is written (then no bot starts). */
+export function vsockFilter(arch = process.arch): Buffer | null {
+  const a = ARCH[arch];
+  if (!a) return null;
+  const ins = (code: number, jt: number, jf: number, k: number) => {
+    const b = Buffer.alloc(8);
+    b.writeUInt16LE(code, 0); b.writeUInt8(jt, 2); b.writeUInt8(jf, 3); b.writeUInt32LE(k >>> 0, 4);
+    return b;
+  };
+  const LD = 0x20, JEQ = 0x15, JGE = 0x35, RET = 0x06;
+  return Buffer.concat([
+    ins(LD, 0, 0, 4), //                    0 arch
+    ins(JEQ, 0, 6, a.audit), //             1 foreign ABI -> 8
+    ins(LD, 0, 0, 0), //                    2 syscall number
+    ins(JGE, 4, 0, a.x32 ? 0x40000000 : 0xffffffff), // 3 x32 -> 8
+    ins(JEQ, 0, 4, a.socket), //            4 not socket() -> 9
+    ins(LD, 0, 0, 16), //                   5 first argument (low half)
+    ins(JEQ, 0, 2, AF_VSOCK), //            6 not vsock -> 9
+    ins(RET, 0, 0, ERRNO(13)), //           7 EACCES
+    ins(RET, 0, 0, ERRNO(1)), //            8 EPERM
+    ins(RET, 0, 0, ALLOW), //               9
+  ]);
+}
+
+/** bwrap reads the filter from an open file: a shell opens it as fd 3 and becomes bwrap. Nothing is interpolated. */
+function withFilter(bwrap: string, args: string[]): { bin: string; args: string[] } {
+  const filter = vsockFilter();
+  if (!filter) throw new Error(`The Linux sandbox has no seccomp filter for this CPU (${process.arch}).`);
+  const run = path.join(env.dataDir, 'run');
+  fs.mkdirSync(run, { recursive: true, mode: 0o700 });
+  const file = path.join(run, `seccomp-${process.arch}.bpf`);
+  fs.writeFileSync(file, filter, { mode: 0o600 });
+  return { bin: '/bin/sh', args: ['-c', 'exec 3<"$1" && shift && exec "$@"', 'sh', file, bwrap, '--seccomp', '3', ...args] };
+}
 
 const validPort = (p: number) => Number.isInteger(p) && p > 0 && p < 65536;
 
@@ -85,37 +149,35 @@ export function bwrapRun(bwrap: string, bin: string, args: string[], c: Confinem
   ];
   // Last, so that nothing is writable but the mounts above (the empty root is writable otherwise).
   const lock = ['--remount-ro', '/'];
-  if (!ports.length && !c.listen) return { bin: bwrap, args: [...mounts, ...lock, bin, ...args] };
+  if (!ports.length && !c.listen) return withFilter(bwrap, [...mounts, ...lock, bin, ...args]);
 
-  // The bridge's folder is the app's own, never one a bot can write, except `rev` (the one socket the
-  // bot's side creates). Its mount points exist beforehand because the mount above them is read-only.
+  // The bridge's folder is the app's own and read-only inside: every socket in it is made by the app.
   const run = path.join(env.dataDir, 'run');
   fs.mkdirSync(run, { recursive: true, mode: 0o700 });
   const dir = fs.mkdtempSync(path.join(run, 'br-'));
-  const rev = path.join(dir, 'rev');
-  const revSock = path.join(rev, 'l.sock');
-  if (Buffer.byteLength(revSock) > 100) throw new Error(`The data folder path is too long for a unix socket: ${revSock}`);
-  fs.mkdirSync(rev, { mode: 0o700 });
+  const rvSock = path.join(dir, 'rv.sock');
+  if (Buffer.byteLength(rvSock) > 100) throw new Error(`The data folder path is too long for a unix socket: ${rvSock}`);
   fs.writeFileSync(path.join(dir, 'node'), '', { mode: 0o700 });
   fs.writeFileSync(path.join(dir, 'bridge.js'), BRIDGE_JS, { mode: 0o600 });
 
   return {
-    bin: bwrap,
-    args: [
+    ...withFilter(bwrap, [
       ...mounts,
-      '--ro-bind', dir, BRIDGE_DIR, '--bind', rev, `${BRIDGE_DIR}/rev`, '--ro-bind', real(process.execPath), `${BRIDGE_DIR}/node`, ...lock,
+      '--ro-bind', dir, BRIDGE_DIR, '--ro-bind', real(process.execPath), `${BRIDGE_DIR}/node`, ...lock,
       `${BRIDGE_DIR}/node`, `${BRIDGE_DIR}/bridge.js`, JSON.stringify({ fwd: ports, rev: c.listen ?? 0 }), bin, ...args,
-    ],
+    ]),
     attach(child: ChildProcess) {
       const conns = new Set<net.Socket>();
       const servers: net.Server[] = [];
       const link = (a: net.Socket, b: net.Socket | null) => {
         if (!b) { a.destroy(); return; }
-        for (const s of [a, b]) { conns.add(s); s.on('error', () => {}); s.once('close', () => { conns.delete(s); a.destroy(); b.destroy(); }); }
+        // pipe() ends the other side once its data is flushed; destroying on close would drop the
+        // last bytes of a reply sent just before the peer hung up. Only an error tears both down.
+        for (const s of [a, b]) { conns.add(s); s.on('error', () => { a.destroy(); b.destroy(); }); s.once('close', () => conns.delete(s)); }
         a.pipe(b); b.pipe(a);
       };
-      const serve = (on: string | number, dial: () => net.Socket | null) => {
-        const s = net.createServer((c) => link(c, dial()));
+      const serve = (on: string | number, dial: () => net.Socket | null, take?: (c: net.Socket) => void) => {
+        const s = net.createServer((c) => (take ? take(c) : link(c, dial())));
         // No bridge, no bot: a port already taken (by a stale process) must not leave it half connected.
         s.once('error', (e) => { console.warn(`[sandbox] bridge on ${on}: ${e.message}`); child.kill('SIGKILL'); });
         if (typeof on === 'number') s.listen(on, '127.0.0.1'); else s.listen(on);
@@ -123,8 +185,34 @@ export function bwrapRun(bwrap: string, bin: string, args: string[], c: Confinem
       };
       // Out: the process's own loopback port goes to the same port here.
       for (const p of ports) serve(path.join(dir, `f${p}.sock`), () => net.connect(p, '127.0.0.1'));
-      // In: our listener on its port goes to its socket, only if that is still a socket (the bot can write that folder).
-      if (c.listen) serve(c.listen, () => (fs.lstatSync(revSock, { throwIfNoEntry: false })?.isSocket() ? net.connect(revSock) : null));
+      // In: callers on its port wait in line; the bot's side answers each with a fresh 'D' line.
+      if (c.listen) {
+        const waiting: net.Socket[] = [];
+        let control: net.Socket | null = null;
+        serve(c.listen, () => null, (caller) => {
+          if (!control) { caller.destroy(); return; }
+          waiting.push(caller);
+          caller.once('close', () => { const i = waiting.indexOf(caller); if (i >= 0) waiting.splice(i, 1); });
+          control.write('N');
+        });
+        const rv = net.createServer((line) => {
+          line.on('error', () => line.destroy());
+          line.once('data', (chunk) => {
+            const kind = chunk[0];
+            if (chunk.length > 1) line.unshift(chunk.subarray(1));
+            if (kind === 0x43 && !control) { // 'C': the first control line wins; the bridge makes it before the program starts
+              control = line;
+              line.once('close', () => { control = null; for (const w of waiting.splice(0)) w.destroy(); });
+              return;
+            }
+            const caller = kind === 0x44 ? waiting.shift() : undefined; // 'D'
+            if (caller) link(caller, line); else line.destroy();
+          });
+        });
+        rv.once('error', (e) => { console.warn(`[sandbox] bridge socket: ${e.message}`); child.kill('SIGKILL'); });
+        rv.listen(rvSock);
+        servers.push(rv);
+      }
       // Nothing of the bot runs once bwrap has exited, so its folder cannot change while it goes.
       const done = () => {
         for (const s of servers) s.close();

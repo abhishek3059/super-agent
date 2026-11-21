@@ -145,3 +145,20 @@ test('a command with no ports starts no bridge and has no network at all', { ski
   assert.equal(run.attach, undefined);
   assert.ok(run.args.includes('--unshare-net') || run.args.includes('--unshare-all'));
 });
+
+test('the bridge folder is the app\'s and read-only inside: nothing there can be replaced', { skip }, async () => {
+  const port = await freePort();
+  const r = await sh(`ls /run/hq; ln -s /tmp /run/hq/x 2>/dev/null && echo LINKED; rm -f /run/hq/rv.sock 2>/dev/null; [ -S /run/hq/rv.sock ] && echo STILL_SOCKET; touch /run/hq/y 2>/dev/null && echo WROTE`, { listen: port });
+  assert.doesNotMatch(r.out, /LINKED|WROTE/);
+  assert.match(r.out, /STILL_SOCKET/);
+});
+
+test('vsock, the WSL2 way to the Windows host, is refused by the seccomp filter', { skip }, async () => {
+  const r = await sh(`/run/hq/node -e "try{require('net')}catch(e){}" 2>/dev/null; python3 -c "import socket
+try:
+    socket.socket(40, socket.SOCK_STREAM); print('OPENED')
+except OSError as e:
+    print('ERRNO', e.errno)" 2>&1 || true`, { listen: await freePort() });
+  assert.doesNotMatch(r.out, /OPENED/);
+  assert.match(r.out, /ERRNO 13/, `filtered with EACCES: ${r.out}`);
+});

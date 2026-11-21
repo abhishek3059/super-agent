@@ -110,14 +110,25 @@ What it does not do, or does differently:
 
 - No Keychain, clipboard, Apple events, preferences or launchd on Linux, so
   nothing to close. `system_info` is a macOS tool and answers only partly.
-- There is no seccomp filter beyond what bubblewrap sets. A bot can use the
-  kernel's system calls as your user could inside a user namespace. It
-  can write into the memory-backed `/tmp` of its own sandbox, which is empty
-  at each start and invisible to everyone else.
+- A seccomp filter refuses vsock sockets (`AF_VSOCK`, the channel WSL2 uses
+  to reach the Windows host), x32 system calls and any foreign CPU ABI. It is
+  written for x86_64 and arm64; on any other CPU, bots do not start. Other
+  system calls are open, as for your user inside a user namespace. A bot can
+  write into the memory-backed `/tmp` of its own sandbox, which is empty at
+  each start and invisible to everyone else.
+- `/etc` is mounted read-only in full, and `/proc/self/mountinfo` shows the
+  host paths of the folders mounted in. Both are visible, not writable.
+- Programs outside `/usr`, `/opt` and the Hermes folders do not run, for
+  example a Python managed by uv under `~/.local`. Install Hermes and its
+  Python under `/usr`, `/opt` or the Hermes folders.
+- WSL interop (running a Windows `.exe` from Linux) was not tested from inside
+  the sandbox. The interop socket and its environment variable are not
+  passed in, and vsock is refused.
 - The bridge runs in the server, so bots stop when the server stops, unlike
   macOS where the stale ones are stopped at the next start.
-- The bot's side of its listening socket is a file in a folder only that bot can
-  write. The server connects to it only if it is still a socket.
+- Every socket of the bridge is made by the server in a folder that is
+  read-only inside the sandbox. For the bot's own port, the bot's side dials
+  out to the server, so the server never connects to a path a bot can change.
 
 Containment needs unprivileged user namespaces. Ubuntu 24.04 can restrict them
 with AppArmor; HQ then refuses to start bots and says why (for example
@@ -351,11 +362,11 @@ none of the protections above apply, including the server's file handling.
 - `sandbox-exec` is a macOS tool that Apple marks as deprecated. The security
   review probed this app's profile from inside it; the macOS sandbox
   mechanism itself was not attacked or reviewed.
-- The Linux backend (bubblewrap and the port bridge) has had no independent
-  review. Its self-checks were written by its author and ran in a Linux
-  container, not yet on a real WSL2. [DEC-23](../../descisions.md#dec-23) and
-  AGENTS.md section 5 name the macOS sandbox, so a maintainer should confirm
-  they cover this backend before you rely on it.
+- The Linux backend (bubblewrap, the port bridge and the seccomp filter) has
+  had the shared reviewer, not an independent security review. Its
+  self-checks run in CI on Ubuntu 24.04 and ran in a Linux container, not yet
+  on a real WSL2. [DEC-23](../../descisions.md#dec-23) rule 3 and AGENTS.md
+  section 5 name it.
 
 Use synthetic speech and data while R-A.2 (real voice and personal data to
 a cloud provider) is open. The

@@ -463,3 +463,13 @@ test('worker restarts share the turn queue and refuse an already busy bot', asyn
   }
   assert.equal(laterRan, true);
 });
+
+test('the Linux seccomp filter is well formed for the CPUs it supports, and absent for others', async () => {
+  const { vsockFilter } = await import('../src/sandbox-linux.js');
+  for (const a of ['x64', 'arm64']) assert.equal(vsockFilter(a)?.length, 10 * 8, a);
+  assert.equal(vsockFilter('ia32'), null);
+  const x64 = vsockFilter('x64')!;
+  assert.equal(x64.readUInt32LE(1 * 8 + 4), 0xc000003e, 'checks the x86_64 ABI');
+  assert.equal(x64.readUInt32LE(3 * 8 + 4), 0x40000000, 'refuses x32 calls');
+  assert.equal(x64.readUInt32LE(7 * 8 + 4), 0x0005000d, 'EACCES for vsock');
+});
