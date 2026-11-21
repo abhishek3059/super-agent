@@ -130,6 +130,7 @@ function access(): string {
   const dirs = readDirs();
   return [
     `\nYou can read (never change) these folders on the operator's Mac: ${dirs.length ? dirs.join(', ') : 'none'}. Your own working folder is the only place you write files. Anything else is refused with "Operation not permitted" by HQ's sandbox on purpose: say so plainly, and never suggest Full Disk Access or other macOS permission changes to get around it.`,
+    env.memoryOn ? `For any question about the user, their preferences, people or past work, call the hq memory_search tool first; other questions you answer normally. Answer only from the entries it returns and cite them as [mem:xxxxxxxx]. If it returns nothing, say it is not in your memory and offer to remember it; never guess. When the user states a durable fact or preference, call the hq memory_save tool.` : '',
     systemInfoOn() ? `For facts about the Mac (system, disk, battery, running apps, installed apps) call the hq system_info tool.` : '',
     `${skillDirs().length ? "Your skills include the operator's own. " : ''}To share a skill you made with the other bots, save it as ${sharedSkillsDir()}/<skill-name>/SKILL.md.`,
   ].filter(Boolean).join('\n');
