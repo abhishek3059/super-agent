@@ -8,19 +8,18 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: transparent;
 .buddy[data-connection='offline'] { opacity: 0.45; filter: saturate(0.3); }
 .buddy .companion__art { width: 100%; height: 100%; }
 .buddy .companion__orbit { width: 100%; }
-.buddy .companion__head { width: 62%; transition: none; }
-.buddy .companion__face i { transform: scaleY(calc(1 + var(--level, 0) * 0.9)); }
+.buddy .companion__sphere { position: absolute; width: 72px; height: 72px; }
+.buddy[data-status='speaking'] .companion__sphere {
+  filter: drop-shadow(0 0 calc(3px + var(--level, 0) * 9px) var(--companion-accent));
+}
 
 .buddy[data-status='idle'] .companion__art { animation: buddy-bob 3.2s ease-in-out infinite; }
 .buddy[data-status='listening'] .companion__orbit { transform: scale(calc(1 + var(--level, 0) * 0.18)); border-color: var(--companion-accent); }
 .buddy[data-status='thinking'] .companion__orbit { border-top-color: var(--companion-accent); animation: buddy-spin 1.4s linear infinite; }
-.buddy[data-status='speaking'] .companion__head { transform: scale(calc(1 + var(--level, 0) * 0.12)); }
-.buddy[data-status='speaking'] .companion__face i { box-shadow: 0 0 calc(10px + var(--level, 0) * 18px) var(--companion-accent); }
 
 @keyframes buddy-bob { 50% { transform: translateY(-4px); } }
 @keyframes buddy-spin { to { transform: rotate(1turn); } }
 
 @media (prefers-reduced-motion: reduce) {
   .buddy, .buddy * { animation: none !important; transition: none !important; }
-  .buddy .companion__face i, .buddy[data-status='speaking'] .companion__head { transform: none; }
 }

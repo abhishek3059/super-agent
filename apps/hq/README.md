@@ -81,7 +81,8 @@ to the regular workspace.
 `apps/hq/desktop` is a passive companion that lives on your desktop, over
 every app (R-H.11, [decision](../../docs/approvals/jarvis-desktop-overlay-decision.md)).
 It follows your cursor and stays clear of screen edges, the menu bar, Dock and
-taskbar. It shows what HQ is doing: idle, listening, thinking or speaking,
+taskbar. Its 520-point sphere ripples with voice energy and looks toward the
+cursor. It shows what HQ is doing: idle, listening, thinking or speaking,
 with voice energy during a call. Hovering a skin in HQ's Companion panel
 previews it on the desktop at once. Clicks pass straight through it, and it
 never takes focus. Its tray (menu bar) icon offers **Follow cursor**, **Park in

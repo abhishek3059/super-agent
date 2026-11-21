@@ -6,7 +6,7 @@
   "main": "main.mjs",
   "scripts": {
     "start": "electron .",
-    "test": "node --test test/motion.test.js"
+    "test": "node --test test/*.test.js"
   },
   "devDependencies": {
     "electron": "45.2.3"
