@@ -58,10 +58,10 @@ export function ChatView() {
           </button>
           {menu && (
             <Menu
-              align="center"
+              align={showCompanion ? 'left' : 'center'}
               onClose={() => setMenu(false)}
               items={[
-                { label: detailsOpen ? 'Hide details' : 'Show details', hint: '⇧⌘,', onSelect: () => set({ detailsOpen: !detailsOpen }) },
+                ...(!showCompanion ? [{ label: detailsOpen ? 'Hide details' : 'Show details', hint: '⇧⌘,', onSelect: () => set({ detailsOpen: !detailsOpen }) }] : []),
                 { label: 'Open computer', onSelect: () => set({ viewerOpen: true, viewerMode: 'watch', viewerHint: null }) },
                 { label: 'New conversation', onSelect: () => api.fresh(bot.id).then(() => flash('Started a new conversation')).catch((e) => flash(e.message)) },
                 { label: 'Bot settings', onSelect: () => useConfigUI.getState().openBotSettings(bot.id) },
