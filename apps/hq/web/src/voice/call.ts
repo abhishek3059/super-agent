@@ -97,6 +97,17 @@ class VoiceCall {
   async start() {
     setV({ status: 'connecting', botId: this.botId, callId: null, muted: false, speaking: false, listening: false, thinking: false, working: [], captions: [], error: null, startedAt: null });
     window.addEventListener('pagehide', this.onUnload);
+    try {
+      const { enabled } = await voiceApi.options();
+      if (this.ended) return;
+      if (!enabled) {
+        this.end('Voice chat is unavailable. This HQ server needs an OpenAI Realtime API key.');
+        return;
+      }
+    } catch (e) {
+      this.end((e as Error).message || 'Could not check whether voice chat is available.');
+      return;
+    }
     let stream: MediaStream;
     try {
       stream = await openMic();
@@ -107,7 +118,9 @@ class VoiceCall {
     if (this.ended) { stream.getTracks().forEach((t) => t.stop()); return; }
     try {
       this.mic = new MicCapture(this.ctx, stream, (pcm) => this.sendAudio(pcm));
+      this.mic.muted = useVoice.getState().muted;
       await this.mic.start();
+      if (this.ended) return;
       this.sess = await voiceApi.session(this.botId);
       if (this.ended) { void voiceApi.end(this.botId, this.sess.callId, [], 'Cancelled'); return; }
       setV({ callId: this.sess.callId });

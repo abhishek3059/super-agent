@@ -5,8 +5,11 @@ import { appendRow, emitBot, getBotRow, getLive, getRow, setLive, updateRow } fr
 import type { ActivityKind, MessageBody, ToolCallBody } from '../types.js';
 import { toolkitInfo } from '../composio.js';
 import { screenForWork } from '../computer.js';
-import { engineFor } from '../engine.js';
+import { engineFor, workerConversation, workerRoute } from '../engine.js';
 import { instructionsFor } from './prompt.js';
+import { env } from '../env.js';
+import { recallFor } from '../memory.js';
+import { listMemories } from '../engine-memory.js';
 import { activityFor, appToolName, humanizeSlug, policyFor } from './tools.js';
 
 /**
@@ -378,12 +381,20 @@ async function runTurn(botId: string, trigger: Trigger) {
     // The screen first: the engine's browser and computer tools point at it.
     await screenForWork(userId, botId).catch((e) => console.warn(`[computer] screen not ready for ${botId}: ${e?.message ?? e}`));
     const engine = await engineFor(botId);
+    const route = await workerRoute(botId, engine, bot.provider, bot.model);
     if (ctrl.signal.aborted) throw new Error('interrupted');
+    const conversation = workerConversation(bot, route);
 
     let input = triggerText(trigger);
     if (bot.handback_at) {
       input = `[Note: the user took control of your screen for a while and has just handed it back. Look at the screen before you rely on what was there.]\n\n${input}`;
       db.prepare('UPDATE bots SET handback_at=NULL WHERE id=?').run(botId);
+    }
+    if (env.memoryOn && trigger.type === 'user') {
+      // A memory store that is down must not stop the bot answering; it then has its own notes only.
+      const recalled = await recallFor(userId, botId, triggerText(trigger), listMemories(botId).map((m) => m.text))
+        .catch((e) => { console.warn(`[memory] lookup failed for ${botId}: ${e?.message ?? e}`); return null; });
+      if (recalled) input = `${recalled}\n\n${input}`;
     }
 
     const res = await fetch(`${engine.url}/v1/responses`, {
@@ -391,12 +402,11 @@ async function runTurn(botId: string, trigger: Trigger) {
       signal: ctrl.signal,
       headers: { 'content-type': 'application/json', accept: 'text/event-stream', ...(engine.key ? { authorization: `Bearer ${engine.key}` } : {}) },
       body: JSON.stringify({
-        model: bot.model || 'hermes-agent',
-        ...(bot.provider ? { provider: bot.provider } : {}),
+        ...route,
         input,
         instructions: await instructionsFor(userId, botId),
         // One engine-side thread per conversation; "New chat" bumps the generation and starts another.
-        conversation: `hq-${botId}-g${bot.generation}`,
+        conversation,
         stream: true,
         store: true,
         model_options: { reasoning_effort: bot.effort ?? 'medium' },

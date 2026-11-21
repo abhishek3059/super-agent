@@ -43,6 +43,20 @@ catch {
   console.error('Could not sign in to the local Jarvis HQ server. Check its port and HQ_DATA_DIR.');
   process.exit(1);
 }
-const opener = process.platform === 'darwin' ? 'open' : process.platform === 'win32' ? 'explorer' : 'xdg-open';
-spawn(opener, [url], { detached: true, stdio: 'ignore' }).unref();
-console.log('Opened Jarvis HQ in your browser.');
+// Inside WSL the page opens in the Windows browser. The URL goes to the opener as an argument. The
+// cmd.exe fallback is a shell, which is safe only because ownerLogin allows one fixed URL shape
+// (`/api/auth/link/` and 32 word characters) with nothing cmd.exe would read as syntax.
+const inWsl = process.platform === 'linux' && (() => { try { return /microsoft/i.test(fs.readFileSync('/proc/version', 'utf8')); } catch { return false; } })();
+const openers = inWsl
+  ? [['wslview', [url]], ['cmd.exe', ['/c', 'start', '', url]]]
+  : [[process.platform === 'darwin' ? 'open' : process.platform === 'win32' ? 'explorer' : 'xdg-open', [url]]];
+let opened = false;
+for (const [cmd, args] of openers) {
+  const ok = await new Promise((resolve) => {
+    const child = spawn(cmd, args, { detached: true, stdio: 'ignore' });
+    child.once('error', () => resolve(false)); // not installed: try the next opener
+    child.once('spawn', () => { child.unref(); resolve(true); });
+  });
+  if (ok) { opened = true; break; }
+}
+console.log(opened ? 'Opened Jarvis HQ in your browser.' : `Open this link in your browser: ${url}`);

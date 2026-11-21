@@ -25,6 +25,10 @@ function relative(rel: string): string {
 /** Each folder's commands get a temporary folder of their own, so one bot's never meets another's. */
 const tmpName = (root: string) => `own-${crypto.createHash('sha256').update(root).digest('hex').slice(0, 12)}`;
 
+// The system's own stat: BSD on macOS, GNU on Linux.
+const MTIME = process.platform === 'linux' ? 'stat -c %Y' : 'stat -f %m';
+const LISTING = process.platform === 'linux' ? 'stat --printf "%F\t%s\t%Y\t%n\n"' : 'stat -f "%HT\t%z\t%m\t%N"';
+
 function inSandbox(root: string, script: string, args: string[], input?: string | Buffer, maxBuffer = 1 << 20): string {
   const run = contained('/bin/sh', ['-c', script, 'sh', ...args], { read: [], write: [root], localPorts: [] }, tmpName(root));
   return execFileSync(run.bin, run.args, { cwd: root, input, env: confinedEnv(tmpName(root)), timeout: 10_000, maxBuffer, encoding: 'utf8' });
@@ -40,7 +44,7 @@ export function writeOwn(root: string, rel: string, content: string | Buffer, mo
 /** The file's text and time, or null if it is missing, is a link, is not a plain file, or is too big. */
 export function readOwn(root: string, rel: string, maxBytes = 1 << 20): { text: string; mtimeMs: number } | null {
   try {
-    const out = inSandbox(root, '[ -f "./$1" ] && [ ! -L "./$1" ] && stat -f %m "./$1" && head -c "$2" "./$1"',
+    const out = inSandbox(root, `[ -f "./$1" ] && [ ! -L "./$1" ] && ${MTIME} "./$1" && head -c "$2" "./$1"`,
       [relative(rel), String(maxBytes + 1)], undefined, maxBytes + 64);
     const nl = out.indexOf('\n');
     const text = out.slice(nl + 1);
@@ -101,11 +105,11 @@ export async function removeOwn(root: string): Promise<void> {
 export function listOwn(root: string, rel: string): { name: string; size: number; modifiedAt: number; isDir: boolean }[] | null {
   const dir = rel ? relative(rel) : '.';
   try {
-    const out = inSandbox(root, '[ -d "./$1" ] && [ ! -L "./$1" ] && find "./$1" -mindepth 1 -maxdepth 1 \\( -type f -o -type d \\) -exec stat -f "%HT\t%z\t%m\t%N" {} +',
+    const out = inSandbox(root, `[ -d "./$1" ] && [ ! -L "./$1" ] && find "./$1" -mindepth 1 -maxdepth 1 \\( -type f -o -type d \\) -exec ${LISTING} {} +`,
       [dir], undefined, 4 << 20);
     return out.split('\n').filter(Boolean).map((line) => {
       const [type, size, mtime, ...name] = line.split('\t');
-      return { name: path.basename(name.join('\t')), size: Number(size), modifiedAt: Number(mtime) * 1000, isDir: type === 'Directory' };
+      return { name: path.basename(name.join('\t')), size: Number(size), modifiedAt: Number(mtime) * 1000, isDir: /^directory$/i.test(type) };
     });
   } catch { return null; }
 }

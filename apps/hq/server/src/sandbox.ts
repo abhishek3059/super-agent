@@ -1,11 +1,14 @@
+import type { ChildProcess } from 'node:child_process';
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { env } from './env.js';
+import { bwrapRun, probeBwrap } from './sandbox-linux.js';
 
 /**
- * Containment for a bot's processes (its Hermes gateway and its Chrome), using the macOS sandbox.
+ * Containment for a bot's processes (its Hermes gateway and its Chrome), using the macOS sandbox
+ * (this file) or, on Linux and WSL2, bubblewrap (sandbox-linux.ts) under the same rules.
  * A bot runs as the operator's user, so without this it could read the operator's files, another
  * bot's folder, and this app's session secret (and with that sign in as the operator). Inside the
  * profile a process and everything it starts can write only the folders it is given, read nothing
@@ -92,6 +95,9 @@ export function sandboxProfile(c: Confinement): string {
     // The folders themselves stay put: a bot that could remove or rename one could put a link in its
     // place, and the next profile built for it would open wherever the link points.
     write.length ? `(deny file-write* ${write.map((d) => `(literal ${q(d)})`).join(' ')})` : '',
+    // Hermes checks write access on its own home before opening SQLite. Data access
+    // satisfies the probe while unlink, rename and metadata changes stay denied.
+    write.length ? `(allow file-write-data ${write.map((d) => `(literal ${q(d)})`).join(' ')})` : '',
     // Listening: only on its own port and in its own folders. Otherwise a bot could take another
     // bot's port before that bot starts, and answer in its place.
     '(deny network-bind)',
@@ -139,20 +145,30 @@ export function confinedEnv(name: string, extra: Record<string, string> = {}): N
   };
 }
 
+/** What the bubblewrap check found, once: its path and why it cannot be used ('' when it can). */
+let bwrap: { bin: string; problem: string } | undefined;
+const linuxBackend = () => bwrap ??= (() => { const bin = which('bwrap'); return { bin, problem: probeBwrap(bin) }; })();
+
 /** True when bots can be contained on this machine. */
-export const canContain = () => process.platform === 'darwin' && fs.existsSync(SANDBOX_EXEC);
+export const canContain = () =>
+  (process.platform === 'darwin' && fs.existsSync(SANDBOX_EXEC)) || (process.platform === 'linux' && !linuxBackend().problem);
+
+/** The command to spawn. A bridged Linux process also needs `attach(child)` called with what was spawned. */
+export interface Contained { bin: string; args: string[]; attach?: (child: ChildProcess) => void }
 
 /**
  * The command that runs `bin args` inside the confinement. Fails closed: where there is no sandbox
- * (not macOS) it throws, unless the operator set HQ_UNCONTAINED=1 and accepts uncontained bots.
+ * it throws, unless the operator set HQ_UNCONTAINED=1 and accepts uncontained bots.
  */
-export function contained(bin: string, args: string[], c: Confinement, name: string): { bin: string; args: string[] } {
+export function contained(bin: string, args: string[], c: Confinement, name: string): Contained {
   fs.mkdirSync(tmpFor(name), { recursive: true, mode: 0o700 });
   const confinement = { ...c, write: [...c.write, tmpFor(name)] };
   for (const dir of confinement.write) realFolder(dir);
-  if (canContain()) return { bin: SANDBOX_EXEC, args: ['-p', sandboxProfile(confinement), bin, ...args] };
+  if (process.platform === 'darwin' && canContain()) return { bin: SANDBOX_EXEC, args: ['-p', sandboxProfile(confinement), bin, ...args] };
+  if (canContain()) return bwrapRun(linuxBackend().bin, bin, args, confinement);
   if (process.env.HQ_UNCONTAINED === '1') return { bin, args };
-  throw new Error('Bots can only be contained on macOS. Set HQ_UNCONTAINED=1 to run them uncontained at your own risk.');
+  const why = process.platform === 'linux' ? ` (${linuxBackend().problem})` : '';
+  throw new Error(`Bots can only be contained on macOS, or on Linux with bubblewrap working${why}. Set HQ_UNCONTAINED=1 to run them uncontained at your own risk.`);
 }
 
 /**

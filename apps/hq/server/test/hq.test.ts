@@ -180,8 +180,8 @@ test('voice tools require an active call for the signed-in bot', async (t) => {
   }
 });
 
-test('a bot sandbox closes reads, writes and local sockets outside what it is given', async () => {
-  const { sandboxProfile, contained, canContain } = await import('../src/sandbox.js');
+test('a bot sandbox closes reads, writes and local sockets outside what it is given', { skip: process.platform !== 'darwin' && 'the macOS profile' }, async () => {
+  const { sandboxProfile } = await import('../src/sandbox.js');
   const own = path.join(env.dataDir, 'files', 'bot_a');
   fs.mkdirSync(own, { recursive: true });
   const real = fs.realpathSync(env.dataDir);
@@ -206,6 +206,10 @@ test('a bot sandbox closes reads, writes and local sockets outside what it is gi
   const listen = sandboxProfile({ read: [], write: [own], localPorts: [], listen: 9301 });
   assert.ok(listen.indexOf('(deny network-bind)') < listen.indexOf('(allow network-bind (local ip "localhost:9301"))'));
   assert.ok(!listen.includes('localhost:9302'));
+});
+
+test('with no sandbox available, no bot starts unless the operator accepts it', async () => {
+  const { contained, canContain } = await import('../src/sandbox.js');
   if (!canContain()) assert.throws(() => contained('/bin/echo', [], { read: [], write: [], localPorts: [] }, 't'), /contained on macOS/, 'no sandbox, no bot');
 });
 
@@ -220,6 +224,7 @@ test('inside the sandbox a process cannot read the session secret or a neighbour
     const run = contained('/bin/sh', ['-c', cmd], { read: [], write: [own], localPorts: [] }, 'bot_a.t');
     try { return { ok: true, out: execFileSync(run.bin, run.args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }) }; } catch (e: any) { return { ok: false, out: String(e.stderr ?? '') }; }
   };
+  assert.equal(sh(`test -w '${own}'`).ok, true, 'Hermes can check its SQLite directory');
   assert.deepEqual(sh(`echo hi > '${own}/x' && cat '${own}/x'`), { ok: true, out: 'hi\n' });
   for (const target of [path.join(env.dataDir, 'session-secret'), path.join(other, 'private.txt'), path.join(os.homedir(), '.ssh')]) {
     const r = sh(`cat '${target}' || ls '${target}'`);
@@ -251,7 +256,10 @@ test('the server never writes or reads through a link a bot planted in its own f
   assert.equal(readOwn(root, 'read.txt'), null, 'a link is not read');
   fs.symlinkSync(env.dataDir, path.join(root, 'dir'));
   const secret = fs.readFileSync(path.join(env.dataDir, 'session-secret'), 'utf8');
-  assert.throws(() => writeOwn(root, 'dir/session-secret', 'x'), 'a linked sub-folder leads outside, so the sandboxed write fails');
+  // macOS denies the write. On Linux the link leads to a folder that exists only as a path to the
+  // bot's own folder, in a temporary root, so the write may land there: the real file is what counts.
+  if (process.platform === 'darwin') assert.throws(() => writeOwn(root, 'dir/session-secret', 'x'), 'a linked sub-folder leads outside, so the sandboxed write fails');
+  else try { writeOwn(root, 'dir/session-secret', 'x'); } catch { /* refused */ }
   assert.equal(fs.readFileSync(path.join(env.dataDir, 'session-secret'), 'utf8'), secret);
   assert.equal(readOwn(root, 'dir/session-secret'), null, 'nor can it be read through the link');
   assert.throws(() => writeOwn(root, '../escape.txt', 'x'), /outside the bot folder/);
@@ -277,7 +285,7 @@ test('a process id is only ever taken from the server\'s own folder and must mat
   assert.ok(process.pid > 0, 'this process was not signalled');
 });
 
-test('a bot that swaps its whole folder for a link gets nothing from the server', { skip: process.platform !== 'darwin' }, async () => {
+test('a bot that swaps its whole folder for a link gets nothing from the server', { skip: !['darwin', 'linux'].includes(process.platform) }, async () => {
   const { writeOwn } = await import('../src/lib/own.js');
   const { contained, confinedEnv } = await import('../src/sandbox.js');
   const { execFileSync } = await import('node:child_process');
@@ -299,7 +307,7 @@ test('a bot that swaps its whole folder for a link gets nothing from the server'
 
 // shortcut: this checks planted links, which the old recursive delete also left alone; the race it
 // guards (a folder swapped mid-delete) is not reproduced here. Covered by review, not by this test.
-test('deleting a bot folder removes what is inside it and never what a link inside it points to', { skip: process.platform !== 'darwin' }, async () => {
+test('deleting a bot folder removes what is inside it and never what a link inside it points to', { skip: !['darwin', 'linux'].includes(process.platform) }, async () => {
   const { removeOwn } = await import('../src/lib/own.js');
   const root = path.join(env.dataDir, 'files', 'bot_gone');
   fs.mkdirSync(path.join(root, 'sub'), { recursive: true });
@@ -372,4 +380,99 @@ test('a web page cannot ask for an owner sign-in challenge', async () => {
     assert.equal((await api.request(`/auth/owner?client=${client}`, { headers })).status, 403, JSON.stringify(headers));
   }
   assert.equal((await api.request(`/auth/owner?client=${client}`)).status, 200, 'the launcher (no browser headers) still can');
+});
+
+test('worker routes require a connected supported provider and keep its full model inventory', async () => {
+  const { toProviders, validWorkerRoute } = await import('../src/engine.js');
+  const models = Array.from({ length: 20 }, (_, i) => `nvidia/model-${i}`);
+  const providers = toProviders({ providers: [
+    { slug: 'nvidia', authenticated: true, featured_models: [models[0]], models: [...models, 'nvidia/embed-qa-4', 'nvidia/nemotron-3-super-120b-a12b'] },
+    { slug: 'openai-codex', authenticated: false, models: ['codex-model'] },
+    { slug: 'gemini', authenticated: true, models: ['gemini-model'] },
+    { slug: 'ollama', authenticated: true, models: ['local-model'] },
+  ] });
+  assert.deepEqual(providers.map((p) => p.id), ['nvidia', 'openai-codex']);
+  assert.deepEqual(providers[0].models, models);
+  assert.equal(validWorkerRoute(providers, 'nvidia', models[19]), true);
+  assert.equal(validWorkerRoute(providers, 'nvidia', 'codex-model'), false);
+  assert.equal(validWorkerRoute(providers, 'openai-codex', 'codex-model'), false);
+  assert.equal(validWorkerRoute(providers, 'gemini', 'gemini-model'), false);
+});
+
+async function seedEngineBot(id: string) {
+  const { db } = await import('../src/db.js');
+  db.prepare('INSERT OR IGNORE INTO users(id,email,name,created_at) VALUES (?,?,?,?)')
+    .run('usr_picker', 'picker@localhost', 'Picker Test', Date.now());
+  db.prepare('INSERT INTO bots(id,user_id,name,created_at,updated_at,engine,engine_port) VALUES (?,?,?,?,?,?,?)')
+    .run(id, 'usr_picker', 'Picker Test', Date.now(), Date.now(), 'managed', 8560);
+  return db;
+}
+
+test('engine settings refuse a missing catalog and advance the conversation revision on changed routes', async (t) => {
+  const { engineInfo, forgetEngineOptions, workerConversation } = await import('../src/engine.js');
+  const { configApi } = await import('../src/routes-config.js');
+  const botId = 'bot_picker_test';
+  const db = await seedEngineBot(botId);
+  let catalog = false;
+  t.mock.method(globalThis, 'fetch', async (url: string) => {
+    if (url.endsWith('/health')) return Response.json({ status: 'ok' });
+    if (!catalog) return new Response(null, { status: 503 });
+    return Response.json({ provider: 'nvidia', model: 'nvidia/nemotron-3-super-120b-a12b',
+      providers: [{ slug: 'nvidia', authenticated: true, models: ['chat-a','chat-b'] }] });
+  });
+  const save = (model: string) => configApi.request(`/bots/${botId}/engine`, {
+    method: 'PATCH', headers: { authorization: `Bearer ${createSession('usr_picker')}`, 'content-type': 'application/json' },
+    body: JSON.stringify({ provider: 'nvidia', model }),
+  });
+  assert.match((await engineInfo(botId)).error ?? '', /catalog is unavailable/);
+  assert.equal((await save('chat-a')).status, 409);
+  catalog = true;
+  forgetEngineOptions(botId);
+  assert.equal((await engineInfo(botId)).status, 'error', 'retired seed default cannot start a turn');
+  const bot = { id: botId, generation: 1, engine_revision: 0 };
+  assert.equal(workerConversation(bot, { provider: 'nvidia', model: 'chat-a' }), `hq-${botId}-g1`);
+  assert.equal(workerConversation(bot, { provider: 'nvidia', model: 'chat-b' }), `hq-${botId}-g1-e1`);
+  assert.throws(() => workerConversation(bot, { provider: 'nvidia', model: 'chat-a' }), /settings changed/);
+  for (const [model, revision] of [['chat-a', 2], ['chat-a', 2], ['chat-b', 3], ['chat-a', 4]] as const) {
+    assert.equal((await save(model)).status, 200);
+    assert.equal(db.prepare('SELECT engine_revision FROM bots WHERE id=?').get(botId).engine_revision, revision);
+  }
+});
+
+
+test('worker restarts share the turn queue and refuse an already busy bot', async () => {
+  const { isBotBusy, runInBotQueue } = await import('../src/agent/loop.js');
+  const { configApi } = await import('../src/routes-config.js');
+  const botId = 'bot_restart_test';
+  await seedEngineBot(botId);
+  let release!: () => void;
+  const gate = new Promise<void>((resolve) => { release = resolve; });
+  const first = runInBotQueue(botId, () => gate);
+  let laterRan = false;
+  const later = runInBotQueue(botId, async () => { laterRan = true; });
+  try {
+    assert.equal(isBotBusy(botId), true);
+    const result = await configApi.request(`/bots/${botId}/engine/restart`, {
+      method: 'POST', headers: { authorization: `Bearer ${createSession('usr_picker')}` },
+    });
+    assert.equal(result.status, 409);
+    assert.equal(laterRan, false);
+  } finally {
+    release();
+    await Promise.all([first, later]);
+  }
+  assert.equal(laterRan, true);
+});
+
+test('the Linux seccomp filter is well formed for the CPUs it supports, and absent for others', async () => {
+  const { vsockFilter } = await import('../src/sandbox-linux.js');
+  for (const a of ['x64', 'arm64']) {
+    const filter = vsockFilter(a);
+    assert.ok(filter?.length && filter.length % 8 === 0, a);
+  }
+  assert.equal(vsockFilter('ia32'), null);
+  const x64 = vsockFilter('x64')!;
+  assert.equal(x64.readUInt32LE(1 * 8 + 4), 0xc000003e, 'checks the x86_64 ABI');
+  assert.equal(x64.readUInt32LE(3 * 8 + 4), 0x40000000, 'refuses x32 calls');
+  assert.equal(x64.readUInt32LE(x64.length - 3 * 8 + 4), 0x0005000d, 'EACCES for vsock');
 });
