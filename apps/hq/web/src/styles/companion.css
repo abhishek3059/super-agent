@@ -146,7 +146,10 @@
 .companion[data-status='Listening'] .companion__stage .companion__face i { animation: companion-signal .8s ease-in-out infinite alternate; }
 
 .companion[data-status='Working'] .companion__stage .companion__orbit,
-.companion[data-status='Connecting'] .companion__stage .companion__orbit { animation: companion-scan 5s linear infinite; }
+.companion[data-status='Connecting'] .companion__stage .companion__orbit {
+  border-top-color: var(--companion-accent);
+  animation: companion-scan 5s linear infinite;
+}
 
 .companion__shadow {
   position: absolute;
@@ -206,7 +209,7 @@
   .app:has(.chat--companion) > .sidebar { display: none; }
 }
 
-@media (max-width: 660px) {
+@media (max-width: 780px) {
   .app:has(.chat) > :is(.sidebar, .details) { display: none; }
   .chat { min-width: 0; }
   .chat__header-right > :not(.companion-toggle) { display: none; }
