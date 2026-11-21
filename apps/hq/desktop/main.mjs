@@ -16,6 +16,7 @@ let tray = null;
 let mode = 'follow';
 let token = '';
 let quitting = false;
+let signing = null;
 let area = null;
 
 function send(channel, value) { if (win && !win.isDestroyed()) win.webContents.send(channel, value); }
@@ -70,7 +71,7 @@ async function listen() {
   for (let wait = 1000; ; wait = Math.min(wait * 2, 15_000)) {
     if (quitting) return;
     try {
-      if (!token) await signIn();
+      if (!token) { signing = signIn(); try { await signing; } finally { signing = null; } }
       // HQ pings every 20 s; silence for 45 s means a half-open stream (WSL2 after sleep), so start over.
       const idle = new AbortController();
       let timer = setTimeout(() => idle.abort(), 45_000);
@@ -131,11 +132,15 @@ else app.whenReady().then(() => {
 // End the owner session before exiting, so a quit never leaves a 30-day session behind.
 app.on('before-quit', (e) => {
   quitting = true;
-  if (!token) return;
+  if (!token && !signing) return;
   e.preventDefault();
-  const t = token;
-  token = '';
-  fetch(`${base}/api/auth/logout`, { method: 'POST', headers: { authorization: `Bearer ${t}` }, signal: AbortSignal.timeout(2000) })
-    .catch(() => {}).finally(() => app.exit(0));
+  // A sign-in still in flight ends its own session once it sees `quitting`; wait for it first.
+  void (async () => {
+    await signing?.catch(() => {});
+    if (token) {
+      await fetch(`${base}/api/auth/logout`, { method: 'POST', headers: { authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(2000) }).catch(() => {});
+    }
+    app.exit(0);
+  })();
 });
 for (const signal of ['SIGINT', 'SIGTERM']) process.on(signal, () => app.quit());

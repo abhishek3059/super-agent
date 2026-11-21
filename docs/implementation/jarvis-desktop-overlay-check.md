@@ -27,6 +27,7 @@ What was exercised, and how:
 | Rendering at 2x | DevTools page capture | Paper skin drawn sharply |
 | Session ends on quit | Rows in `auth_sessions` before launch, while running, after `kill -TERM` | 3, 4, 3 |
 | One copy at a time | Two launches 4 s apart | One main process, one new session |
+| Quit during startup sign-in | `kill -TERM` 0.4, 0.7 and 1.0 s after launch | `auth_sessions` unchanged (3) each time, no process left. Whether a kill landed while the sign-in was in flight, not before it, was not measured. |
 
 Self-checks: `npm test` in `apps/hq` gave 54 passed, 0 failed and 16 skipped
 (the skipped suites need Linux bubblewrap or a local pgvector). The new test
