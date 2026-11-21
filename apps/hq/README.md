@@ -59,10 +59,18 @@ A bot's Hermes gateway starts the first time you use that bot.
 ## Companion
 
 Select **Companion** in a bot's chat header, or open HQ with `/?companion`
-in a signed-in HQ tab to open the companion screen. The chat, history and voice controls
-use the current bot. The character follows your pointer and reacts to
-voice and worker activity. Hover over Arc, Ember, Carbon or Paper to preview
-it, then select the skin to save it. Appearance is shared with App Settings. **Back to chat** returns to the regular workspace.
+in a signed-in HQ tab. Chat, history and voice controls use the current bot.
+The character follows your pointer and reacts to voice and worker activity.
+Hover over Arc, Ember, Carbon or Paper to preview it, then select the skin
+to save it. Appearance is shared with App Settings. **Back to chat** returns
+to the regular workspace.
+
+- **Show me how** runs the appearance walkthrough. Each step highlights the
+  control to select and waits for your click or keyboard activation.
+- **Explain** asks for a visual explanation while the mode is selected.
+  Enter a question or paste an excerpt and send it to your selected Hermes
+  provider as a chat message. Supported replies display as numbered flow
+  cards. The companion works inside HQ and does not read your host screen.
 
 ## Windows (WSL2)
 

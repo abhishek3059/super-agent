@@ -10,7 +10,7 @@ import { useDictation } from '../voice/dictation';
 const MAX_H = 200;
 const drafts = new Map<string, string>();
 
-export function Composer({ bot, running }: { bot: Bot; running: boolean }) {
+export function Composer({ bot, running, sketch = false }: { bot: Bot; running: boolean; sketch?: boolean }) {
   const [text, setText] = useState(() => drafts.get(bot.id) ?? '');
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -21,6 +21,8 @@ export function Composer({ bot, running }: { bot: Bot; running: boolean }) {
   // Per-bot drafts.
   useEffect(() => { setText(drafts.get(bot.id) ?? ''); setError(null); ref.current?.focus(); }, [bot.id]);
   useEffect(() => { drafts.set(bot.id, text); }, [bot.id, text]);
+
+  useEffect(() => { if (sketch) ref.current?.focus(); }, [sketch]);
 
   // Auto-grow.
   useLayoutEffect(() => {
@@ -43,7 +45,7 @@ export function Composer({ bot, running }: { bot: Bot; running: boolean }) {
     if (!t || sending) return;
     setSending(true); setError(null);
     try {
-      await api.send(bot.id, t);
+      await api.send(bot.id, sketch ? text : t, sketch ? 'sketch' : undefined);
       setText('');
       drafts.delete(bot.id);
     } catch (e) {
@@ -102,12 +104,12 @@ export function Composer({ bot, running }: { bot: Bot; running: boolean }) {
             className="composer__input"
             rows={1}
             value={text}
-            placeholder={`Message ${displayName(bot)}`}
+            placeholder={sketch ? `Ask ${bot.name} to explain a topic or pasted excerpt` : `Message ${displayName(bot)}`}
             onChange={(e) => setText(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); send(); }
             }}
-            aria-label={`Message ${bot.name}`}
+            aria-label={sketch ? `Ask ${bot.name} for a sketch` : `Message ${bot.name}`}
           />
         </div>
         <div className="composer__right">

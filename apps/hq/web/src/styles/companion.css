@@ -243,3 +243,55 @@
   .companion__head { transition: none; transform: none; }
   .companion[data-status] .companion__stage :is(.companion__orbit, .companion__face i) { animation: none; }
 }
+
+.companion__actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; margin-top: 6px; }
+.companion__actions button, .companion__guide button {
+  min-height: 34px;
+  padding: 4px 9px;
+  border-radius: 7px;
+  color: var(--color-text-primary);
+  font-size: 12px;
+}
+.companion__actions button:hover, .companion__guide button:hover { background: var(--color-bg-elevated-hover); }
+.companion__actions button[aria-pressed='true'] { color: var(--color-primary); background: var(--color-bg-active); }
+.companion__actions button:disabled { opacity: .65; }
+
+.companion__guide {
+  z-index: 1;
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  margin: 0 8px 8px;
+  padding: 4px 6px 4px 10px;
+  border: 1px solid var(--color-border-secondary);
+  border-radius: 10px;
+  background: var(--color-bg-pane);
+  font-size: 13px;
+}
+.companion__guide p { margin: 0; }
+.companion__skin[data-guide-target] {
+  box-shadow: inset 0 0 0 2px var(--color-primary);
+  border-color: var(--color-primary);
+}
+
+.sketch { min-width: 0; }
+.sketch h3 { margin: 0 0 12px; color: var(--color-text-primary); font-size: 1rem; }
+.sketch__steps {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding-left: 1.6rem;
+  border-left: 1px solid var(--color-border-primary);
+}
+.sketch__steps li {
+  padding: 8px 10px;
+  border: 1px solid var(--color-border-secondary);
+  border-radius: 9px;
+  background: var(--color-bg-pane);
+  overflow-wrap: anywhere;
+}
+.sketch__steps li::marker { color: var(--color-primary); font-weight: 600; }
+.sketch__steps p { margin: 3px 0 0; color: var(--color-text-secondary); }
+.sketch__heading { margin: 0; font-size: .95rem; font-weight: 600; }

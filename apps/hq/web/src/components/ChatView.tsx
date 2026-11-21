@@ -25,6 +25,7 @@ export function ChatView() {
   const detailsOpen = useStore((s) => s.detailsOpen);
   const set = useStore((s) => s.set);
   const [companionOpen, setCompanionOpen] = useState(() => new URLSearchParams(window.location.search).has('companion'));
+  const [explainBotId, setExplainBotId] = useState<string | null>(null);
   const [menu, setMenu] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const rows = useMemo(() => sortedRows(transcript), [transcript]);
@@ -39,6 +40,7 @@ export function ChatView() {
 
   const canOpenCompanion = bot.kind !== 'room';
   const showCompanion = canOpenCompanion && companionOpen;
+  const explaining = showCompanion && explainBotId === bot.id;
   const canShowDetails = !showCompanion && !narrow;
   const toggleCompanion = () => {
     const url = new URL(window.location.href);
@@ -52,11 +54,14 @@ export function ChatView() {
 
   return (
     <main className={`chat${showCompanion ? ' chat--companion' : ''}`} style={botVars(bot.avatarColor)}>
-      {showCompanion && <Companion bot={bot} running={!!live?.isRunning} />}
+      {showCompanion && (
+        <Companion key={bot.id} bot={bot} running={!!live?.isRunning} explaining={explaining}
+          toggleExplain={() => setExplainBotId(explaining ? null : bot.id)} />
+      )}
       <div className="chat__conversation">
         <Transcript bot={bot} rows={rows} live={live} loaded={!!transcript?.loaded} />
         <VoiceCallBar />
-        <Composer bot={bot} running={!!live?.isRunning} />
+        <Composer bot={bot} running={!!live?.isRunning} sketch={explaining} />
       </div>
       <header className="chat__header">
         <span className="chat__pill-anchor">

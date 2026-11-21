@@ -253,13 +253,16 @@ api.get('/bots/:id/rows', (c) => {
 api.post('/bots/:id/messages', async (c) => {
   const b = ownBot(c.get('user').id, c.req.param('id'));
   if (!b) return c.json({ error: 'not found' }, 404);
-  const { text } = await c.req.json<{ text: string }>();
-  if (!text?.trim()) return c.json({ error: 'empty' }, 400);
-  const row = appendRow(b.id, 'message', { type: 'message', role: 'user', text: text.trim() });
+  const { text, format } = (await c.req.json<{ text?: unknown; format?: unknown } | null>().catch(() => null)) ?? {};
+  if (typeof text !== 'string' || !text.trim()) return c.json({ error: 'empty' }, 400);
+  if (format !== undefined && format !== 'sketch') return c.json({ error: 'invalid format' }, 400);
+  if (format === 'sketch' && b.kind === 'room') return c.json({ error: 'Sketch is available in direct chats' }, 400);
+  const message = format === 'sketch' ? text : text.trim();
+  const row = appendRow(b.id, 'message', { type: 'message', role: 'user', text: message });
   // Group chats dispatch to their member Bots instead of running their own loop.
-  if (b.kind === 'room') dispatchRoomMessage(b.id, text.trim(), enqueue);
+  if (b.kind === 'room') dispatchRoomMessage(b.id, message, enqueue);
   // Any pending question card is answered by a free-text message.
-  else enqueue(b.id, { type: 'user', text: text.trim() });
+  else enqueue(b.id, { type: 'user', text: message, format });
   return c.json({ row });
 });
 
