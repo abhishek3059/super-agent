@@ -5,6 +5,7 @@ import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import crypto from 'node:crypto';
 import fs from 'node:fs';
+import http from 'node:http';
 import os from 'node:os';
 import path from 'node:path';
 import { after, test } from 'node:test';
@@ -24,6 +25,22 @@ const user = 'usr_test';
 after(async () => {
   if (testDb) for (const b of [botA, botB, botC]) await mem.forgetBotMemory(b);
   await mem.closeMemory();
+});
+
+test('the embedding request stops at a redirect', async (t) => {
+  const originalUrl = env.embedUrl;
+  const requests: string[] = [];
+  const server = http.createServer((req, res) => {
+    requests.push(req.url ?? '');
+    res.writeHead(307, { location: '/redirect-target' }).end();
+  });
+  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+  t.after(() => { env.embedUrl = originalUrl; server.close(); });
+  const address = server.address();
+  assert.ok(address && typeof address === 'object');
+  env.embedUrl = `http://127.0.0.1:${address.port}`;
+  await assert.rejects(mem.ollamaEmbed('synthetic text', 'query'));
+  assert.deepEqual(requests, ['/api/embed']);
 });
 
 /** One-hot vectors keyed by a word: texts with the same word are identical, others orthogonal. */

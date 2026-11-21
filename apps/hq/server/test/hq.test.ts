@@ -180,8 +180,8 @@ test('voice tools require an active call for the signed-in bot', async (t) => {
   }
 });
 
-test('a bot sandbox closes reads, writes and local sockets outside what it is given', async () => {
-  const { sandboxProfile, contained, canContain } = await import('../src/sandbox.js');
+test('a bot sandbox closes reads, writes and local sockets outside what it is given', { skip: process.platform !== 'darwin' && 'the macOS profile' }, async () => {
+  const { sandboxProfile } = await import('../src/sandbox.js');
   const own = path.join(env.dataDir, 'files', 'bot_a');
   fs.mkdirSync(own, { recursive: true });
   const real = fs.realpathSync(env.dataDir);
@@ -206,6 +206,10 @@ test('a bot sandbox closes reads, writes and local sockets outside what it is gi
   const listen = sandboxProfile({ read: [], write: [own], localPorts: [], listen: 9301 });
   assert.ok(listen.indexOf('(deny network-bind)') < listen.indexOf('(allow network-bind (local ip "localhost:9301"))'));
   assert.ok(!listen.includes('localhost:9302'));
+});
+
+test('with no sandbox available, no bot starts unless the operator accepts it', async () => {
+  const { contained, canContain } = await import('../src/sandbox.js');
   if (!canContain()) assert.throws(() => contained('/bin/echo', [], { read: [], write: [], localPorts: [] }, 't'), /contained on macOS/, 'no sandbox, no bot');
 });
 
@@ -252,7 +256,10 @@ test('the server never writes or reads through a link a bot planted in its own f
   assert.equal(readOwn(root, 'read.txt'), null, 'a link is not read');
   fs.symlinkSync(env.dataDir, path.join(root, 'dir'));
   const secret = fs.readFileSync(path.join(env.dataDir, 'session-secret'), 'utf8');
-  assert.throws(() => writeOwn(root, 'dir/session-secret', 'x'), 'a linked sub-folder leads outside, so the sandboxed write fails');
+  // macOS denies the write. On Linux the link leads to a folder that exists only as a path to the
+  // bot's own folder, in a temporary root, so the write may land there: the real file is what counts.
+  if (process.platform === 'darwin') assert.throws(() => writeOwn(root, 'dir/session-secret', 'x'), 'a linked sub-folder leads outside, so the sandboxed write fails');
+  else try { writeOwn(root, 'dir/session-secret', 'x'); } catch { /* refused */ }
   assert.equal(fs.readFileSync(path.join(env.dataDir, 'session-secret'), 'utf8'), secret);
   assert.equal(readOwn(root, 'dir/session-secret'), null, 'nor can it be read through the link');
   assert.throws(() => writeOwn(root, '../escape.txt', 'x'), /outside the bot folder/);
@@ -278,7 +285,7 @@ test('a process id is only ever taken from the server\'s own folder and must mat
   assert.ok(process.pid > 0, 'this process was not signalled');
 });
 
-test('a bot that swaps its whole folder for a link gets nothing from the server', { skip: process.platform !== 'darwin' }, async () => {
+test('a bot that swaps its whole folder for a link gets nothing from the server', { skip: !['darwin', 'linux'].includes(process.platform) }, async () => {
   const { writeOwn } = await import('../src/lib/own.js');
   const { contained, confinedEnv } = await import('../src/sandbox.js');
   const { execFileSync } = await import('node:child_process');
@@ -300,7 +307,7 @@ test('a bot that swaps its whole folder for a link gets nothing from the server'
 
 // shortcut: this checks planted links, which the old recursive delete also left alone; the race it
 // guards (a folder swapped mid-delete) is not reproduced here. Covered by review, not by this test.
-test('deleting a bot folder removes what is inside it and never what a link inside it points to', { skip: process.platform !== 'darwin' }, async () => {
+test('deleting a bot folder removes what is inside it and never what a link inside it points to', { skip: !['darwin', 'linux'].includes(process.platform) }, async () => {
   const { removeOwn } = await import('../src/lib/own.js');
   const root = path.join(env.dataDir, 'files', 'bot_gone');
   fs.mkdirSync(path.join(root, 'sub'), { recursive: true });
@@ -455,4 +462,17 @@ test('worker restarts share the turn queue and refuse an already busy bot', asyn
     await Promise.all([first, later]);
   }
   assert.equal(laterRan, true);
+});
+
+test('the Linux seccomp filter is well formed for the CPUs it supports, and absent for others', async () => {
+  const { vsockFilter } = await import('../src/sandbox-linux.js');
+  for (const a of ['x64', 'arm64']) {
+    const filter = vsockFilter(a);
+    assert.ok(filter?.length && filter.length % 8 === 0, a);
+  }
+  assert.equal(vsockFilter('ia32'), null);
+  const x64 = vsockFilter('x64')!;
+  assert.equal(x64.readUInt32LE(1 * 8 + 4), 0xc000003e, 'checks the x86_64 ABI');
+  assert.equal(x64.readUInt32LE(3 * 8 + 4), 0x40000000, 'refuses x32 calls');
+  assert.equal(x64.readUInt32LE(x64.length - 3 * 8 + 4), 0x0005000d, 'EACCES for vsock');
 });

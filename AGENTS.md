@@ -112,7 +112,8 @@ npm run check
   instructions. [DEC-23](descisions.md#dec-23) records one bounded
   exception approved in roadmap item R-H.1. The
   experimental `apps/hq` runs Hermes workers with a shell and a browser,
-  inside the macOS sandbox, on the operator's own machine with synthetic
+  inside the macOS sandbox (or bubblewrap on Linux and WSL2, R-H.7), on the
+  operator's own machine with synthetic
   data, except folders, skills and Mac facts the operator opts in to under
   DEC-23 rule 2. It enables no tier, and it covers nothing
   outside `apps/hq`.

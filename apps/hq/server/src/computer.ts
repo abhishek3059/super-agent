@@ -27,7 +27,7 @@ const CHROMES = [
   '/Applications/Brave Browser.app/Contents/MacOS/Brave Browser',
   '/Applications/ego lite.app/Contents/MacOS/ego lite',
   '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge',
-  '/usr/bin/google-chrome', '/usr/bin/chromium', '/usr/bin/chromium-browser',
+  '/usr/bin/google-chrome', '/usr/bin/google-chrome-stable', '/usr/bin/chromium', '/usr/bin/chromium-browser', '/snap/bin/chromium',
 ];
 const chromeBin = () => env.chromeBin || CHROMES.find((p) => fs.existsSync(p)) || '';
 
@@ -200,6 +200,7 @@ async function startChrome(botId: string): Promise<void> {
   let failed = '';
   child.once('error', (e) => { failed = e.message; });
   child.unref();
+  run.attach?.(child);
   recordPid(`${botId}.chrome`, child.pid);
   for (let i = 0; i < 40; i++) {
     await new Promise((r) => setTimeout(r, 250));

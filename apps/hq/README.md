@@ -11,7 +11,9 @@ Bots run inside the macOS sandbox, which had an
 [independent security review](../../docs/reviews/jarvis-hq-security-review.md)
 on 2026-11-19: fifteen findings closed and one accepted as documented. The
 review probed the sandbox from inside its profile; macOS's sandbox mechanism
-itself was not attacked directly. It runs under a bounded
+itself was not attacked directly. On Linux and Windows (WSL2) they run inside
+bubblewrap instead, [described below](#windows-wsl2); that backend has not had
+an independent review. It runs under a bounded
 exception, [DEC-23](../../descisions.md#dec-23). The maintainer's direction is
 [recorded here](../../docs/approvals/jarvis-hq-local-team.md).
 
@@ -35,7 +37,8 @@ exception, [DEC-23](../../descisions.md#dec-23). The maintainer's direction is
 
 ## Run it
 
-You need macOS, Node.js 22 or newer, Google Chrome (or Chromium, Brave or
+You need macOS (or Linux, or Windows with WSL2: see
+[Windows (WSL2)](#windows-wsl2)), Node.js 22 or newer, Google Chrome (or Chromium, Brave or
 Ego Browser), and a compatible Hermes gateway. The local run used Hermes
 v0.22.2. Configure a supported hosted default model in `~/.hermes` or in
 the HQ seed specified by `HERMES_HOME_PRIMARY`.
@@ -52,6 +55,88 @@ npm run jarvis
 `npm run jarvis` starts the server on `http://127.0.0.1:8787` and opens it in
 your browser, signed in. `npm run open` opens another signed-in window later.
 A bot's Hermes gateway starts the first time you use that bot.
+
+## Windows (WSL2)
+
+HQ runs on Windows inside WSL2, as a Linux app. Bots are contained with
+bubblewrap. Nothing runs on the Windows side except your browser.
+
+1. Install WSL2 with Ubuntu (`wsl --install -d Ubuntu` in PowerShell) and open
+   the Ubuntu shell. Keep the repository on the Linux disk (`~/dev/...`), not
+   under `/mnt/c`.
+2. Install Node.js 22 or newer inside Ubuntu, then the sandbox:
+   `sudo apt install bubblewrap procps`. `procps` gives HQ `ps`, which it uses
+   to check the processes it started.
+3. Install Google Chrome for Linux inside Ubuntu (the `.deb` from Google puts
+   it at `/usr/bin/google-chrome-stable`), or `chromium` from a `.deb`
+   source. Set `CHROME_BIN` for another place, but it must sit under `/usr`
+   or `/opt`: the sandbox mounts nothing else. The Snap `chromium` does not run
+   inside bubblewrap.
+4. Install Hermes inside Ubuntu, as in [Run it](#run-it), with its config in
+   `~/.hermes` or in the seed `HERMES_HOME_PRIMARY` names.
+5. Then the same commands: `cd apps/hq && npm ci && npm run build && npm run jarvis`.
+   The launcher opens the signed-in page in your Windows browser (`wslview`
+   if installed, else `cmd.exe /c start`). WSL2 normally forwards
+   `127.0.0.1` to Windows (`localhostForwarding` in `.wslconfig`); if the page
+   does not load, check that setting. This launcher path is not tested on a
+   real WSL2.
+
+What the Linux backend enforces, per bot, for its gateway and its browser:
+
+- **Files.** It starts from an empty root. Only `/usr`, `/etc`, `/opt` and the
+  system links (`/bin`, `/lib`, ...) are mounted, read-only, plus the folders
+  it is given: the read folders read-only, the write folders read-write, and
+  its own temporary folder. Your home folder, the app's data folder, other
+  bots' folders and your Windows drives (`/mnt/c`) are never mounted, so they
+  do not exist for it. Nothing else is writable, including the root. The
+  folders it can write cannot be removed or renamed from inside (a mount point
+  cannot be unlinked). Programs find `HOME` set but missing.
+- **Processes.** Its own process and IPC namespace and its own `/proc`: no other
+  process is visible or can be signalled. `--die-with-parent` and a new session
+  stop it outliving the server or typing into your terminal. WSL's Windows
+  interop needs `/proc/sys/fs/binfmt_misc` and the Windows drives, and it has
+  neither, so it should not be able to start Windows programs (not tested on
+  a real WSL2).
+- **Network.** An empty network namespace: no internet and no loopback ports of
+  yours. The app carries only the listed ports over unix sockets that live in a
+  folder of its own under `run/` in the data folder (mode 0700): the tool
+  endpoint and the internet proxy go in, and the bot's own API or debugging
+  port comes out. The proxy still refuses loopback and private addresses.
+  If a port is already taken, the bot does not start.
+- **Environment.** The same small environment as on macOS: none of the
+  server's keys.
+
+What it does not do, or does differently:
+
+- No Keychain, clipboard, Apple events, preferences or launchd on Linux, so
+  nothing to close. `system_info` is a macOS tool and answers only partly.
+- A seccomp filter refuses vsock sockets (`AF_VSOCK`, the channel WSL2 uses
+  to reach the Windows host), io_uring, x32 system calls and any foreign CPU ABI. It is
+  written for x86_64 and arm64; on any other CPU, bots do not start. Other
+  system calls are open, as for your user inside a user namespace. A bot can
+  write into the memory-backed `/tmp` of its own sandbox, which is empty at
+  each start and invisible to everyone else.
+- Operator folder and skill imports are available on macOS only. On Linux and
+  WSL2, place synthetic fixtures in the bot's own working folder.
+- `/etc` is mounted read-only in full, and `/proc/self/mountinfo` shows the
+  host paths of the folders mounted in. Both are visible, not writable.
+- Programs outside `/usr`, `/opt` and the Hermes folders do not run, for
+  example a Python managed by uv under `~/.local`. Install Hermes and its
+  Python under `/usr`, `/opt` or the Hermes folders.
+- WSL interop (running a Windows `.exe` from Linux) was not tested from inside
+  the sandbox. The interop socket and its environment variable are not
+  passed in, and vsock is refused.
+- The bridge runs in the server, so bots stop when the server stops, unlike
+  macOS where the stale ones are stopped at the next start.
+- Every socket of the bridge is made by the server in a folder that is
+  read-only inside the sandbox. For the bot's own port, the bot's side dials
+  out to the server, so the server never connects to a path a bot can change.
+
+The [maintainer pilot guide](../../docs/implementation/jarvis-hq-maintainer-pilot.md)
+covers the namespace preflight, the first worker run and the evidence to record.
+If Ubuntu blocks bubblewrap user namespaces, stop and record the reason. Fix
+host policy with a reviewed, scoped AppArmor configuration before continuing.
+
 
 ## Voice
 
@@ -95,8 +180,8 @@ All optional, read from the environment or from `~/.super-agent/hq/.env`.
 | `CHROME_BIN` | auto | Browser for the bots: Chrome, Chromium, Brave or Ego Browser, first found |
 | `MAX_BOTS` | `8` | Team size limit |
 | `HERMES_HOME_PRIMARY` | `~/.hermes` | The Hermes seed. Set it to a folder only HQ uses, other than `~/.hermes`, to turn on account sign-in in HQ |
-| `HQ_READ_DIRS` | none | Folders bots may read, never change, separated by `:` (for example `~/dev:~/Documents`) |
-| `HQ_SKILL_DIRS` | none | Skill folders every bot loads, read-only (for example `~/.claude/skills:~/.hermes/skills`) |
+| `HQ_READ_DIRS` | none | macOS only. Read-only folders, separated by `:` (for example `~/dev:~/Documents`) |
+| `HQ_SKILL_DIRS` | none | macOS only. Read-only skill folders (for example `~/.claude/skills:~/.hermes/skills`) |
 | `HQ_SYSTEM_INFO` | off | `1` turns on the read-only `system_info` tool |
 | `HQ_MEMORY_DB_URL` | none | PostgreSQL + pgvector URL, for example `postgres://hq:<password>@127.0.0.1:5433/hq_memory`. Unset turns semantic memory off. Must point at `127.0.0.1`, `localhost` or `::1`, or it stays off with a warning |
 | `HQ_EMBED_URL` | `http://127.0.0.1:11434` | Ollama for embeddings. Same local-only rule |
@@ -147,12 +232,12 @@ this line to `~/.super-agent/hq/.env`, with your password, and restart HQ:
 HQ_MEMORY_DB_URL=postgres://hq:<password>@127.0.0.1:5433/hq_memory
 ```
 
-Set up on Windows: install Docker Desktop with the WSL2 backend and Ollama for
-Windows (or run Ollama inside WSL2 and make sure `127.0.0.1:11434` answers from
-the host). Run `ollama pull nomic-embed-text`, set `POSTGRES_PASSWORD` in
-PowerShell (`$env:POSTGRES_PASSWORD = "..."`), run the same `docker compose`
-command from `apps/hq`, and put the same `HQ_MEMORY_DB_URL` line in
-`%USERPROFILE%\.super-agent\hq\.env`. Windows is not tested.
+On Windows, run the same memory setup from **inside Ubuntu WSL2**. The HQ
+server must reach PostgreSQL and Ollama on its own loopback interface. Run
+Ollama in Ubuntu, use Docker with WSL integration for PostgreSQL, and set
+`HQ_MEMORY_DB_URL` in the Ubuntu HQ data directory's owner-only `.env`.
+The Windows user profile's `.env` is outside this configuration. See the
+[maintainer pilot guide](../../docs/implementation/jarvis-hq-maintainer-pilot.md#optional-semantic-memory).
 
 The compose file binds the database to `127.0.0.1:5433` and keeps it in the
 named volume `hq-memory-data`. The tables are created on first use with
@@ -228,15 +313,19 @@ A provider that rotates copied sign-in tokens may sign out the owner profile.
 
 ### Containment
 
-Each bot's Hermes gateway and its browser run inside the macOS sandbox
-(`sandbox-exec`), and so does everything they start. Inside it a bot:
+Each bot's Hermes gateway and its browser run inside a sandbox, and so does
+everything they start. macOS uses `sandbox-exec`. Linux and WSL2 use
+bubblewrap (`bwrap`) with a port bridge, under the same rules. HQ refuses to
+start a bot where neither works, unless you set `HQ_UNCONTAINED=1` and accept
+uncontained bots. The list below is the macOS behaviour; the
+[Windows (WSL2)](#windows-wsl2) section says how Linux differs. Inside it a bot:
 
 - can write only inside its own Hermes home, its working folder, its browser
   profile and its own temporary folder, and cannot remove or rename those
   folders themselves. Nothing else on the disk is
   writable, so it cannot replace a program you run later (Homebrew,
   `/usr/local`, `/Applications`);
-- can read the Hermes program and system files, the folders in
+- can read the Hermes program and system files, and on macOS the folders in
   `HQ_READ_DIRS` and your skill folders (`HQ_SKILL_DIRS`, plus where linked
   skills really live), and nothing else in your home folder, the app's data
   folder (session secret, database, other bots' folders), the shared
@@ -298,8 +387,8 @@ write:
   retains the PID record and fails startup. A bot delete stays retryable
   when its process cannot be checked or stopped.
 
-Without a sandbox the app refuses to start a bot. That means macOS only,
-unless you set `HQ_UNCONTAINED=1` and accept uncontained bots. In that mode
+Without a sandbox the app refuses to start a bot. That means macOS, or Linux
+and WSL2 with a working `bwrap`, unless you set `HQ_UNCONTAINED=1` and accept uncontained bots. In that mode
 none of the protections above apply, including the server's file handling.
 
 **What containment does not cover.**
@@ -328,6 +417,11 @@ none of the protections above apply, including the server's file handling.
 - `sandbox-exec` is a macOS tool that Apple marks as deprecated. The security
   review probed this app's profile from inside it; the macOS sandbox
   mechanism itself was not attacked or reviewed.
+- The Linux backend (bubblewrap, the port bridge and the seccomp filter) has
+  had the shared reviewer, not an independent security review. Its
+  self-checks run in CI on Ubuntu 24.04 and ran in a Linux container, not yet
+  on a real WSL2. [DEC-23](../../descisions.md#dec-23) rule 3 and AGENTS.md
+  section 5 name it.
 
 Use synthetic speech and data while R-A.2 (real voice and personal data to
 a cloud provider) is open. The
@@ -354,6 +448,6 @@ npm run build
 `npm run dev` runs the server and Vite on port 5173. `npm test` runs the
 self-checks: the request guards, the viewer input filter, the handoff reply
 rule, the owner key and approvals, the services that stay off, the sandbox
-profile, live escape attempts inside the sandbox (macOS only), planted and
-swapped links, process-id checks, and semantic memory (its SQL tests run only when
-`HQ_MEMORY_TEST_DB_URL` points at a local pgvector Postgres).
+profile, process checks, and containment checks on macOS and Linux. Semantic
+memory SQL tests run only when `HQ_MEMORY_TEST_DB_URL` points at a local pgvector
+database.

@@ -27,6 +27,7 @@ export type Embedder = (text: string, kind: 'document' | 'query') => Promise<num
 export async function ollamaEmbed(text: string, kind: 'document' | 'query'): Promise<number[]> {
   const res = await fetch(`${env.embedUrl.replace(/\/$/, '')}/api/embed`, {
     method: 'POST',
+    redirect: 'error',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ model: env.embedModel, input: `search_${kind}: ${text}` }),
     signal: AbortSignal.timeout(EMBED_TIMEOUT_MS),

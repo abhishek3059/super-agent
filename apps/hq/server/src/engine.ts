@@ -262,7 +262,9 @@ function gatewayPid(botId: string): number | null {
     const real = fs.existsSync(home) ? fs.realpathSync(home) : home; // lsof prints resolved paths
     if (cmd.includes(`${home}/`) || cwd === real || cwd.startsWith(`${real}/`)) return pid;
   }
-  return null;
+  // On Linux the gateway listens inside its own network namespace: the listener above is this
+  // server's bridge. The launcher (bubblewrap) lasts as long as anything runs in the namespace.
+  return process.platform === 'linux' ? livePid(`${botId}.gateway`, GATEWAY) : null;
 }
 
 /** The internet, for a confined process: only through the proxy. Loopback stays direct (its own listed ports). */
@@ -362,6 +364,7 @@ async function startGateway(botId: string): Promise<void> {
   });
   fs.closeSync(log);
   recordPid(`${botId}.gateway`, child.pid);
+  run.attach?.(child);
   let exited: string | null = null;
   child.once('error', (e) => { exited = `could not run ${env.hermesBin}: ${e.message}`; });
   child.once('exit', (code) => { exited = `the agent stopped while starting (exit ${code}). See ${logFile}`; });
