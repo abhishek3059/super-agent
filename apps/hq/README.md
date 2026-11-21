@@ -109,19 +109,25 @@ pgvector, found again by meaning. Embeddings come from a local Ollama. Nothing
 here leaves the machine, and the app refuses a database or embedding URL that
 is not `127.0.0.1`, `localhost` or `::1`.
 
-With memory on, each bot gets two tools. `memory_save` stores one fact for that
-bot. `memory_search` first copies the bot's own Hermes notes (`MEMORY.md` and
-`USER.md`) into the table, then returns the closest entries with a `[mem:xxxxxxxx]`
-citation, or says there is no match. A bot only ever reads its own rows.
-Deleting a bot deletes its rows. Its persona tells it to answer questions about
-the user and past work only from those entries, to cite them, and to say so when
-memory has nothing.
+With memory on, before each message you send, the app copies the bot's own
+Hermes notes (`MEMORY.md` and `USER.md`) into the table and looks up the
+closest entries itself. Up to five that pass the similarity cutoff go to the
+bot with your message, fenced and marked as notes that are data, never
+instructions, each with a `[mem:xxxxxxxx]` id. The bot is told to answer
+questions about you and past work from them, cite them, and say "not in
+memory" when they hold no answer, and to answer other questions normally. The
+bot can also call `memory_save` and `memory_search` itself. A bot only ever
+reads its own rows. A lookup that takes longer than 8 seconds is dropped and
+the turn goes on without it.
 
-What is grounded: answers a bot gives after calling `memory_search`, as far as
-its model follows the persona. What is not: the persona is an instruction, not a
-guard, so the app cannot stop a model from answering from its own training. The
-entries `memory_search` returns are sent to the bot's model provider like any
-tool result, so use synthetic data until R-A.2 is decided. Memory covers only
+Deleting a bot deletes its rows while memory is on and the database answers.
+Otherwise the rows stay until you remove them in the database.
+
+What is grounded: answers about you and past work, as far as the model
+follows that instruction. What is not: it is an instruction, not a guard, so
+the app cannot stop a model from answering from its own training. The matching
+entries are sent to the bot's hosted model provider with every message they
+match, so use synthetic data until R-A.2 is decided. Memory covers only
 what was saved or written to the Hermes notes, not chat history, files or the
 Library.
 

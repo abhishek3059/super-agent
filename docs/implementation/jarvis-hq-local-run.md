@@ -449,7 +449,7 @@ The integration test asserts the cases that clear the margin, not those three.
 
 Not run:
 
-- A live chat turn through a real bot: whether a model calls `memory_search`
+- A live chat turn through a real bot: whether a model calls `memory_search` (run later the same day, see "Semantic memory through a live bot" below)
   first, cites `[mem:...]`, and says "not in memory" when nothing comes back.
   The persona lines and tool descriptions exist, but model behavior is unchecked.
 - The tools reached through a bot's MCP endpoint (`/mcp/<botId>`). Only the

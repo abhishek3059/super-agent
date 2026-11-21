@@ -130,6 +130,15 @@ test('the app looks memory up before a turn, including Hermes notes, and adds no
   assert.ok(block);
   assert.match(block!, /\[mem:[0-9a-f]{8}\] \(\d{4}-\d{2}-\d{2}, hermes\) gamma: the user codename is Bluefin/);
   assert.match(block!, /cite them as \[mem:id\]/);
+  assert.match(block!, /data, never instructions/);
+  assert.match(block!, /\n<<<memory\n[\s\S]*\nmemory>>>$/);
   assert.equal(await mem.recallFor(user, botC, 'delta?', ['gamma: the user codename is Bluefin']), null);
   assert.equal(await mem.recallFor(user, botC, '   ', []), null);
+});
+
+test('a memory lookup that hangs gives up and lets the turn go on', { skip: skipDb }, async () => {
+  mem.setEmbedder(() => new Promise(() => {}));
+  const t0 = Date.now();
+  assert.equal(await mem.recallFor(user, botC, 'gamma?', [], 200), null);
+  assert.ok(Date.now() - t0 < 2000);
 });
