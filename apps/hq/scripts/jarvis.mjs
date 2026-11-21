@@ -43,6 +43,18 @@ catch {
   console.error('Could not sign in to the local Jarvis HQ server. Check its port and HQ_DATA_DIR.');
   process.exit(1);
 }
-const opener = process.platform === 'darwin' ? 'open' : process.platform === 'win32' ? 'explorer' : 'xdg-open';
-spawn(opener, [url], { detached: true, stdio: 'ignore' }).unref();
+// Inside WSL the page opens in the Windows browser. The URL is one fixed shape (checked in ownerLogin),
+// and goes to the opener as an argument, never through a shell.
+const inWsl = process.platform === 'linux' && (() => { try { return /microsoft/i.test(fs.readFileSync('/proc/version', 'utf8')); } catch { return false; } })();
+const openers = inWsl
+  ? [['wslview', [url]], ['cmd.exe', ['/c', 'start', '', url]]]
+  : [[process.platform === 'darwin' ? 'open' : process.platform === 'win32' ? 'explorer' : 'xdg-open', [url]]];
+for (const [cmd, args] of openers) {
+  const ok = await new Promise((resolve) => {
+    const child = spawn(cmd, args, { detached: true, stdio: 'ignore' });
+    child.once('error', () => resolve(false)); // not installed: try the next opener
+    child.once('spawn', () => { child.unref(); resolve(true); });
+  });
+  if (ok) break;
+}
 console.log('Opened Jarvis HQ in your browser.');

@@ -289,7 +289,9 @@ inside the bot's sandbox).
   Voice preview and dictation are still not run.
 - Composio connected apps and xAI `x_search`. Both are switched off in code.
 - All five browsers at once. Five gateways and two browsers ran together.
-- Windows and Linux. Bots do not start there without `HQ_UNCONTAINED=1`.
+- Windows. Linux containment ran only in a Docker container, not on a real
+  WSL2 ([WSL2 and Linux containment, 2026-11-21](#wsl2-and-linux-containment-2026-11-21)).
+  Without a working sandbox bots do not start unless `HQ_UNCONTAINED=1` is set.
 - Nothing further for CI: the Jarvis HQ workflow (typecheck, self-checks,
   build on macOS) runs on every push to PR #56 and passed on `e71f06f` and
   `f96184e`.
@@ -402,3 +404,65 @@ output and skill names) to hosted NVIDIA Nemotron. DEC-23 allows synthetic
 data only until R-A.2 is decided. The shared reviewer flagged it. The read
 folders, skill folders and `system_info` are now off by default, and
 `HQ_READ_DIRS` was removed from the test workspace the same day.
+
+## WSL2 and Linux containment, 2026-11-21
+
+Roadmap item R-H.7. A Linux backend for the bot sandbox: bubblewrap with a
+port bridge (`apps/hq/server/src/sandbox-linux.ts`), so HQ can run inside WSL2.
+macOS behaviour is unchanged.
+
+What ran. Real WSL2 on Windows: **not run**. Everything below ran in a Docker
+Linux container on the maintainer's Mac, which is not WSL2 (different kernel
+and init, no Windows interop, no `/mnt/c`):
+
+- Image: `node:22-bookworm` (arm64) plus `bubblewrap procps lsof curl chromium`
+  from Debian. Linux kernel 7.0.14-linuxkit, bubblewrap 0.8.0, Node v22.23.5,
+  Chromium 156.
+- Run as the non-root user `node`, with `docker run --privileged`.
+  `--privileged` was used only so bubblewrap can create namespaces and mount a
+  fresh `/proc` inside Docker. It is not something HQ needs on a normal Linux
+  or WSL2 host. The source tree was a copy, so the host's files were not
+  modified.
+- `npm test` in `apps/hq/server` in that container: 52 tests, 49 passed, 0
+  failed, 3 skipped. The 3 skips are the macOS-only profile and live checks
+  (they build or probe the `sandbox-exec` profile).
+- The new `test/linux-sandbox.test.ts` ran real contained processes and
+  asserted: the operator's home file, the data folder's `session-secret` and a
+  neighbour bot's file are not readable (the data folder lists only the path to
+  the folders it was given); a `read` folder is readable and not writable; a
+  `write` folder is writable and the write reaches the real disk; `/usr`,
+  `/etc`, `/`, the home and a neighbour's folder are not writable; a write
+  folder cannot be removed or renamed; no other process is visible in `/proc`
+  and the server cannot be signalled; an unlisted loopback port (as
+  `127.0.0.1`, `localhost` and `0.0.0.0`) and the internet are refused and the
+  canary was never hit; a listed port reaches the host through the bridge and
+  an unlisted one stays closed; the host reaches a port the process listens
+  on, through the reverse bridge, and still does after the launcher exited;
+  a second box that lists that port reaches it (a gateway reaching its
+  browser); the host port and the bridge folder are gone when the child ends;
+  a listen port already taken stops the bot from starting.
+- Two existing tests now also run on Linux (the swapped-folder test and the
+  folder-delete test) and passed. The macOS profile test and the `system_info`
+  process list are macOS only and are skipped or limited there.
+- Ad hoc, not in the suite: Debian Chromium started through the same call
+  `startChrome` makes (`--no-sandbox`, `--remote-debugging-port`, proxy flags).
+  Its DevTools port answered on the host through the reverse bridge (HTTP and a
+  websocket `Page.captureScreenshot`, 8.5 KB of data), the pid check by command
+  line found it, and killing the launcher closed the port. A Hermes gateway
+  was not run: Hermes is not installed there, so the gateway start path is
+  covered only by the launcher-exit test with a stand-in server.
+- macOS, same branch: `npm test` 52 tests, 46 passed, 0 failed, 6 skipped (the
+  six Linux-only tests); `npm run typecheck` and `npm run build` passed; root
+  `npm run check` passed.
+
+Not run: real WSL2 and Ubuntu 24.04 with AppArmor (the user-namespace
+restriction documented in the README is from its documentation, not tested
+here); the launcher's `wslview` and `cmd.exe` paths; a Hermes gateway under
+bubblewrap; a CI job for Linux; an independent review of the Linux backend.
+`DEC-23` and AGENTS.md section 5 still name the macOS sandbox. A maintainer
+decides whether they cover this backend.
+
+Found while testing on Linux, and fixed: the bridge helper started the program
+before its ports were open (a race); the empty root that bubblewrap makes is
+writable unless it is remounted read-only; the file helper's `stat` calls used
+BSD flags.

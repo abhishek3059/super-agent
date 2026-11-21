@@ -11,7 +11,9 @@ Bots run inside the macOS sandbox, which had an
 [independent security review](../../docs/reviews/jarvis-hq-security-review.md)
 on 2026-11-19: fifteen findings closed and one accepted as documented. The
 review probed the sandbox from inside its profile; macOS's sandbox mechanism
-itself was not attacked directly. It runs under a bounded
+itself was not attacked directly. On Linux and Windows (WSL2) they run inside
+bubblewrap instead, [described below](#windows-wsl2); that backend has not had
+an independent review. It runs under a bounded
 exception, [DEC-23](../../descisions.md#dec-23). The maintainer's direction is
 [recorded here](../../docs/approvals/jarvis-hq-local-team.md).
 
@@ -35,7 +37,8 @@ exception, [DEC-23](../../descisions.md#dec-23). The maintainer's direction is
 
 ## Run it
 
-You need macOS, Node.js 22 or newer, Google Chrome (or Chromium, Brave or
+You need macOS (or Linux, or Windows with WSL2: see
+[Windows (WSL2)](#windows-wsl2)), Node.js 22 or newer, Google Chrome (or Chromium, Brave or
 Ego Browser), and a compatible Hermes gateway. The local run used Hermes
 v0.22.2. Configure a supported hosted default model in `~/.hermes` or in
 the HQ seed specified by `HERMES_HOME_PRIMARY`.
@@ -52,6 +55,82 @@ npm run jarvis
 `npm run jarvis` starts the server on `http://127.0.0.1:8787` and opens it in
 your browser, signed in. `npm run open` opens another signed-in window later.
 A bot's Hermes gateway starts the first time you use that bot.
+
+## Windows (WSL2)
+
+HQ runs on Windows inside WSL2, as a Linux app. Bots are contained with
+bubblewrap. Nothing runs on the Windows side except your browser.
+
+1. Install WSL2 with Ubuntu (`wsl --install -d Ubuntu` in PowerShell) and open
+   the Ubuntu shell. Keep the repository on the Linux disk (`~/dev/...`), not
+   under `/mnt/c`.
+2. Install Node.js 22 or newer inside Ubuntu, then the sandbox:
+   `sudo apt install bubblewrap procps`. `procps` gives HQ `ps`, which it uses
+   to check the processes it started.
+3. Install Google Chrome for Linux inside Ubuntu (the `.deb` from Google puts
+   it at `/usr/bin/google-chrome-stable`), or `chromium` from a `.deb`
+   source. Set `CHROME_BIN` for another place, but it must sit under `/usr`
+   or `/opt`: the sandbox mounts nothing else. The Snap `chromium` does not run
+   inside bubblewrap.
+4. Install Hermes inside Ubuntu, as in [Run it](#run-it), with its config in
+   `~/.hermes` or in the seed `HERMES_HOME_PRIMARY` names.
+5. Then the same commands: `cd apps/hq && npm ci && npm run build && npm run jarvis`.
+   The launcher opens the signed-in page in your Windows browser (`wslview`
+   if installed, else `cmd.exe /c start`). WSL2 normally forwards
+   `127.0.0.1` to Windows (`localhostForwarding` in `.wslconfig`); if the page
+   does not load, check that setting. This launcher path is not tested on a
+   real WSL2.
+
+What the Linux backend enforces, per bot, for its gateway and its browser:
+
+- **Files.** It starts from an empty root. Only `/usr`, `/etc`, `/opt` and the
+  system links (`/bin`, `/lib`, ...) are mounted, read-only, plus the folders
+  it is given: the read folders read-only, the write folders read-write, and
+  its own temporary folder. Your home folder, the app's data folder, other
+  bots' folders and your Windows drives (`/mnt/c`) are never mounted, so they
+  do not exist for it. Nothing else is writable, including the root. The
+  folders it can write cannot be removed or renamed from inside (a mount point
+  cannot be unlinked). Programs find `HOME` set but missing.
+- **Processes.** Its own process and IPC namespace and its own `/proc`: no other
+  process is visible or can be signalled. `--die-with-parent` and a new session
+  stop it outliving the server or typing into your terminal. WSL's Windows
+  interop needs `/proc/sys/fs/binfmt_misc` and the Windows drives, and it has
+  neither, so it should not be able to start Windows programs (not tested on
+  a real WSL2).
+- **Network.** An empty network namespace: no internet and no loopback ports of
+  yours. The app carries only the listed ports over unix sockets that live in a
+  folder of its own under `run/` in the data folder (mode 0700): the tool
+  endpoint and the internet proxy go in, and the bot's own API or debugging
+  port comes out. The proxy still refuses loopback and private addresses.
+  If a port is already taken, the bot does not start.
+- **Environment.** The same small environment as on macOS: none of the
+  server's keys.
+
+What it does not do, or does differently:
+
+- No Keychain, clipboard, Apple events, preferences or launchd on Linux, so
+  nothing to close. `system_info` is a macOS tool and answers only partly.
+- There is no seccomp filter beyond what bubblewrap sets. A bot can use the
+  kernel's system calls as your user could inside a user namespace. It
+  can write into the memory-backed `/tmp` of its own sandbox, which is empty
+  at each start and invisible to everyone else.
+- The bridge runs in the server, so bots stop when the server stops, unlike
+  macOS where the stale ones are stopped at the next start.
+- The bot's side of its listening socket is a file in a folder only that bot can
+  write. The server connects to it only if it is still a socket.
+
+Containment needs unprivileged user namespaces. Ubuntu 24.04 can restrict them
+with AppArmor; HQ then refuses to start bots and says why (for example
+`bwrap: setting up uid map: Permission denied`). Either allow them:
+
+```bash
+sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+echo 'kernel.apparmor_restrict_unprivileged_userns=0' | sudo tee /etc/sysctl.d/60-hq-userns.conf
+```
+
+or give `bwrap` an AppArmor profile that allows `userns` (Ubuntu's
+`bwrap-userns-restrict` profile is the reference). To check it works:
+`bwrap --ro-bind / / --unshare-all --die-with-parent true && echo ok`.
 
 ## Voice
 
@@ -168,8 +247,12 @@ A provider that rotates copied sign-in tokens may sign out the owner profile.
 
 ### Containment
 
-Each bot's Hermes gateway and its browser run inside the macOS sandbox
-(`sandbox-exec`), and so does everything they start. Inside it a bot:
+Each bot's Hermes gateway and its browser run inside a sandbox, and so does
+everything they start. macOS uses `sandbox-exec`. Linux and WSL2 use
+bubblewrap (`bwrap`) with a port bridge, under the same rules. HQ refuses to
+start a bot where neither works, unless you set `HQ_UNCONTAINED=1` and accept
+uncontained bots. The list below is the macOS behaviour; the
+[Windows (WSL2)](#windows-wsl2) section says how Linux differs. Inside it a bot:
 
 - can write only inside its own Hermes home, its working folder, its browser
   profile and its own temporary folder, and cannot remove or rename those
@@ -238,8 +321,8 @@ write:
   retains the PID record and fails startup. A bot delete stays retryable
   when its process cannot be checked or stopped.
 
-Without a sandbox the app refuses to start a bot. That means macOS only,
-unless you set `HQ_UNCONTAINED=1` and accept uncontained bots. In that mode
+Without a sandbox the app refuses to start a bot. That means macOS, or Linux
+and WSL2 with a working `bwrap`, unless you set `HQ_UNCONTAINED=1` and accept uncontained bots. In that mode
 none of the protections above apply, including the server's file handling.
 
 **What containment does not cover.**
@@ -268,6 +351,11 @@ none of the protections above apply, including the server's file handling.
 - `sandbox-exec` is a macOS tool that Apple marks as deprecated. The security
   review probed this app's profile from inside it; the macOS sandbox
   mechanism itself was not attacked or reviewed.
+- The Linux backend (bubblewrap and the port bridge) has had no independent
+  review. Its self-checks were written by its author and ran in a Linux
+  container, not yet on a real WSL2. [DEC-23](../../descisions.md#dec-23) and
+  AGENTS.md section 5 name the macOS sandbox, so a maintainer should confirm
+  they cover this backend before you rely on it.
 
 Use synthetic speech and data while R-A.2 (real voice and personal data to
 a cloud provider) is open. The
@@ -294,5 +382,6 @@ npm run build
 `npm run dev` runs the server and Vite on port 5173. `npm test` runs the
 self-checks: the request guards, the viewer input filter, the handoff reply
 rule, the owner key and approvals, the services that stay off, the sandbox
-profile, live escape attempts inside the sandbox (macOS only), planted and
-swapped links, and process-id checks.
+profile, live escape attempts inside the sandbox (macOS and Linux each run
+their own, and skip the other's), the Linux port bridge, planted and swapped
+links, and process-id checks.
