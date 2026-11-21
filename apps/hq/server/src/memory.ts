@@ -151,7 +151,7 @@ export async function recallFor(userId: string, botId: string, message: string, 
   if (!query) return null;
   const found = await searchMemory(userId, botId, query, 5, hermesEntries);
   if (found === NO_MATCH) return null;
-  return `[Memory lookup by the app for this message. These entries may or may not be relevant. Use only the ones that answer it, cite them as [mem:id], and if the answer is not here or in your own notes, say it is not in your memory rather than guess.]\n${found}`;
+  return `[Memory lookup by the app for this message. These entries may or may not be relevant. If the message asks about the user, their preferences, people or past work, answer from the entries that fit, cite them as [mem:id], and if the answer is not here or in your own notes, say it is not in your memory rather than guess. For any other question (general knowledge, a task), answer normally and ignore these entries.]\n${found}`;
 }
 
 /** A deleted bot leaves no memory rows behind. */
