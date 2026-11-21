@@ -1,10 +1,12 @@
 import { useEffect, useId, useRef, useState, type PointerEvent } from 'react';
 import type { Bot } from '@shared/types';
 import { SKINS, useConfigUI, type Theme } from '../configStore';
-import { endCall, isCallActive, startCall, useVoice } from '../voice/call';
+import { callLevels, endCall, isCallActive, startCall, useVoice } from '../voice/call';
 import { Icon } from './Icon';
 
 type Skin = (typeof SKINS)[number];
+
+const motionPreference = window.matchMedia('(prefers-reduced-motion: reduce)');
 
 const skinNames: Record<Skin, string> = { arc: 'Arc', ember: 'Ember', carbon: 'Carbon', paper: 'Paper' };
 
@@ -20,18 +22,35 @@ function CompanionArt({ look }: { look: Theme }) {
   );
 }
 
-function trackPointer(event: PointerEvent<HTMLElement>) {
-  if (event.pointerType === 'touch') return;
-  const { currentTarget, clientX, clientY } = event;
-  const bounds = currentTarget.getBoundingClientRect();
-  currentTarget.style.setProperty('--look-x', `${(clientX - bounds.x - bounds.width / 2) / bounds.width * 24}px`);
-  currentTarget.style.setProperty('--look-y', `${(clientY - bounds.y - bounds.height / 2) / bounds.height * 18}px`);
-}
-
 export function Companion({ bot, running, explaining, toggleExplain }: {
   bot: Bot; running: boolean; explaining: boolean; toggleExplain: () => void;
 }) {
   const instructionId = useId();
+  const stage = useRef<HTMLDivElement>(null);
+  const pointerFrame = useRef(0);
+  const pointer = useRef({ x: 0, y: 0 });
+  useEffect(() => () => cancelAnimationFrame(pointerFrame.current), []);
+
+  const followPointer = (event: PointerEvent<HTMLElement>) => {
+    if (event.pointerType === 'touch' || motionPreference.matches) return;
+    const { currentTarget } = event;
+    pointer.current.x = event.clientX;
+    pointer.current.y = event.clientY;
+    if (pointerFrame.current) return;
+    pointerFrame.current = requestAnimationFrame(() => {
+      pointerFrame.current = 0;
+      const { x, y, width, height } = currentTarget.getBoundingClientRect();
+      if (!width || !height) return;
+      stage.current?.style.setProperty('--look-x', `${((pointer.current.x - x) / width - 0.5) * 30}px`);
+      stage.current?.style.setProperty('--look-y', `${((pointer.current.y - y) / height - 0.5) * 20}px`);
+    });
+  };
+  const resetPointer = () => {
+    cancelAnimationFrame(pointerFrame.current);
+    pointerFrame.current = 0;
+    stage.current?.style.removeProperty('--look-x');
+    stage.current?.style.removeProperty('--look-y');
+  };
   const theme = useConfigUI((s) => s.theme);
   const setTheme = useConfigUI((s) => s.setTheme);
   const [preview, setPreview] = useState<Skin | null>(null);
@@ -54,29 +73,61 @@ export function Companion({ bot, running, explaining, toggleExplain }: {
   const inCall = useVoice((s) => s.botId === bot.id && isCallActive(s));
   const voiceState = useVoice((s) => {
     if (s.botId !== bot.id) return null;
+    if (s.status === 'error') return 'Call unavailable';
     if (s.status === 'connecting') return 'Connecting';
     if (s.status !== 'live') return null;
     if (s.speaking) return 'Speaking';
-    if (s.listening) return 'Listening';
+    if (s.listening && !s.muted) return 'Listening';
     if (s.working.length || s.thinking) return 'Working';
     return s.muted ? 'Muted' : 'Listening';
   });
   const status = voiceState ?? (running ? 'Working' : 'Standing by');
+  const meter = status === 'Speaking' ? 'out' : status === 'Listening' ? 'mic' : null;
+  useEffect(() => {
+    if (!meter) return;
+    const element = stage.current;
+    let frame = 0;
+    let level = 0;
+    let previousValue = '';
+    const draw = () => {
+      const sample = callLevels()[meter];
+      level += (Math.min(1, sample * (meter === 'mic' ? 3 : 1.8)) - level) * 0.22;
+      const value = level.toFixed(3);
+      if (value !== previousValue) {
+        element?.style.setProperty('--voice-level', value);
+        previousValue = value;
+      }
+      frame = requestAnimationFrame(draw);
+    };
+    const sync = () => {
+      cancelAnimationFrame(frame);
+      level = 0;
+      previousValue = '';
+      element?.style.removeProperty('--voice-level');
+      if (!motionPreference.matches && !document.hidden) frame = requestAnimationFrame(draw);
+    };
+    sync();
+    motionPreference.addEventListener('change', sync);
+    document.addEventListener('visibilitychange', sync);
+    return () => {
+      cancelAnimationFrame(frame);
+      motionPreference.removeEventListener('change', sync);
+      document.removeEventListener('visibilitychange', sync);
+      element?.style.removeProperty('--voice-level');
+    };
+  }, [meter]);
 
   return (
     <section className="companion" aria-label={`${bot.name} companion`} data-status={status}
-      onPointerMove={trackPointer}
-      onPointerLeave={(event) => {
-        event.currentTarget.style.removeProperty('--look-x');
-        event.currentTarget.style.removeProperty('--look-y');
-      }}
+      onPointerMove={followPointer} onPointerLeave={resetPointer} onPointerCancel={resetPointer}
     >
-      <div className="companion__stage">
+      <div className="companion__stage" ref={stage}>
         <CompanionArt look={preview ?? theme} />
+        <div className="companion__signal" aria-hidden="true"><i /><i /><i /><i /><i /></div>
       </div>
       <div className="companion__controls">
         <h1>{bot.name}</h1>
-        <p role="status">{status}</p>
+        <p className="companion__status" role="status"><span key={status}>{status}</span></p>
         <button className="companion__call" type="button" onClick={inCall ? endCall : () => startCall(bot.id)}>
           <Icon name={inCall ? 'stop' : 'voice_a'} size={17} />
           {inCall ? 'End voice call' : 'Start voice chat'}
@@ -104,7 +155,7 @@ export function Companion({ bot, running, explaining, toggleExplain }: {
       {guide && (
         <div className="companion__guide" aria-label="Appearance walkthrough">
           <p id={instructionId} aria-live="polite">
-            {target ? `Step ${guide.step + 1} of 2 · Select ${skinNames[target]}` : 'Walkthrough complete.'}
+            <span key={guide.step}>{target ? `Step ${guide.step + 1} of 2 · Select ${skinNames[target]}` : 'Walkthrough complete.'}</span>
           </p>
           <button type="button" onClick={() => setGuide(null)}>{target ? 'Stop guide' : 'Done'}</button>
         </div>

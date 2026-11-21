@@ -61,6 +61,8 @@ A bot's Hermes gateway starts the first time you use that bot.
 Select **Companion** in a bot's chat header, or open HQ with `/?companion`
 in a signed-in HQ tab. Chat, history and voice controls use the current bot.
 The character follows your pointer and reacts to voice and worker activity.
+The meter responds to mic input and spoken replies in an active call. HQ
+respects your system’s reduced-motion preference.
 Hover over Arc, Ember, Carbon or Paper to preview it, then select the skin
 to save it. Appearance is shared with App Settings. **Back to chat** returns
 to the regular workspace.
