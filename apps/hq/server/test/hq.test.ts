@@ -476,3 +476,24 @@ test('the Linux seccomp filter is well formed for the CPUs it supports, and abse
   assert.equal(x64.readUInt32LE(3 * 8 + 4), 0x40000000, 'refuses x32 calls');
   assert.equal(x64.readUInt32LE(x64.length - 3 * 8 + 4), 0x0005000d, 'EACCES for vsock');
 });
+
+test('the companion relay carries only a bounded state, to the signed-in owner', async () => {
+  const { api, companionState } = await import('../src/routes.js');
+  const { hub } = await import('../src/lib/hub.js');
+  const { db, now } = await import('../src/db.js');
+  const good = { status: 'speaking', level: 0.4, skin: 'ember' };
+  assert.deepEqual(companionState(good), good);
+  for (const bad of [null, 'x', {}, { ...good, level: 1.5 }, { ...good, level: -0.1 }, { ...good, level: NaN }, { ...good, level: '0.4' },
+    { ...good, status: 'clicking' }, { ...good, skin: 'marvel' }, { ...good, text: 'hello' }]) assert.equal(companionState(bad), null, JSON.stringify(bad));
+
+  db.prepare('INSERT OR IGNORE INTO users(id,email,name,created_at) VALUES (?,?,?,?)').run('usr_companion', 'c@localhost', 'c', now());
+  const headers = { authorization: `Bearer ${createSession('usr_companion')}`, 'content-type': 'application/json' };
+  const heard: unknown[] = [];
+  const unsub = hub.subscribe('usr_companion', (ev) => heard.push(ev));
+  const post = (body: unknown, h: Record<string, string> = headers) => api.request('/companion', { method: 'POST', headers: h, body: JSON.stringify(body) });
+  assert.equal((await post(good, { 'content-type': 'application/json' })).status, 401);
+  assert.equal((await post({ ...good, text: 'secret' })).status, 400);
+  assert.equal((await post(good)).status, 204);
+  unsub();
+  assert.deepEqual(heard, [{ type: 'companion', state: good }]);
+});

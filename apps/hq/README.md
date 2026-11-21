@@ -76,6 +76,47 @@ to the regular workspace.
   reply**. The sketch is built in your tab.
   It makes no new model request and clears when you close the view.
 
+## Desktop overlay
+
+`apps/hq/desktop` is a passive companion that lives on your desktop, over
+every app (R-H.11, [decision](../../docs/approvals/jarvis-desktop-overlay-decision.md)).
+It follows your cursor and stays clear of screen edges, the menu bar, Dock and
+taskbar. It shows what HQ is doing: idle, listening, thinking or speaking,
+with voice energy during a call. Hovering a skin in HQ's Companion panel
+previews it on the desktop at once. Clicks pass straight through it, and it
+never takes focus. Its tray (menu bar) icon offers **Follow cursor**, **Park in
+corner**, **Hide** and **Quit**. It respects reduced motion, and screenshots
+and screen shares leave it out. It does not capture the screen, watch your
+input or click anything, so it needs no Screen Recording or Accessibility
+permission.
+
+Start HQ first (`npm run jarvis`), then:
+
+```bash
+cd apps/hq/desktop
+npm ci
+npm start
+```
+
+`npm ci` downloads the pinned Electron binary through Electron's own install
+script. The overlay signs in as the owner with the same challenge the
+launcher uses, so it needs read access to `session-secret` in the HQ data
+folder. It holds the session in its main process and ends it on quit. If HQ
+is not running it dims and keeps retrying.
+
+On Windows, run the overlay on Windows itself (PowerShell, Node 22) while HQ
+runs in WSL2. Point it at the WSL data folder; replace `Ubuntu` and `<you>`
+with your distribution and WSL user name:
+
+```powershell
+$env:HQ_DATA_DIR = "\\wsl.localhost\Ubuntu\home\<you>\.super-agent\hq"
+npm ci
+npm start
+```
+
+It reaches HQ at `127.0.0.1:8787` through WSL2's localhost forwarding (on by
+default). Set `PORT` if HQ uses another port.
+
 ## Windows (WSL2)
 
 HQ runs on Windows inside WSL2, as a Linux app. Bots are contained with
@@ -330,6 +371,11 @@ A provider that rotates copied sign-in tokens may sign out the owner profile.
   mouse and key events.
 - Approval cards accept only an explicit allow. Anything else is refused.
 - Hermes' desktop-control toolset is not enabled.
+- The desktop overlay is a client of the same loopback API. HQ's page posts
+  its companion state to `POST /api/companion`. The server accepts exactly
+  `status`, `level` (0 to 1) and `skin`, and relays them only to the same
+  owner's event stream. The overlay page runs sandboxed with no Node access
+  and can only receive that state. It never sees the session.
 
 ### Containment
 
@@ -463,6 +509,7 @@ paid service or real accounts. Their code is still present and untested here.
 npm run typecheck
 npm test
 npm run build
+(cd desktop && npm test)
 ```
 
 `npm run dev` runs the server and Vite on port 5173. `npm test` runs the

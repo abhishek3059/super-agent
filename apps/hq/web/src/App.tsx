@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { startEvents } from './lib/events';
+import { startCompanionMirror } from './lib/companionMirror';
 import { useStore } from './store';
 import { ChatView } from './components/ChatView';
 import { ComputerViewer } from './components/ComputerViewer';
@@ -27,6 +28,7 @@ function Shell() {
     st.loadBots().catch(console.error);
     st.loadComputer().catch(console.error);
     const stop = startEvents();
+    const stopMirror = startCompanionMirror();
     // OAuth popups post back here; refresh connection-dependent views and the open transcript.
     const onMsg = (e: MessageEvent) => {
       if ((e.data as { type?: string })?.type !== 'hq-connected') return;
@@ -35,7 +37,7 @@ function Shell() {
       if (s.selectedBotId) s.loadRows(s.selectedBotId).catch(() => {});
     };
     window.addEventListener('message', onMsg);
-    return () => { stop(); window.removeEventListener('message', onMsg); };
+    return () => { stop(); stopMirror(); window.removeEventListener('message', onMsg); };
   }, []);
 
   // Global shortcuts: ⌘K search, ⌘B sidebar, ⇧⌘, details, ⌘N new bot.

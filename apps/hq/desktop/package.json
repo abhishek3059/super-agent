@@ -1,0 +1,14 @@
+{
+  "name": "jarvis-desktop",
+  "private": true,
+  "description": "Passive desktop overlay for Jarvis HQ: a click-through companion that follows the cursor and mirrors HQ's voice state.",
+  "license": "MIT",
+  "main": "main.mjs",
+  "scripts": {
+    "start": "electron .",
+    "test": "node --test test/motion.test.js"
+  },
+  "devDependencies": {
+    "electron": "45.2.3"
+  }
+}
