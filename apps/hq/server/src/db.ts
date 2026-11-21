@@ -150,6 +150,8 @@ addColumn('bots', 'voice_language', "TEXT NOT NULL DEFAULT 'auto'");
 // for it), the gateway's port, and the key it accepts.
 addColumn('bots', 'model', 'TEXT');
 addColumn('bots', 'provider', 'TEXT');
+addColumn('bots', 'engine_revision', 'INTEGER NOT NULL DEFAULT 0');
+addColumn('bots', 'engine_active_route', 'TEXT');
 addColumn('bots', 'engine_key', 'TEXT');
 addColumn('bots', 'engine', 'TEXT');
 addColumn('bots', 'engine_port', 'INTEGER');

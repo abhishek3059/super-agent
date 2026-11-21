@@ -11,6 +11,8 @@ import { setCheckins } from '../proactive.js';
 import { createRoom, postToRoom } from './rooms.js';
 import type { ActivityKind } from '../types.js';
 import { Cron } from 'croner';
+import { systemInfo, SYSTEM_TOPICS } from '../sysinfo.js';
+import { systemInfoOn } from '../access.js';
 
 export interface ToolCtx {
   userId: string;
@@ -303,6 +305,14 @@ const ALL_TOOLS: ToolDef[] = [
     },
   },
   {
+    name: 'system_info',
+    description: "Facts about the operator's Mac, read-only: 'overview' (macOS, chip, memory, uptime), 'disk', 'battery', 'processes' (top by CPU, names only) or 'apps' (installed in /Applications).",
+    parameters: obj({ topic: { type: 'string', enum: [...SYSTEM_TOPICS] } }, ['topic']),
+    activity: 'working',
+    label: 'Checking the Mac',
+    impl: async (a) => ({ output: await systemInfo(String(a.topic)), summary: `Checked ${a.topic}` }),
+  },
+  {
     name: 'ask_user',
     description: 'Ask the user a multiple-choice question when you need a decision before continuing. Ends your turn; their answer arrives as their next message.',
     parameters: obj({ question: { type: 'string' }, options: { type: 'array', items: { type: 'string' } } }, ['question', 'options']),
@@ -328,7 +338,7 @@ const ALL_TOOLS: ToolDef[] = [
   },
 ];
 /** Tools that need a service the operator has not set up are not offered. */
-const NEEDS: Record<string, string> = { x_search: env.xaiKey, list_event_triggers: env.composioKey, create_event_routine: env.composioKey, request_app_connection: env.composioKey };
+const NEEDS: Record<string, string | boolean> = { system_info: systemInfoOn(), x_search: env.xaiKey, list_event_triggers: env.composioKey, create_event_routine: env.composioKey, request_app_connection: env.composioKey };
 export const TOOLS = ALL_TOOLS.filter((t) => !(t.name in NEEDS) || NEEDS[t.name]);
 
 export const toolMap = new Map(TOOLS.map((t) => [t.name, t]));

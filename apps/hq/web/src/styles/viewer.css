@@ -18,7 +18,7 @@
   background: var(--screen-surface); box-shadow: var(--screen-shadow);
   transition: box-shadow 200ms var(--ease-out);
 }
-.screen--stage .screen__body, .screen.is-fullscreen .screen__body { width: min(100cqw, calc((100cqh - var(--chin-h)) * var(--screen-ratio))); }
+.screen--stage .screen__body, .screen.is-fullscreen .screen__body { width: min(100cqw, calc((100cqh - var(--chin-h) - var(--bar-h, 0px)) * var(--screen-ratio))); }
 .screen.is-driving .screen__body { box-shadow: var(--screen-shadow), 0 0 0 2px var(--bot-action); }
 
 .screen__view { position: relative; width: 100%; color: var(--screen-ink); }
@@ -140,3 +140,19 @@
    scaled frame would leave the picture slightly too small until the next resize. */
 .viewer__stage .screen__body { pointer-events: auto; animation: rise 200ms var(--ease-out); }
 @media (prefers-reduced-motion: reduce) { .viewer__stage .screen__body { animation: none; } }
+
+/* The browser bar over a bot's screen in the large view. */
+.screen.has-bar { --bar-h: 78px; }
+.browserbar { background: #1b1f27; color: #e6e9ef; font-size: 13px; }
+.browserbar__tabs { display: flex; align-items: flex-end; gap: 2px; padding: 6px 8px 0; height: 36px; overflow: hidden; }
+.browserbar__tab { display: flex; align-items: center; max-width: 220px; min-width: 0; height: 30px; padding: 0 4px 0 12px; border-radius: 9px 9px 0 0; background: transparent; }
+.browserbar__tab.is-active { background: #2a2f3a; }
+.browserbar__tab-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; background: none; border: 0; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.browserbar__x, .browserbar__new, .browserbar__nav button { background: none; border: 0; color: inherit; cursor: pointer; border-radius: 6px; font: 15px system-ui; width: 26px; height: 26px; opacity: .8; }
+.browserbar__x:hover, .browserbar__new:hover, .browserbar__nav button:hover { background: #ffffff1a; opacity: 1; }
+.browserbar__new { margin: 0 0 2px 4px; }
+.browserbar__x { margin-left: 4px; flex: none; }
+.browserbar__nav { display: flex; align-items: center; gap: 4px; height: 42px; padding: 0 10px; background: #2a2f3a; }
+.browserbar__nav input { flex: 1; height: 28px; margin-left: 6px; padding: 0 14px; border-radius: 14px; border: 1px solid transparent; background: #1b1f27; color: inherit; font: inherit; outline: none; }
+.browserbar__nav input:focus { border-color: var(--bot-action, #6aa8ff); }
+.browserbar__error { position: absolute; z-index: 2; right: 12px; margin-top: 4px; padding: 4px 10px; border-radius: 8px; background: #3a1d22; color: #ffb4b4; }

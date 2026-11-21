@@ -220,6 +220,7 @@ test('inside the sandbox a process cannot read the session secret or a neighbour
     const run = contained('/bin/sh', ['-c', cmd], { read: [], write: [own], localPorts: [] }, 'bot_a.t');
     try { return { ok: true, out: execFileSync(run.bin, run.args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }) }; } catch (e: any) { return { ok: false, out: String(e.stderr ?? '') }; }
   };
+  assert.equal(sh(`test -w '${own}'`).ok, true, 'Hermes can check its SQLite directory');
   assert.deepEqual(sh(`echo hi > '${own}/x' && cat '${own}/x'`), { ok: true, out: 'hi\n' });
   for (const target of [path.join(env.dataDir, 'session-secret'), path.join(other, 'private.txt'), path.join(os.homedir(), '.ssh')]) {
     const r = sh(`cat '${target}' || ls '${target}'`);
@@ -372,4 +373,86 @@ test('a web page cannot ask for an owner sign-in challenge', async () => {
     assert.equal((await api.request(`/auth/owner?client=${client}`, { headers })).status, 403, JSON.stringify(headers));
   }
   assert.equal((await api.request(`/auth/owner?client=${client}`)).status, 200, 'the launcher (no browser headers) still can');
+});
+
+test('worker routes require a connected supported provider and keep its full model inventory', async () => {
+  const { toProviders, validWorkerRoute } = await import('../src/engine.js');
+  const models = Array.from({ length: 20 }, (_, i) => `nvidia/model-${i}`);
+  const providers = toProviders({ providers: [
+    { slug: 'nvidia', authenticated: true, featured_models: [models[0]], models: [...models, 'nvidia/embed-qa-4', 'nvidia/nemotron-3-super-120b-a12b'] },
+    { slug: 'openai-codex', authenticated: false, models: ['codex-model'] },
+    { slug: 'gemini', authenticated: true, models: ['gemini-model'] },
+    { slug: 'ollama', authenticated: true, models: ['local-model'] },
+  ] });
+  assert.deepEqual(providers.map((p) => p.id), ['nvidia', 'openai-codex']);
+  assert.deepEqual(providers[0].models, models);
+  assert.equal(validWorkerRoute(providers, 'nvidia', models[19]), true);
+  assert.equal(validWorkerRoute(providers, 'nvidia', 'codex-model'), false);
+  assert.equal(validWorkerRoute(providers, 'openai-codex', 'codex-model'), false);
+  assert.equal(validWorkerRoute(providers, 'gemini', 'gemini-model'), false);
+});
+
+async function seedEngineBot(id: string) {
+  const { db } = await import('../src/db.js');
+  db.prepare('INSERT OR IGNORE INTO users(id,email,name,created_at) VALUES (?,?,?,?)')
+    .run('usr_picker', 'picker@localhost', 'Picker Test', Date.now());
+  db.prepare('INSERT INTO bots(id,user_id,name,created_at,updated_at,engine,engine_port) VALUES (?,?,?,?,?,?,?)')
+    .run(id, 'usr_picker', 'Picker Test', Date.now(), Date.now(), 'managed', 8560);
+  return db;
+}
+
+test('engine settings refuse a missing catalog and advance the conversation revision on changed routes', async (t) => {
+  const { engineInfo, forgetEngineOptions, workerConversation } = await import('../src/engine.js');
+  const { configApi } = await import('../src/routes-config.js');
+  const botId = 'bot_picker_test';
+  const db = await seedEngineBot(botId);
+  let catalog = false;
+  t.mock.method(globalThis, 'fetch', async (url: string) => {
+    if (url.endsWith('/health')) return Response.json({ status: 'ok' });
+    if (!catalog) return new Response(null, { status: 503 });
+    return Response.json({ provider: 'nvidia', model: 'nvidia/nemotron-3-super-120b-a12b',
+      providers: [{ slug: 'nvidia', authenticated: true, models: ['chat-a','chat-b'] }] });
+  });
+  const save = (model: string) => configApi.request(`/bots/${botId}/engine`, {
+    method: 'PATCH', headers: { authorization: `Bearer ${createSession('usr_picker')}`, 'content-type': 'application/json' },
+    body: JSON.stringify({ provider: 'nvidia', model }),
+  });
+  assert.match((await engineInfo(botId)).error ?? '', /catalog is unavailable/);
+  assert.equal((await save('chat-a')).status, 409);
+  catalog = true;
+  forgetEngineOptions(botId);
+  assert.equal((await engineInfo(botId)).status, 'error', 'retired seed default cannot start a turn');
+  const bot = { id: botId, generation: 1, engine_revision: 0 };
+  assert.equal(workerConversation(bot, { provider: 'nvidia', model: 'chat-a' }), `hq-${botId}-g1`);
+  assert.equal(workerConversation(bot, { provider: 'nvidia', model: 'chat-b' }), `hq-${botId}-g1-e1`);
+  assert.throws(() => workerConversation(bot, { provider: 'nvidia', model: 'chat-a' }), /settings changed/);
+  for (const [model, revision] of [['chat-a', 2], ['chat-a', 2], ['chat-b', 3], ['chat-a', 4]] as const) {
+    assert.equal((await save(model)).status, 200);
+    assert.equal(db.prepare('SELECT engine_revision FROM bots WHERE id=?').get(botId).engine_revision, revision);
+  }
+});
+
+
+test('worker restarts share the turn queue and refuse an already busy bot', async () => {
+  const { isBotBusy, runInBotQueue } = await import('../src/agent/loop.js');
+  const { configApi } = await import('../src/routes-config.js');
+  const botId = 'bot_restart_test';
+  await seedEngineBot(botId);
+  let release!: () => void;
+  const gate = new Promise<void>((resolve) => { release = resolve; });
+  const first = runInBotQueue(botId, () => gate);
+  let laterRan = false;
+  const later = runInBotQueue(botId, async () => { laterRan = true; });
+  try {
+    assert.equal(isBotBusy(botId), true);
+    const result = await configApi.request(`/bots/${botId}/engine/restart`, {
+      method: 'POST', headers: { authorization: `Bearer ${createSession('usr_picker')}` },
+    });
+    assert.equal(result.status, 409);
+    assert.equal(laterRan, false);
+  } finally {
+    release();
+    await Promise.all([first, later]);
+  }
+  assert.equal(laterRan, true);
 });

@@ -21,8 +21,12 @@ exception, [DEC-23](../../descisions.md#dec-23). The maintainer's direction is
 - **Handoffs that always come back.** A bot hands work to another with
   `send_to_bot`. The app returns the result or the failure to the bot that
   asked. It does not depend on the model remembering to reply.
-- **A browser per bot.** Each bot drives its own headless Chrome with its own
-  profile. You can watch it live and take over the mouse and keyboard.
+- **A computer per bot.** Each bot drives its own headless Chrome with its own
+  profile. It opens on a desktop page with a clock, a search box and app
+  tiles, including a Files tile for the bot's working folder. The large view
+  adds a browser bar: tabs, back, forward, reload, home and an address bar.
+  Typed text that is not an `http` or `https` address becomes a Google
+  search. You can watch it live and take over the mouse and keyboard.
 - **Memory, tasks, routines and a Library** per bot, from Hermes and the app.
 - **Group chats** between you and several bots.
 - **Live voice** with OpenAI Realtime, when you supply a key. The voice agent
@@ -32,8 +36,9 @@ exception, [DEC-23](../../descisions.md#dec-23). The maintainer's direction is
 ## Run it
 
 You need macOS, Node.js 22 or newer, Google Chrome (or Chromium, Brave or
-Ego Browser), and a working `hermes` command with at least one model
-provider set up in `~/.hermes`.
+Ego Browser), and a compatible Hermes gateway. The local run used Hermes
+v0.22.2. Configure a supported hosted default model in `~/.hermes` or in
+the HQ seed specified by `HERMES_HOME_PRIMARY`.
 A new bot installs its own copy of the Hermes dependencies on first start.
 That takes about 50 seconds and 1 GB of disk per bot.
 
@@ -89,6 +94,10 @@ All optional, read from the environment or from `~/.super-agent/hq/.env`.
 | `HERMES_BIN` | `hermes` | The Hermes command |
 | `CHROME_BIN` | auto | Browser for the bots: Chrome, Chromium, Brave or Ego Browser, first found |
 | `MAX_BOTS` | `8` | Team size limit |
+| `HERMES_HOME_PRIMARY` | `~/.hermes` | The Hermes seed. Set it to a folder only HQ uses, other than `~/.hermes`, to turn on account sign-in in HQ |
+| `HQ_READ_DIRS` | none | Folders bots may read, never change, separated by `:` (for example `~/dev:~/Documents`) |
+| `HQ_SKILL_DIRS` | none | Skill folders every bot loads, read-only (for example `~/.claude/skills:~/.hermes/skills`) |
+| `HQ_SYSTEM_INFO` | off | `1` turns on the read-only `system_info` tool |
 
 ## Where things live
 
@@ -97,16 +106,50 @@ Nothing is written into the repository. Under `~/.super-agent/hq` (mode 0700):
 `profiles/<bot>` (its Chrome profile), `files/<bot>` (its working folder and
 Library) and `server.log`.
 
-A new bot's Hermes home starts from your own `~/.hermes`: the model settings,
-and the sign-ins (`auth.json`) and keys (`.env`, names such as `NVIDIA_API_KEY`
-or `CLOUDFLARE_ACCOUNT_ID`) of the providers that settings name as default,
-fallback or custom. Keys for other providers, and messaging tokens, are not
-copied. For real use, give bots dedicated, revocable, spend-capped keys. The voice key in the data
-folder is not handed to bots. Your own Hermes gateway and its files are
-never changed. To add a sign-in, run `hermes auth add <provider>` in your own
-terminal and restart the bot; the in-app sign-in button is off because it
-would run outside the bot's sandbox. Unverified risk: a provider that rotates sign-in tokens may
-sign out your own Hermes when a copy refreshes.
+The gateway seed is `~/.hermes` or the folder in `HERMES_HOME_PRIMARY`.
+Its default must name a supported hosted provider. HQ supports NVIDIA NIM,
+OpenAI Codex and Anthropic API. Anthropic API worker use is capped at
+US$5 per month under [DEC-23](../../descisions.md#dec-23) rule 5. It copies
+credentials for those providers when the seed names them in its model or
+provider settings, and, for a dedicated seed only, when the seed holds a
+sign-in or key for them.
+HQ uses the provider's built-in endpoint and omits automatic worker fallbacks.
+If the seed's previous default relied on a fallback, update it to a current
+chat model or choose an available model in Engine settings. The November 20
+local test used Hermes v0.22.2 for gateway compatibility.
+
+Connect accounts in the Hermes seed, or from Engine settings when the seed
+is one only HQ uses (`HERMES_HOME_PRIMARY` set to a folder other than
+`~/.hermes`). HQ never offers this for
+the operator's own `~/.hermes`, and it never copies a credential from that
+profile unless the profile's settings name its provider. **Sign in with
+ChatGPT** runs `hermes auth add openai-codex --type oauth` against the
+dedicated seed. Hermes runs as the operator, outside the bot sandbox, as it
+would in a terminal. HQ opens OpenAI's sign-in page in your browser. The
+tokens stay in the seed's `auth.json` and never reach the web page. For
+Claude, paste an Anthropic API key. HQ adds it to the seed's `.env` with
+mode 0600, keeps every other line, and refuses to touch a `.env` it cannot
+read as a plain file. In a dedicated seed, any supported provider with a
+sign-in or key there reaches every bot. Anthropic and OpenAI API keys are
+billed per use. HQ does not offer Claude Pro or Max sign-in. Anthropic says it
+"does not permit third-party developers to offer Claude.ai login into their
+own applications" and directs developers to API keys
+([Claude Code legal and compliance](https://code.claude.com/docs/en/legal-and-compliance),
+read 2026-11-20). OpenAI documents Sign in with ChatGPT for Codex and for
+registered third-party clients, but recommends API keys for automation and
+does not state that a personal plan may power another app
+([Codex sign-in](https://learn.chatgpt.com/docs/auth), read 2026-11-20).
+Treat the ChatGPT route as personal use on your own machine. After a change,
+HQ restarts the bot. Use **Restart agent** for other bots to refresh their inventory. Engine settings disable unconnected
+routes and validate saved model IDs against the worker's catalog. Choosing a
+different provider or model starts another Hermes conversation. The HQ
+transcript stays visible.
+
+The server-side OpenAI voice key lives in the HQ data directory. Worker keys
+come from the Hermes seed and the voice key is never copied into it. Use
+dedicated, revocable, spend-capped worker keys. HQ changes Hermes files only
+in a dedicated seed, and only through the sign-in and key controls above.
+A provider that rotates copied sign-in tokens may sign out the owner profile.
 
 ## Security boundary
 
@@ -133,10 +176,19 @@ Each bot's Hermes gateway and its browser run inside the macOS sandbox
   folders themselves. Nothing else on the disk is
   writable, so it cannot replace a program you run later (Homebrew,
   `/usr/local`, `/Applications`);
-- can read the Hermes program and system files, and nothing in your home
-  folder, the app's data folder (session secret, database, other bots'
-  folders), the shared temporary folders, other users' folders or other
-  disks;
+- can read the Hermes program and system files, the folders in
+  `HQ_READ_DIRS` and your skill folders (`HQ_SKILL_DIRS`, plus where linked
+  skills really live), and nothing else in your home folder, the app's data
+  folder (session secret, database, other bots' folders), the shared
+  temporary folders, other users' folders or other disks. HQ drops any
+  listed folder that is, holds or sits inside your home folder itself,
+  `~/.ssh`, `~/.gnupg`, `~/.aws`, `~/.config`, `~/Library`, `~/.hermes` and
+  `~/.claude` (except their `skills` folders), `~/.super-agent` or the Hermes seed. A bot
+  that reads a folder can also send what it read to the internet, so list
+  only folders you would share;
+- can read and write one shared skills folder, `shared-skills` in the data
+  folder, which every bot loads. One bot's skill can steer another bot, so
+  read shared skills before you rely on them;
 - has no direct network access. It reaches its own browser, the app's tool
   endpoint and an internet proxy, each on a loopback port of its own; it
   never reaches the app's own API. The proxy resolves each name itself and
@@ -148,6 +200,17 @@ Each bot's Hermes gateway and its browser run inside the macOS sandbox
 - cannot open apps, send Apple events, start launchd jobs, change your
   default apps, read or write your preferences, read the Keychain or the
   clipboard, or see or signal other processes.
+
+The read folders, skill folders and `system_info` are off by default. They
+expose the operator's real data to the bot's hosted model, and
+[DEC-23](../../descisions.md#dec-23) allows synthetic data only until
+R-A.2 is decided. Turn them on only with folders that hold synthetic data,
+or after a maintainer amends DEC-23.
+
+Facts about the Mac come from the `system_info` tool, which the server runs
+outside the sandbox. It takes only a topic (overview, disk, battery,
+processes, apps), each a fixed command list. Process lists show names only,
+never arguments or environment.
 
 The server itself is not sandboxed, so it does not trust anything a bot can
 write:

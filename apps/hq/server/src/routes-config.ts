@@ -10,8 +10,10 @@ import fs from 'node:fs';
 import { Readable } from 'node:stream';
 import { env } from './env.js';
 import { emitBot, getBotRow, listRoutines, listTasks } from './store.js';
-import { computerState, resetBotScreen } from './computer.js';
-import { engineInfo, engineKind, forgetEngineOptions, restartEngine } from './engine.js';
+import { computerState, listTabs, resetBotScreen, tabAction } from './computer.js';
+import { accounts, cancelSignIn, saveAnthropicKey, signInAvailable, signInState, startCodexSignIn } from './signin.js';
+import { engineInfo, engineKind, forgetEngineOptions, restartEngine, validWorkerRoute } from './engine.js';
+import { isBotBusy, runInBotQueue } from './agent/loop.js';
 import { listMemories } from './engine-memory.js';
 import type { LibraryFile, Skill } from './types.js';
 
@@ -21,7 +23,7 @@ import type { LibraryFile, Skill } from './types.js';
  */
 export const configApi = new Hono<AuthVars>();
 
-for (const p of ['/bots/*', '/skills/*', '/computer/*']) configApi.use(p, requireUser);
+for (const p of ['/bots/*', '/skills/*', '/computer/*', '/engine/*']) configApi.use(p, requireUser);
 
 const ownBot = (userId: string, id: string) => {
   const b = getBotRow(id);
@@ -125,10 +127,22 @@ configApi.get('/bots/:id/engine', async (c) => {
 configApi.patch('/bots/:id/engine', async (c) => {
   const b = ownBot(c.get('user').id, c.req.param('id'));
   if (!b) return c.json({ error: 'not found' }, 404);
-  const p = await c.req.json<{ provider?: string | null; model?: string | null }>().catch(() => ({} as { provider?: string | null; model?: string | null }));
-  const clean = (v: unknown) => (typeof v === 'string' && v.trim() ? v.trim().slice(0, 120) : null);
-  if (p.provider !== undefined) db.prepare('UPDATE bots SET provider=?, updated_at=? WHERE id=?').run(clean(p.provider), now(), b.id);
-  if (p.model !== undefined) db.prepare('UPDATE bots SET model=?, updated_at=? WHERE id=?').run(clean(p.model), now(), b.id);
+  const p = await c.req.json().catch(() => null);
+  if (!p || !Object.hasOwn(p, 'provider') || !Object.hasOwn(p, 'model')) {
+    return c.json({ error: 'Select a provider and model together.' }, 400);
+  }
+  const { provider, model } = p;
+  if (provider !== null || model !== null) {
+    if (typeof provider !== 'string' || typeof model !== 'string' || model.length > 160) {
+      return c.json({ error: 'Select a provider and model together.' }, 400);
+    }
+    const { providers } = await engineInfo(b.id);
+    if (!validWorkerRoute(providers, provider, model)) {
+      return c.json({ error: 'Choose an available model from a connected provider.' }, 409);
+    }
+  }
+  db.prepare(`UPDATE bots SET provider=?, model=?, updated_at=?, engine_revision=engine_revision+1, engine_active_route=NULL
+    WHERE id=? AND (provider IS NOT ? OR model IS NOT ?)`).run(provider, model, now(), b.id, provider, model);
   emitBot(b.id);
   return c.json({ engine: await engineInfo(b.id) });
 });
@@ -137,8 +151,9 @@ configApi.post('/bots/:id/engine/restart', async (c) => {
   const b = ownBot(c.get('user').id, c.req.param('id'));
   if (!b) return c.json({ error: 'not found' }, 404);
   if (engineKind(b.id) !== 'managed') return c.json({ error: `${b.name} has no agent of its own.` }, 409);
+  if (isBotBusy(b.id)) return c.json({ error: 'Wait for the current turn to finish before restarting.' }, 409);
   try {
-    await restartEngine(b.id);
+    await runInBotQueue(b.id, () => restartEngine(b.id));
     forgetEngineOptions(b.id);
     return c.json({ engine: await engineInfo(b.id) });
   } catch (e: any) {
@@ -230,4 +245,41 @@ configApi.post('/bots/:id/screen/reset', async (c) => {
   } catch (e: any) {
     return c.json({ error: String(e?.message ?? e).slice(0, 300) }, 502);
   }
+});
+
+// ---------- the viewer's browser bar ----------
+
+configApi.get('/bots/:id/screen/tabs', async (c) => {
+  const b = ownBot(c.get('user').id, c.req.param('id'));
+  if (!b) return c.json({ error: 'not found' }, 404);
+  return c.json({ tabs: await listTabs(b.id) });
+});
+
+const TAB_ACTIONS = new Set(['new', 'activate', 'close', 'navigate', 'back', 'forward', 'reload', 'home']);
+configApi.post('/bots/:id/screen/tabs', async (c) => {
+  const b = ownBot(c.get('user').id, c.req.param('id'));
+  if (!b) return c.json({ error: 'not found' }, 404);
+  const p = await c.req.json().catch(() => null);
+  if (!p || !TAB_ACTIONS.has(p.action) || ((p.action === 'activate' || p.action === 'close') && typeof p.id !== 'string') || (p.action === 'navigate' && typeof p.url !== 'string')) {
+    return c.json({ error: 'bad request' }, 400);
+  }
+  try {
+    await tabAction(b.id, p);
+    return c.json({ tabs: await listTabs(b.id) });
+  } catch (e: any) {
+    return c.json({ error: String(e?.message ?? e).slice(0, 200) }, 502);
+  }
+});
+
+// ---------- provider sign-in for every bot (the HQ Hermes profile) ----------
+
+configApi.get('/engine/signin', (c) => c.json({ signin: signInState(), available: signInAvailable(), accounts: signInAvailable() ? accounts() : null }));
+configApi.post('/engine/signin/openai-codex', (c) => {
+  try { return c.json({ signin: startCodexSignIn() }); } catch (e: any) { return c.json({ error: e.message }, 409); }
+});
+configApi.delete('/engine/signin', (c) => { cancelSignIn(); return c.json({ signin: signInState() }); });
+configApi.post('/engine/keys/anthropic', async (c) => {
+  const p = await c.req.json().catch(() => null);
+  try { saveAnthropicKey(p?.key); } catch (e: any) { return c.json({ error: e.message }, 400); }
+  return c.json({ ok: true });
 });
