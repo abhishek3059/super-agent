@@ -13,6 +13,8 @@ import type { ActivityKind } from '../types.js';
 import { Cron } from 'croner';
 import { systemInfo, SYSTEM_TOPICS } from '../sysinfo.js';
 import { systemInfoOn } from '../access.js';
+import { saveMemory, searchMemory } from '../memory.js';
+import { listMemories } from '../engine-memory.js';
 
 export interface ToolCtx {
   userId: string;
@@ -313,6 +315,28 @@ const ALL_TOOLS: ToolDef[] = [
     impl: async (a) => ({ output: await systemInfo(String(a.topic)), summary: `Checked ${a.topic}` }),
   },
   {
+    name: 'memory_save',
+    description: "Remember a durable fact, preference or decision about the user or their work, in your own long-term memory. Save one short, self-contained sentence. Never save passwords, keys or other secrets.",
+    parameters: obj({ text: { type: 'string', description: 'The fact, in one self-contained sentence (max 4000 characters).' } }, ['text']),
+    activity: 'working',
+    label: 'Saving to memory',
+    impl: async (a, ctx) => {
+      const id = await saveMemory(ctx.userId, ctx.botId, String(a.text ?? ''));
+      return { output: `Saved as [mem:${id.slice(0, 8)}].`, summary: 'Saved to memory' };
+    },
+  },
+  {
+    name: 'memory_search',
+    description: "Search your long-term memory by meaning. Call this first for any question about the user, their preferences, people or past work, and answer only from what it returns, citing each entry as [mem:xxxxxxxx].",
+    parameters: obj({ query: { type: 'string' }, limit: { type: 'integer', minimum: 1, maximum: 10, description: 'How many entries at most. Default 5.' } }, ['query']),
+    activity: 'working',
+    label: 'Searching memory',
+    impl: async (a, ctx) => ({
+      output: await searchMemory(ctx.userId, ctx.botId, String(a.query ?? ''), a.limit, listMemories(ctx.botId).map((m) => m.text)),
+      summary: 'Searched memory',
+    }),
+  },
+  {
     name: 'ask_user',
     description: 'Ask the user a multiple-choice question when you need a decision before continuing. Ends your turn; their answer arrives as their next message.',
     parameters: obj({ question: { type: 'string' }, options: { type: 'array', items: { type: 'string' } } }, ['question', 'options']),
@@ -338,7 +362,7 @@ const ALL_TOOLS: ToolDef[] = [
   },
 ];
 /** Tools that need a service the operator has not set up are not offered. */
-const NEEDS: Record<string, string | boolean> = { system_info: systemInfoOn(), x_search: env.xaiKey, list_event_triggers: env.composioKey, create_event_routine: env.composioKey, request_app_connection: env.composioKey };
+const NEEDS: Record<string, string | boolean> = { system_info: systemInfoOn(), x_search: env.xaiKey, list_event_triggers: env.composioKey, create_event_routine: env.composioKey, request_app_connection: env.composioKey, memory_save: env.memoryOn, memory_search: env.memoryOn };
 export const TOOLS = ALL_TOOLS.filter((t) => !(t.name in NEEDS) || NEEDS[t.name]);
 
 export const toolMap = new Map(TOOLS.map((t) => [t.name, t]));

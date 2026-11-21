@@ -25,6 +25,21 @@ function sessionSecret(): string {
   return s;
 }
 
+/** True for an http(s) or postgres URL that points at this machine only, and cannot redirect elsewhere (libpq's ?host=). */
+export function isLoopbackUrl(raw: string): boolean {
+  try {
+    const u = new URL(raw);
+    return ['127.0.0.1', 'localhost', '[::1]'].includes(u.hostname) && !u.searchParams.has('host') && !u.searchParams.has('hostaddr');
+  } catch { return false; }
+}
+
+/** The URL, or '' (feature off) with one warning when it is not local. The URL is never logged: it can hold a password. */
+function localUrl(name: string, raw: string): string {
+  if (!raw || isLoopbackUrl(raw)) return raw;
+  console.warn(`[memory] ${name} must point at 127.0.0.1, localhost or ::1. Semantic memory stays off.`);
+  return '';
+}
+
 const hermesHome = process.env.HERMES_HOME_PRIMARY ?? path.join(os.homedir(), '.hermes');
 
 /** A seed HQ alone uses: set, and not the operator's own ~/.hermes under another spelling. */
@@ -59,6 +74,11 @@ export const env = {
   xaiModel: process.env.XAI_MODEL ?? 'grok-4.7',
   composioKey: '',
 
+  // ---- semantic memory: PostgreSQL + pgvector and a local Ollama, both on this machine ----
+  memoryDbUrl: localUrl('HQ_MEMORY_DB_URL', process.env.HQ_MEMORY_DB_URL ?? ''),
+  embedUrl: localUrl('HQ_EMBED_URL', process.env.HQ_EMBED_URL ?? 'http://127.0.0.1:11434'),
+  embedModel: process.env.HQ_EMBED_MODEL ?? 'nomic-embed-text',
+
   // ---- Hermes engine ----
   /** The `hermes` CLI used to start a gateway for each bot. */
   hermesBin: process.env.HERMES_BIN ?? 'hermes',
@@ -80,4 +100,6 @@ export const env = {
   profilesDir: path.join(dataDir, 'profiles'),
   filesDir: path.join(dataDir, 'files'),
   maxBots: Number(process.env.MAX_BOTS ?? 8),
+  /** The tools and the persona lines only exist when both local services are configured. */
+  get memoryOn() { return !!this.memoryDbUrl && !!this.embedUrl; },
 };

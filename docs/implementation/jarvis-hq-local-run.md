@@ -402,3 +402,60 @@ output and skill names) to hosted NVIDIA Nemotron. DEC-23 allows synthetic
 data only until R-A.2 is decided. The shared reviewer flagged it. The read
 folders, skill folders and `system_info` are now off by default, and
 `HQ_READ_DIRS` was removed from the test workspace the same day.
+
+## Semantic memory, 2026-11-21
+
+Roadmap item R-H.8 (per-bot semantic memory in local PostgreSQL + pgvector,
+embeddings from local Ollama). Built and checked by an agent session on the
+maintainer's Mac with synthetic text only.
+
+What ran:
+
+- Services: `pgvector/pgvector:pg17` (PostgreSQL 17.10, pgvector 0.8.6) on
+  `127.0.0.1:5433`, and Ollama with `nomic-embed-text` on `127.0.0.1:11434`.
+- `npm test` from `apps/hq` without a database: 54 tests, 49 passed, 5 skipped
+  (the SQL and real-embedding tests, skipped by design), 0 failed.
+- The same with `HQ_MEMORY_TEST_DB_URL` set to the local database: 54 tests,
+  54 passed, 0 skipped. This ran the real schema creation (extension, table,
+  hnsw index, bot index), save and dedupe, cited search, the no-match message,
+  bot and user scoping, Hermes entry sync in and out, the limit cap of 10, and
+  deleting a bot's rows. The test rows used bot ids starting with `bot_test_`.
+  `select count(*) from hq_memories` returned 0 afterwards.
+- `npm run typecheck` and `npm run build` from `apps/hq` passed.
+- `docker compose -f docker-compose.memory.yml config` rendered with
+  `POSTGRES_PASSWORD` set and failed with "required variable POSTGRES_PASSWORD
+  is missing a value" without it. The compose file was not started here: the
+  database above was already running.
+- `npm audit` from `apps/hq`: found 0 vulnerabilities. New packages: `pg`
+  8.23.1 (MIT, published 2026-09-30) and `@types/pg` 8.23.1 (MIT, published
+  2026-08-17), exact pins. Their runtime dependencies are MIT or ISC and all
+  were published more than 14 days ago.
+
+Threshold tuning with the real model. The score is cosine similarity between a
+`search_query:` embedding and `search_document:` embeddings. Best match per
+query over eight stored facts:
+
+- Related questions (10): 0.549, 0.614, 0.624, 0.681, 0.684, 0.705, 0.750,
+  0.777, 0.778, 0.797.
+- Unrelated questions (12): 0.476, 0.517, 0.519, 0.536, 0.537, 0.546, 0.554,
+  0.565, 0.584, 0.602, 0.622, 0.710.
+
+The ranges overlap, so no threshold is clean. `MIN_SIMILARITY` is 0.6. It
+keeps 9 of 10 related questions and passes 3 of 12 unrelated ones ("tallest
+mountain on Earth" 0.602, "capital of Australia" 0.622, and "the user's home
+address" 0.710, which is close in topic to the stored facts). A higher value
+would drop correct paraphrases ("which hosting provider did we pick" 0.624).
+The integration test asserts the cases that clear the margin, not those three.
+
+Not run:
+
+- A live chat turn through a real bot: whether a model calls `memory_search`
+  first, cites `[mem:...]`, and says "not in memory" when nothing comes back.
+  The persona lines and tool descriptions exist, but model behavior is unchecked.
+- The tools reached through a bot's MCP endpoint (`/mcp/<botId>`). Only the
+  functions behind them and the tool list were tested.
+- Deleting a bot through the API with memory on: `forgetBotMemory` was tested
+  directly, not through the delete route.
+- Windows and Docker Desktop with WSL2.
+- An existing bot's `SOUL.md` is rewritten when its engine next starts, not
+  at once.
