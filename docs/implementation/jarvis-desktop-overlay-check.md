@@ -59,6 +59,12 @@ MIT for `electron` 45.2.3, `@electron/get`, `@electron-internal/extract-zip`,
 `@types/node`; ISC for `semver`; Apache-2.0 for `sumchecker`; BlueOak-1.0.0
 for `graceful-fs`. None is non-commercial or custom.
 
+## Later change
+
+On 2026-11-21 the overlay art was replaced with a 520-point wave sphere
+(`desktop/sphere.js`), driven by the same `level` field. That change came
+after the run above, so R-H.11 needs a fresh run on the merged revision.
+
 ## Windows run
 
 Not run. Steps for the operator are in the
