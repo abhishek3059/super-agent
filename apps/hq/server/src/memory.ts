@@ -133,7 +133,8 @@ export async function searchMemory(userId: string, botId: string, query: string,
     await client.query('commit');
     const hits = r.rows.filter((row) => row.score >= MIN_SIMILARITY);
     if (!hits.length) return NO_MATCH;
-    return hits.map((row) => `[mem:${String(row.id).slice(0, 8)}] (${new Date(row.created_at).toISOString().slice(0, 10)}, ${row.source}) ${row.text}`).join('\n');
+    // A note cannot fake the end of the fence recallFor puts around it.
+    return hits.map((row) => `[mem:${String(row.id).slice(0, 8)}] (${new Date(row.created_at).toISOString().slice(0, 10)}, ${row.source}) ${String(row.text).replace(/<<<memory|memory>>>/gi, '[fence]')}`).join('\n');
   } catch (e) {
     await client.query('rollback').catch(() => {});
     throw e;
