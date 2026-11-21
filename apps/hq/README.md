@@ -56,6 +56,14 @@ npm run jarvis
 your browser, signed in. `npm run open` opens another signed-in window later.
 A bot's Hermes gateway starts the first time you use that bot.
 
+## Companion
+
+Select **Companion** in a bot's chat header, or open HQ with `/?companion`
+to go straight to the companion screen. The chat, history and voice controls
+use the current bot. **Appearance** switches between Arc, Ember, Carbon,
+Paper and the standard themes. HQ remembers it in this browser and uses it
+in App Settings too. **Back to chat** returns to the regular workspace.
+
 ## Windows (WSL2)
 
 HQ runs on Windows inside WSL2, as a Linux app. Bots are contained with
