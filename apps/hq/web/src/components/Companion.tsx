@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef, useState, type PointerEvent } from 'react';
+import { createPortal } from 'react-dom';
 import type { Bot } from '@shared/types';
 import { SKINS, useConfigUI, type Theme } from '../configStore';
 import { callLevels, endCall, isCallActive, startCall, useVoice } from '../voice/call';
@@ -22,10 +23,60 @@ function CompanionArt({ look }: { look: Theme }) {
   );
 }
 
+function CursorCompanion({ area, theme }: { area: HTMLElement; theme: Theme }) {
+  const sprite = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const element = sprite.current;
+    const chat = area.closest('.chat');
+    if (!element || !chat) return;
+    let frame = 0;
+    let x = 0;
+    let y = 0;
+    const hide = () => {
+      cancelAnimationFrame(frame);
+      frame = 0;
+      element.removeAttribute('data-visible');
+    };
+    const move = (raw: Event) => {
+      const event = raw as globalThis.PointerEvent;
+      if (motionPreference.matches || event.pointerType === 'touch') { hide(); return; }
+      x = event.clientX;
+      y = event.clientY;
+      if (frame) return;
+      frame = requestAnimationFrame(() => {
+        frame = 0;
+        const bounds = chat.getBoundingClientRect();
+        const left = x + 58 > bounds.right ? x - 58 : x + 16;
+        const top = y + 50 > bounds.bottom ? y - 50 : y + 14;
+        element.style.transform = `translate3d(${Math.max(bounds.left, left)}px, ${Math.max(bounds.top, top)}px, 0)`;
+        element.setAttribute('data-visible', '');
+      });
+    };
+    chat.addEventListener('pointermove', move);
+    chat.addEventListener('pointerleave', hide);
+    chat.addEventListener('pointercancel', hide);
+    window.addEventListener('blur', hide);
+    motionPreference.addEventListener('change', hide);
+    return () => {
+      hide();
+      chat.removeEventListener('pointermove', move);
+      chat.removeEventListener('pointerleave', hide);
+      chat.removeEventListener('pointercancel', hide);
+      window.removeEventListener('blur', hide);
+      motionPreference.removeEventListener('change', hide);
+    };
+  }, [area]);
+
+  return createPortal(<div className="companion-cursor" ref={sprite} aria-hidden="true"><CompanionArt look={theme} /></div>, document.body);
+}
+
 export function Companion({ bot, running, explaining, toggleExplain }: {
   bot: Bot; running: boolean; explaining: boolean; toggleExplain: () => void;
 }) {
   const instructionId = useId();
+  const panel = useRef<HTMLElement>(null);
+  const marker = useRef<HTMLDivElement>(null);
+  const [cursor, setCursor] = useState(false);
   const stage = useRef<HTMLDivElement>(null);
   const pointerFrame = useRef(0);
   const pointer = useRef({ x: 0, y: 0 });
@@ -57,7 +108,24 @@ export function Companion({ bot, running, explaining, toggleExplain }: {
   const [guide, setGuide] = useState<{ targets: [Skin, Skin]; step: number } | null>(null);
   const target = guide?.targets[guide.step];
   const targetButton = useRef<HTMLButtonElement>(null);
-  useEffect(() => { if (target) targetButton.current?.focus(); }, [target]);
+  useEffect(() => {
+    const button = targetButton.current;
+    const root = panel.current;
+    const pointer = marker.current;
+    if (!target || !button || !root || !pointer) return;
+    button.focus();
+    const position = () => {
+      const at = button.getBoundingClientRect();
+      const bounds = root.getBoundingClientRect();
+      pointer.style.left = `${at.left - bounds.left + at.width / 2}px`;
+      pointer.style.top = `${at.top - bounds.top}px`;
+    };
+    position();
+    const observer = new ResizeObserver(position);
+    observer.observe(root);
+    observer.observe(button);
+    return () => observer.disconnect();
+  }, [target]);
 
   const startGuide = () => {
     const first = theme === 'ember' ? 'arc' : 'ember';
@@ -118,7 +186,7 @@ export function Companion({ bot, running, explaining, toggleExplain }: {
   }, [meter]);
 
   return (
-    <section className="companion" aria-label={`${bot.name} companion`} data-status={status}
+    <section ref={panel} className="companion" aria-label={`${bot.name} companion`} data-status={status}
       onPointerMove={followPointer} onPointerLeave={resetPointer} onPointerCancel={resetPointer}
     >
       <div className="companion__stage" ref={stage}>
@@ -133,6 +201,7 @@ export function Companion({ bot, running, explaining, toggleExplain }: {
           {inCall ? 'End voice call' : 'Start voice chat'}
         </button>
         <div className="companion__actions">
+          <button type="button" aria-pressed={cursor} onClick={() => setCursor(!cursor)}>Follow cursor</button>
           <button type="button" aria-pressed={explaining} onClick={toggleExplain}>Explain</button>
           <button type="button" onClick={startGuide} disabled={!!target}>Show me how</button>
         </div>
@@ -152,6 +221,8 @@ export function Companion({ bot, running, explaining, toggleExplain }: {
           </button>
         ))}
       </div>
+      {cursor && panel.current && !target && <CursorCompanion area={panel.current} theme={preview ?? theme} />}
+      {target && <div className="companion-guide-pointer" ref={marker} aria-hidden="true"><CompanionArt look={theme} /></div>}
       {guide && (
         <div className="companion__guide" aria-label="Appearance walkthrough">
           <p id={instructionId} aria-live="polite">

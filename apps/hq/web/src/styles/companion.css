@@ -442,3 +442,77 @@
     transform: none;
   }
 }
+
+.chat__reading, .chat__reading-source {
+  flex: 1 1 0;
+  min-height: 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.chat--explaining .chat__reading {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+}
+.chat--explaining {
+  grid-template-columns: minmax(15rem, .65fr) minmax(0, 1.6fr);
+}
+.chat--explaining .sketch { border-left: 1px solid var(--color-border-secondary); }
+.chat--explaining .sketch__steps li { position: relative; border-left: 2px solid var(--color-primary); }
+.chat--explaining .sketch__steps li:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  left: 15px;
+  top: 100%;
+  height: 10px;
+  border-left: 1px solid var(--color-border-primary);
+}
+
+.companion-cursor, .companion-guide-pointer {
+  pointer-events: none;
+  width: 42px;
+  height: 34px;
+  z-index: 6;
+  filter: drop-shadow(0 3px 8px #0008);
+}
+.companion-cursor {
+  position: fixed;
+  left: 0;
+  top: 0;
+  opacity: 0;
+  transition: opacity 140ms ease, transform 100ms ease-out;
+}
+.companion-cursor[data-visible] { opacity: 1; }
+.companion-guide-pointer {
+  position: absolute;
+  left: 50%;
+  top: 48%;
+  transform: translate(-50%, -115%);
+  transition: left 280ms cubic-bezier(.18,.78,.28,1), top 280ms cubic-bezier(.18,.78,.28,1);
+}
+.companion-guide-pointer::after {
+  content: '';
+  position: absolute;
+  left: calc(50% - 4px);
+  bottom: -5px;
+  width: 8px;
+  height: 8px;
+  transform: rotate(45deg);
+  border: solid var(--color-primary);
+  border-width: 0 2px 2px 0;
+}
+:is(.companion-cursor, .companion-guide-pointer) .companion__art { height: 100%; }
+:is(.companion-cursor, .companion-guide-pointer) .companion__head { width: 34px; transform: none; }
+:is(.companion-cursor, .companion-guide-pointer) :is(.companion__orbit, .companion__shadow) { display: none; }
+
+@media (max-width: 1000px) {
+  .chat--explaining .chat__reading { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(65px, .7fr) minmax(130px, 1.3fr); }
+  .chat--explaining .sketch { border-left: 0; border-top: 1px solid var(--color-border-secondary); }
+}
+@media (max-width: 660px), (max-height: 500px) {
+  .chat--explaining { grid-template-columns: minmax(0, 1fr); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .companion-cursor { display: none; }
+}

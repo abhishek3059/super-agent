@@ -1,4 +1,4 @@
-import { useMemo, useState, useSyncExternalStore } from 'react';
+import { useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { BotAvatarFor } from '../avatar/BotAvatar';
 import { api } from '../lib/api';
 import { botVars } from '../lib/colors';
@@ -29,6 +29,7 @@ export function ChatView() {
   const [explainBotId, setExplainBotId] = useState<string | null>(null);
   const [menu, setMenu] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+  const transcriptPane = useRef<HTMLDivElement>(null);
   const rows = useMemo(() => sortedRows(transcript), [transcript]);
 
   if (!bot) {
@@ -45,6 +46,12 @@ export function ChatView() {
   const latest = explaining ? rows.findLast(({ body }) =>
     body.type === 'message' && body.role === 'assistant' && !body.streaming && !!body.text.trim()
   )?.body : undefined;
+  const readSelection = () => {
+    const selection = window.getSelection();
+    const pane = transcriptPane.current;
+    if (!pane || !selection || selection.isCollapsed || !pane.contains(selection.anchorNode) || !pane.contains(selection.focusNode)) return '';
+    return selection.toString().trim();
+  };
   const canShowDetails = !showCompanion && !narrow;
   const toggleCompanion = () => {
     const url = new URL(window.location.href);
@@ -57,17 +64,21 @@ export function ChatView() {
   const flash = (t: string) => { setToast(t); setTimeout(() => setToast(null), 2000); };
 
   return (
-    <main className={`chat${showCompanion ? ' chat--companion' : ''}`} style={botVars(bot.avatarColor)}>
+    <main className={`chat${showCompanion ? ' chat--companion' : ''}${explaining ? ' chat--explaining' : ''}`} style={botVars(bot.avatarColor)}>
       {showCompanion && (
         <Companion key={bot.id} bot={bot} running={!!live?.isRunning} explaining={explaining}
           toggleExplain={() => setExplainBotId(explaining ? null : bot.id)} />
       )}
       <div className="chat__conversation">
-        {explaining ? (
-          <ExplainPanel key={bot.id} reply={latest?.type === 'message' ? latest.text : ''} onClose={() => setExplainBotId(null)} />
-        ) : (
-          <Transcript bot={bot} rows={rows} live={live} loaded={!!transcript?.loaded} />
-        )}
+        <div className="chat__reading">
+          <div ref={transcriptPane} className="chat__reading-source" aria-label="Conversation">
+            <Transcript bot={bot} rows={rows} live={live} loaded={!!transcript?.loaded} />
+          </div>
+          {explaining && (
+            <ExplainPanel key={bot.id} reply={latest?.type === 'message' ? latest.text : ''} readSelection={readSelection}
+              onClose={() => setExplainBotId(null)} />
+          )}
+        </div>
         <VoiceCallBar />
         <Composer bot={bot} running={!!live?.isRunning} hidden={explaining} />
       </div>
