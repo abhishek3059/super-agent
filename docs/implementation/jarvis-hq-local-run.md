@@ -459,3 +459,29 @@ Not run:
 - Windows and Docker Desktop with WSL2.
 - An existing bot's `SOUL.md` is rewritten when its engine next starts, not
   at once.
+
+## Semantic memory through a live bot, 2026-11-21
+
+Jarvis (NVIDIA Nemotron Ultra), memory on, synthetic facts only, driven by
+an agent session in Playwright Chromium.
+
+- First pass: the model ignored the persona line, saved facts with Hermes'
+  own memory tool and never called `memory_search`, so nothing went through
+  pgvector and nothing was cited. The app now runs the search itself before
+  each user turn, after syncing the bot's Hermes notes into pgvector.
+- Second pass: "codename" was answered "Bluefin [mem:003fe3b2]" from a
+  synced Hermes note. A never-stored fact was answered "not in memory"
+  without a guess. A new fact saved through Hermes was recalled with a
+  citation on the next turn. A general-knowledge question was refused as
+  "not in memory", so the rule now applies only to questions about the
+  user and past work. The third pass is below.
+- Memory text is embedded locally by Ollama and stored in a local Postgres.
+  Retrieved entries go to the bot's hosted model with the turn.
+- Grounding is enforced by what the app attaches to each turn and by an
+  instruction. The app cannot stop a model from ignoring it.
+- Third pass, after that change: "capital of Australia" was answered
+  "Canberra", marked as general knowledge, and "codename" was answered
+  "Bluefin [mem:543286d4]".
+
+HQ self-checks: 55 passed with the memory database, and 49 passed with 6
+skipped without it.
