@@ -98,6 +98,66 @@ All optional, read from the environment or from `~/.super-agent/hq/.env`.
 | `HQ_READ_DIRS` | none | Folders bots may read, never change, separated by `:` (for example `~/dev:~/Documents`) |
 | `HQ_SKILL_DIRS` | none | Skill folders every bot loads, read-only (for example `~/.claude/skills:~/.hermes/skills`) |
 | `HQ_SYSTEM_INFO` | off | `1` turns on the read-only `system_info` tool |
+| `HQ_MEMORY_DB_URL` | none | PostgreSQL + pgvector URL, for example `postgres://hq:<password>@127.0.0.1:5433/hq_memory`. Unset turns semantic memory off. Must point at `127.0.0.1`, `localhost` or `::1`, or it stays off with a warning |
+| `HQ_EMBED_URL` | `http://127.0.0.1:11434` | Ollama for embeddings. Same local-only rule |
+| `HQ_EMBED_MODEL` | `nomic-embed-text` | Must return 768 numbers per text |
+
+## Memory
+
+Optional. Each bot can keep facts and decisions in a local PostgreSQL with
+pgvector, found again by meaning. Embeddings come from a local Ollama. Nothing
+here leaves the machine, and the app refuses a database or embedding URL that
+is not `127.0.0.1`, `localhost` or `::1`.
+
+With memory on, before each message you send, the app copies the bot's own
+Hermes notes (`MEMORY.md` and `USER.md`) into the table and looks up the
+closest entries itself. Up to five that pass the similarity cutoff go to the
+bot with your message, fenced and marked as notes that are data, never
+instructions, each with a `[mem:xxxxxxxx]` id. The bot is told to answer
+questions about you and past work from them, cite them, and say "not in
+memory" when they hold no answer, and to answer other questions normally. The
+bot can also call `memory_save` and `memory_search` itself. A bot only ever
+reads its own rows. A lookup that takes longer than 8 seconds is dropped and
+the turn goes on without it.
+
+Deleting a bot deletes its rows while memory is on and the database answers.
+Otherwise the rows stay until you remove them in the database.
+
+What is grounded: answers about you and past work, as far as the model
+follows that instruction. What is not: it is an instruction, not a guard, so
+the app cannot stop a model from answering from its own training. The matching
+entries are sent to the bot's hosted model provider with every message they
+match, so use synthetic data until R-A.2 is decided. Memory covers only
+what was saved or written to the Hermes notes, not chat history, files or the
+Library.
+
+Set up on macOS:
+
+```bash
+brew install ollama && ollama serve &        # or the Ollama app
+ollama pull nomic-embed-text
+cd apps/hq
+POSTGRES_PASSWORD="$(openssl rand -hex 16)" docker compose -f docker-compose.memory.yml up -d
+```
+
+Keep that password: Docker stores it in the data volume on first start. Then add
+this line to `~/.super-agent/hq/.env`, with your password, and restart HQ:
+
+```text
+HQ_MEMORY_DB_URL=postgres://hq:<password>@127.0.0.1:5433/hq_memory
+```
+
+Set up on Windows: install Docker Desktop with the WSL2 backend and Ollama for
+Windows (or run Ollama inside WSL2 and make sure `127.0.0.1:11434` answers from
+the host). Run `ollama pull nomic-embed-text`, set `POSTGRES_PASSWORD` in
+PowerShell (`$env:POSTGRES_PASSWORD = "..."`), run the same `docker compose`
+command from `apps/hq`, and put the same `HQ_MEMORY_DB_URL` line in
+`%USERPROFILE%\.super-agent\hq\.env`. Windows is not tested.
+
+The compose file binds the database to `127.0.0.1:5433` and keeps it in the
+named volume `hq-memory-data`. The tables are created on first use with
+`create extension if not exists vector`, which needs a role that may create
+extensions (the compose user is a superuser).
 
 ## Where things live
 
@@ -295,4 +355,5 @@ npm run build
 self-checks: the request guards, the viewer input filter, the handoff reply
 rule, the owner key and approvals, the services that stay off, the sandbox
 profile, live escape attempts inside the sandbox (macOS only), planted and
-swapped links, and process-id checks.
+swapped links, process-id checks, and semantic memory (its SQL tests run only when
+`HQ_MEMORY_TEST_DB_URL` points at a local pgvector Postgres).

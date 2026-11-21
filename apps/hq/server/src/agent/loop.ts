@@ -7,6 +7,9 @@ import { toolkitInfo } from '../composio.js';
 import { screenForWork } from '../computer.js';
 import { engineFor, workerConversation, workerRoute } from '../engine.js';
 import { instructionsFor } from './prompt.js';
+import { env } from '../env.js';
+import { recallFor } from '../memory.js';
+import { listMemories } from '../engine-memory.js';
 import { activityFor, appToolName, humanizeSlug, policyFor } from './tools.js';
 
 /**
@@ -386,6 +389,12 @@ async function runTurn(botId: string, trigger: Trigger) {
     if (bot.handback_at) {
       input = `[Note: the user took control of your screen for a while and has just handed it back. Look at the screen before you rely on what was there.]\n\n${input}`;
       db.prepare('UPDATE bots SET handback_at=NULL WHERE id=?').run(botId);
+    }
+    if (env.memoryOn && trigger.type === 'user') {
+      // A memory store that is down must not stop the bot answering; it then has its own notes only.
+      const recalled = await recallFor(userId, botId, triggerText(trigger), listMemories(botId).map((m) => m.text))
+        .catch((e) => { console.warn(`[memory] lookup failed for ${botId}: ${e?.message ?? e}`); return null; });
+      if (recalled) input = `${recalled}\n\n${input}`;
     }
 
     const res = await fetch(`${engine.url}/v1/responses`, {
