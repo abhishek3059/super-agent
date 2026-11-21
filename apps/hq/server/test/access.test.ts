@@ -6,7 +6,7 @@ import path from 'node:path';
 import { test } from 'node:test';
 
 process.env.HQ_DATA_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'hq-test-'));
-const { safeDirs, skillReadDirs } = await import('../src/access.js');
+const { readDirs, safeDirs, skillDirs, skillReadDirs } = await import('../src/access.js');
 const { systemInfo } = await import('../src/sysinfo.js');
 const { env } = await import('../src/env.js');
 const home = os.homedir();
@@ -33,6 +33,20 @@ test('linked skills are readable where they really live, secrets still are not',
   assert.ok(got.includes(skills) && got.includes(real));
   assert.ok(!got.some((d) => d.startsWith(path.join(home, '.ssh')) || d === path.join(home, '.claude')));
   fs.chmodSync(path.join(skills, 'locked'), 0o700);
+});
+
+test('operator read and skill mounts are macOS-only', (t) => {
+  const folder = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'hq-opt-in-')));
+  t.after(() => {
+    delete process.env.HQ_READ_DIRS;
+    delete process.env.HQ_SKILL_DIRS;
+    fs.rmSync(folder, { recursive: true });
+  });
+  process.env.HQ_READ_DIRS = folder;
+  process.env.HQ_SKILL_DIRS = folder;
+  const expected = process.platform === 'darwin' ? [folder] : [];
+  assert.deepEqual(readDirs(), expected);
+  assert.deepEqual(skillDirs(), expected);
 });
 
 test('system_info answers only its fixed topics', async () => {

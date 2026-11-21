@@ -49,7 +49,7 @@ jobs:
           node-version: 22.22.3
           cache: npm
           cache-dependency-path: apps/hq/package-lock.json
-      # Ubuntu 24.04 stops unprivileged user namespaces through AppArmor; the README documents this switch.
+      # The disposable CI runner permits the user namespaces required by bubblewrap.
       - run: |
           sudo apt-get update -q
           sudo apt-get install -y -q bubblewrap
@@ -58,3 +58,5 @@ jobs:
         env:
           HUSKY: 0
       - run: npm test
+        env:
+          HQ_REQUIRE_BWRAP: '1'

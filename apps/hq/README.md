@@ -111,11 +111,13 @@ What it does not do, or does differently:
 - No Keychain, clipboard, Apple events, preferences or launchd on Linux, so
   nothing to close. `system_info` is a macOS tool and answers only partly.
 - A seccomp filter refuses vsock sockets (`AF_VSOCK`, the channel WSL2 uses
-  to reach the Windows host), x32 system calls and any foreign CPU ABI. It is
+  to reach the Windows host), io_uring, x32 system calls and any foreign CPU ABI. It is
   written for x86_64 and arm64; on any other CPU, bots do not start. Other
   system calls are open, as for your user inside a user namespace. A bot can
   write into the memory-backed `/tmp` of its own sandbox, which is empty at
   each start and invisible to everyone else.
+- Operator folder and skill imports are available on macOS only. On Linux and
+  WSL2, place synthetic fixtures in the bot's own working folder.
 - `/etc` is mounted read-only in full, and `/proc/self/mountinfo` shows the
   host paths of the folders mounted in. Both are visible, not writable.
 - Programs outside `/usr`, `/opt` and the Hermes folders do not run, for
@@ -178,8 +180,8 @@ All optional, read from the environment or from `~/.super-agent/hq/.env`.
 | `CHROME_BIN` | auto | Browser for the bots: Chrome, Chromium, Brave or Ego Browser, first found |
 | `MAX_BOTS` | `8` | Team size limit |
 | `HERMES_HOME_PRIMARY` | `~/.hermes` | The Hermes seed. Set it to a folder only HQ uses, other than `~/.hermes`, to turn on account sign-in in HQ |
-| `HQ_READ_DIRS` | none | Folders bots may read, never change, separated by `:` (for example `~/dev:~/Documents`) |
-| `HQ_SKILL_DIRS` | none | Skill folders every bot loads, read-only (for example `~/.claude/skills:~/.hermes/skills`) |
+| `HQ_READ_DIRS` | none | macOS only. Read-only folders, separated by `:` (for example `~/dev:~/Documents`) |
+| `HQ_SKILL_DIRS` | none | macOS only. Read-only skill folders (for example `~/.claude/skills:~/.hermes/skills`) |
 | `HQ_SYSTEM_INFO` | off | `1` turns on the read-only `system_info` tool |
 | `HQ_MEMORY_DB_URL` | none | PostgreSQL + pgvector URL, for example `postgres://hq:<password>@127.0.0.1:5433/hq_memory`. Unset turns semantic memory off. Must point at `127.0.0.1`, `localhost` or `::1`, or it stays off with a warning |
 | `HQ_EMBED_URL` | `http://127.0.0.1:11434` | Ollama for embeddings. Same local-only rule |
@@ -323,7 +325,7 @@ uncontained bots. The list below is the macOS behaviour; the
   folders themselves. Nothing else on the disk is
   writable, so it cannot replace a program you run later (Homebrew,
   `/usr/local`, `/Applications`);
-- can read the Hermes program and system files, the folders in
+- can read the Hermes program and system files, and on macOS the folders in
   `HQ_READ_DIRS` and your skill folders (`HQ_SKILL_DIRS`, plus where linked
   skills really live), and nothing else in your home folder, the app's data
   folder (session secret, database, other bots' folders), the shared

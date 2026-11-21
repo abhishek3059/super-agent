@@ -11,7 +11,9 @@ under R-H.7. A green Linux CI run does not establish that evidence.
 - Use your own accounts, a fresh data directory and synthetic text and audio.
   Leave real folders, skills, desktop context and scheduled jobs out of this
   run. Use the existing [DEC-23 approval](../approvals/jarvis-hq-dec-23-approval.md)
-  for any opt-in OpenAI voice test. R-A.2 remains open.
+  for any opt-in OpenAI voice test. R-A.2 is decided for
+  [maintainer testing only](../approvals/r-a2-cloud-personal-data.md).
+  The acceptance checks below still use synthetic data.
 - Keep Ubuntu's files on the Linux disk. Install Node.js 22, system Python
   and a Hermes runtime available to the sandbox. Hermes v0.22.2 is the known
   macOS baseline. Confirm the actual Linux version during the pilot. Install

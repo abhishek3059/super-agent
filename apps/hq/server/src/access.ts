@@ -57,9 +57,9 @@ export function skillReadDirs(dirs: string[]): string[] {
 
 const split = (v: string | undefined, fallback: string) => (v ?? fallback).split(path.delimiter).filter(Boolean);
 
-export const readDirs = () => safeDirs(split(process.env.HQ_READ_DIRS, ''));
-// Off unless set: these hold the operator's real data, and DEC-23 allows synthetic data only.
-export const skillDirs = () => safeDirs(split(process.env.HQ_SKILL_DIRS, ''), { skills: true });
+// Optional Linux bind mounts could expose host IPC endpoints even when mounted read-only.
+export const readDirs = () => process.platform === 'darwin' ? safeDirs(split(process.env.HQ_READ_DIRS, '')) : [];
+export const skillDirs = () => process.platform === 'darwin' ? safeDirs(split(process.env.HQ_SKILL_DIRS, ''), { skills: true }) : [];
 export const systemInfoOn = () => process.env.HQ_SYSTEM_INFO === '1';
 /** Skills any bot creates to share; every bot reads and writes it. */
 export const sharedSkillsDir = () => path.join(env.dataDir, 'shared-skills');

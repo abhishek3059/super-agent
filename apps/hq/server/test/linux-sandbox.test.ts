@@ -13,6 +13,9 @@ process.env.HQ_DATA_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'hq-linux-'));
 const { env } = await import('../src/env.js');
 const { canContain, confinedEnv, contained } = await import('../src/sandbox.js');
 const skip = process.platform !== 'linux' ? 'Linux only (bubblewrap)' : !canContain() && 'bubblewrap cannot make namespaces here';
+if (process.env.HQ_REQUIRE_BWRAP === '1') {
+  assert.equal(skip, false, 'The containment job requires a working Linux bubblewrap sandbox');
+}
 
 type Conf = { read?: string[]; write?: string[]; localPorts?: number[]; listen?: number };
 
@@ -161,4 +164,13 @@ except OSError as e:
     print('ERRNO', e.errno)" 2>&1 || true`, { listen: await freePort() });
   assert.doesNotMatch(r.out, /OPENED/);
   assert.match(r.out, /ERRNO 13/, `filtered with EACCES: ${r.out}`);
+});
+
+test('seccomp refuses io_uring syscalls', { skip }, async () => {
+  const r = await sh(`python3 -c "import ctypes
+libc = ctypes.CDLL(None, use_errno=True)
+for number in (425, 426, 427):
+    result = libc.syscall(number, 0, 0, 0, 0, 0, 0)
+    print(result, ctypes.get_errno())"`);
+  assert.equal(r.out.trim(), '-1 1\n-1 1\n-1 1');
 });

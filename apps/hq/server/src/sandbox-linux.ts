@@ -54,8 +54,9 @@ const serve = (to, ...on) => new Promise((up) => net.createServer((c) => link(c,
   if (cfg.rev) await new Promise((up, fail) => {
     const RV = '${BRIDGE_DIR}/rv.sock';
     const open = (tries) => {
-      const ctl = net.connect(RV, () => { ctl.write('C'); up(); });
-      ctl.once('error', (e) => { if (tries > 0) setTimeout(() => open(tries - 1), 100); else fail(e); });
+      let connected = false;
+      const ctl = net.connect(RV, () => { connected = true; ctl.write('C'); up(); });
+      ctl.once('error', (e) => { if (!connected && tries > 0) setTimeout(() => open(tries - 1), 100); else fail(e); });
       ctl.on('data', (buf) => {
         for (let i = 0; i < buf.length; i++) {
           const d = net.connect(RV, () => { d.write('D'); link(d, net.connect(cfg.rev, '127.0.0.1')); });
@@ -63,7 +64,7 @@ const serve = (to, ...on) => new Promise((up) => net.createServer((c) => link(c,
         }
       });
       // Without the control line nobody can reach its port: stop rather than run half connected.
-      ctl.once('close', () => process.exit(1));
+      ctl.once('close', () => { if (connected) process.exit(1); });
     };
     open(50);
   });
@@ -81,6 +82,9 @@ const serve = (to, ...on) => new Promise((up) => net.createServer((c) => link(c,
 // --unshare-net does not cover AF_VSOCK, which WSL2 uses to talk to the Windows host. A classic BPF
 // filter refuses socket(AF_VSOCK, ...) with EACCES (distinct from the kernel's own EAFNOSUPPORT, so a
 // test can tell the filter worked), every syscall of a foreign ABI, and x32 calls on x86_64.
+// Deny io_uring because its kernel operations can create sockets outside the socket syscall.
+const IO_URING_SETUP = 425;
+const IO_URING_REGISTER = 427;
 const ARCH: Record<string, { audit: number; socket: number; x32: boolean }> = {
   x64: { audit: 0xc000003e, socket: 41, x32: true },
   arm64: { audit: 0xc00000b7, socket: 198, x32: false },
@@ -101,15 +105,17 @@ export function vsockFilter(arch = process.arch): Buffer | null {
   const LD = 0x20, JEQ = 0x15, JGE = 0x35, RET = 0x06;
   return Buffer.concat([
     ins(LD, 0, 0, 4), //                    0 arch
-    ins(JEQ, 0, 6, a.audit), //             1 foreign ABI -> 8
+    ins(JEQ, 0, 8, a.audit), //             1 foreign ABI -> 10
     ins(LD, 0, 0, 0), //                    2 syscall number
-    ins(JGE, 4, 0, a.x32 ? 0x40000000 : 0xffffffff), // 3 x32 -> 8
-    ins(JEQ, 0, 4, a.socket), //            4 not socket() -> 9
-    ins(LD, 0, 0, 16), //                   5 first argument (low half)
-    ins(JEQ, 0, 2, AF_VSOCK), //            6 not vsock -> 9
-    ins(RET, 0, 0, ERRNO(13)), //           7 EACCES
-    ins(RET, 0, 0, ERRNO(1)), //            8 EPERM
-    ins(RET, 0, 0, ALLOW), //               9
+    ins(JGE, 6, 0, a.x32 ? 0x40000000 : 0xffffffff), // 3 x32 -> 10
+    ins(JGE, 0, 1, IO_URING_SETUP), //     4 below io_uring range -> 6
+    ins(JGE, 0, 4, IO_URING_REGISTER + 1), // 5 io_uring range -> 10
+    ins(JEQ, 0, 4, a.socket), //            6 not socket() -> 11
+    ins(LD, 0, 0, 16), //                   7 first argument (low half)
+    ins(JEQ, 0, 2, AF_VSOCK), //            8 not vsock -> 11
+    ins(RET, 0, 0, ERRNO(13)), //           9 EACCES
+    ins(RET, 0, 0, ERRNO(1)), //           10 EPERM
+    ins(RET, 0, 0, ALLOW), //              11
   ]);
 }
 
