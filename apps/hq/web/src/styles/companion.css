@@ -507,7 +507,7 @@
 :is(.companion-cursor, .companion-guide-pointer) :is(.companion__orbit, .companion__shadow) { display: none; }
 
 @media (max-width: 1000px) {
-  .chat--explaining .chat__reading { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(65px, .7fr) minmax(130px, 1.3fr); }
+  .chat--explaining .chat__reading { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, .7fr) minmax(0, 1.3fr); }
   .chat--explaining .sketch { border-left: 0; border-top: 1px solid var(--color-border-secondary); }
 }
 @media (max-width: 660px), (max-height: 500px) {
