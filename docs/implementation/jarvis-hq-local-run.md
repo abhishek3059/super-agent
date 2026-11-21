@@ -293,3 +293,195 @@ inside the bot's sandbox).
 - Nothing further for CI: the Jarvis HQ workflow (typecheck, self-checks,
   build on macOS) runs on every push to PR #56 and passed on `e71f06f` and
   `f96184e`.
+
+## Provider workspace recovery, 2026-11-20
+
+A synthetic HQ workspace used a dedicated Hermes seed with the NVIDIA
+Nemotron Ultra hosted model and an empty fallback list. The seed had no
+Gemini, local model or OpenAI platform route. HQ opened on 127.0.0.1.
+
+The first agent call failed before inference. The isolated seed could not
+read the shell launcher's target, and the default Chrome debugging port was
+already in use. The retry used the real launcher, explicit read-only runtime
+paths and a separate browser port range.
+
+Hermes v0.23.3 still could not start. Its state store checks the home
+directory with `os.access`. The sandbox now allows the operation needed by
+that check. The macOS tests verified that a process still cannot rename or
+remove its root, or read the HQ session secret or another bot's folder.
+The same Hermes release also requires an additional private listener. HQ
+still grants one fixed TCP listener per bot, so that release remained
+incompatible with this setup.
+
+The workspace switched to an isolated copy of the previously tested Hermes
+v0.22.2 source with locked dependencies and a Homebrew Python environment.
+The live check started the loopback Hermes gateway on port 8650. A
+synthetic Jarvis chat returned the expected `READY` through hosted NVIDIA
+Nemotron Ultra. The first handoff had no HQ tools because the runtime lacked
+Hermes' optional MCP dependency. After installing it from the same lockfile
+and restarting Jarvis, the HQ tool recorded a Jarvis-to-Scout handoff. Scout
+returned `TEAM_READY`, and Jarvis received and reported the result. Atlas and
+Quill also completed synthetic replies. Forge's first attempt hit a Python
+import lock while starting the OpenAI SDK used by the NVIDIA transport. The
+local launcher in the operator's Hermes workspace (outside this repository)
+now imports those SDK types before starting the gateway. After
+restarting Forge, its synthetic reply matched too. All five workers returned
+the expected text. HQ build passed and all 30 HQ tests passed. OpenAI subscription voice and Claude Pro
+through HQ: not run.
+
+## Hosted model picker verification, 2026-11-20
+
+The local preview's NVIDIA catalog reported 37 entries, including embedding
+and safety routes, while disconnected provider entries still appeared in the
+old picker. The revised picker kept the connected hosted chat choices and
+disabled unconnected providers. It excluded Gemini and Ollama and rejected
+direct engine-setting requests for Gemini, an embedding model and a
+disconnected OpenAI Codex route with HTTP 409.
+
+In Chrome, the test selected hosted NVIDIA Nemotron 3.5 Lightning from
+the Model dropdown, saved it and reloaded the page. HQ kept the selection.
+Jarvis returned the exact synthetic reply `SWITCH_READY`. The Hermes session
+record named the selected model. The original
+Nemotron Ultra selection was restored. The preview reported OpenAI voice
+enabled. The separate voice connection and operator report are in the
+[voice record](jarvis-hq-voice-check.md#preview-openai-connection-2026-11-20).
+
+HQ typecheck, build, 33 self-checks and repository checks passed. OpenAI
+Codex and Anthropic worker inference and account sign-in in HQ: not run.
+
+## Desktop, browser bar and sign-in controls, 2026-11-20
+
+Run on the operator's Mac with the provider-test workspace and a dedicated
+Hermes seed (`HERMES_HOME_PRIMARY`). Two browser passes in Playwright
+Chromium, run by an agent session, not by a person.
+
+- Jarvis and Scout opened on the new desktop: clock, date, owner greeting,
+  bot name and label, search box and eight app tiles. The Files tile showed
+  the bot's working folder as a `file://` listing.
+- The browser bar navigated to an address, turned plain text into a Google
+  search, and opened, switched and closed tabs. Back, forward, reload and
+  home worked. Tab titles showed `&` and not `&amp;`. Google answered the
+  search with its "unusual traffic" page, which is outside HQ.
+- In one pass the tab strip reordered once and could not be reproduced. The
+  likely cause was an empty poll result resetting the order. The strip now
+  ignores empty results. Not re-tested after that change.
+- Engine settings listed connected and unconnected providers. A malformed
+  Claude key was refused with a format message and the field was cleared.
+- "Sign in with ChatGPT" opened OpenAI's sign-in page and Cancel restored the
+  button. A completed ChatGPT sign-in, a saved real Anthropic key, and worker
+  inference through either: not run.
+
+HQ typecheck, build and 40 self-checks passed.
+
+## Read access, skills and accounts, 2026-11-20
+
+Same workspace, with `HQ_READ_DIRS` set to `~/dev` and `~/Documents`. An
+agent session chatted with Jarvis (NVIDIA Nemotron Ultra) in Playwright
+Chromium and checked each answer from a shell.
+
+- `system_info` reported macOS 27.2, Apple M5, 16 GB and the top processes,
+  matching `sw_vers` and `sysctl`.
+- Jarvis listed the 17 top-level folders in `~/dev`, matching `ls`.
+- A write to `~/Documents` failed with "Operation not permitted" and no file
+  was created. Listing `~/.ssh` failed the same way. Jarvis blamed macOS
+  privacy settings and suggested Full Disk Access. The persona now says the
+  refusal is HQ's sandbox and forbids that advice. Not re-tested after that
+  change.
+- Jarvis named five real skills. One came from `~/.hermes/skills`, not from
+  `~/.claude/skills` as asked.
+- Jarvis made a `qa-hello` skill and saved it to `shared-skills`. Scout then
+  found it there. The test skill was removed afterwards.
+- After the maintainer's real ChatGPT sign-in, the Accounts section showed
+  ChatGPT as connected and the Provider list showed OpenAI Codex as
+  connected. Worker inference through OpenAI Codex: not run.
+
+HQ typecheck, build and 44 self-checks passed.
+
+This run sent real operator data (the `~/dev` folder names, `system_info`
+output and skill names) to hosted NVIDIA Nemotron. DEC-23 allows synthetic
+data only until R-A.2 is decided. The shared reviewer flagged it. The read
+folders, skill folders and `system_info` are now off by default, and
+`HQ_READ_DIRS` was removed from the test workspace the same day.
+
+## Semantic memory, 2026-11-21
+
+Roadmap item R-H.8 (per-bot semantic memory in local PostgreSQL + pgvector,
+embeddings from local Ollama). Built and checked by an agent session on the
+maintainer's Mac with synthetic text only.
+
+What ran:
+
+- Services: `pgvector/pgvector:pg17` (PostgreSQL 17.10, pgvector 0.8.6) on
+  `127.0.0.1:5433`, and Ollama with `nomic-embed-text` on `127.0.0.1:11434`.
+- `npm test` from `apps/hq` without a database: 54 tests, 49 passed, 5 skipped
+  (the SQL and real-embedding tests, skipped by design), 0 failed.
+- The same with `HQ_MEMORY_TEST_DB_URL` set to the local database: 54 tests,
+  54 passed, 0 skipped. This ran the real schema creation (extension, table,
+  hnsw index, bot index), save and dedupe, cited search, the no-match message,
+  bot and user scoping, Hermes entry sync in and out, the limit cap of 10, and
+  deleting a bot's rows. The test rows used bot ids starting with `bot_test_`.
+  `select count(*) from hq_memories` returned 0 afterwards.
+- `npm run typecheck` and `npm run build` from `apps/hq` passed.
+- `docker compose -f docker-compose.memory.yml config` rendered with
+  `POSTGRES_PASSWORD` set and failed with "required variable POSTGRES_PASSWORD
+  is missing a value" without it. The compose file was not started here: the
+  database above was already running.
+- `npm audit` from `apps/hq`: found 0 vulnerabilities. New packages: `pg`
+  8.23.1 (MIT, published 2026-09-30) and `@types/pg` 8.23.1 (MIT, published
+  2026-08-17), exact pins. Their runtime dependencies are MIT or ISC and all
+  were published more than 14 days ago.
+
+Threshold tuning with the real model. The score is cosine similarity between a
+`search_query:` embedding and `search_document:` embeddings. Best match per
+query over eight stored facts:
+
+- Related questions (10): 0.549, 0.614, 0.624, 0.681, 0.684, 0.705, 0.750,
+  0.777, 0.778, 0.797.
+- Unrelated questions (12): 0.476, 0.517, 0.519, 0.536, 0.537, 0.546, 0.554,
+  0.565, 0.584, 0.602, 0.622, 0.710.
+
+The ranges overlap, so no threshold is clean. `MIN_SIMILARITY` is 0.6. It
+keeps 9 of 10 related questions and passes 3 of 12 unrelated ones ("tallest
+mountain on Earth" 0.602, "capital of Australia" 0.622, and "the user's home
+address" 0.710, which is close in topic to the stored facts). A higher value
+would drop correct paraphrases ("which hosting provider did we pick" 0.624).
+The integration test asserts the cases that clear the margin, not those three.
+
+Not run:
+
+- A live chat turn through a real bot: whether a model calls `memory_search` (run later the same day, see "Semantic memory through a live bot" below)
+  first, cites `[mem:...]`, and says "not in memory" when nothing comes back.
+  The persona lines and tool descriptions exist, but model behavior is unchecked.
+- The tools reached through a bot's MCP endpoint (`/mcp/<botId>`). Only the
+  functions behind them and the tool list were tested.
+- Deleting a bot through the API with memory on: `forgetBotMemory` was tested
+  directly, not through the delete route.
+- Windows and Docker Desktop with WSL2.
+- An existing bot's `SOUL.md` is rewritten when its engine next starts, not
+  at once.
+
+## Semantic memory through a live bot, 2026-11-21
+
+Jarvis (NVIDIA Nemotron Ultra), memory on, synthetic facts only, driven by
+an agent session in Playwright Chromium.
+
+- First pass: the model ignored the persona line, saved facts with Hermes'
+  own memory tool and never called `memory_search`, so nothing went through
+  pgvector and nothing was cited. The app now runs the search itself before
+  each user turn, after syncing the bot's Hermes notes into pgvector.
+- Second pass: "codename" was answered "Bluefin [mem:003fe3b2]" from a
+  synced Hermes note. A never-stored fact was answered "not in memory"
+  without a guess. A new fact saved through Hermes was recalled with a
+  citation on the next turn. A general-knowledge question was refused as
+  "not in memory", so the rule now applies only to questions about the
+  user and past work. The third pass is below.
+- Memory text is embedded locally by Ollama and stored in a local Postgres.
+  Retrieved entries go to the bot's hosted model with the turn.
+- Grounding is enforced by what the app attaches to each turn and by an
+  instruction. The app cannot stop a model from ignoring it.
+- Third pass, after that change: "capital of Australia" was answered
+  "Canberra", marked as general knowledge, and "codename" was answered
+  "Bluefin [mem:543286d4]".
+
+HQ self-checks at 454088e: 56 passed with the memory database, and 49
+passed with 7 skipped without it.

@@ -88,3 +88,24 @@ Observed and not fixed here:
 
 The browser call (a person speaking through the web client) was not part
 of this probe.
+
+## Browser worklet fix, 2026-11-20
+
+Chrome reproduced `AbortError` when loading the microphone worklet from a
+blob URL under HQ's same-origin script policy. The built web app now serves
+the processor as a hashed same-origin JavaScript asset. Chrome registered
+it under the existing policy and emitted a 960-sample PCM frame at 24 kHz.
+
+The browser checks used synthetic input. With voice disabled on the local
+server, clicking Start voice chat reported the missing provider before
+opening the microphone. With availability simulated, the browser
+released the microphone after both a worklet failure and a rejected
+session request. A live provider call was not run.
+
+## Preview OpenAI connection, 2026-11-20
+
+The restarted preview reported voice enabled. It minted a Realtime client
+secret, received OpenAI's `session.created` event and closed the call.
+The probe sent no audio or chat content. The operator separately reported
+that a manual voice call worked. The manual call was not independently
+observed and no audio or transcript was retained as evidence.
