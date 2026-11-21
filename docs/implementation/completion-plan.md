@@ -92,7 +92,8 @@ Constraint: $0 ([PH-00 setup decisions](../approvals/ph-00-setup-decisions.md)).
 Google's pricing page lists the Live and Flash models below as free, but
 **free-tier content is used to improve Google's products**, so cloud calls
 stay synthetic-only per [free-stack.md](../free-stack.md). Real personal use
-at $0 means the local path.
+at $0 means the local path. (2026-11-21: [DEC-24](../../descisions.md#dec-24)
+allows personal data on OpenAI and NVIDIA NIM for the maintainers' own testing.)
 
 | Loop | Primary | Fallback 1 | Fallback 2 | Notes |
 | --- | --- | --- | --- | --- |

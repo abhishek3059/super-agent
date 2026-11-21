@@ -26,35 +26,37 @@ class HermesWorkerDefinition:
     allowed_tools: tuple[str, ...]
 
 
+# All read-only. Tools are cut down to the policy scope of the job's task type at claim time, so a name
+# here that the scope does not grant (or that does not exist) is simply never offered.
 HERMES_WORKERS: dict[str, HermesWorkerDefinition] = {
     "researcher": HermesWorkerDefinition(
         name="researcher",
-        role="Web & Knowledge Researcher",
-        description="Autonomous web research, documentation analysis, fact retrieval, and cited synthesis",
+        role="Calculator and clock researcher",
+        description="Answers questions with the calculator and the clock only; no web access",
         allowed_tools=("calculate", "current_time"),
     ),
     "coder": HermesWorkerDefinition(
         name="coder",
-        role="Software Engineer",
-        description="Source code reading, editing, test execution, syntax diagnostics, and git commits",
+        role="Clock-only helper",
+        description="Read-only: reads the clock; cannot read, edit or run code",
         allowed_tools=("current_time",),
     ),
     "secretary": HermesWorkerDefinition(
         name="secretary",
-        role="Executive Secretary & Scheduler",
-        description="Calendar coordination, appointment reminders, email drafting, and agenda summaries",
+        role="Date and time helper",
+        description="Read-only: reads the clock; no calendar, email or reminders",
         allowed_tools=("current_time",),
     ),
     "librarian": HermesWorkerDefinition(
         name="librarian",
-        role="Memory & Profile Librarian",
-        description="User preference tracking, fact persistence, memory recall, and contextual indexing",
-        allowed_tools=("memory_recall", "memory_save"),
+        role="Memory reader",
+        description="Read-only: lists saved facts and reminders when the planner is local; cannot save",
+        allowed_tools=tuple(sorted(memory.NAMES - memory.WRITES)),
     ),
     "ops": HermesWorkerDefinition(
         name="ops",
-        role="Systems & Desktop Operations",
-        description="Host environment diagnostics, disk and network metrics, approved Mac desktop application launches",
+        role="Clock-only helper",
+        description="Read-only: reads the clock; no host diagnostics and no app launches",
         allowed_tools=("current_time",),
     ),
 }
@@ -78,8 +80,9 @@ def _storable(receipt: object) -> bool:
 
 
 class Runner:
-    def __init__(self, ledger, limits, work, clock):
-        self._ledger, self._work, self._clock = ledger, work, clock
+    def __init__(self, ledger, limits, work, clock, planner_is_local: bool = False):
+        # planner_is_local gates personal data for claimed jobs; the default is the stricter answer
+        self._ledger, self._work, self._clock, self._local = ledger, work, clock, planner_is_local
         if not isinstance(limits, policy.Limits):
             raise policy.PolicyError("limits_invalid")  # never fall back to defaults on a limit
         self._limits = limits
@@ -90,61 +93,21 @@ class Runner:
         self._pool.submit(self._run, admission)
 
     def claim_and_run(self, worker_id: str = "default") -> Job | None:
-        """Atomically claim the next queued task from the ledger and submit it to the pool."""
+        """Atomically claim the next queued job, vet it like policy.admit, and submit it to the pool.
+        A job that fails the checks is failed with proof it never ran."""
         job = self._ledger.claim_next_job(worker_id)
         if job is None:
             return None
-        tools = frozenset(HERMES_WORKERS[worker_id].allowed_tools) if worker_id in HERMES_WORKERS else frozenset()
-        from datetime import timedelta
-        adm = policy.Admission(
-            job=job,
-            tools=tools,
-            memory_context=False,
-            deadline=self._clock() + timedelta(seconds=self._limits.job_deadline_s),
-            planner_is_local=True,
-        )
-        self._pool.submit(self._run_claimed, adm, worker_id)
-        return job
-
-    def _run_claimed(self, adm: policy.Admission, worker_id: str) -> None:
-        job = adm.job
-        saw_stop = []
-
-        def should_stop() -> bool:
-            try:
-                stop = self._late(adm) or self._ledger.get_job(job.id).state == "cancel_requested"
-            except Exception:
-                stop = True
-            if stop:
-                saw_stop.append(True)
-            return stop
-
-        code = None
+        worker = HERMES_WORKERS.get(worker_id)
         try:
-            offered = dataclasses.replace(adm, tools=self._tools(adm.tools))
-            receipt, failed = self._work(job, offered, should_stop), False
+            adm = policy.admit_claimed(job, frozenset(worker.allowed_tools) if worker else frozenset(),
+                                       self._local, self._limits)
         except Exception as err:
-            receipt, failed = None, True
-            code = err.code if isinstance(err, policy.PolicyError) else None
-
-        try:
-            if failed:
-                plan = [("failed", "work_error", {"error": "work_error", **({"code": code} if code else {})})]
-            elif self._late(adm):
-                plan = [("failed", "job_deadline", {"error": "job_deadline"})]
-            elif not saw_stop:
-                plan = ([("succeeded", f"work_done_{worker_id}", receipt)] if _storable(receipt)
-                        else [("failed", "bad_receipt", {"error": "bad_receipt"})])
-            elif self._state(job.id) == "cancel_requested":
-                plan = [("cancelled", "cancel_stopped", {"stopped": True})]
-            else:
-                plan = [("failed", "stop_unconfirmed", {"error": "stop_unconfirmed"})]
-        except Exception:
-            plan = []
-        plan.append(("unknown", "terminal_write_failed", None))
-        for to, reason, body in plan:
-            if self._finish(job.id, to, reason, body):
-                return
+            code = err.code if isinstance(err, policy.PolicyError) else "input_invalid"
+            self._finish(job.id, "failed", f"policy_{code}", {"executed": False, "error": code})
+            return job
+        self._pool.submit(self._run, adm, job, worker_id)
+        return job
 
     def close(self) -> None:
         self._pool.shutdown(wait=False, cancel_futures=True)
@@ -184,11 +147,13 @@ class Runner:
         return frozenset(t for t in admitted if (t not in tier1.T1_NAMES or t in enabled)
                          and (remembering or t not in memory.NAMES))
 
-    def _run(self, adm: policy.Admission) -> None:
-        try:
-            job = self._ledger.transition(adm.job.id, "running", adm.job.revision, "runner_start")
-        except LedgerError:  # cancelled while queued, or the ledger is unreachable: do not run
-            return
+    def _run(self, adm: policy.Admission, claimed: Job | None = None, worker_id: str | None = None) -> None:
+        job = claimed
+        if job is None:
+            try:
+                job = self._ledger.transition(adm.job.id, "running", adm.job.revision, "runner_start")
+            except LedgerError:  # cancelled while queued, or the ledger is unreachable: do not run
+                return
         saw_stop = []
 
         def should_stop() -> bool:
@@ -215,8 +180,8 @@ class Runner:
                 plan = [("failed", "job_deadline", {"error": "job_deadline"})]
             elif not saw_stop:
                 # judged from the receipt itself, so a refused write of a good one is never called bad
-                plan = ([("succeeded", "work_done", receipt)] if _storable(receipt)
-                        else [("failed", "bad_receipt", {"error": "bad_receipt"})])
+                plan = ([("succeeded", f"work_done_{worker_id}" if worker_id else "work_done", receipt)]
+                        if _storable(receipt) else [("failed", "bad_receipt", {"error": "bad_receipt"})])
             elif self._state(job.id) == "cancel_requested":
                 plan = [("cancelled", "cancel_stopped", {"stopped": True})]
             else:  # work stopped early but no cancel is confirmed: its receipt is partial, never a success

@@ -159,8 +159,14 @@ def test_check_runs_a_synthetic_job_on_a_temp_ledger_and_prints_no_text(capsys, 
     summary = json.loads(out)
     assert summary["state"] == "succeeded" and summary["step_types"] == ["read_tool", "finish"]
     assert summary["model"] == planner_check.DEFAULT_MODEL
-    for hidden in (KEY, planner_check.INSTRUCTION, "391"):
+    # A duration can equal the calculator result. Check the output schema before
+    # checking that the result never appears in the descriptive fields.
+    elapsed = summary.pop("total_ms")
+    assert type(elapsed) is int and elapsed >= 0
+    assert set(summary) == {"model", "state", "reason", "transitions", "step_count", "step_types"}
+    for hidden in (KEY, planner_check.INSTRUCTION):
         assert hidden not in out
+    assert "391" not in json.dumps(summary)
     assert client.calls[0]["contents"].count(planner_check.INSTRUCTION) == 1 and not real.exists()
 
 

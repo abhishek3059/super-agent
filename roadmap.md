@@ -89,19 +89,22 @@ Maps to [RT-002](tasks/002-local-scaffold-and-boundary.md), [RT-003](tasks/003-n
 
 ## PH-02: ledger, policy, and two fixed workers
 
-**Status:** not started
+**Status:** in progress
 
 Maps to [RT-004](tasks/004-task-ledger-and-policy.md), [RT-005](tasks/005-fixed-sample-workers.md), and RT-G02.
 
-- [ ] R-02.1 [exception: [agent backend exception](docs/approvals/agent-backend-exception.md)] Job ledger with the eight canonical states, receipts, and application-owned truth. Evidence: none yet
-- [ ] R-02.2 [exception: [agent backend exception](docs/approvals/agent-backend-exception.md)] Idempotency keys, task revisions, and stale-session rejection. Evidence: none yet
-- [ ] R-02.3 [exception: [agent backend exception](docs/approvals/agent-backend-exception.md)] Policy limits enforced outside the model (schemas, sizes, deadlines, steps, retries, budget). Evidence: none yet
-- [ ] R-02.4 [exception: [agent backend exception](docs/approvals/agent-backend-exception.md)] Two trusted read-only workers over synthetic data, with no arbitrary-code, host-shell, plugin, or external-action exposure. Evidence: none yet
+- [x] R-02.1 [exception: [agent backend exception](docs/approvals/agent-backend-exception.md)] Job ledger with the eight canonical states, receipts, and application-owned truth. Evidence: [PH-02 evidence record (restart tested by reopening the on-disk ledger in process)](docs/implementation/ph02-ledger-evidence.md)
+- [x] R-02.2 [exception: [agent backend exception](docs/approvals/agent-backend-exception.md)] Idempotency keys, task revisions, and stale-session rejection. Evidence: [PH-02 evidence record](docs/implementation/ph02-ledger-evidence.md)
+- [x] R-02.3 [exception: [agent backend exception](docs/approvals/agent-backend-exception.md)] Policy limits enforced outside the model (schemas, sizes, deadlines, steps, retries, budget). Evidence: [PH-02 evidence record](docs/implementation/ph02-ledger-evidence.md)
+- [x] R-02.4 [exception: [agent backend exception](docs/approvals/agent-backend-exception.md)] Two trusted read-only workers over synthetic data, with no arbitrary-code, host-shell, plugin, or external-action exposure. Evidence: [PH-02 evidence record (the two workers are the task types answer and summarize; five legacy HERMES_WORKERS labels run through them read-only, cleanup tracked in R-02.F3)](docs/implementation/ph02-ledger-evidence.md)
 - [ ] R-02.5 [exception: [agent backend exception](docs/approvals/agent-backend-exception.md)] Worker execution off the voice event loop; conversation continues during overlap (RT-A02, RT-A03). Evidence: none yet
 - [ ] R-02.7 Governance gate per [governance design](docs/design/governance.md): `policy.decide` is the single allow, deny, or confirm decision for turn-level checks, fail closed, moved in slices 1 to 4 with no behaviour change except GR-1 (emotional or social turns never start a task). OD-G1 (`policy.py` is the gate) is approved in the [decisions record](docs/approvals/governance-decisions.md); OD-G2 to OD-G4 are decided in the same record; OD-G5 (how intent and emotional meaning are understood) is a precondition of slice 2b only; OD-G6 is answered in the [decisions record](docs/approvals/governance-decisions.md) (PH-02, no exception). Evidence: none yet
-- [ ] R-02.F1 Fix the admission bypass in `Runner.claim_and_run`: it must call `policy.admit`, use the job's own admitted tools, and stop offering `memory_recall` and `memory_save`, which do not exist, or the method is removed (review finding B4). Evidence: none yet
+- [x] R-02.F1 Fix the admission bypass in `Runner.claim_and_run`: it must call `policy.admit`, use the job's own admitted tools, and stop offering `memory_recall` and `memory_save`, which do not exist, or the method is removed (review finding B4). Evidence: [PH-02 evidence record](docs/implementation/ph02-ledger-evidence.md), [review record](docs/reviews/ph02-ledger-review.md)
 - [ ] R-02.F3 Reconcile the two ledger paths: the SQLite owner ledger is the one application-owned truth, and the PostgreSQL seam and the Hermes worker definitions from PR #55 either sit behind it with the same states, idempotency, and policy admission, or are removed. Evidence: none yet
 - [ ] R-02.F4 Close F2 (accept-before-auth denial of service) by handshake-time authentication before any of: R-A.2 allows real voice to a cloud provider beyond maintainer testing; a multi-user, shared, always-on, or remote host; job control reachable from a voice session ([decisions](docs/approvals/r01-10-decisions.md), [risk acceptance](docs/approvals/r01-6-f2-risk-acceptance.md)). Evidence: none yet
+- [x] R-02.F5 Stale-session rejection: each job records its voice session, and delegate or cancel from a closed or replaced session is refused (`session_stale`). Evidence: [PH-02 evidence record](docs/implementation/ph02-ledger-evidence.md), [review record](docs/reviews/ph02-ledger-review.md)
+- [x] R-02.F6 Hung tools cannot stall jobs: each tool call has a hard timeout inside the step deadline, abandoned threads are capped, app-read subprocesses keep a hard timeout and are killed, and this holds on Windows. Evidence: [PH-02 evidence record](docs/implementation/ph02-ledger-evidence.md), [review record](docs/reviews/ph02-ledger-review.md)
+- [x] R-02.F7 Provider-neutral hosted planner: one OpenAI-compatible client behind the planner seam, approved hosts only, key from the environment, bounded timeout and retry, with offline tests and an opt-in live check; the hosted run itself belongs to R-02.5. Evidence: [R-02.F7 record](docs/implementation/r02-f7-hosted-planner.md)
 - [ ] R-02.6 RT-004 and RT-005 records complete and RT-G02 evidenced. Evidence: none yet
 
 ## PH-03: steering, stops, recovery, and validation
@@ -178,7 +181,7 @@ These do not gate any phase, but they are on the path and must be ticked.
 Design input: [brain overview](docs/design/brain/overview.md) and [memory design](docs/design/brain/memory.md). This track gates no phase and moves no gate. R-M.1 can happen any time. No item is built before the items it needs are ticked. The clarifying-question build stays in R-04.2 and the T0 persona in R-A.3. Work record: [roadmap record](docs/implementation/roadmap-brain-memory-governance.md).
 
 - [ ] R-M.1 [human] A maintainer approves the brain and memory design and records every open decision in [brain overview](docs/design/brain/overview.md) section 10, including the persistent-memory approval under RT-G05. Evidence: none yet
-- [ ] R-M.2 Local model measurement spike on the tool and step schemas; model and licence recorded (needs R-M.1). Evidence: none yet
+- [ ] R-M.2 Hosted model measurement spike on the tool and step schemas for the approved cloud providers; provider, model, terms and licence recorded (needs R-M.1). Evidence: none yet
 - [ ] R-M.3 Context assembler and model router with data-class enforcement and session memory only, with tests (needs R-02.3, R-M.2, R-A.2, R-02.F4). Evidence: none yet
 - [ ] R-M.4 System 1 tools `delegate_task`, `query_ledger`, and `cancel_task` wired to the ledger, tested with a scripted model (needs R-02.1, R-02.2, R-M.3, R-02.F4). Evidence: none yet
 - [ ] R-M.5 `steer_task` wired to revisions (needs R-03.1, R-M.4). Evidence: none yet
@@ -195,13 +198,16 @@ Design input: [brain overview](docs/design/brain/overview.md) and [memory design
 - [ ] R-M.16 Decay of unreinforced `inferred` records and forget with a receipt, including skipping distillation of any session that contains a forget request, tested (needs R-M.12). Evidence: none yet
 - [ ] R-M.17 Result handler subagent: job results reach the conversation model only through a handler that returns a brief at the turn boundary, never raw worker output, with tests (needs R-02.5, R-M.4). Evidence: none yet
 - [ ] R-M.19 Butler and etiquette rules BR-1 to BR-8 applied: short replies, ask once, discretion, good timing, not reciting stored facts, report only ledger truth, with tests; persona per OD-11 (needs R-M.1, R-M.4, R-A.3; persona name and tone come from the OD-11 record in R-M.1). Evidence: none yet
+- [ ] R-M.20 Move L1 session memory and the distiller trigger out of the local adapter into the cloud voice orchestrator, with tests (needs R-A.2 and an approved cloud voice route, see [PR #71](https://github.com/abhishek3059/super-agent/pull/71)). Evidence: none yet
+- [ ] R-M.21 Episodes and decisions stores with hybrid retrieval: FTS5 keyword search plus embeddings from an approved cloud provider in memory.db, each embedding deleted with its source row and counted by forget, with tests (needs R-A.2, R-M.7, R-M.12). Evidence: none yet
+- [ ] R-M.22 Planner phase per the [planner-phase proposal](docs/design/brain/planner-phase.md): intent gate that fails closed, a personalized brief from L1 to L3 through the context assembler, missing information handed to the R-04.2 clarifying flow, and the brief admitted by policy.admit with no new authority, with tests (needs R-M.3, R-M.21, R-02.7 slice 2b). Evidence: none yet
 
 ## Parallel track A: capability ladder (DEC-18)
 
 Tiers are defined in [DEC-18](descisions.md#dec-18). R-A.1 and R-A.2 can happen any time. R-A.3 starts after PH-01 is done and R-A.1 and R-A.2 are ticked. R-A.4 and R-A.5 start after RT-G02 (PH-02 exit). R-A.6 to R-A.9 start after RT-G03 (PH-03 exit). Each tier is built only after its design item is ticked. This track gates no phase and moves no gate.
 
 - [x] R-A.1 [human] Both maintainers approve DEC-18 and the matching REQ-08 and AGENTS.md section 5 edits. Evidence: [approval record](docs/approvals/capability-ladder-decision.md), [PR 35](https://github.com/abhishek3059/super-agent/pull/35)
-- [ ] R-A.2 [human] Data-boundary and cost decision for real voice and personal data sent to a cloud provider (REQ-13, free-tier training, the $0 cap). Evidence: none yet
+- [x] R-A.2 [human] Data-boundary and cost decision for real voice and personal data sent to a cloud provider (REQ-13, free-tier training, the $0 cap). Evidence: [R-A.2 decision record](docs/approvals/r-a2-cloud-personal-data.md)
 - [ ] R-A.3 T0 advice-only conversation persona shipped with tests; no tools, no personal data access, no new authority. Evidence: none yet
 - [ ] R-A.4 [human] T1 read-only connector design (scopes, allowlists, injection handling) approved after independent security review. Evidence: none yet
 - [ ] R-A.5 T1 read-only connectors built behind the policy layer, with negative tests. Evidence: none yet

@@ -10,7 +10,8 @@
 Free does not mean private. Every free cloud tier below has its own data
 terms, so any cloud call during development uses **synthetic data only**: no
 real microphone audio or personal context ([REQ-13](../prd.md#req-13),
-[REQ-14](../prd.md#req-14)).
+[REQ-14](../prd.md#req-14)). The one exception is the maintainers' own testing
+on OpenAI and NVIDIA NIM ([DEC-24](../descisions.md#dec-24)).
 
 ## Recommended stack
 

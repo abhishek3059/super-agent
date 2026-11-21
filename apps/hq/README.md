@@ -130,18 +130,11 @@ What it does not do, or does differently:
   read-only inside the sandbox. For the bot's own port, the bot's side dials
   out to the server, so the server never connects to a path a bot can change.
 
-Containment needs unprivileged user namespaces. Ubuntu 24.04 can restrict them
-with AppArmor; HQ then refuses to start bots and says why (for example
-`bwrap: setting up uid map: Permission denied`). Either allow them:
+The [maintainer pilot guide](../../docs/implementation/jarvis-hq-maintainer-pilot.md)
+covers the namespace preflight, the first worker run and the evidence to record.
+If Ubuntu blocks bubblewrap user namespaces, stop and record the reason. Fix
+host policy with a reviewed, scoped AppArmor configuration before continuing.
 
-```bash
-sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
-echo 'kernel.apparmor_restrict_unprivileged_userns=0' | sudo tee /etc/sysctl.d/60-hq-userns.conf
-```
-
-or give `bwrap` an AppArmor profile that allows `userns` (Ubuntu's
-`bwrap-userns-restrict` profile is the reference). To check it works:
-`bwrap --ro-bind / / --unshare-all --die-with-parent true && echo ok`.
 
 ## Voice
 
@@ -237,12 +230,12 @@ this line to `~/.super-agent/hq/.env`, with your password, and restart HQ:
 HQ_MEMORY_DB_URL=postgres://hq:<password>@127.0.0.1:5433/hq_memory
 ```
 
-Set up on Windows: install Docker Desktop with the WSL2 backend and Ollama for
-Windows (or run Ollama inside WSL2 and make sure `127.0.0.1:11434` answers from
-the host). Run `ollama pull nomic-embed-text`, set `POSTGRES_PASSWORD` in
-PowerShell (`$env:POSTGRES_PASSWORD = "..."`), run the same `docker compose`
-command from `apps/hq`, and put the same `HQ_MEMORY_DB_URL` line in
-`%USERPROFILE%\.super-agent\hq\.env`. Windows is not tested.
+On Windows, run the same memory setup from **inside Ubuntu WSL2**. The HQ
+server must reach PostgreSQL and Ollama on its own loopback interface. Run
+Ollama in Ubuntu, use Docker with WSL integration for PostgreSQL, and set
+`HQ_MEMORY_DB_URL` in the Ubuntu HQ data directory's owner-only `.env`.
+The Windows user profile's `.env` is outside this configuration. See the
+[maintainer pilot guide](../../docs/implementation/jarvis-hq-maintainer-pilot.md#optional-semantic-memory).
 
 The compose file binds the database to `127.0.0.1:5433` and keeps it in the
 named volume `hq-memory-data`. The tables are created on first use with
