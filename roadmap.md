@@ -223,6 +223,7 @@ Tiers are defined in [DEC-18](descisions.md#dec-18). R-A.1 and R-A.2 can happen 
 - [ ] R-H.7 Run HQ on Windows through WSL2 with a Linux containment backend (bubblewrap) that enforces the same rules as the macOS sandbox, with Linux Chrome discovery and a WSL launcher; per the [Windows and memory decision](docs/approvals/jarvis-hq-windows-memory-decision.md). Evidence: none yet
 - [ ] R-H.8 Per-bot semantic memory in a local PostgreSQL with pgvector, embedded locally by Ollama, with `memory_save` and `memory_search` tools that cite stored entries and answer "not in memory" when nothing matches; per the [Windows and memory decision](docs/approvals/jarvis-hq-windows-memory-decision.md). Evidence: none yet
 - [ ] R-H.9 Add an on-screen Jarvis companion inside HQ using original skins, saved appearance, and the existing chat and voice controls. Verify keyboard navigation, small screens, and reduced motion. No new tool permissions or provider connections. Evidence: none yet
+- [ ] R-H.10 Add an HQ companion walkthrough that highlights known app controls and waits for the operator, and an opt-in explanation display that renders bounded text-only flow cards through existing chat. Scope is inside HQ without desktop capture or automated clicks. Evidence: none yet
 
 ## Parallel track C: community and launch
 
