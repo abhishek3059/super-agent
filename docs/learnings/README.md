@@ -30,7 +30,6 @@ goes in [descisions.md](../../descisions.md).
 | 2026-11-20 | [CODEOWNERS self-approval bypass and local Ollama planner](2026-11-20-codeowners-autonomy-and-local-planner.md) | Admin bypass under DEC-22, in-process Ollama planner, and secret file hygiene |
 | 2026-11-20 | [Hermes gateway startup inside HQ](2026-11-20-hq-hermes-gateway-compatibility.md) | Check the worker, runtime paths and per-bot listener requirements |
 | 2026-11-20 | [HQ browser voice worklet](2026-11-20-hq-browser-voice-worklet.md) | Load the worklet under the production script policy and check voice before opening the microphone |
-
 | 2026-11-21 | [Integrated HQ pilot checks](2026-11-21-hq-pilot-checks.md) | Timing-independent assertions and mandatory Linux containment checks |
 
 ## How to add a note
