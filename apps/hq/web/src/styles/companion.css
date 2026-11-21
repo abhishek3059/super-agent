@@ -23,6 +23,7 @@
 .chat { container-type: inline-size; }
 @container (max-width: 590px) {
   .chat__header { justify-content: flex-start; }
+  .chat__pill-anchor > .menu.is-center { left: 0; transform: none; }
   .chat__pill-anchor { max-width: calc(100% - 230px); }
   .chat--companion .chat__pill-anchor { max-width: calc(100% - 124px); }
 }

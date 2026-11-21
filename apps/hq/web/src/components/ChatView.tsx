@@ -70,6 +70,7 @@ export function ChatView() {
               onClose={() => setMenu(false)}
               items={[
                 ...(canShowDetails ? [{ label: detailsOpen ? 'Hide details' : 'Show details', hint: '⇧⌘,', onSelect: () => set({ detailsOpen: !detailsOpen }) }] : []),
+                ...(narrow ? [{ label: 'Switch bot', onSelect: () => set({ modal: 'search' }) }] : []),
                 { label: 'Open computer', onSelect: () => set({ viewerOpen: true, viewerMode: 'watch', viewerHint: null }) },
                 { label: 'New conversation', onSelect: () => api.fresh(bot.id).then(() => flash('Started a new conversation')).catch((e) => flash(e.message)) },
                 { label: 'Bot settings', onSelect: () => useConfigUI.getState().openBotSettings(bot.id) },
