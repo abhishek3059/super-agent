@@ -18,7 +18,7 @@ import { runRoutine, scheduleRoutine, unscheduleRoutine } from './routines.js';
 import { deleteEventTrigger } from './triggers.js';
 import { dispatchRoomMessage } from './agent/rooms.js';
 import { voiceApi } from './voice.js';
-import type { AvatarColor, AvatarShape, Toolkit } from './types.js';
+import type { AvatarColor, AvatarShape, CompanionState, Toolkit } from './types.js';
 
 export const api = new Hono<AuthVars>();
 
@@ -155,6 +155,26 @@ api.get('/events', (c) => {
     }
     unsub();
   });
+});
+
+// ---------- companion ----------
+
+const COMPANION_STATUS = new Set(['idle', 'listening', 'thinking', 'speaking']);
+const COMPANION_SKINS = new Set(['arc', 'ember', 'carbon', 'paper']);
+/** Exactly the three fields, in range. Anything else is refused, so the relay carries no text or pixels. */
+export function companionState(body: any): CompanionState | null {
+  if (!body || typeof body !== 'object' || Object.keys(body).length !== 3) return null;
+  const { status, level, skin } = body;
+  if (!COMPANION_STATUS.has(status) || !COMPANION_SKINS.has(skin) || typeof level !== 'number' || !(level >= 0 && level <= 1)) return null;
+  return { status, level, skin };
+}
+
+// HQ's page posts its companion state; the desktop overlay, signed in as the same owner, hears it on /events.
+api.post('/companion', async (c) => {
+  const state = companionState(await c.req.json().catch(() => null));
+  if (!state) return c.json({ error: 'invalid companion state' }, 400);
+  hub.emit(c.get('user').id, { type: 'companion', state });
+  return c.body(null, 204);
 });
 
 // ---------- bots ----------

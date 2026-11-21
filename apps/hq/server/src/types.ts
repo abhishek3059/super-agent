@@ -212,6 +212,13 @@ export interface Toolkit {
   managedAuth: boolean; noAuth: boolean; connected: boolean;
 }
 
+/** What the desktop overlay mirrors from HQ: motion state, voice energy (0 to 1) and appearance. */
+export interface CompanionState {
+  status: 'idle' | 'listening' | 'thinking' | 'speaking';
+  level: number;
+  skin: 'arc' | 'ember' | 'carbon' | 'paper';
+}
+
 /** Server-sent events on GET /api/events */
 export type ServerEvent =
   | { type: 'hello'; serverTime: number }
@@ -225,4 +232,5 @@ export type ServerEvent =
   | { type: 'tasks'; botId: string }
   | { type: 'memories'; botId: string }
   | { type: 'connections' }
+  | { type: 'companion'; state: CompanionState }
   | { type: 'ping' };

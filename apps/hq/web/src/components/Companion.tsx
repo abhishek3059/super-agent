@@ -4,6 +4,7 @@ import type { Bot } from '@shared/types';
 import { SKINS, useConfigUI, type Theme } from '../configStore';
 import { callLevels, endCall, isCallActive, startCall, useVoice } from '../voice/call';
 import { Icon } from './Icon';
+import { previewSkin } from '../lib/companionMirror';
 
 type Skin = (typeof SKINS)[number];
 
@@ -104,7 +105,9 @@ export function Companion({ bot, running, explaining, toggleExplain }: {
   };
   const theme = useConfigUI((s) => s.theme);
   const setTheme = useConfigUI((s) => s.setTheme);
-  const [preview, setPreview] = useState<Skin | null>(null);
+  const [preview, setPreviewState] = useState<Skin | null>(null);
+  const setPreview = (skin: Skin | null) => { setPreviewState(skin); previewSkin(skin); };
+  useEffect(() => () => previewSkin(null), []);
   const [guide, setGuide] = useState<{ targets: [Skin, Skin]; step: number } | null>(null);
   const target = guide?.targets[guide.step];
   const targetButton = useRef<HTMLButtonElement>(null);

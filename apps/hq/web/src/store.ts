@@ -140,6 +140,7 @@ export const useStore = create<State>((set, get) => ({
     switch (ev.type) {
       case 'hello':
       case 'ping':
+      case 'companion':
         return;
       case 'rows':
         s.upsertRows(ev.botId, ev.generation, ev.rows);
