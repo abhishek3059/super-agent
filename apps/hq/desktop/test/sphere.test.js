@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { COUNT, fibonacciSphere, rotate, wave, frame } = require('../sphere.js');
+const { COUNT, fibonacciSphere, rotate, wave, gaze, frame } = require('../sphere.js');
 
 const close = (a, b, eps = 1e-9) => assert.ok(Math.abs(a - b) <= eps, `${a} != ${b}`);
 
@@ -21,6 +21,26 @@ test('the spiral is deterministic and starts at the north pole', () => {
 test('rotation keeps a unit vector a unit vector', () => {
   const r = rotate(fibonacciSphere()[7], 1.3, -0.4);
   close(Math.hypot(r.x, r.y, r.z), 1);
+});
+
+test('positive yaw turns the front point right and positive pitch turns it up', () => {
+  const front = { x: 0, y: 0, z: 1 };
+  const yawed = rotate(front, Math.PI / 2, 0);
+  close(yawed.x, 1);
+  close(yawed.z, 0);
+  const pitched = rotate(front, 0, Math.PI / 2);
+  close(pitched.y, -1); // screen up is negative y
+});
+
+test('the gaze follows the cursor and clamps at the edge', () => {
+  const at = { x: 100, y: 100 };
+  const size = 72;
+  assert.ok(gaze({ x: 200, y: 136 }, at, size).yaw > 0);
+  assert.ok(gaze({ x: 0, y: 136 }, at, size).yaw < 0);
+  assert.ok(gaze({ x: 136, y: 0 }, at, size).pitch > 0);
+  assert.ok(gaze({ x: 136, y: 300 }, at, size).pitch < 0);
+  close(gaze({ x: 9999, y: 136 }, at, size).yaw, 0.9);
+  close(gaze({ x: 136, y: 9999 }, at, size).pitch, -0.7);
 });
 
 test('the ripple stays between -1 and 1', () => {

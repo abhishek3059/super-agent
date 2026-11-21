@@ -1,5 +1,5 @@
-const { SIZE, targetFor, springStep, smoothLevel } = window.Motion;
-const { fibonacciSphere, frame: sphereFrame } = window.Sphere;
+const { targetFor, springStep, smoothLevel } = window.Motion;
+const { fibonacciSphere, gaze, frame: sphereFrame } = window.Sphere;
 const buddy = document.querySelector('.buddy');
 const art = buddy.querySelector('.companion__art');
 const canvas = buddy.querySelector('.companion__sphere');
@@ -17,11 +17,13 @@ let sample = 0;
 let level = 0;
 let accent = '';
 let last = performance.now();
+let box = 72;
 
 function resize() {
+  box = buddy.clientWidth || 72;
   const dpr = window.devicePixelRatio || 1;
-  canvas.width = Math.round(SIZE * dpr);
-  canvas.height = Math.round(SIZE * dpr);
+  canvas.width = Math.round(box * dpr);
+  canvas.height = Math.round(box * dpr);
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 }
 resize();
@@ -41,17 +43,16 @@ window.overlay.on((channel, value) => {
 
 /** 520 points, the back half dimmed, the front half bright. */
 function drawSphere(now, at) {
-  ctx.clearRect(0, 0, SIZE, SIZE);
+  ctx.clearRect(0, 0, box, box);
   if (!accent) accent = getComputedStyle(art).getPropertyValue('--companion-accent').trim() || '#39d0ff';
   const still = reduced.matches;
   const t = still ? 0 : now / 1000;
   const status = buddy.dataset.status || 'idle';
   const spin = status === 'thinking' ? 1.1 : status === 'speaking' ? 0.5 : 0.18;
-  const gazeX = still ? 0 : Math.max(-0.9, Math.min(0.9, (cursor.x - at.x - SIZE / 2) / 180));
-  const gazeY = still ? 0 : Math.max(-0.7, Math.min(0.7, -(cursor.y - at.y - SIZE / 2) / 180));
+  const look = still ? { yaw: 0, pitch: 0 } : gaze(cursor, at, box);
   const pts = sphereFrame(points, {
-    yaw: gazeX + t * spin, pitch: gazeY, t,
-    level: still ? 0 : level, radius: SIZE * 0.36, cx: SIZE / 2, cy: SIZE / 2,
+    yaw: look.yaw + t * spin, pitch: look.pitch, t,
+    level: still ? 0 : level, radius: box * 0.36, cx: box / 2, cy: box / 2,
   });
   ctx.fillStyle = accent;
   for (const p of pts) {

@@ -34,8 +34,8 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
-      # The overlay's motion self-test is plain Node: no Electron download needed.
-      - run: node --test desktop/test/motion.test.js
+      # The overlay's self-tests are plain Node: no Electron download needed.
+      - run: node --test desktop/test/*.test.js
 
   linux:
     name: Linux containment (bubblewrap) self-checks

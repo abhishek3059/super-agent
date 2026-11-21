@@ -29,6 +29,15 @@
     return Math.sin(p.y * 7 - t * 9) * 0.5 + Math.sin(Math.atan2(p.z, p.x) * 5 + t * 4) * 0.5;
   }
 
+  /** Where the sphere looks: right of centre yaws right, above centre pitches up. */
+  function gaze(cursor, at, size, max = { x: 0.9, y: 0.7 }) {
+    const clamp = (v, m) => Math.max(-m, Math.min(m, v));
+    return {
+      yaw: clamp((cursor.x - at.x - size / 2) / 180, max.x),
+      pitch: clamp(-(cursor.y - at.y - size / 2) / 180, max.y),
+    };
+  }
+
   /** Screen points for one frame. Orthographic, with voice energy moving the surface. */
   function frame(points, { yaw = 0, pitch = 0, t = 0, level = 0, radius, cx, cy }) {
     return points.map((p) => {
@@ -38,7 +47,7 @@
     });
   }
 
-  const api = { COUNT, fibonacciSphere, rotate, wave, frame };
+  const api = { COUNT, fibonacciSphere, rotate, wave, gaze, frame };
   if (typeof module === 'object' && module.exports) module.exports = api;
   else root.Sphere = api;
 })(this);
