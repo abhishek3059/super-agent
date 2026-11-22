@@ -5,6 +5,7 @@ const art = buddy.querySelector('.companion__art');
 const canvas = buddy.querySelector('.companion__sphere');
 const ctx = canvas.getContext('2d');
 const reduced = window.matchMedia('(prefers-reduced-motion: reduce)');
+const dark = window.matchMedia('(prefers-color-scheme: dark)');
 const points = fibonacciSphere();
 
 let area = { width: innerWidth, height: innerHeight };
@@ -21,6 +22,17 @@ let box = 72;
 let turn = 0;
 let staticFrame = false;
 let activeUntil = 0;
+let skin = null;
+
+/** The overlay has no tokens.css, so it sets the same light or dark base the HQ page resolved. */
+function applyLook(next) {
+  skin = next;
+  art.dataset.look = next;
+  const light = next === 'light' || next === 'paper' || (next === 'system' && !dark.matches);
+  document.documentElement.dataset.theme = light ? 'light' : 'dark';
+  accent = '';
+  staticFrame = false;
+}
 
 function resize() {
   box = buddy.clientWidth || 72;
@@ -45,15 +57,12 @@ window.overlay.on((channel, value) => {
     }
   } else if (channel === 'companion') {
     buddy.dataset.status = value.status;
-    if (art.dataset.look !== value.skin) {
-      art.dataset.look = value.skin;
-      accent = '';
-      staticFrame = false;
-    }
+    if (skin !== value.skin) applyLook(value.skin);
     sample = value.level;
     activeUntil = value.status === 'idle' ? 0 : performance.now() + 12_000;
   }
 });
+dark.addEventListener('change', () => { if (skin === 'system') applyLook('system'); });
 
 /** 520 points, the back half dimmed, the front half bright. */
 function drawSphere(now, at, dt) {

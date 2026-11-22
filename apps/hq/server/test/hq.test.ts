@@ -483,6 +483,9 @@ test('the companion relay carries only a bounded state, to the signed-in owner',
   const { db, now } = await import('../src/db.js');
   const good = { status: 'speaking', level: 0.4, skin: 'ember' };
   assert.deepEqual(companionState(good), good);
+  for (const skin of ['arc', 'ember', 'carbon', 'paper', 'light', 'dark', 'system']) {
+    assert.equal(companionState({ ...good, skin })?.skin, skin);
+  }
   for (const bad of [null, 'x', {}, { ...good, level: 1.5 }, { ...good, level: -0.1 }, { ...good, level: NaN }, { ...good, level: '0.4' },
     { ...good, status: 'clicking' }, { ...good, skin: 'marvel' }, { ...good, text: 'hello' }]) assert.equal(companionState(bad), null, JSON.stringify(bad));
 

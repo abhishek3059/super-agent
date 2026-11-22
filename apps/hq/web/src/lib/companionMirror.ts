@@ -1,5 +1,5 @@
 import type { CompanionState } from '@shared/types';
-import { SKINS, useConfigUI } from '../configStore';
+import { useConfigUI } from '../configStore';
 import { useStore } from '../store';
 import { callLevels, useVoice } from '../voice/call';
 import { req } from './api';
@@ -32,7 +32,7 @@ export function startCompanionMirror(): () => void {
     const state: CompanionState = {
       status: s,
       level: Math.round(Math.min(1, raw) * 20) / 20,
-      skin: preview ?? ((SKINS as readonly string[]).includes(theme) ? theme as Skin : 'arc'),
+      skin: preview ?? theme,
     };
     const key = JSON.stringify(state);
     // Refresh active state even when speech energy or the thinking state is unchanged.

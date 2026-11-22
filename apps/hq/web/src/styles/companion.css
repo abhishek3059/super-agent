@@ -78,6 +78,10 @@
   --eye-width: 18%;
   --eye-height: 12%;
 }
+.companion__art[data-look='dark'],
+.companion__art[data-look='system'] {
+  --companion-accent: #f5f5f5;
+}
 .companion__art[data-look='paper'],
 :root[data-theme='light'] .companion__art:is([data-look='light'], [data-look='system']) {
   --companion-accent: #cd8545;

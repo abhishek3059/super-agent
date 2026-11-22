@@ -86,7 +86,8 @@ cursor. It renders square pixels and keeps its rotation continuous as it
 changes modes. It shows what HQ is doing: idle, listening, thinking or speaking,
 with voice energy during a call. Hovering a skin in HQ's Companion panel
 previews it on the desktop at once. Click or keyboard-activate a skin to
-save it. Clicks pass straight through the overlay, and it
+save it. The overlay mirrors the saved skin or theme, including Light, Dark
+and System. Clicks pass straight through the overlay, and it
 never takes focus. Its tray (menu bar) icon offers **Follow cursor**, **Park in
 corner**, **Hide** and **Quit**. It respects reduced motion. It asks the
 system to keep it out of screen captures. On macOS, `screencapture` leaves it

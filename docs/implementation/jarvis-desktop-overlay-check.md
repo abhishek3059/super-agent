@@ -117,3 +117,42 @@ delegation, the Hermes result, and the result in the browser voice caption.
 Two earlier Chrome attempts with a simulated microphone file timed out
 before delegation. These checks did not use a physical microphone or
 measure speaker playback.
+
+## Floating skin wiring, 2026-11-22
+
+Host: macOS, Electron 45.2.3. HQ ran from a throwaway data folder on port
+18877 with `HQ_NO_SCHEDULER=1`, no Hermes, no provider keys and synthetic
+data only. The saved appearance was set in `hq.theme`, HQ was reloaded,
+Follow cursor was enabled, and the Electron overlay was restarted. The same
+value was read from the Companion card, the cursor companion and the overlay
+DOM, and the computed accent was compared.
+
+| Saved appearance | Card `data-look` | Cursor `data-look` | Overlay `data-look` | Accent on all three |
+| --- | --- | --- | --- | --- |
+| Arc | `arc` | `arc` | `arc` | `#39d0ff` |
+| Ember | `ember` | `ember` | `ember` | `#ff943e` |
+| Carbon | `carbon` | `carbon` | `carbon` | `#c3c8d2` |
+| Paper | `paper` | `paper` | `paper` | `#cd8545` |
+| Light | `light` | `light` | `light` | `#cd8545` |
+| Dark | `dark` | `dark` | `dark` | `#f5f5f5` |
+| System, dark OS | `system` | `system` | `system` | `#f5f5f5` |
+
+Before the fix, Light, Dark and System reached the overlay as `arc`, because
+the mirror forced every non-skin value to the default skin. The overlay now
+receives the saved value and resolves the same light or dark base as the
+page. Emulated media changed System from the dark values to `#cd8545` on both
+surfaces and back. Ember and Carbon matched on all three surfaces before and
+after the fix.
+
+Saved Ember, Carbon and Light each survived an HQ reload and an overlay
+restart. On restart the overlay replayed the signed-in owner's last look from
+the event stream.
+
+The Electron artwork is still one sphere silhouette. It carries the skin as
+its accent colour; the pixel head and face are drawn only in HQ's browser card
+and cursor companion. That is the known artwork limit, not a relay mismatch.
+Physical Windows and second display checks remain pending. R-H.11 stays
+unticked.
+
+Checks: HQ typecheck and build passed. HQ tests reported 55 passes, zero
+failures and 16 skips. The repository check was run before commit.
