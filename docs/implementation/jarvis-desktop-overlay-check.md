@@ -109,7 +109,11 @@ synthetic arithmetic question. Chrome rendered the selected Jarvis answer
 as a local Explain card. This selection is within the HQ conversation.
 
 The separate live voice probe streamed a synthetic command to OpenAI
-Realtime. The voice tool delegated it to Jarvis. Scout opened the example
-site and returned its title, which Jarvis reported in generated voice.
-The probe also verified interruption and call end. It did not use a
-physical microphone or measure speaker playback.
+Realtime. The voice tool delegated it to Jarvis. Scout's browser commands
+failed, then its web search returned the example page title, which Jarvis
+reported in generated voice. The probe also verified interruption and call
+end. A Chrome test with a controlled audio stream also verified voice
+delegation, the Hermes result, and the result in the browser voice caption.
+Two earlier Chrome attempts with a simulated microphone file timed out
+before delegation. These checks did not use a physical microphone or
+measure speaker playback.
