@@ -190,3 +190,23 @@ R-H.11 stay unticked.
 
 Checks: HQ typecheck and build passed. HQ tests reported 55 passes, zero
 failures and 16 skips.
+
+## Hero-style cards, 2026-11-22
+
+The picker now speaks the reference GIF's layout language with original
+art: dotted backdrop, transparent tiles, uppercase pixel labels, larger
+thumbnails (sphere scan and eye blink animate), and the selected
+character enlarged with its own accent glow, check mark and
+`Selected:` caption. Mika's portrait was redrawn (fringe, larger eyes
+with highlights, smile, collared jacket with shirt). No Roamies pixels
+were copied; the stored ids are unchanged so older saves keep working.
+
+Keyboard (ArrowRight arc to Mika) and clicks for all four reached the
+card, cursor companion and overlay with matching `data-look` and
+accents. Saved `paper` survived an HQ reload (`Selected: Paper`) and an
+overlay restart (replay showed `paper`). Reduced motion stopped the
+thumbnail animation. Physical Windows acceptance remains pending. R-H.9
+and R-H.11 stay unticked.
+
+Checks: HQ typecheck and build passed. HQ tests reported 55 passes, zero
+failures and 16 skips.
