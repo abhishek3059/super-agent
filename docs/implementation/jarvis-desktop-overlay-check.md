@@ -225,9 +225,11 @@ character enlarged with its own accent glow, check mark and
 with highlights, smile, collared jacket with shirt). No Roamies pixels
 were copied; the stored ids are unchanged so older saves keep working.
 
-Keyboard (ArrowRight arc to Mika) and clicks for all four reached the
-card, cursor companion and overlay with matching `data-look` and
-accents. Saved `paper` survived an HQ reload (`Selected: Paper`) and an
+Keyboard (ArrowRight arc to Mika) and clicks for all four then
+reached the card, cursor companion and overlay with matching `data-look`
+and accents. (The crew has since grown to six; see below.) Saved
+`paper` survived an HQ reload (`Selected: Paper`, now shown as Lumen)
+and an
 overlay restart (replay showed `paper`). Reduced motion stopped the
 thumbnail animation. Physical Windows acceptance remains pending. R-H.9
 and R-H.11 stay unticked.
