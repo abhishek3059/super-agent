@@ -20,6 +20,15 @@ function CompanionArt({ look }: { look: Theme }) {
           <span className="companion__portrait-face"><i /><i /></span>
           <span className="companion__portrait-jacket" />
         </div>
+      ) : look === 'umbra' ? (
+        <div className="companion__hood">
+          <div className="companion__hood-face"><i /><i /></div>
+        </div>
+      ) : look === 'pip' ? (
+        <div className="companion__pip">
+          <span className="companion__pip-antenna" />
+          <div className="companion__pip-face"><i /></div>
+        </div>
       ) : <div className="companion__head"><div className="companion__face"><i /><i /></div></div>}
     </div>
   );

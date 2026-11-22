@@ -14,13 +14,17 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: transparent;
   transform: none;
 }
 .buddy .companion__sphere { position: absolute; inset: 0; width: 72px; height: 72px; }
-.buddy :is(.companion__portrait, .companion__head) { display: none; width: 76%; height: 76%; }
-/* One silhouette per character, same as the browser: sphere for Jarvis, portrait for Mika, head for the rest. */
+.buddy :is(.companion__portrait, .companion__head, .companion__hood, .companion__pip) { display: none; width: 76%; height: 76%; }
+/* One silhouette per character, same as the browser: sphere for Jarvis, portrait for Mika, hood for Umbra, bot for Pip, head for the rest. */
 .buddy [data-look='ember'] .companion__sphere { display: none; }
 .buddy [data-look='ember'] .companion__portrait { display: block; }
-.buddy [data-look]:not([data-look='arc'], [data-look='ember']) :is(.companion__sphere, .companion__portrait) { display: none; }
-.buddy [data-look]:not([data-look='arc'], [data-look='ember']) .companion__head { display: grid; }
-.buddy[data-status='speaking'] :is(.companion__sphere, .companion__portrait) {
+.buddy [data-look='umbra'] :is(.companion__sphere, .companion__portrait) { display: none; }
+.buddy [data-look='umbra'] .companion__hood { display: grid; }
+.buddy [data-look='pip'] :is(.companion__sphere, .companion__portrait) { display: none; }
+.buddy [data-look='pip'] .companion__pip { display: grid; }
+.buddy [data-look]:not([data-look='arc'], [data-look='ember'], [data-look='umbra'], [data-look='pip']) :is(.companion__sphere, .companion__portrait) { display: none; }
+.buddy [data-look]:not([data-look='arc'], [data-look='ember'], [data-look='umbra'], [data-look='pip']) .companion__head { display: grid; }
+.buddy[data-status='speaking'] :is(.companion__sphere, .companion__portrait, .companion__head, .companion__hood, .companion__pip) {
   filter: drop-shadow(0 0 calc(3px + var(--level, 0) * 9px) var(--companion-accent));
 }
 .buddy[data-status='speaking'] .companion__portrait { transform: translateY(calc(var(--level, 0) * -3px)); }

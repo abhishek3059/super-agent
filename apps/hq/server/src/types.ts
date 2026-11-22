@@ -216,8 +216,8 @@ export interface Toolkit {
 export interface CompanionState {
   status: 'idle' | 'listening' | 'thinking' | 'speaking';
   level: number;
-  /** The four skins, plus the older Light, Dark and System themes that still save to `hq.theme`. */
-  skin: 'arc' | 'ember' | 'carbon' | 'paper' | 'light' | 'dark' | 'system';
+  /** The four original skins, the two new crew members, plus the older Light, Dark and System themes that still save to `hq.theme`. */
+  skin: 'arc' | 'ember' | 'carbon' | 'paper' | 'umbra' | 'pip' | 'light' | 'dark' | 'system';
 }
 
 /** Server-sent events on GET /api/events */

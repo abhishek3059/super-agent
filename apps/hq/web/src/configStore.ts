@@ -4,9 +4,9 @@ import { useStore } from './store';
 
 /** UI state for bot settings, app settings, the Tasks view and the theme. Kept apart from store.ts on purpose. */
 
-export const SKINS = ['arc', 'ember', 'carbon', 'paper'] as const;
+export const SKINS = ['arc', 'ember', 'carbon', 'paper', 'umbra', 'pip'] as const;
 export const SKIN_NAMES: Record<(typeof SKINS)[number], string> = {
-  arc: 'Jarvis', ember: 'Mika', carbon: 'Carbon', paper: 'Paper',
+  arc: 'Jarvis', ember: 'Mika', carbon: 'Onyx', paper: 'Lumen', umbra: 'Umbra', pip: 'Pip',
 };
 /** The plain themes, or a skin (colours layered on the light or dark base). */
 export type Theme = 'system' | 'light' | 'dark' | (typeof SKINS)[number];

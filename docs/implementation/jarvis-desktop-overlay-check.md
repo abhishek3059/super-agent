@@ -191,6 +191,30 @@ R-H.11 stay unticked.
 Checks: HQ typecheck and build passed. HQ tests reported 55 passes, zero
 failures and 16 skips.
 
+## Six-character crew, 2026-11-22
+
+Six original single-accent pixel characters, one hue each so swapping
+shifts the whole companion: Jarvis (sphere, cyan), Mika (portrait,
+ember), Onyx (visor, violet), Lumen (helm, gold), Umbra (hood, mint)
+and Pip (antenna bot, rose). All fills derive from the accent; no
+multi-colour sprites. Stored ids stay compatible (`carbon` shows Onyx,
+`paper` shows Lumen). The picker grid is six across. The overlay draws
+one silhouette per character, including the two new ones.
+
+Clicks for all six reached the card, cursor companion and overlay with
+matching `data-look` and accents, exactly one silhouette shown on each.
+Legacy `light` still renders, `ember` shows Mika and `carbon` shows
+Onyx. End and ArrowRight wrap across all six. Reduced motion stops the
+new art animation.
+
+The second buddy on screen was the other agent's pilot overlay
+(sa-hq-pixel, port 8797), which never updates from our HQ. The operator
+confirmed quitting it; only our overlay (port 18877) remains. Physical
+Windows acceptance remains pending. R-H.9 and R-H.11 stay unticked.
+
+Checks: HQ typecheck and build passed. HQ tests reported 55 passes, zero
+failures and 16 skips.
+
 ## Hero-style cards, 2026-11-22
 
 The picker now speaks the reference GIF's layout language with original

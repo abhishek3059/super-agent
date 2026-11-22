@@ -170,7 +170,7 @@ api.get('/events', (c) => {
 // ---------- companion ----------
 
 const COMPANION_STATUS = new Set(['idle', 'listening', 'thinking', 'speaking']);
-const COMPANION_SKINS = new Set(['arc', 'ember', 'carbon', 'paper', 'light', 'dark', 'system']);
+const COMPANION_SKINS = new Set(['arc', 'ember', 'carbon', 'paper', 'umbra', 'pip', 'light', 'dark', 'system']);
 /** Exactly the three fields, in range. Anything else is refused, so the relay carries no text or pixels. */
 export function companionState(body: any): CompanionState | null {
   if (!body || typeof body !== 'object' || Object.keys(body).length !== 3) return null;

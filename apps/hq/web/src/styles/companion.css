@@ -65,10 +65,16 @@
   --companion-accent: #ff943e;
 }
 .companion__art[data-look='carbon'] {
-  --companion-accent: #c3c8d2;
-  --head-top: #404046;
-  --head-bottom: #17171c;
+  --companion-accent: #b9a7ff;
+  --head-top: color-mix(in srgb, var(--companion-accent) 38%, #2b2f3a);
+  --head-bottom: color-mix(in srgb, var(--companion-accent) 22%, #0f1016);
   --head-clip: polygon(8% 0, 92% 0, 92% 6%, 100% 6%, 100% 30%, 96% 30%, 96% 80%, 90% 80%, 90% 92%, 10% 92%, 10% 80%, 4% 80%, 4% 30%, 0 30%, 0 6%, 8% 6%);
+}
+.companion__art[data-look='umbra'] {
+  --companion-accent: #52e6a8;
+}
+.companion__art[data-look='pip'] {
+  --companion-accent: #ff5d8f;
 }
 .companion__art[data-look='dark'],
 .companion__art[data-look='system'] {
@@ -76,9 +82,9 @@
 }
 .companion__art[data-look='paper'],
 :root[data-theme='light'] .companion__art:is([data-look='light'], [data-look='system']) {
-  --companion-accent: #cd8545;
-  --head-top: #eeece5;
-  --head-bottom: #a4a8a7;
+  --companion-accent: #ffd166;
+  --head-top: color-mix(in srgb, var(--companion-accent) 32%, #f4efe4);
+  --head-bottom: color-mix(in srgb, var(--companion-accent) 48%, #7a6a4a);
   --head-clip: polygon(30% 0, 70% 0, 70% 4%, 82% 4%, 82% 10%, 92% 10%, 92% 20%, 98% 20%, 98% 34%, 100% 34%, 100% 66%, 98% 66%, 98% 80%, 92% 80%, 92% 90%, 82% 90%, 82% 96%, 70% 96%, 70% 100%, 30% 100%, 30% 96%, 18% 96%, 18% 90%, 8% 90%, 8% 80%, 2% 80%, 2% 66%, 0 66%, 0 34%, 2% 34%, 2% 20%, 8% 20%, 8% 10%, 18% 10%, 18% 4%, 30% 4%);
 }
 
@@ -183,7 +189,7 @@
 .companion__appearance-label span + span { color: var(--color-primary); text-align: right; }
 .companion__skins {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 6px;
 }
 .companion__skin {
@@ -207,8 +213,10 @@
 .companion__skin:hover { background: var(--color-bg-elevated); border-color: var(--color-border-tertiary); }
 .companion__skin:has([data-look='arc']) { --skin-accent: #39d0ff; }
 .companion__skin:has([data-look='ember']) { --skin-accent: #ff943e; }
-.companion__skin:has([data-look='carbon']) { --skin-accent: #c3c8d2; }
-.companion__skin:has([data-look='paper']) { --skin-accent: #cd8545; }
+.companion__skin:has([data-look='carbon']) { --skin-accent: #b9a7ff; }
+.companion__skin:has([data-look='paper']) { --skin-accent: #ffd166; }
+.companion__skin:has([data-look='umbra']) { --skin-accent: #52e6a8; }
+.companion__skin:has([data-look='pip']) { --skin-accent: #ff5d8f; }
 .companion__skin[aria-checked='true'] {
   border-color: color-mix(in srgb, var(--skin-accent) 60%, transparent);
   background:
@@ -626,7 +634,7 @@
 .companion__portrait-hair {
   inset: 4% 9% 12% 6%;
   background: repeating-linear-gradient(0deg, transparent 0 8%, #1b132131 8% 10%),
-    linear-gradient(125deg, #c78aad, #5d3a55 48%, #221524 79%);
+    linear-gradient(125deg, color-mix(in srgb, var(--companion-accent) 58%, #fff), color-mix(in srgb, var(--companion-accent) 46%, #141018) 48%, color-mix(in srgb, var(--companion-accent) 30%, #0a0a10) 79%);
   clip-path: polygon(28% 0, 67% 0, 67% 6%, 83% 6%, 83% 15%, 95% 15%, 95% 73%, 100% 73%, 100% 98%, 69% 98%, 69% 81%, 38% 81%, 38% 95%, 0 95%, 0 66%, 9% 66%, 9% 19%, 18% 19%, 18% 8%, 28% 8%);
 }
 .companion__portrait-hair::before {
@@ -644,8 +652,8 @@
   left: 12%;
   width: 18%;
   height: 9%;
-  background: #ffd880;
-  box-shadow: 0 3px 0 #c17e4d;
+  background: color-mix(in srgb, var(--companion-accent) 62%, #fff);
+  box-shadow: 0 3px 0 color-mix(in srgb, var(--companion-accent) 60%, #000);
 }
 .companion__portrait-face {
   inset: 26% 25% 25% 26%;
@@ -653,13 +661,13 @@
   justify-content: center;
   align-items: center;
   gap: 24%;
-  background: linear-gradient(150deg, #fff3d4 8%, #f0c193 55%, #d99a6c 90%);
+  background: linear-gradient(150deg, color-mix(in srgb, var(--companion-accent) 20%, #fff6e6) 8%, color-mix(in srgb, var(--companion-accent) 36%, #eec39a) 55%, color-mix(in srgb, var(--companion-accent) 48%, #7a5232) 90%);
   clip-path: polygon(8% 0, 92% 0, 92% 10%, 100% 10%, 100% 62%, 90% 62%, 90% 78%, 72% 78%, 72% 92%, 60% 92%, 60% 100%, 40% 100%, 40% 92%, 28% 92%, 28% 78%, 10% 78%, 10% 62%, 0 62%, 0 10%, 8% 10%);
 }
 .companion__portrait-face i {
   width: 17%;
   height: 34%;
-  background: linear-gradient(0deg, #2a1626 10%, #6b3560 10% 55%, #140b16 55% 76%, #fff8ec 76%);
+  background: linear-gradient(0deg, color-mix(in srgb, var(--companion-accent) 55%, #000) 10%, var(--companion-accent) 10% 55%, #0d0d12 55% 76%, #fff8ec 76%);
   transform-origin: center;
   animation: hq-portrait-blink 4.8s steps(1) infinite;
 }
@@ -670,29 +678,99 @@
   top: 74%;
   width: 16%;
   height: 8%;
-  background: #8a4457;
+  background: color-mix(in srgb, var(--companion-accent) 60%, #33101c);
   clip-path: polygon(0 0, 100% 0, 100% 40%, 78% 40%, 78% 100%, 22% 100%, 22% 40%, 0 40%);
 }
 .companion__portrait-jacket {
   inset: 78% 9% 2%;
   clip-path: polygon(0 100%, 0 55%, 13% 55%, 13% 24%, 32% 24%, 32% 0, 68% 0, 68% 24%, 87% 24%, 87% 55%, 100% 55%, 100% 100%);
   background:
-    linear-gradient(135deg, transparent 42%, #fbca75 42% 58%, transparent 58%),
-    linear-gradient(135deg, #2b3c52 26%, #5a7a94 27% 40%, #e8e2d2 40% 60%, #34485e 60%);
+    linear-gradient(135deg, transparent 42%, color-mix(in srgb, var(--companion-accent) 72%, #fff) 42% 58%, transparent 58%),
+    linear-gradient(135deg, color-mix(in srgb, var(--companion-accent) 32%, #232c3e) 26%, color-mix(in srgb, var(--companion-accent) 52%, #5a7a94) 27% 40%, color-mix(in srgb, var(--companion-accent) 24%, #e8e2d2) 40% 60%, color-mix(in srgb, var(--companion-accent) 38%, #2c3848) 60%);
 }
 @keyframes hq-portrait-blink { 0%, 93%, 100% { transform: none; } 96% { transform: scaleY(.18); } }
-.companion__skin :is(.companion__ball, .companion__portrait),
-:is(.companion-cursor, .companion-guide-pointer) :is(.companion__ball, .companion__portrait) { width: 88%; }
+
+/* Umbra: a hooded watcher, one void slit for a face. */
+.companion__hood {
+  position: relative;
+  width: min(58%, 212px);
+  aspect-ratio: .94;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--companion-accent) 36%, #15171e) 0 58%, color-mix(in srgb, var(--companion-accent) 14%, #07080c) 58%),
+    color-mix(in srgb, var(--companion-accent) 30%, #101218);
+  clip-path: polygon(50% 0, 70% 5%, 79% 16%, 87% 28%, 91% 52%, 100% 66%, 100% 100%, 88% 100%, 88% 90%, 76% 90%, 76% 100%, 64% 100%, 64% 90%, 52% 90%, 52% 100%, 40% 100%, 40% 90%, 28% 90%, 28% 100%, 12% 100%, 12% 90%, 0 90%, 0 66%, 9% 52%, 13% 28%, 21% 16%, 30% 5%);
+}
+.companion__hood-face {
+  position: absolute;
+  inset: 30% 20% 38%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 26%;
+  background: #04060b;
+  clip-path: polygon(6% 0, 94% 0, 94% 18%, 100% 18%, 100% 82%, 94% 82%, 94% 100%, 6% 100%, 6% 82%, 0 82%, 0 18%, 6% 18%);
+}
+.companion__hood-face i {
+  width: 17%;
+  height: 34%;
+  background: var(--companion-accent);
+  box-shadow: 0 0 10px var(--companion-accent);
+  clip-path: polygon(0 22%, 100% 0, 100% 78%, 0 100%);
+  transform-origin: center;
+  animation: hq-companion-blink 6s ease-in-out infinite;
+}
+
+/* Pip: a one-eyed antenna bot. */
+.companion__pip {
+  position: relative;
+  width: min(46%, 172px);
+  aspect-ratio: .78;
+}
+.companion__pip-antenna {
+  position: absolute;
+  left: 46.5%;
+  top: 4%;
+  width: 7%;
+  height: 22%;
+  background: color-mix(in srgb, var(--companion-accent) 60%, #10131a);
+}
+.companion__pip-antenna::after {
+  content: '';
+  position: absolute;
+  left: -35%;
+  top: -20%;
+  width: 170%;
+  aspect-ratio: 1;
+  background: var(--companion-accent);
+  box-shadow: 0 0 5px var(--companion-accent);
+}
+.companion__pip-face {
+  position: absolute;
+  inset: 24% 8% 0;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(160deg, color-mix(in srgb, var(--companion-accent) 42%, #252c38), color-mix(in srgb, var(--companion-accent) 24%, #0d0f15) 72%);
+  clip-path: polygon(14% 0, 86% 0, 86% 8%, 100% 8%, 100% 26%, 94% 26%, 94% 88%, 86% 88%, 86% 100%, 14% 100%, 14% 88%, 6% 88%, 6% 26%, 0 26%, 0 8%, 14% 8%);
+}
+.companion__pip-face i {
+  width: 24%;
+  height: 30%;
+  background: linear-gradient(0deg, color-mix(in srgb, var(--companion-accent) 55%, #000) 15%, var(--companion-accent) 15% 62%, #fff8ec 62%);
+  box-shadow: 0 0 10px var(--companion-accent);
+  transform-origin: center;
+  animation: hq-companion-blink 5.2s ease-in-out infinite;
+}
+.companion__skin :is(.companion__ball, .companion__portrait, .companion__hood, .companion__pip),
+:is(.companion-cursor, .companion-guide-pointer) :is(.companion__ball, .companion__portrait, .companion__hood, .companion__pip) { width: 88%; }
 .companion__skin .companion__ball::after { animation: hq-pixel-scan 5s steps(12, end) infinite alternate; }
-.companion__skin .companion__art--pixel .companion__face i { animation: hq-companion-blink 7s ease-in-out infinite; }
-.companion__stage :is(.companion__ball, .companion__portrait) {
+.companion__skin .companion__art--pixel :is(.companion__face, .companion__hood-face, .companion__pip-face) i { animation: hq-companion-blink 7s ease-in-out infinite; }
+.companion__stage :is(.companion__ball, .companion__portrait, .companion__hood, .companion__pip) {
   transform: translate(var(--look-x, 0px), var(--look-y, 0px));
 }
 .companion__stage .companion__art--pixel .companion__head {
   width: min(59%, 238px);
   transform: translate(var(--look-x, 0px), var(--look-y, 0px));
 }
-.companion[data-status='Standing by'] .companion__stage :is(.companion__head, .companion__ball, .companion__portrait) {
+.companion[data-status='Standing by'] .companion__stage :is(.companion__head, .companion__ball, .companion__portrait, .companion__hood, .companion__pip) {
   animation: hq-pixel-drift 4.4s steps(8, end) infinite;
 }
 .companion:is([data-status='Connecting'], [data-status='Working']) .companion__stage .companion__orbit {
@@ -704,7 +782,7 @@
   outline: 1px solid color-mix(in srgb, var(--companion-accent) 52%, transparent);
   outline-offset: 4px;
 }
-.companion[data-status='Speaking'] .companion__stage :is(.companion__head, .companion__ball, .companion__portrait) {
+.companion[data-status='Speaking'] .companion__stage :is(.companion__head, .companion__ball, .companion__portrait, .companion__hood, .companion__pip) {
   transform: translate(var(--look-x, 0px), var(--look-y, 0px)) scale(calc(1 + var(--voice-level) * .12));
 }
 .companion__signal i { border-radius: 0; }
@@ -714,11 +792,11 @@
 @keyframes hq-pixel-scan { from { transform: rotate(45deg); } to { transform: rotate(135deg); } }
 @media (max-width: 660px), (max-height: 500px) {
   .companion__stage .companion__art--pixel .companion__head { width: min(57%, 65px); }
-  .companion__stage :is(.companion__ball, .companion__portrait) { width: min(68%, 70px); }
+  .companion__stage :is(.companion__ball, .companion__portrait, .companion__hood, .companion__pip) { width: min(68%, 70px); }
   .companion__stage .companion__art--pixel .companion__orbit { width: min(66%, 70px); }
 }
 @media (prefers-reduced-motion: reduce) {
   .companion__stage .companion__art--pixel .companion__head { transform: none; }
-  .companion__stage :is(.companion__ball, .companion__portrait) { transform: none; }
+  .companion__stage :is(.companion__ball, .companion__portrait, .companion__hood, .companion__pip) { transform: none; }
   .companion__skin .companion__ball::after { animation: none; }
 }
