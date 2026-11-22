@@ -317,6 +317,12 @@ extensions (the compose user is a superuser).
 
 ## Where things live
 
+For parallel HQ workspaces, use distinct HQ service ports and data directories.
+HQ automatically selects an available loopback block for its browser previews
+when it starts. If you set `CDP_PORT_BASE` yourself, choose a free range
+reserved for that workspace. If another program takes a browser port during
+an HQ run, restart HQ to choose a new block.
+
 Nothing is written into the repository. Under `~/.super-agent/hq` (mode 0700):
 `hq.db`, `session-secret`, `engines/<bot>` (each bot's Hermes home),
 `profiles/<bot>` (its Chrome profile), `files/<bot>` (its working folder and

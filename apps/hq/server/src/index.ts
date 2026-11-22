@@ -18,7 +18,7 @@ import { enqueue, expireStaleApprovals } from './agent/loop.js';
 import { configApi } from './routes-config.js';
 import { mcpApi } from './mcp.js';
 import { initEngines, stopAllGateways } from './engine.js';
-import { stopAllBrowsers } from './computer.js';
+import { configureBrowserPorts, stopAllBrowsers } from './computer.js';
 import { allowedHost, allowedOrigin } from './lib/guard.js';
 import { startEgressProxy } from './lib/egress.js';
 
@@ -57,6 +57,7 @@ if (fs.existsSync(webDist)) {
 }
 
 await Promise.all([stopAllBrowsers(), stopAllGateways()]);
+await configureBrowserPorts();
 
 // The bots' only ways into this server: their tool endpoint (MCP) and the internet proxy, each on a
 // port of its own. The app's own API is on a port no bot can reach.

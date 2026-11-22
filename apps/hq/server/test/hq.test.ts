@@ -539,3 +539,30 @@ test('the companion relay carries only a bounded state, to the signed-in owner',
     t.mock.timers.reset();
   }
 });
+
+test('HQ browser port blocks skip collisions and separate parallel workspaces', async () => {
+  const { reserveCdpBase } = await import('../src/lib/cdp-ports.js');
+  const { createServer } = await import('node:net');
+  const baseline = await reserveCdpBase([1, 5], []);
+  const existing = createServer();
+  const release: import('node:net').Server[] = [existing, baseline.reservation];
+  try {
+    await new Promise<void>((resolve, reject) => {
+      existing.once('error', reject);
+      existing.listen(baseline.base + 1, '127.0.0.1', resolve);
+    });
+    await new Promise<void>((resolve) => baseline.reservation.close(() => resolve()));
+    release.pop();
+    const first = await reserveCdpBase([1, 5, 1], []);
+    release.push(first.reservation);
+    const second = await reserveCdpBase([1, 5], []);
+    release.push(second.reservation);
+    const third = await reserveCdpBase([1, 5], []);
+    release.push(third.reservation);
+    assert.ok([first, second, third].every((workspace) => workspace.base !== baseline.base));
+    assert.equal(new Set([first.base, second.base, third.base]).size, 3);
+    assert.equal(existing.listening, true);
+  } finally {
+    await Promise.all(release.map((server) => new Promise<void>((resolve) => server.close(() => resolve()))));
+  }
+});

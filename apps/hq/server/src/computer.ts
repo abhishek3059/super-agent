@@ -8,6 +8,7 @@ import { env } from './env.js';
 import { confinedEnv, contained, tmpFor } from './sandbox.js';
 import { deletingBots, livePid, recordPid, stopPid } from './lib/procs.js';
 import { removeOwn, writeOwn } from './lib/own.js';
+import { reserveCdpBase } from './lib/cdp-ports.js';
 import type { ComputerState } from './types.js';
 
 /**
@@ -163,8 +164,8 @@ export async function tabAction(botId: string, a: TabAction): Promise<void> {
 
 const starting = new Map<string, Promise<void>>();
 
-/** The browser we started for this bot: its command line names its own debugging port. */
-const chromeMarker = (botId: string) => `--remote-debugging-port=${cdpPortFor(botId)} `;
+/** The profile path distinguishes workspaces and remains stable when the port block moves. */
+const chromeMarker = (botId: string) => `--user-data-dir=${profileDir(botId)} `;
 const chromePid = (botId: string) => livePid(`${botId}.chrome`, chromeMarker(botId));
 
 async function startChrome(botId: string): Promise<void> {
@@ -257,6 +258,16 @@ export async function forgetBotFiles(botId: string): Promise<void> {
 export async function stopAllBrowsers(): Promise<void> {
   const bots = db.prepare("SELECT id FROM bots WHERE COALESCE(kind,'agent') <> 'room'").all() as { id: string }[];
   await Promise.all(bots.map((b) => stopChrome(b.id)));
+}
+
+/** Choose ports once, before any Hermes gateway binds its browser URL in the sandbox. */
+export async function configureBrowserPorts(): Promise<void> {
+  if (env.explicitCdpBase) return;
+  const bots = db.prepare('SELECT engine_port FROM bots WHERE engine_port IS NOT NULL').all() as { engine_port: number }[];
+  const offsets = bots.map((bot) => bot.engine_port - env.enginePortBase + 1);
+  const services = [env.port, env.mcpPort, env.egressPort];
+  const { base } = await reserveCdpBase(offsets.length ? offsets : [1], services);
+  env.cdpPortBase = base;
 }
 
 // ---------- DevTools helpers ----------

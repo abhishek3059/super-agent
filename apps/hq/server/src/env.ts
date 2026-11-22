@@ -2,6 +2,7 @@ import crypto from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { DEFAULT_CDP_BASE } from './lib/cdp-ports.js';
 
 const port = Number(process.env.PORT ?? 8787);
 /** Bots never reach the app's own port: they get the tool endpoint and the internet proxy on ports of their own. */
@@ -96,7 +97,9 @@ export const env = {
 
   // ---- each bot's own screen: a Chrome with its own profile ----
   chromeBin: process.env.CHROME_BIN ?? '',
-  cdpPortBase: Number(process.env.CDP_PORT_BASE ?? 9300),
+  cdpPortBase: Number(process.env.CDP_PORT_BASE ?? DEFAULT_CDP_BASE),
+  explicitCdpBase: process.env.CDP_PORT_BASE !== undefined,
+  enginePortLimit: Number(process.env.CDP_PORT_BASE ?? DEFAULT_CDP_BASE),
   profilesDir: path.join(dataDir, 'profiles'),
   filesDir: path.join(dataDir, 'files'),
   maxBots: Number(process.env.MAX_BOTS ?? 8),

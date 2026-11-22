@@ -79,7 +79,7 @@ function freePort(): number {
   let p = Math.max(stored, highest + 1, env.enginePortBase);
   while (taken.has(p) || taken.has(cdpFor(p))) p++;
   // Engine ports must stay below the browser ports, or one bot's engine port could be another's browser port.
-  if (p >= env.cdpPortBase || cdpFor(p) > 65535) throw new Error('No free bot ports left.');
+  if (p >= env.enginePortLimit || cdpFor(p) > 65535) throw new Error('No free bot ports left.');
   db.prepare("INSERT OR REPLACE INTO meta(key, value) VALUES ('next_engine_port', ?)").run(String(p + 1));
   return p;
 }

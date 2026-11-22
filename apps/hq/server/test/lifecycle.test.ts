@@ -103,7 +103,7 @@ test('HQ leaves the socket unbound until its old browser and gateway have exited
     setInterval(() => { if (fs.existsSync(release)) process.exit(0); }, 20);
     fs.writeFileSync(ready, '');
   `;
-  const oldProcesses = Object.entries({ chrome: '--remote-debugging-port=9301', gateway: 'gateway run' })
+  const oldProcesses = Object.entries({ chrome: `--user-data-dir=${path.join(dataDir, 'profiles', botId)}`, gateway: 'gateway run' })
     .map(([role, marker]) => {
       const files = ['ready', 'stopping', 'release'].map((state) => path.join(dataDir, `${role}.${state}`));
       const child = spawn(process.execPath, ['-e', staleScript, '--', ...files, marker, 'fixture'], { detached: true, stdio: 'ignore' });

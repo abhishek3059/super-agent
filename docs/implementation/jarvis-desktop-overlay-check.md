@@ -95,3 +95,21 @@ The live voice probe used a fake microphone input and did not assess physical
 microphone or speaker quality. Direct provider sign-in was not rerun. The
 semantic memory database was not configured in this pilot. Physical Windows
 and second display tests remain pending. R-H.11 stays unticked.
+
+## Browser preview recovery, 2026-11-22
+
+Two browser ports in the Pixel Pilot's original range were held by another
+HQ workspace. The other three previews worked. After a restart with
+automatic port-block selection, all five bots sent a JPEG frame through
+HQ's authenticated Watch screen relay. The original listeners remained
+up. The same workspace and browser profiles were reused.
+
+Jarvis answered a synthetic geography question and Atlas answered a
+synthetic arithmetic question. Chrome rendered the selected Jarvis answer
+as a local Explain card. This selection is within the HQ conversation.
+
+The separate live voice probe streamed a synthetic command to OpenAI
+Realtime. The voice tool delegated it to Jarvis. Scout opened the example
+site and returned its title, which Jarvis reported in generated voice.
+The probe also verified interruption and call end. It did not use a
+physical microphone or measure speaker playback.
