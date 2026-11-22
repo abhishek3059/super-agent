@@ -9,9 +9,17 @@
 </head>
 <body>
 <div class="buddy" data-status="idle" data-connection="offline" hidden>
-  <div class="companion__art" data-look="arc">
+  <div class="companion__art companion__art--pixel" data-look="arc">
     <div class="companion__orbit"></div>
     <canvas class="companion__sphere" width="144" height="144" aria-hidden="true"></canvas>
+    <div class="companion__portrait" aria-hidden="true">
+      <span class="companion__portrait-hair"></span>
+      <span class="companion__portrait-face"><i></i><i></i></span>
+      <span class="companion__portrait-jacket"></span>
+    </div>
+    <div class="companion__head" aria-hidden="true">
+      <div class="companion__face"><i></i><i></i></div>
+    </div>
   </div>
 </div>
 <script src="motion.js"></script>

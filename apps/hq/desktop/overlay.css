@@ -14,9 +14,16 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: transparent;
   transform: none;
 }
 .buddy .companion__sphere { position: absolute; inset: 0; width: 72px; height: 72px; }
-.buddy[data-status='speaking'] .companion__sphere {
+.buddy :is(.companion__portrait, .companion__head) { display: none; width: 76%; height: 76%; }
+/* One silhouette per character, same as the browser: sphere for Jarvis, portrait for Mika, head for the rest. */
+.buddy [data-look='ember'] .companion__sphere { display: none; }
+.buddy [data-look='ember'] .companion__portrait { display: block; }
+.buddy [data-look]:not([data-look='arc'], [data-look='ember']) :is(.companion__sphere, .companion__portrait) { display: none; }
+.buddy [data-look]:not([data-look='arc'], [data-look='ember']) .companion__head { display: grid; }
+.buddy[data-status='speaking'] :is(.companion__sphere, .companion__portrait) {
   filter: drop-shadow(0 0 calc(3px + var(--level, 0) * 9px) var(--companion-accent));
 }
+.buddy[data-status='speaking'] .companion__portrait { transform: translateY(calc(var(--level, 0) * -3px)); }
 
 .buddy[data-status='idle'] .companion__art { animation: buddy-bob 3.2s ease-in-out infinite; }
 .buddy[data-status='listening'] .companion__orbit { transform: scale(calc(1 + var(--level, 0) * 0.18)); border-color: var(--companion-accent); }

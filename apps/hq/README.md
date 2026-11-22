@@ -33,7 +33,7 @@ exception, [DEC-23](../../descisions.md#dec-23). The maintainer's direction is
 - **Group chats** between you and several bots.
 - **Live voice** with OpenAI Realtime, when you supply a key. The voice agent
   hands real work to the same bot and speaks the result.
-- **Skins.** Arc (the default), Ember, Carbon and Paper, plus light and dark.
+- **Skins.** Jarvis (the default pixel sphere), Mika (an original pixel portrait, stored as `ember` so older saves keep working), Carbon and Paper, plus light and dark.
 
 ## Run it
 
@@ -64,7 +64,7 @@ The character reacts to voice and worker activity. **Follow cursor** enables
 a small companion beside your pointer inside the HQ conversation.
 The meter responds to mic input and spoken replies in an active call. HQ
 respects your system’s reduced-motion preference.
-Hover over Arc, Ember, Carbon or Paper to preview it, then select the skin
+Hover over Jarvis, Mika, Carbon or Paper to preview it, then select the skin
 to save it. Appearance is shared with App Settings. **Back to chat** returns
 to the regular workspace.
 

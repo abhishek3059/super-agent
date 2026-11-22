@@ -148,11 +148,45 @@ Saved Ember, Carbon and Light each survived an HQ reload and an overlay
 restart. On restart the overlay replayed the signed-in owner's last look from
 the event stream.
 
-The Electron artwork is still one sphere silhouette. It carries the skin as
-its accent colour; the pixel head and face are drawn only in HQ's browser card
-and cursor companion. That is the known artwork limit, not a relay mismatch.
-Physical Windows and second display checks remain pending. R-H.11 stays
-unticked.
+The Electron overlay then drew one sphere silhouette for every character.
+That limit is gone: the overlay now shows the canvas sphere for Jarvis,
+the portrait for Mika and the pixel head for the rest, matching the
+browser. Physical Windows and second display checks remain pending.
+R-H.11 stays unticked.
 
 Checks: HQ typecheck and build passed. HQ tests reported 55 passes, zero
 failures and 16 skips. The repository check was run before commit.
+
+## Character picker, 2026-11-22
+
+Host: macOS, Electron 45.2.3. HQ ran from a throwaway data folder on port
+18877 with `HQ_NO_SCHEDULER=1`, no Hermes, no provider keys and synthetic
+data only.
+
+The picker keeps the stored ids (`arc`, `ember`, `carbon`, `paper`) so
+older saves keep working, and shows them as Jarvis, Mika, Carbon and
+Paper. Jarvis is the pixel sphere. Mika is an original pixel portrait on
+the `ember` id (hair, face, jacket, all drawn in CSS, nothing copied).
+Carbon and Paper are clipped pixel heads with different silhouettes and
+eye shapes. The picker is a `radiogroup`: click or Arrow/Home/End keys
+select, the selected character gets a border, a check mark and a
+`Selected:` label, thumbnails animate (sphere scan, portrait and face
+blink) and hover still previews everywhere. Reduced motion hides the
+cursor companion and stops the animation on all surfaces.
+
+| Saved id | Shown as | Card | Cursor | Overlay | Accent |
+| --- | --- | --- | --- | --- | --- |
+| `arc` | Jarvis | sphere | sphere | canvas sphere | `#39d0ff` |
+| `ember` | Mika | portrait | portrait | portrait | `#ff943e` |
+| `carbon` | Carbon | visor head | visor head | visor head | `#c3c8d2` |
+| `paper` | Paper | helmet head | helmet head | helmet head | `#cd8545` |
+
+Switching by click and by keyboard reached all three surfaces with
+matching `data-look` and accents. Saved `ember` survived an HQ reload
+(card still portrait, `Selected: Mika`) and an overlay restart (replay
+showed the portrait). Legacy Light, Dark and System still render as the
+head silhouette. Physical Windows acceptance remains pending. R-H.9 and
+R-H.11 stay unticked.
+
+Checks: HQ typecheck and build passed. HQ tests reported 55 passes, zero
+failures and 16 skips.

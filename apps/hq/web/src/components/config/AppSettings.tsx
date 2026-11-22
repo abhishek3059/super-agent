@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import type { Toolkit } from '@shared/types';
 import { BotAvatarFor } from '../../avatar/BotAvatar';
 import { configApi, type ComputerDetails } from '../../lib/configApi';
-import { useConfigUI, type AppSection, type Theme } from '../../configStore';
+import { SKINS, SKIN_NAMES, useConfigUI, type AppSection, type Theme } from '../../configStore';
 import { useStore } from '../../store';
 import { computerStatusText } from '../DetailsPanel';
 import { Icon } from '../Icon';
@@ -97,10 +97,7 @@ function GeneralSection() {
       <section className="cfg-section">
         <div className="cfg-section__label">Skin</div>
         <div className="theme-tiles" role="radiogroup" aria-label="Skin">
-          <ThemeTile value="arc" label="Arc (Jarvis)" current={theme} onPick={setTheme} />
-          <ThemeTile value="ember" label="Ember" current={theme} onPick={setTheme} />
-          <ThemeTile value="carbon" label="Carbon" current={theme} onPick={setTheme} />
-          <ThemeTile value="paper" label="Paper" current={theme} onPick={setTheme} />
+          {SKINS.map((skin) => <ThemeTile key={skin} value={skin} label={SKIN_NAMES[skin]} current={theme} onPick={setTheme} />)}
         </div>
       </section>
     </>

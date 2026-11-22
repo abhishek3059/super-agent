@@ -104,7 +104,7 @@ function frame(now) {
   buddy.style.transform = `translate3d(${pos.x.toFixed(1)}px, ${pos.y.toFixed(1)}px, 0)`;
   level = reduced.matches ? 0 : smoothLevel(level, sample);
   buddy.style.setProperty('--level', level.toFixed(3));
-  if (mode !== 'hidden') drawSphere(now, pos, dt);
+  if (mode !== 'hidden' && (skin === 'arc' || skin == null)) drawSphere(now, pos, dt);
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);

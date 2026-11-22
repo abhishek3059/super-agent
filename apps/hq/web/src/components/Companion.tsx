@@ -1,7 +1,7 @@
-import { useEffect, useId, useRef, useState, type PointerEvent } from 'react';
+import { useEffect, useId, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react';
 import { createPortal } from 'react-dom';
 import type { Bot } from '@shared/types';
-import { SKINS, useConfigUI, type Theme } from '../configStore';
+import { SKINS, SKIN_NAMES, useConfigUI, type Theme } from '../configStore';
 import { callLevels, endCall, isCallActive, startCall, useVoice } from '../voice/call';
 import { Icon } from './Icon';
 import { previewSkin } from '../lib/companionMirror';
@@ -10,15 +10,17 @@ type Skin = (typeof SKINS)[number];
 
 const motionPreference = window.matchMedia('(prefers-reduced-motion: reduce)');
 
-const skinNames: Record<Skin, string> = { arc: 'Arc', ember: 'Ember', carbon: 'Carbon', paper: 'Paper' };
-
 function CompanionArt({ look }: { look: Theme }) {
   return (
     <div className="companion__art companion__art--pixel" data-look={look} aria-hidden="true">
       <div className="companion__orbit" />
-      <div className="companion__head">
-        <div className="companion__face"><i /><i /></div>
-      </div>
+      {look === 'arc' ? <div className="companion__ball" /> : look === 'ember' ? (
+        <div className="companion__portrait">
+          <span className="companion__portrait-hair" />
+          <span className="companion__portrait-face"><i /><i /></span>
+          <span className="companion__portrait-jacket" />
+        </div>
+      ) : <div className="companion__head"><div className="companion__face"><i /><i /></div></div>}
     </div>
   );
 }
@@ -140,6 +142,22 @@ export function Companion({ bot, running, explaining, toggleExplain }: {
     setPreview(null);
     if (guide && skin === target) setGuide({ ...guide, step: guide.step + 1 });
   };
+  const selected = SKINS.find((skin) => skin === theme) ?? SKINS[0];
+  const currentName = SKINS.includes(theme as Skin) ? SKIN_NAMES[theme as Skin] : theme;
+  const moveSkin = (event: KeyboardEvent<HTMLDivElement>) => {
+    const radios = Array.from(event.currentTarget.querySelectorAll<HTMLButtonElement>('[role="radio"]'));
+    const index = radios.findIndex((radio) => radio === event.target);
+    if (index < 0) return;
+    const next = event.key === 'ArrowRight' || event.key === 'ArrowDown' ? (index + 1) % SKINS.length
+      : event.key === 'ArrowLeft' || event.key === 'ArrowUp' ? (index - 1 + SKINS.length) % SKINS.length
+      : event.key === 'Home' ? 0
+      : event.key === 'End' ? SKINS.length - 1
+      : -1;
+    if (next < 0) return;
+    event.preventDefault();
+    chooseSkin(SKINS[next]);
+    radios[next]?.focus();
+  };
   const inCall = useVoice((s) => s.botId === bot.id && isCallActive(s));
   const voiceState = useVoice((s) => {
     if (s.botId !== bot.id) return null;
@@ -210,12 +228,14 @@ export function Companion({ bot, running, explaining, toggleExplain }: {
       </div>
       <div className="companion__appearance">
         <div className="companion__appearance-label">
-          <span>Appearance</span>
-          {preview && preview !== theme && <span>Previewing {skinNames[preview]}</span>}
+          <span>Character</span>
+          <span>{preview && preview !== theme ? `Previewing ${SKIN_NAMES[preview]}` : `Selected: ${currentName}`}</span>
         </div>
-        <div className="companion__skins" role="group" aria-label="Companion appearance">
+        <div className="companion__skins" role="radiogroup" aria-label="Companion appearance" onKeyDown={moveSkin}>
           {SKINS.map((skin) => (
-            <button key={skin} type="button" aria-pressed={theme === skin} className="companion__skin"
+            <button key={skin} type="button" role="radio" aria-checked={theme === skin}
+              tabIndex={selected === skin ? 0 : -1}
+              className="companion__skin"
               ref={skin === target ? targetButton : undefined}
               data-guide-target={skin === target ? '' : undefined}
               aria-describedby={skin === target ? instructionId : undefined}
@@ -224,7 +244,7 @@ export function Companion({ bot, running, explaining, toggleExplain }: {
               onClick={() => chooseSkin(skin)}
             >
               <CompanionArt look={skin} />
-              <span>{skinNames[skin]}</span>
+              <span>{SKIN_NAMES[skin]}</span>
               {theme === skin && <span className="companion__skin-check" aria-hidden="true"><Icon name="check" size={12} /></span>}
             </button>
           ))}
@@ -235,7 +255,7 @@ export function Companion({ bot, running, explaining, toggleExplain }: {
       {guide && (
         <div className="companion__guide" aria-label="Appearance walkthrough">
           <p id={instructionId} aria-live="polite">
-            <span key={guide.step}>{target ? `Step ${guide.step + 1} of 2 · Select ${skinNames[target]}` : 'Walkthrough complete.'}</span>
+            <span key={guide.step}>{target ? `Step ${guide.step + 1} of 2 · Select ${SKIN_NAMES[target]}` : 'Walkthrough complete.'}</span>
           </p>
           <button type="button" onClick={() => setGuide(null)}>{target ? 'Stop guide' : 'Done'}</button>
         </div>
