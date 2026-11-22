@@ -22,6 +22,10 @@ CREATE TABLE IF NOT EXISTS auth_sessions (
   created_at INTEGER NOT NULL,
   expires_at INTEGER NOT NULL
 );
+CREATE TABLE IF NOT EXISTS companion_looks (
+  user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+  skin TEXT NOT NULL
+);
 CREATE TABLE IF NOT EXISTS login_attempts (
   id TEXT PRIMARY KEY,
   provisional_user_id TEXT NOT NULL,

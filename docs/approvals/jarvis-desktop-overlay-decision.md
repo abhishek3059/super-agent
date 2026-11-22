@@ -45,6 +45,10 @@ The browser-only alternative (no native work) was also offered and declined.
   reads the owner secret from the WSL data folder and connects through WSL2's
   localhost forwarding.
 
+The character picker now previews hover on the HQ stage and mirrors the
+appearance to the desktop on selection. The approval above records the
+original scope.
+
 ## Reference material
 
 [Roamies](https://github.com/KenKaiii/Roamies/tree/7d5fb3c6e2a2445a0fef3e46412b73908900c2e0)

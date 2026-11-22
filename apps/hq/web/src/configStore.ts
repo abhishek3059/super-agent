@@ -30,9 +30,13 @@ interface ConfigUI {
 }
 
 const LS_THEME = 'hq.theme';
+const parseTheme = (value: string | null): Theme | null => {
+  if (value === 'system' || value === 'light' || value === 'dark') return value;
+  return SKINS.find((skin) => skin === value) ?? null;
+};
 const readTheme = (): Theme => {
   // A new install opens in the Jarvis look.
-  try { const t = localStorage.getItem(LS_THEME) as Theme | null; return t && (t === 'system' || t === 'light' || t === 'dark' || SKINS.includes(t)) ? t : 'arc'; } catch { return 'arc'; }
+  try { return parseTheme(localStorage.getItem(LS_THEME)) ?? 'arc'; } catch { return 'arc'; }
 };
 
 const darkQuery = typeof window !== 'undefined' && window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null;
@@ -65,8 +69,16 @@ export const useConfigUI = create<ConfigUI>((set, get) => ({
 }));
 
 // Apply the saved theme as early as possible, and follow the OS while on "system".
-applyTheme(readTheme());
+applyTheme(useConfigUI.getState().theme);
 darkQuery?.addEventListener?.('change', () => { if (useConfigUI.getState().theme === 'system') applyTheme('system'); });
+
+window.addEventListener('storage', (event) => {
+  if (event.storageArea !== localStorage || (event.key !== LS_THEME && event.key !== null)) return;
+  const theme = readTheme();
+  if (theme === useConfigUI.getState().theme) return;
+  applyTheme(theme);
+  useConfigUI.setState({ theme });
+});
 
 // store.ts forwards events it doesn't handle itself as a DOM event.
 window.addEventListener('hq:event', (e) => {

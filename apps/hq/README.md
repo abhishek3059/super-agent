@@ -64,9 +64,10 @@ The character reacts to voice and worker activity. **Follow cursor** enables
 a small companion beside your pointer inside the HQ conversation.
 The meter responds to mic input and spoken replies in an active call. HQ
 respects your system’s reduced-motion preference.
-Hover over Jarvis, Mika, Onyx, Lumen, Umbra or Pip to preview it, then select the skin
-to save it. Appearance is shared with App Settings. **Back to chat** returns
-to the regular workspace.
+Hover over Jarvis, Mika, Onyx, Lumen, Umbra or Pip to preview it on the stage.
+Select a character to apply it to the stage, chat cursor, App Settings and
+desktop overlay. Open HQ tabs in the same browser profile follow the saved
+selection. **Back to chat** returns to the regular workspace.
 
 - **Show me how** runs the appearance walkthrough. Each step highlights the
   control to select, points to it, and waits for your click or keyboard activation.
@@ -84,10 +85,9 @@ It follows your cursor and stays clear of screen edges, the menu bar, Dock and
 taskbar. Its 520-point sphere ripples with voice energy and looks toward the
 cursor. It renders square pixels and keeps its rotation continuous as it
 changes modes. It shows what HQ is doing: idle, listening, thinking or speaking,
-with voice energy during a call. Hovering a skin in HQ's Companion panel
-previews it on the desktop at once. Click or keyboard-activate a skin to
-save it. The overlay mirrors the saved skin or theme, including Light, Dark
-and System. Clicks pass straight through the overlay, and it
+with voice energy during a call. The desktop mirrors the selected character
+or theme, including Light, Dark and System. After HQ restarts, the desktop
+recovers the saved appearance and starts in the idle state. Clicks pass straight through the overlay, and it
 never takes focus. Its tray (menu bar) icon offers **Follow cursor**, **Park in
 corner**, **Hide** and **Quit**. It respects reduced motion. It asks the
 system to keep it out of screen captures. On macOS, `screencapture` leaves it

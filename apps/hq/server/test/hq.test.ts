@@ -496,14 +496,22 @@ test('the companion relay carries only a bounded state, to the signed-in owner',
   const post = (body: unknown, h: Record<string, string> = headers) => api.request('/companion', { method: 'POST', headers: h, body: JSON.stringify(body) });
   assert.equal((await post(good, { 'content-type': 'application/json' })).status, 401);
   assert.equal((await post({ ...good, text: 'secret' })).status, 400);
+  const savedLook = db.prepare('SELECT * FROM companion_looks WHERE user_id = ?');
+  assert.equal(savedLook.get('usr_companion'), undefined);
   assert.equal((await post(good)).status, 204);
   unsub();
   assert.deepEqual(heard, [{ type: 'companion', state: good }]);
+  assert.deepEqual(savedLook.get('usr_companion'), { user_id: 'usr_companion', skin: good.skin });
 
   const otherId = 'usr_other_companion';
   db.prepare('INSERT OR IGNORE INTO users(id,email,name,created_at) VALUES (?,?,?,?)').run(otherId, 'other-c@localhost', 'other', now());
+  const savedId = 'usr_saved_companion';
+  db.prepare('INSERT INTO users(id,email,name,created_at) VALUES (?,?,?,?)').run(savedId, 'saved-c@localhost', 'saved', now());
+  // Simulate an owner whose saved look predates this process's in-memory state.
+  db.prepare('INSERT INTO companion_looks (user_id, skin) VALUES (?, ?)').run(savedId, 'pip');
+  const savedToken = `Bearer ${createSession(savedId)}`;
   const decoder = new TextDecoder();
-  for (const token of [headers.authorization, headers.authorization, `Bearer ${createSession(otherId)}`]) {
+  for (const token of [headers.authorization, headers.authorization, savedToken, `Bearer ${createSession(otherId)}`]) {
     const response = await api.request('/events', { headers: { authorization: token } });
     assert.equal(response.status, 200);
     const reader = response.body!.getReader();
@@ -516,6 +524,9 @@ test('the companion relay carries only a bounded state, to the signed-in owner',
         const snapshot = decoder.decode((await reader.read()).value);
         assert.match(snapshot, /"type":"companion"/);
         assert.ok(snapshot.includes(JSON.stringify(good)));
+      } else if (token === savedToken) {
+        const snapshot = decoder.decode((await reader.read()).value);
+        assert.ok(snapshot.includes(JSON.stringify({ type: 'companion', state: { status: 'idle', level: 0, skin: 'pip' } })));
       } else {
         const otherState = { status: 'idle', level: 0, skin: 'paper' };
         assert.equal((await post(otherState, { ...headers, authorization: token })).status, 204);
@@ -527,6 +538,10 @@ test('the companion relay carries only a bounded state, to the signed-in owner',
       await reader.cancel();
     }
   }
+  const changed = { ...good, skin: 'umbra' };
+  assert.equal((await post(changed)).status, 204);
+  assert.deepEqual(savedLook.get('usr_companion'), { user_id: 'usr_companion', skin: changed.skin });
+  assert.deepEqual(savedLook.get(savedId), { user_id: savedId, skin: 'pip' });
   t.mock.timers.enable({ apis: ['Date'], now: Date.now() + 13_000 });
   try {
     const response = await api.request('/events', { headers: { authorization: headers.authorization } });
@@ -534,7 +549,7 @@ test('the companion relay carries only a bounded state, to the signed-in owner',
     try {
       await reader.read(); // hello
       const snapshot = decoder.decode((await reader.read()).value);
-      assert.ok(snapshot.includes(JSON.stringify({ status: 'idle', level: 0, skin: good.skin })));
+      assert.ok(snapshot.includes(JSON.stringify({ status: 'idle', level: 0, skin: changed.skin })));
     } finally {
       await reader.cancel();
     }

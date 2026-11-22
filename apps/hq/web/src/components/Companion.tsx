@@ -4,7 +4,6 @@ import type { Bot } from '@shared/types';
 import { SKINS, SKIN_NAMES, useConfigUI, type Theme } from '../configStore';
 import { callLevels, endCall, isCallActive, startCall, useVoice } from '../voice/call';
 import { Icon } from './Icon';
-import { previewSkin } from '../lib/companionMirror';
 
 type Skin = (typeof SKINS)[number];
 
@@ -115,9 +114,16 @@ export function Companion({ bot, running, explaining, toggleExplain }: {
   };
   const theme = useConfigUI((s) => s.theme);
   const setTheme = useConfigUI((s) => s.setTheme);
-  const [preview, setPreviewState] = useState<Skin | null>(null);
-  const setPreview = (skin: Skin | null) => { setPreviewState(skin); previewSkin(skin); };
-  useEffect(() => () => previewSkin(null), []);
+  const [preview, setPreview] = useState<Skin | null>(null);
+  useEffect(() => {
+    const clearPreview = () => setPreview(null);
+    window.addEventListener('blur', clearPreview);
+    document.addEventListener('visibilitychange', clearPreview);
+    return () => {
+      window.removeEventListener('blur', clearPreview);
+      document.removeEventListener('visibilitychange', clearPreview);
+    };
+  }, []);
   const [guide, setGuide] = useState<{ targets: [Skin, Skin]; step: number } | null>(null);
   const target = guide?.targets[guide.step];
   const targetButton = useRef<HTMLButtonElement>(null);
@@ -137,7 +143,11 @@ export function Companion({ bot, running, explaining, toggleExplain }: {
     const observer = new ResizeObserver(position);
     observer.observe(root);
     observer.observe(button);
-    return () => observer.disconnect();
+    root.addEventListener('scroll', position, true);
+    return () => {
+      root.removeEventListener('scroll', position, true);
+      observer.disconnect();
+    };
   }, [target]);
 
   const startGuide = () => {
@@ -237,29 +247,31 @@ export function Companion({ bot, running, explaining, toggleExplain }: {
       </div>
       <div className="companion__appearance">
         <div className="companion__appearance-label">
-          <span>Character</span>
+          <span>Characters</span>
           <span>{preview && preview !== theme ? `Previewing ${SKIN_NAMES[preview]}` : `Selected: ${currentName}`}</span>
         </div>
-        <div className="companion__skins" role="radiogroup" aria-label="Companion appearance" onKeyDown={moveSkin}>
+        <div className="companion__skins" role="radiogroup" aria-label="Companion character" onKeyDown={moveSkin}>
           {SKINS.map((skin) => (
             <button key={skin} type="button" role="radio" aria-checked={theme === skin}
               tabIndex={selected === skin ? 0 : -1}
               className="companion__skin"
+              data-look={skin}
               ref={skin === target ? targetButton : undefined}
               data-guide-target={skin === target ? '' : undefined}
               aria-describedby={skin === target ? instructionId : undefined}
               onPointerEnter={(event) => { if (event.pointerType === 'mouse') setPreview(skin); }}
               onPointerLeave={() => setPreview(null)}
+              onPointerCancel={() => setPreview(null)}
               onClick={() => chooseSkin(skin)}
             >
               <CompanionArt look={skin} />
-              <span>{SKIN_NAMES[skin]}</span>
+              <span className="companion__skin-name">{SKIN_NAMES[skin]}</span>
               {theme === skin && <span className="companion__skin-check" aria-hidden="true"><Icon name="check" size={12} /></span>}
             </button>
           ))}
         </div>
       </div>
-      {cursor && panel.current && !target && <CursorCompanion area={panel.current} theme={preview ?? theme} />}
+      {cursor && panel.current && !target && <CursorCompanion area={panel.current} theme={theme} />}
       {target && <div className="companion-guide-pointer" ref={marker} aria-hidden="true"><CompanionArt look={theme} /></div>}
       {guide && (
         <div className="companion__guide" aria-label="Appearance walkthrough">

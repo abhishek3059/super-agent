@@ -236,3 +236,18 @@ and R-H.11 stay unticked.
 
 Checks: HQ typecheck and build passed. HQ tests reported 55 passes, zero
 failures and 16 skips.
+
+### 2026-11-22 character picker polish
+
+Chrome on macOS kept all six thumbnails and labels inside their cards at
+320, 375, 759, 1024, 1280 and 1440 CSS pixels wide. Two signed-in tabs in
+one browser profile and the Electron overlay followed the same selection.
+Hover changed only the stage. A deliberately dropped update while idle
+retried successfully and reached Electron. In a live OpenAI Realtime call
+using generated speech, the Electron overlay showed speaking with nonzero
+output energy.
+
+A separate restart check posted Umbra while speaking, then ran a new HQ
+process on the same synthetic workspace. The new process replayed Umbra
+as idle with zero voice energy before a browser publisher connected.
+Physical Windows and WSL2 acceptance is pending.

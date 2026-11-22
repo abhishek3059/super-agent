@@ -138,6 +138,11 @@ api.use('/*', async (c, next) => {
 // ---------- events (SSE) ----------
 
 const latestCompanion = new Map<string, { state: CompanionState; receivedAt: number }>();
+const readCompanionLook = db.prepare<[string], Pick<CompanionState, 'skin'>>('SELECT skin FROM companion_looks WHERE user_id = ?');
+const saveCompanionLook = db.prepare(`
+  INSERT INTO companion_looks (user_id, skin) VALUES (?, ?)
+  ON CONFLICT(user_id) DO UPDATE SET skin = excluded.skin WHERE skin <> excluded.skin
+`);
 
 api.get('/events', (c) => {
   const user = c.get('user');
@@ -147,11 +152,12 @@ api.get('/events', (c) => {
     const unsub = hub.subscribe(user.id, (ev) => { queue.push(JSON.stringify(ev)); wake?.(); });
     stream.onAbort(() => { unsub(); wake?.(); });
     const latest = latestCompanion.get(user.id);
-    if (latest) {
-      // Preserve the skin if its publisher vanished during a call or turn.
-      const state: CompanionState = Date.now() - latest.receivedAt < 12_000
+    // Only the look outlives a disconnected publisher or an HQ restart.
+    const skin = latest?.state.skin ?? readCompanionLook.get(user.id)?.skin;
+    if (skin && COMPANION_SKINS.has(skin)) {
+      const state: CompanionState = latest && Date.now() - latest.receivedAt < 12_000
         ? latest.state
-        : { status: 'idle', level: 0, skin: latest.state.skin };
+        : { status: 'idle', level: 0, skin };
       queue.push(JSON.stringify({ type: 'companion', state }));
     }
     await stream.writeSSE({ data: JSON.stringify({ type: 'hello', serverTime: now() }) });
@@ -184,6 +190,7 @@ api.post('/companion', async (c) => {
   const state = companionState(await c.req.json().catch(() => null));
   if (!state) return c.json({ error: 'invalid companion state' }, 400);
   const userId = c.get('user').id;
+  if (latestCompanion.get(userId)?.state.skin !== state.skin) saveCompanionLook.run(userId, state.skin);
   latestCompanion.set(userId, { state, receivedAt: Date.now() });
   hub.emit(userId, { type: 'companion', state });
   return c.body(null, 204);

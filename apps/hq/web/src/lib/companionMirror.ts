@@ -2,16 +2,9 @@ import type { CompanionState } from '@shared/types';
 import { useConfigUI } from '../configStore';
 import { useStore } from '../store';
 import { callLevels, useVoice } from '../voice/call';
-import { req } from './api';
+import { hqFetch } from './auth';
 
-type Skin = CompanionState['skin'];
-let preview: Skin | null = null;
-let refresh = () => {};
-/** The skin under the pointer in HQ's picker, shown on the desktop overlay at once. */
-export function previewSkin(skin: Skin | null) { preview = skin; refresh(); }
-
-function status(): CompanionState['status'] {
-  const v = useVoice.getState();
+function status(v: ReturnType<typeof useVoice.getState>): CompanionState['status'] {
   if (v.status === 'live') {
     if (v.speaking) return 'speaking';
     if (v.thinking || v.working.length) return 'thinking';
@@ -24,31 +17,69 @@ function status(): CompanionState['status'] {
 export function startCompanionMirror(): () => void {
   let sent = '';
   let sentAt = 0;
-  const push = () => {
+  let retryAt = 0;
+  let sending = false;
+  let stopped = false;
+  const publish = async () => {
+    const now = Date.now();
+    if (stopped || now < retryAt) return;
+    const voice = useVoice.getState();
+    // A background tab should not compete with the visible view unless it is running a call.
+    if (document.hidden && voice.status !== 'live') return;
     const theme = useConfigUI.getState().theme;
-    const s = status();
+    const s = status(voice);
     const levels = callLevels();
     const raw = s === 'speaking' ? levels.out * 1.8 : s === 'listening' ? levels.mic * 3 : 0;
     const state: CompanionState = {
       status: s,
       level: Math.round(Math.min(1, raw) * 20) / 20,
-      skin: preview ?? theme,
+      skin: theme,
     };
     const key = JSON.stringify(state);
     // Refresh active state even when speech energy or the thinking state is unchanged.
-    const now = Date.now();
     if (key === sent && (s === 'idle' || now - sentAt < 4000)) return;
-    sent = key;
-    sentAt = now;
-    req('POST', '/companion', state).catch(() => { sent = ''; });
+    try {
+      const response = await hqFetch('/api/companion', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: key,
+        signal: AbortSignal.timeout(5000),
+      });
+      if (!response.ok) throw new Error('Companion relay rejected the update');
+      sent = key;
+      sentAt = Date.now();
+    } catch {
+      sent = '';
+      retryAt = Date.now() + 1000;
+    }
   };
-  refresh = push;
-  const timer = setInterval(() => { if (status() !== 'idle') push(); }, 100);
-  const unsubs = [useVoice.subscribe(push), useConfigUI.subscribe(push), useStore.subscribe((s, p) => {
+  const push = async () => {
+    if (stopped || sending || Date.now() < retryAt) return;
+    sending = true;
+    try {
+      // Tabs share this lock. Read the current selection only once it is our turn to send.
+      if (navigator.locks) await navigator.locks.request('hq-companion', publish);
+      else await publish();
+    } catch {
+      retryAt = Date.now() + 1000;
+    } finally {
+      sending = false;
+    }
+  };
+  const timer = setInterval(push, 100);
+  const unsubs = [useVoice.subscribe(push), useConfigUI.subscribe((s, p) => {
+    if (s.theme !== p.theme) push();
+  }), useStore.subscribe((s, p) => {
     const reconnected = s.sseConnected && !p.sseConnected;
     if (reconnected) sent = '';
     if (s.live !== p.live || reconnected) push();
   })];
+  document.addEventListener('visibilitychange', push);
   push();
-  return () => { clearInterval(timer); unsubs.forEach((u) => u()); refresh = () => {}; };
+  return () => {
+    stopped = true;
+    document.removeEventListener('visibilitychange', push);
+    clearInterval(timer);
+    unsubs.forEach((u) => u());
+  };
 }
