@@ -14,12 +14,11 @@ const skinNames: Record<Skin, string> = { arc: 'Arc', ember: 'Ember', carbon: 'C
 
 function CompanionArt({ look }: { look: Theme }) {
   return (
-    <div className="companion__art" data-look={look} aria-hidden="true">
+    <div className="companion__art companion__art--pixel" data-look={look} aria-hidden="true">
       <div className="companion__orbit" />
       <div className="companion__head">
         <div className="companion__face"><i /><i /></div>
       </div>
-      <div className="companion__shadow" />
     </div>
   );
 }
@@ -148,8 +147,8 @@ export function Companion({ bot, running, explaining, toggleExplain }: {
     if (s.status === 'connecting') return 'Connecting';
     if (s.status !== 'live') return null;
     if (s.speaking) return 'Speaking';
-    if (s.listening && !s.muted) return 'Listening';
     if (s.working.length || s.thinking) return 'Working';
+    if (s.listening && !s.muted) return 'Listening';
     return s.muted ? 'Muted' : 'Listening';
   });
   const status = voiceState ?? (running ? 'Working' : 'Standing by');
@@ -209,20 +208,27 @@ export function Companion({ bot, running, explaining, toggleExplain }: {
           <button type="button" onClick={startGuide} disabled={!!target}>Show me how</button>
         </div>
       </div>
-      <div className="companion__skins" role="group" aria-label="Companion appearance">
-        {SKINS.map((skin) => (
-          <button key={skin} type="button" aria-pressed={theme === skin} className="companion__skin"
-            ref={skin === target ? targetButton : undefined}
-            data-guide-target={skin === target ? '' : undefined}
-            aria-describedby={skin === target ? instructionId : undefined}
-            onPointerEnter={(event) => { if (event.pointerType === 'mouse') setPreview(skin); }}
-            onPointerLeave={() => setPreview(null)}
-            onClick={() => chooseSkin(skin)}
-          >
-            <CompanionArt look={skin} />
-            {skinNames[skin]}
-          </button>
-        ))}
+      <div className="companion__appearance">
+        <div className="companion__appearance-label">
+          <span>Appearance</span>
+          {preview && preview !== theme && <span>Previewing {skinNames[preview]}</span>}
+        </div>
+        <div className="companion__skins" role="group" aria-label="Companion appearance">
+          {SKINS.map((skin) => (
+            <button key={skin} type="button" aria-pressed={theme === skin} className="companion__skin"
+              ref={skin === target ? targetButton : undefined}
+              data-guide-target={skin === target ? '' : undefined}
+              aria-describedby={skin === target ? instructionId : undefined}
+              onPointerEnter={(event) => { if (event.pointerType === 'mouse') setPreview(skin); }}
+              onPointerLeave={() => setPreview(null)}
+              onClick={() => chooseSkin(skin)}
+            >
+              <CompanionArt look={skin} />
+              <span>{skinNames[skin]}</span>
+              {theme === skin && <span className="companion__skin-check" aria-hidden="true"><Icon name="check" size={12} /></span>}
+            </button>
+          ))}
+        </div>
       </div>
       {cursor && panel.current && !target && <CursorCompanion area={panel.current} theme={preview ?? theme} />}
       {target && <div className="companion-guide-pointer" ref={marker} aria-hidden="true"><CompanionArt look={theme} /></div>}

@@ -82,13 +82,16 @@ to the regular workspace.
 every app (R-H.11, [decision](../../docs/approvals/jarvis-desktop-overlay-decision.md)).
 It follows your cursor and stays clear of screen edges, the menu bar, Dock and
 taskbar. Its 520-point sphere ripples with voice energy and looks toward the
-cursor. It shows what HQ is doing: idle, listening, thinking or speaking,
+cursor. It renders square pixels and keeps its rotation continuous as it
+changes modes. It shows what HQ is doing: idle, listening, thinking or speaking,
 with voice energy during a call. Hovering a skin in HQ's Companion panel
-previews it on the desktop at once. Clicks pass straight through it, and it
+previews it on the desktop at once. Click or keyboard-activate a skin to
+save it. Clicks pass straight through the overlay, and it
 never takes focus. Its tray (menu bar) icon offers **Follow cursor**, **Park in
 corner**, **Hide** and **Quit**. It respects reduced motion. It asks the
-system to keep it out of screen captures; on macOS `screencapture` leaves it
-out (screen sharing apps were not tested). It does not capture the screen, watch your
+system to keep it out of screen captures. On macOS, `screencapture` leaves it
+out, while apps using ScreenCaptureKit can still include it.
+It does not capture the screen, watch your
 input or click anything, so it needs no Screen Recording or Accessibility
 permission.
 
@@ -103,8 +106,12 @@ npm start
 `npm ci` downloads the pinned Electron binary through Electron's own install
 script. The overlay signs in as the owner with the same challenge the
 launcher uses, so it needs read access to `session-secret` in the HQ data
-folder. It holds the session in its main process and ends it when it quits,
-including on Ctrl+C. Only one copy runs at a time. If HQ is not running, or
+folder. It holds the session in its main process and requests server-side
+logout on quit, including on Ctrl+C. If HQ is unreachable, the session
+expires normally. Only one copy runs at a time. On connection and reconnect,
+the overlay receives the latest companion state for its signed-in owner.
+Active animation expires if updates stop. The last skin stays visible.
+If HQ is not running, or
 its event stream goes quiet for 45 seconds, it dims and reconnects.
 
 On Windows, run the overlay on Windows itself (PowerShell, Node 22) while HQ
@@ -254,8 +261,8 @@ All optional, read from the environment or from `~/.super-agent/hq/.env`.
 ## Memory
 
 Optional. Each bot can keep facts and decisions in a local PostgreSQL with
-pgvector, found again by meaning. Embeddings come from a local Ollama. Nothing
-here leaves the machine, and the app refuses a database or embedding URL that
+pgvector, found again by meaning. Storage and embedding are local. The app
+refuses a database or embedding URL that
 is not `127.0.0.1`, `localhost` or `::1`.
 
 With memory on, before each message you send, the app copies the bot's own

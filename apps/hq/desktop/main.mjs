@@ -30,12 +30,17 @@ function createOverlay() {
   win.setIgnoreMouseEvents(true);
   win.setAlwaysOnTop(true, 'screen-saver');
   win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
-  // Keeps the overlay out of screenshots and screen shares, so a later capture feature never sees itself.
+  // Request exclusion where the capture API honors it.
   win.setContentProtection(true);
   win.webContents.on('will-navigate', (e) => e.preventDefault());
   win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
+  win.webContents.once('did-finish-load', () => {
+    send('mode', mode);
+    pumpCursor();
+    void listen();
+  });
+  win.once('ready-to-show', () => win.showInactive());
   win.loadFile(path.join(here, 'overlay.html'));
-  win.once('ready-to-show', () => { send('mode', mode); win.showInactive(); });
 }
 
 /** Follows the cursor from display to display; the work area keeps it off the menu bar, Dock and taskbar. */
@@ -61,7 +66,7 @@ async function signIn() {
   if (!res.ok) throw new Error(`sign-in refused (HTTP ${res.status})`);
   const { token: t } = await res.json();
   if (typeof t !== 'string' || !/^[A-Za-z0-9_-]{43}$/.test(t)) throw new Error('sign-in returned no session');
-  // A sign-in that finishes after quit began is ended at once, never kept.
+  // If sign-in finishes during quit, attempt to revoke it without retaining the token.
   if (quitting) { await fetch(`${base}/api/auth/logout`, { method: 'POST', headers: { authorization: `Bearer ${t}` }, signal: AbortSignal.timeout(2000) }).catch(() => {}); return; }
   token = t;
 }
@@ -126,10 +131,8 @@ else app.whenReady().then(() => {
   tray.setToolTip('Jarvis overlay');
   tray.setContextMenu(trayMenu());
   createOverlay();
-  pumpCursor();
-  void listen();
 });
-// End the owner session before exiting, so a quit never leaves a 30-day session behind.
+// Attempt bounded server-side revocation before exiting.
 app.on('before-quit', (e) => {
   quitting = true;
   if (!token && !signing) return;

@@ -69,3 +69,29 @@ after the run above, so R-H.11 needs a fresh run on the merged revision.
 
 Not run. Steps for the operator are in the
 [HQ README](../../apps/hq/README.md#desktop-overlay).
+
+## Pixel Companion pilot, 2026-11-22
+
+The original pixel artwork and explicit skin controls are in the HQ Companion.
+The Electron sphere uses stepped pixels and separate idle, listening, thinking
+and voice energy cues. The relay replays the signed-in owner's last skin and
+lets active animation expire when HQ stops publishing.
+
+Reference review used 28 frames from the
+[linked video](https://www.youtube.com/watch?v=bl9646MVDA4), including the
+[cursor companion](https://www.youtube.com/watch?v=bl9646MVDA4&t=6s) and
+[appearance controls](https://www.youtube.com/watch?v=bl9646MVDA4&t=190s).
+The HQ visuals and motion are original. The walkthrough still points to known
+HQ controls and waits for the operator. Explain turns text into local cards.
+
+| Check | Outcome |
+| --- | --- |
+| Browser Companion | Chrome checked 320, 768, 1024 and 1440 px widths, keyboard skin selection, temporary hover preview and restoration, reduced motion, walkthrough completion and Explain |
+| Realtime and Electron | A separate synthetic call using generated speech drove the actual Electron renderer to speaking with nonzero output energy. Late startup mirrored the selected skin and hidden styling stayed at zero opacity with offline styling in either order |
+| Hermes handoff | A synthetic HQ turn on the configured NVIDIA route delivered a Jarvis task to Scout, then returned Scout's attributed marker to Jarvis |
+| Local checks | Repository check, HQ typecheck and build passed. HQ tests reported 54 passes, zero failures and 16 skips. Desktop tests passed 14 of 14 |
+
+The live voice probe used a fake microphone input and did not assess physical
+microphone or speaker quality. Direct provider sign-in was not rerun. The
+semantic memory database was not configured in this pilot. Physical Windows
+and second display tests remain pending. R-H.11 stays unticked.

@@ -477,7 +477,7 @@ test('the Linux seccomp filter is well formed for the CPUs it supports, and abse
   assert.equal(x64.readUInt32LE(x64.length - 3 * 8 + 4), 0x0005000d, 'EACCES for vsock');
 });
 
-test('the companion relay carries only a bounded state, to the signed-in owner', async () => {
+test('the companion relay carries only a bounded state, to the signed-in owner', { timeout: 3000 }, async (t) => {
   const { api, companionState } = await import('../src/routes.js');
   const { hub } = await import('../src/lib/hub.js');
   const { db, now } = await import('../src/db.js');
@@ -496,4 +496,46 @@ test('the companion relay carries only a bounded state, to the signed-in owner',
   assert.equal((await post(good)).status, 204);
   unsub();
   assert.deepEqual(heard, [{ type: 'companion', state: good }]);
+
+  const otherId = 'usr_other_companion';
+  db.prepare('INSERT OR IGNORE INTO users(id,email,name,created_at) VALUES (?,?,?,?)').run(otherId, 'other-c@localhost', 'other', now());
+  const decoder = new TextDecoder();
+  for (const token of [headers.authorization, headers.authorization, `Bearer ${createSession(otherId)}`]) {
+    const response = await api.request('/events', { headers: { authorization: token } });
+    assert.equal(response.status, 200);
+    const reader = response.body!.getReader();
+    const isOwner = token === headers.authorization;
+    try {
+      const hello = decoder.decode((await reader.read()).value);
+      assert.match(hello, /"type":"hello"/);
+      assert.doesNotMatch(hello, /"type":"companion"/);
+      if (isOwner) {
+        const snapshot = decoder.decode((await reader.read()).value);
+        assert.match(snapshot, /"type":"companion"/);
+        assert.ok(snapshot.includes(JSON.stringify(good)));
+      } else {
+        const otherState = { status: 'idle', level: 0, skin: 'paper' };
+        assert.equal((await post(otherState, { ...headers, authorization: token })).status, 204);
+        const event = decoder.decode((await reader.read()).value);
+        assert.ok(event.includes(JSON.stringify(otherState)));
+        assert.ok(!event.includes(JSON.stringify(good)));
+      }
+    } finally {
+      await reader.cancel();
+    }
+  }
+  t.mock.timers.enable({ apis: ['Date'], now: Date.now() + 13_000 });
+  try {
+    const response = await api.request('/events', { headers: { authorization: headers.authorization } });
+    const reader = response.body!.getReader();
+    try {
+      await reader.read(); // hello
+      const snapshot = decoder.decode((await reader.read()).value);
+      assert.ok(snapshot.includes(JSON.stringify({ status: 'idle', level: 0, skin: good.skin })));
+    } finally {
+      await reader.cancel();
+    }
+  } finally {
+    t.mock.timers.reset();
+  }
 });

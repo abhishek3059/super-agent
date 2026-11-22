@@ -4,21 +4,30 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: transparent;
   will-change: transform; pointer-events: none;
   transition: opacity 240ms ease;
 }
-.buddy[hidden] { display: block; opacity: 0; }
 .buddy[data-connection='offline'] { opacity: 0.45; filter: saturate(0.3); }
-.buddy .companion__art { width: 100%; height: 100%; }
-.buddy .companion__orbit { width: 100%; }
-.buddy .companion__sphere { position: absolute; width: 72px; height: 72px; }
+.buddy[hidden] { display: block; opacity: 0; }
+.buddy .companion__art { display: grid; place-items: center; width: 100%; height: 100%; }
+.buddy .companion__orbit {
+  position: absolute; inset: 6px; width: auto; height: auto; border-radius: 8px;
+  border: 1px solid color-mix(in srgb, var(--companion-accent) 35%, transparent);
+  background: radial-gradient(circle, color-mix(in srgb, var(--companion-accent) 16%, transparent), transparent 70%);
+  transform: none;
+}
+.buddy .companion__sphere { position: absolute; inset: 0; width: 72px; height: 72px; }
 .buddy[data-status='speaking'] .companion__sphere {
   filter: drop-shadow(0 0 calc(3px + var(--level, 0) * 9px) var(--companion-accent));
 }
 
 .buddy[data-status='idle'] .companion__art { animation: buddy-bob 3.2s ease-in-out infinite; }
 .buddy[data-status='listening'] .companion__orbit { transform: scale(calc(1 + var(--level, 0) * 0.18)); border-color: var(--companion-accent); }
-.buddy[data-status='thinking'] .companion__orbit { border-top-color: var(--companion-accent); animation: buddy-spin 1.4s linear infinite; }
+.buddy[data-status='thinking'] .companion__orbit {
+  border-top-color: var(--companion-accent);
+  border-bottom-color: var(--companion-accent);
+  animation: buddy-think 960ms steps(4, end) infinite alternate;
+}
 
 @keyframes buddy-bob { 50% { transform: translateY(-4px); } }
-@keyframes buddy-spin { to { transform: rotate(1turn); } }
+@keyframes buddy-think { to { transform: rotate(12deg) scale(.9); opacity: .52; } }
 
 @media (prefers-reduced-motion: reduce) {
   .buddy, .buddy * { animation: none !important; transition: none !important; }
