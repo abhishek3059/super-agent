@@ -5,7 +5,7 @@
 | Status | **Proposal. Not approved. Design only, no code.** |
 | Date | 2026-11-21 |
 | Requested by | Maintainer `jeevesh2515`, in chat with OpenCode (DeepSeek V4.1 Flash), 2026-11-21, from the Roamies blueprint |
-| Roadmap | Proposed as R-H.14 in [parallel track H](../../roadmap.md#parallel-track-h-jarvis-hq-local-team-dec-23) |
+| Roadmap | Proposed as R-H.14 (approval) and R-H.15 (build) in [parallel track H](../../roadmap.md#parallel-track-h-jarvis-hq-local-team-dec-23) |
 | Related | [local memory and reminders](local-memory-reminders.md), R-M.13, [DEC-23](../../descisions.md#dec-23), [`proactive.ts`](../../apps/hq/server/src/proactive.ts) |
 
 ## 1. What was asked
@@ -17,7 +17,7 @@ an amber overlay pulse.
 
 ## 2. What already exists
 
-- R-M.13 covers explicit facts and reminders in the core app: `remember`,
+- R-M.13 covers explicit facts and reminders in the core app: `remember_fact`,
   `add_reminder`, `forget`, `undo_forget`, SQLite, opt-in, secrets refused.
   It is merged but unticked. Its design is
   [local memory and reminders](local-memory-reminders.md).
@@ -41,14 +41,14 @@ Do not build a second reminder parser in HQ. Reuse the R-M.13 semantics.
 - Deliver due reminders through the existing proactive turn, as one short
   chat message. Do not add a new overlay field in this item.
 
-## 4. Scope for R-H.14
+## 4. Scope for R-H.15
 
 - Explicit requests only: the user's words contain "remind", "nudge" or
   "remember to".
 - One local store, one row per commitment: id, user_id, bot_id, text,
   due_at, repeat, status, created_at, delivered_at.
-- Caps: 200 open commitments, 240 characters each, control and bidi
-  characters stripped, secrets refused.
+- Caps: 200 open commitments, 240 characters each, control, bidi and
+  zero-width characters stripped, secrets refused.
 - A due commitment is delivered once. A repeating one moves to its next time.
 - A missed commitment while HQ is closed is delivered at the next start, with
   the original due time stated.

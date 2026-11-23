@@ -39,6 +39,9 @@ Build a **one-shot, region-only HUD**, not an always-on screen reader.
 - The model returns a bounded list of marks, never HTML, JavaScript or a URL.
 - The overlay draws the marks for a few seconds, then clears them.
 - No clicks, no typing, no window geometry, no calm-space detection.
+- The passive overlay app stays capture-free. Capture ships as a separate
+  helper app with its own bundle id and its own Screen Recording grant. The
+  overlay decision's guarantee stays true for the app people install.
 
 Full-screen capture and "calm space" detection are rejected for now. Calm
 space needs the bounds of other apps, which needs Accessibility or Screen
@@ -49,8 +52,9 @@ point at a button.
 
 1. The operator asks a question in HQ and chooses **Show me**. Nothing is
    captured before this.
-2. A small selection window takes focus for the drag. It closes on release.
-   The passive overlay never takes focus.
+2. The capture helper opens a small selection window that takes focus for the
+   drag. It closes on release. The passive overlay never takes focus and never
+   holds Screen Recording.
 3. The selection window captures only that rectangle from the display under
    it, at native scale, and shows a local preview.
 4. The operator chooses **Send** or **Cancel**. Cancel discards the crop.
@@ -97,15 +101,18 @@ screenX = region.x + (mark.x / 1000) * region.w
 screenY = region.y + (mark.y / 1000) * region.h
 ```
 
-The overlay window spans one display's work area. For a region on another
-display, the overlay instance for that display draws it. Tests must cover
-1x and 2x scales, negative-origin displays, and a region that touches a
-screen edge.
+The overlay window follows the cursor display today. Before drawing, it moves
+to the captured display's work area and pauses cursor-follow until the marks
+clear. One window, not one per display. Tests must cover 1x and 2x scales,
+negative-origin displays, a region that touches a screen edge, and the move
+between displays.
 
 ## 7. Providers and data
 
-- One approved provider per request. NVIDIA NIM is already an approved
-  worker provider; OpenAI is approved for maintainer testing under DEC-24.
+- One approved provider per request. NVIDIA NIM is an approved worker
+  provider at $0; OpenAI is approved for maintainer testing under DEC-24.
+  A paid NIM or OpenAI route needs a maintainer's approval under DEC-23
+  rule 5 first.
 - OpenCode free models are not an approved provider and have no HQ adapter.
   Do not route screen pixels to them.
 - Provider terms on training and retention are unverified (DEC-24 rule 5).
@@ -130,7 +137,8 @@ is a separate, short-lived window that takes focus only for the drag.
   and Origin (REQ-11).
 - The overlay renderer never sees the session token. It receives marks over
   IPC from the main process, as it does for companion state.
-- The overlay CSP stays `default-src 'none'; script-src 'self'`.
+- The overlay CSP stays `default-src 'none'; script-src 'self'; style-src 'self'`,
+  exactly as in [`overlay.html`](../../apps/hq/desktop/overlay.html).
 - No `eval`, no HTML injection, no remote content, no arbitrary draw commands.
 - Bounded crop size, bounded marks, bounded duration, bounded label length.
 - Fail closed: no consent, no capture. Capture error, no marks. Model error,
@@ -167,3 +175,6 @@ is a separate, short-lived window that takes focus only for the drag.
    operator typed?
 4. Is the crop sent to the provider, or only a local OCR result? The crop is
    simpler but leaks more.
+5. What code control refuses a region that holds another person's data?
+   DEC-24 rule 1 forbids it and prose is not a control. Options: a required
+   confirmation per send, or a local-only mode with no provider call.
