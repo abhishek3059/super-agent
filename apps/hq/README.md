@@ -156,7 +156,8 @@ bubblewrap. Nothing runs on the Windows side except your browser.
    export HERMES_BIN=/opt/hermes-hq/bin/hermes
    ```
 
-   `mcp` gives bots the HQ tools. `messaging` brings `aiohttp`, which the
+   This needs `uv` on your `PATH` (the shell installer puts it in
+   `~/.local/bin`). `mcp` gives bots the HQ tools. `messaging` brings `aiohttp`, which the
    gateway's API server needs; HQ configures no chat platform.
 5. Then the same commands: `cd apps/hq && npm ci && npm run build && npm run jarvis`.
    The launcher opens the signed-in page in your Windows browser (`wslview`
