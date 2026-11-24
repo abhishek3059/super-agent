@@ -42,8 +42,10 @@ You need macOS (or Linux, or Windows with WSL2: see
 Ego Browser), and a compatible Hermes gateway. The local run used Hermes
 v0.22.2. Configure a supported hosted default model in `~/.hermes` or in
 the HQ seed specified by `HERMES_HOME_PRIMARY`.
-A new bot installs its own copy of the Hermes dependencies on first start.
-That takes about 50 seconds and 1 GB of disk per bot.
+With the shell installer's `hermes`, a new bot installs its own copy of the
+Hermes dependencies on first start. That takes about 50 seconds and 1 GB of
+disk per bot. On Linux and WSL2 that copy cannot be made inside the sandbox,
+so use the `/opt` install in [Windows (WSL2)](#windows-wsl2) step 4.
 
 ```bash
 cd apps/hq
@@ -127,16 +129,36 @@ bubblewrap. Nothing runs on the Windows side except your browser.
 1. Install WSL2 with Ubuntu (`wsl --install -d Ubuntu` in PowerShell) and open
    the Ubuntu shell. Keep the repository on the Linux disk (`~/dev/...`), not
    under `/mnt/c`.
-2. Install Node.js 22 or newer inside Ubuntu, then the sandbox:
-   `sudo apt install bubblewrap procps`. `procps` gives HQ `ps`, which it uses
-   to check the processes it started.
+2. Install Node.js 22 or newer inside Ubuntu, then the sandbox and build tools:
+   `sudo apt install bubblewrap procps build-essential`. `procps` gives HQ
+   `ps`, which it uses to check the processes it started. `build-essential`
+   is needed because `npm ci` compiles `better-sqlite3` from source.
 3. Install Google Chrome for Linux inside Ubuntu (the `.deb` from Google puts
    it at `/usr/bin/google-chrome-stable`), or `chromium` from a `.deb`
    source. Set `CHROME_BIN` for another place, but it must sit under `/usr`
    or `/opt`: the sandbox mounts nothing else. The Snap `chromium` does not run
    inside bubblewrap.
-4. Install Hermes inside Ubuntu, as in [Run it](#run-it), with its config in
-   `~/.hermes` or in the seed `HERMES_HOME_PRIMARY` names.
+4. Install Hermes v0.22.2 under `/opt` as a source checkout with its own
+   environment, and set `HERMES_BIN` to it. Keep its config in `~/.hermes` or
+   in the seed `HERMES_HOME_PRIMARY` names. The shell installer's `hermes`
+   keeps its Python packages per Hermes home, so it cannot start in a bot's
+   home: the bot stops while starting with exit 1 or 127. Hermes refuses
+   non-editable builds, so the checkout must stay where it is installed. Its
+   lockfile needs Python 3.14 under `/usr` or `/opt`. The 2026-11-24 WSL2 run
+   used a copy of the Python 3.14 the shell installer puts in `~/.hermes/tools`:
+
+   ```bash
+   sudo cp -a ~/.hermes/tools/python-3.14.* /opt/hermes-python
+   sudo git clone --branch v0.22.2 --depth 1 https://github.com/NousResearch/hermes-agent.git /opt/hermes-hq-src
+   cd /opt/hermes-hq-src
+   sudo UV_PROJECT_ENVIRONMENT=/opt/hermes-hq uv sync --frozen --no-dev \
+     --extra mcp --extra messaging --python /opt/hermes-python/bin/python3
+   export HERMES_BIN=/opt/hermes-hq/bin/hermes
+   ```
+
+   This needs `uv` on your `PATH` (the shell installer puts it in
+   `~/.local/bin`). `mcp` gives bots the HQ tools. `messaging` brings `aiohttp`, which the
+   gateway's API server needs; HQ configures no chat platform.
 5. Then the same commands: `cd apps/hq && npm ci && npm run build && npm run jarvis`.
    The launcher opens the signed-in page in your Windows browser (`wslview`
    if installed, else `cmd.exe /c start`). WSL2 normally forwards
